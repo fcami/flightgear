@@ -220,8 +220,7 @@ void CommRadioTests::testFullDuplex()
     r3->init();
     SGPropertyNode_ptr n3 = globals->get_props()->getNode("instrumentation/commduplextest[3]");
     CPPUNIT_ASSERT_EQUAL(false, n3->getBoolValue("full-duplex"));
-    
-    // Test setting "full-duplex" config prop
+
     configNode->setIntValue("number", 4);
     configNode->setBoolValue("full-duplex", true);
     auto r4 = Instrumentation::CommRadio::createInstance(configNode);
@@ -229,7 +228,8 @@ void CommRadioTests::testFullDuplex()
     r4->init();
     SGPropertyNode_ptr n4 = globals->get_props()->getNode("instrumentation/commduplextest[4]");
     CPPUNIT_ASSERT_EQUAL(true, n4->getBoolValue("full-duplex"));
-    
+
+    // Test setting "full-duplex" config prop
     configNode->setIntValue("number", 5);
     configNode->setBoolValue("full-duplex", false);
     auto r5 = Instrumentation::CommRadio::createInstance(configNode);
@@ -237,8 +237,8 @@ void CommRadioTests::testFullDuplex()
     r5->init();
     SGPropertyNode_ptr n5 = globals->get_props()->getNode("instrumentation/commduplextest[5]");
     CPPUNIT_ASSERT_EQUAL(false, n5->getBoolValue("full-duplex"));
-    
-    
+
+
     /*
     * Test half/full duplex modes
     */
@@ -251,31 +251,31 @@ void CommRadioTests::testFullDuplex()
     CPPUNIT_ASSERT_EQUAL("ATIS"s, n5->getStringValue("station-name"));
     CPPUNIT_ASSERT_EQUAL(false, n5->getBoolValue("full-duplex"));
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("receiving-flag"));
-    
+
     // Test half duplex mode
     n5->setIntValue("ptt", 1);
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(false, n5->getBoolValue("receiving-flag"));
-    
+
     n5->setIntValue("ptt", 0);
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("receiving-flag"));
-    
+
     // Test full duplex mode
     n5->setBoolValue("full-duplex", true);
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("full-duplex"));  // runtime test: change of mode
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("full-duplex"));
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("receiving-flag"));
-    
+
     n5->setIntValue("ptt", 1);
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("receiving-flag"));
-    
+
     n5->setIntValue("ptt", 0);
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(true, n5->getBoolValue("receiving-flag"));
-    
+
     n5->setBoolValue("full-duplex", false);  // runtime test: switch off full duplex mode
     r5->update(1.0);
     CPPUNIT_ASSERT_EQUAL(false, n5->getBoolValue("full-duplex"));
