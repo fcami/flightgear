@@ -133,9 +133,9 @@ void XRFramebuffer::bind(osg::State &state, const OpenXR::Instance *instance)
                 else
                 {
                     glBindTexture(GL_TEXTURE_2D_ARRAY, _texture);
-                    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _textureFormat, _width,
-                                 _height, _arraySize, 0, GL_RGB,
-                                 GL_UNSIGNED_BYTE, nullptr);
+                    fbo_ext->glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _textureFormat, _width,
+                                          _height, _arraySize, 0, GL_RGB,
+                                          GL_UNSIGNED_BYTE, nullptr);
                     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
                 }
             }
@@ -169,9 +169,9 @@ void XRFramebuffer::bind(osg::State &state, const OpenXR::Instance *instance)
                 else
                 {
                     glBindTexture(GL_TEXTURE_2D_ARRAY, _depthTexture);
-                    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _fallbackDepthFormat,
-                                 _width, _height, _arraySize, 0,
-                                 GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
+                    fbo_ext->glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _fallbackDepthFormat,
+                                          _width, _height, _arraySize, 0,
+                                          GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
                     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
                 }
 
@@ -191,9 +191,9 @@ void XRFramebuffer::bind(osg::State &state, const OpenXR::Instance *instance)
                 else
                 {
                     glBindTexture(GL_TEXTURE_2D_ARRAY, _depthTexture);
-                    glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _depthFormat, _width,
-                                 _height, _arraySize, 0, GL_DEPTH_COMPONENT,
-                                 GL_UNSIGNED_BYTE, nullptr);
+                    fbo_ext->glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, _depthFormat, _width,
+                                          _height, _arraySize, 0, GL_DEPTH_COMPONENT,
+                                          GL_UNSIGNED_BYTE, nullptr);
                     glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
                 }
             }
