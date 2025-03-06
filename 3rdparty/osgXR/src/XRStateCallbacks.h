@@ -6,119 +6,26 @@
 
 #include "XRState.h"
 
+#include <osgXR/View>
+
 #include <osg/Camera>
 #include <osg/GraphicsContext>
-#include <osg/View>
-
-#include <osgUtil/SceneView>
 
 namespace osgXR {
-
-class SlaveCamsUpdateSlaveCallback : public osg::View::Slave::UpdateSlaveCallback
-{
-    public:
-
-        SlaveCamsUpdateSlaveCallback(uint32_t viewIndex,
-                                     XRState *xrState,
-                                     osg::MatrixTransform *visMaskTransform) :
-            _viewIndex(viewIndex),
-            _xrState(xrState),
-            _visMaskTransform(visMaskTransform)
-        {
-        }
-
-        void updateSlave(osg::View& view, osg::View::Slave& slave) override
-        {
-            _xrState->updateSlave(_viewIndex, view, slave);
-            if (_visMaskTransform.valid())
-                _xrState->updateVisibilityMaskTransform(slave._camera,
-                                                        _visMaskTransform.get());
-        }
-
-    protected:
-
-        uint32_t _viewIndex;
-        osg::observer_ptr<XRState> _xrState;
-        osg::observer_ptr<osg::MatrixTransform> _visMaskTransform;
-};
-
-class SceneViewUpdateSlaveCallback : public osg::View::Slave::UpdateSlaveCallback
-{
-    public:
-
-        SceneViewUpdateSlaveCallback(osg::ref_ptr<XRState> xrState,
-                                     osg::ref_ptr<osg::MatrixTransform> visMaskTransform) :
-            _xrState(xrState),
-            _visMaskTransform(visMaskTransform)
-        {
-        }
-
-        void updateSlave(osg::View& view, osg::View::Slave& slave) override
-        {
-            if (_visMaskTransform.valid())
-                _xrState->updateVisibilityMaskTransform(slave._camera,
-                                                        _visMaskTransform.get());
-        }
-
-    protected:
-
-        osg::observer_ptr<XRState> _xrState;
-        osg::observer_ptr<osg::MatrixTransform> _visMaskTransform;
-};
-
-class ComputeStereoMatricesCallback : public osgUtil::SceneView::ComputeStereoMatricesCallback
-{
-    public:
-
-        ComputeStereoMatricesCallback(XRState *xrState,
-                                      osgUtil::SceneView *sceneView) :
-            _xrState(xrState),
-            _sceneView(sceneView)
-        {
-        }
-
-        osg::Matrixd computeLeftEyeProjection(const osg::Matrixd& projection) const override
-        {
-            return _xrState->getEyeProjection(_sceneView->getFrameStamp(),
-                                              0, projection);
-        }
-
-        osg::Matrixd computeLeftEyeView(const osg::Matrixd& view) const override
-        {
-            return _xrState->getEyeView(_sceneView->getFrameStamp(),
-                                        0, view);
-        }
-
-        osg::Matrixd computeRightEyeProjection(const osg::Matrixd& projection) const override
-        {
-            return _xrState->getEyeProjection(_sceneView->getFrameStamp(),
-                                              1, projection);
-        }
-
-        osg::Matrixd computeRightEyeView(const osg::Matrixd& view) const override
-        {
-            return _xrState->getEyeView(_sceneView->getFrameStamp(),
-                                        1, view);
-        }
-
-    protected:
-
-        osg::observer_ptr<XRState> _xrState;
-        osg::observer_ptr<osgUtil::SceneView> _sceneView;
-};
 
 class InitialDrawCallback : public osg::Camera::DrawCallback
 {
     public:
 
-        InitialDrawCallback(osg::ref_ptr<XRState> xrState) :
-            _xrState(xrState)
+        InitialDrawCallback(osg::ref_ptr<XRState> xrState, View::Flags flags) :
+            _xrState(xrState),
+            _flags(flags)
         {
         }
 
         void operator()(osg::RenderInfo& renderInfo) const override
         {
-            _xrState->initialDrawCallback(renderInfo);
+            _xrState->initialDrawCallback(renderInfo, _flags);
         }
 
         void releaseGLObjects(osg::State* state) const override
@@ -129,44 +36,51 @@ class InitialDrawCallback : public osg::Camera::DrawCallback
     protected:
 
         osg::observer_ptr<XRState> _xrState;
+        View::Flags _flags;
 };
 
 class PreDrawCallback : public osg::Camera::DrawCallback
 {
     public:
 
-        PreDrawCallback(osg::ref_ptr<XRState::XRSwapchain> xrSwapchain) :
-            _xrSwapchain(xrSwapchain)
+        PreDrawCallback(osg::ref_ptr<XRState::XRSwapchain> xrSwapchain,
+                        unsigned int arrayIndex = 0) :
+            _xrSwapchain(xrSwapchain),
+            _arrayIndex(arrayIndex)
         {
         }
 
         void operator()(osg::RenderInfo& renderInfo) const override
         {
-            _xrSwapchain->preDrawCallback(renderInfo);
+            _xrSwapchain->preDrawCallback(renderInfo, _arrayIndex);
         }
 
     protected:
 
         osg::observer_ptr<XRState::XRSwapchain> _xrSwapchain;
+        unsigned int _arrayIndex;
 };
 
 class PostDrawCallback : public osg::Camera::DrawCallback
 {
     public:
 
-        PostDrawCallback(osg::ref_ptr<XRState::XRSwapchain> xrSwapchain) :
-            _xrSwapchain(xrSwapchain)
+        PostDrawCallback(osg::ref_ptr<XRState::XRSwapchain> xrSwapchain,
+                         unsigned int arrayIndex = 0) :
+            _xrSwapchain(xrSwapchain),
+            _arrayIndex(arrayIndex)
         {
         }
 
         void operator()(osg::RenderInfo& renderInfo) const override
         {
-            _xrSwapchain->postDrawCallback(renderInfo);
+            _xrSwapchain->postDrawCallback(renderInfo, _arrayIndex);
         }
 
     protected:
 
         osg::observer_ptr<XRState::XRSwapchain> _xrSwapchain;
+        unsigned int _arrayIndex;
 };
 
 class SwapCallback : public osg::GraphicsContext::SwapCallback

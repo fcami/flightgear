@@ -41,7 +41,7 @@ Getting Started
 To import osgXR into a CMake based project, you can use the included CMake
 module, adding something like this to your CMakeLists.txt:
 ```cmake
-find_package(osgXR 0.5.0 REQUIRED)
+find_package(osgXR 0.5.4 REQUIRED)
 
 target_link_libraries(target
         ..
@@ -71,3 +71,7 @@ The Public API
 --------------
 
 See the [API documentation](docs/API.md) for details of the API.
+
+See the [Shader documentation](docs/Shaders.md) for details of the shader
+definitions API. This is particularly important to support single-pass
+multiview rendering with geometry shaders or `OVR_multiview`.

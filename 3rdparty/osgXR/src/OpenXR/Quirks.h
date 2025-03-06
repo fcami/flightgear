@@ -48,6 +48,20 @@ typedef enum Quirk {
      */
     QUIRK_AVOID_DESTROY_INSTANCE,
 
+    /**
+     * This quirk indicates that swapchain subimage coordinates are treated with
+     * the Y coordinates flipped (+Y down) and the top-left at the origin,
+     * instead of the correct +Y up and bottom-left origin for OpenGL.
+     */
+    QUIRK_SUBIMAGE_FLIP_Y,
+
+    /**
+     * This quirk indicates that textures obtained from OpenXR should be
+     * allocated with glTexImage before use so that apitrace replays work even
+     * though it doesn't understand GL_EXT_memory_object functions.
+     */
+    QUIRK_APITRACE_TEXIMAGE,
+
     QUIRK_MAX
 } Quirk;
 

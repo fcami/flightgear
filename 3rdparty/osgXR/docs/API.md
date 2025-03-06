@@ -12,8 +12,7 @@ configuring a view for VR, and ``<osgXR/osgXR>`` with a convenience wrapper
 ``osgXR::setupViewerDefaults`` to set up VR automatically based on environment
 variables. This worked for most simple OpenSceneGraph examples, however for real
 projects something more capable is needed, so it is likely these will be removed
-in a future version (they are not currently working due to the new
-``XRState::update()`` based state machine).
+in a future version.
 
 It is instead recommended to extend the ``osgXR::Manager`` class from
 ``<osgXR/Manager>`` and implement the callbacks.
@@ -31,6 +30,12 @@ output.
 This header provides the ``osgXR::ActionSet`` class which an application uses
 to group actions into groups which can be separately activated and deactivated.
 
+## <[osgXR/Condition](../include/osgXR/Condition)>
+
+This header provides the ``osgXR::Condition`` base class, along with other
+classes representing conditions that may need evaluating at setup time, such as
+extensions and API version.
+
 ## <[osgXR/CompositionLayer](../include/osgXR/CompositionLayer)>
 
 This header provides the ``osgXR::CompositionLayer`` base class, from which
@@ -42,6 +47,30 @@ layer capabilities such as visibility, ordering, and alpha blending modes.
 This header provides the ``osgXR::CompositionLayerQuad`` class which an
 application can use to control an OpenXR runtime composited quad in the VR
 space.
+
+## <[osgXR/Extension](../include/osgXR/Extension)>
+
+This header provides the ``osgXR::Extension`` class which an application can
+use to find out about specific OpenXR extensions supported by the OpenXR
+runtime. Extensions can be enabled, for the purposes of extending interaction
+profiles.
+
+## <[osgXR/Hand](../include/osgXR/Hand)>
+
+This header provides the ``osgXR::Hand`` scenegraph node class which an
+application can use to draw a hand in a pose provided by an
+``osgXR::HandPose``.
+
+## <[osgXR/HandPose](../include/osgXR/HandPose)>
+
+This header provides the ``osgXR::HandPose`` base class, from which other hand
+pose classes are derived. It provides a generic way to represent the position
+of the joints in a hand.
+
+## <[osgXR/HandPoseTracked](../include/osgXR/HandPoseTracked)>
+
+This header provides the ``osgXR::HandPoseTracked`` class, which implements a
+hand pose controlled directly by the ``XR_EXT_hand_tracking`` OpenXR extension.
 
 ## <[osgXR/InteractionProfile](../include/osgXR/InteractionProfile)>
 
@@ -71,6 +100,18 @@ configuration data for desktop mirrors of VR views.
 This header provides the ``osgXR::OpenXRDisplay`` ViewConfig class. It is
 largely replaced by ``osgXR::Manager``.
 
+## <[osgXR/Pose](../include/osgXR/Pose)>
+
+This header provides the ``osgXR::Pose`` class which represents the position
+and orientation of an object or space, along with flags to indicate whether the
+position and orientation are valid and currently being tracked.
+
+## <[osgXR/PoseVelocity](../include/osgXR/PoseVelocity)>
+
+This header provides the ``osgXR::PoseVelocity`` class which represents the
+linear and angular velocities of an object or space, along with flags to
+indicate whether the linear and angular velocities are valid.
+
 ## <[osgXR/Settings](../include/osgXR/Settings)>
 
 This header provides the ``osgXR::Settings`` class which encapsulates all the VR
@@ -99,6 +140,12 @@ images which are passed to the OpenXR runtime. These can be attached to a camera
 to allow it to be rendered into, and also attached to a mirror object to allow
 the resulting texture (which switches every frame) to be used for further
 rendering.
+
+## <[osgXR/Version](../include/osgXR/Verson)>
+
+This header provides the ``osgXR::Version`` helper class which represents a
+version number similar to ``XrVersion``, used for OpenXR runtime and API
+versions.
 
 ## <[osgXR/View](../include/osgXR/View)>
 

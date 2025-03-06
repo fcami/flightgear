@@ -7,26 +7,42 @@
 #include <osg/GL>
 #include <osg/Referenced>
 
-#include <cinttypes>
+#include <cstdint>
 
 namespace osgXR {
+
+namespace OpenXR {
+    class Instance;
+};
 
 class XRFramebuffer : public osg::Referenced
 {
     public:
 
+        enum {
+            // Must match OSG
+            ARRAY_INDEX_GEOMETRY = 0xffffffff,
+            ARRAY_INDEX_MULTIVIEW = 0xfffffff0,
+        };
+
+        static bool supportsSingleLayer(osg::State &state);
+        static bool supportsGeomLayer(osg::State &state);
+        static bool supportsMultiview(osg::State &state);
+
         explicit XRFramebuffer(uint32_t width, uint32_t height,
-                               GLuint texture, GLuint depthTexture = 0);
+                               uint32_t arraySize, uint32_t arrayIndex,
+                               GLuint texture, GLuint depthTexture = 0,
+                               GLint textureFormat = 0, GLint depthFormat = 0);
         // releaseGLObjects() first
         virtual ~XRFramebuffer();
 
-        void setDepthFormat(GLenum depthFormat)
+        void setFallbackDepthFormat(GLint depthFormat)
         {
-            _depthFormat = depthFormat;
+            _fallbackDepthFormat = depthFormat;
         }
 
         bool valid(osg::State &state) const;
-        void bind(osg::State &state);
+        void bind(osg::State &state, const OpenXR::Instance *instance);
         void unbind(osg::State &state);
         // GL context must be current
         void releaseGLObjects(osg::State &state);
@@ -35,7 +51,11 @@ class XRFramebuffer : public osg::Referenced
 
         uint32_t _width;
         uint32_t _height;
-        GLenum _depthFormat;
+        uint32_t _arraySize;
+        uint32_t _arrayIndex;
+        GLint _textureFormat;
+        GLint _depthFormat;
+        GLint _fallbackDepthFormat;
 
         GLuint _fbo;
         GLuint _texture;

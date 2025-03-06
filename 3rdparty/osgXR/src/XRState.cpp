@@ -3,23 +3,31 @@
 
 #include "XRState.h"
 #include "XRStateCallbacks.h"
+#include "AppView.h"
+#include "AppViewSlaveCams.h"
+#include "AppViewSceneView.h"
+#include "AppViewGeomShaders.h"
+#include "AppViewOVRMultiview.h"
 #include "ActionSet.h"
 #include "CompositionLayer.h"
 #include "DebugCallbackOsg.h"
+#include "Extension.h"
 #include "InteractionProfile.h"
+#include "Object.h"
 #include "Subaction.h"
-#include "projection.h"
 
 #include <osgXR/Manager>
 
 #include <osg/Camera>
 #include <osg/ColorMask>
 #include <osg/Depth>
-#include <osg/DisplaySettings>
 #include <osg/FrameBufferObject>
+#include <osg/GLExtensions>
 #include <osg/Notify>
 #include <osg/MatrixTransform>
+#include <osg/Program>
 #include <osg/RenderInfo>
+#include <osg/Shader>
 #include <osg/Texture>
 #include <osg/View>
 
@@ -71,7 +79,8 @@ XRState::XRSwapchain::XRSwapchain(XRState *state,
                                   const OpenXR::System::ViewConfiguration::View &view,
                                   int64_t chosenRGBAFormat,
                                   int64_t chosenDepthFormat,
-                                  GLenum fallbackDepthFormat) :
+                                  GLenum fallbackDepthFormat,
+                                  unsigned int fbPerLayer) :
     OpenXR::SwapchainGroup(session, view,
                            XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT,
                            chosenRGBAFormat,
@@ -102,11 +111,24 @@ XRState::XRSwapchain::XRSwapchain(XRState *state,
             GLuint depthTexture = 0;
             if (depthTextures)
                 depthTexture = (*depthTextures)[i];
-            XRFramebuffer *fb = new XRFramebuffer(getWidth(),
-                                                  getHeight(),
-                                                  texture, depthTexture);
-            fb->setDepthFormat(fallbackDepthFormat);
-            _imageFramebuffers.push_back(fb);
+            // Construct a framebuffer for each layer in the swapchain image,
+            // unless fbPerLayer is something like
+            // XRFramebuffer::ARRAY_INDEX_GEOMETRY in which case only a single
+            // FB is needed.
+            FBVec& fbos = _imageFramebuffers.push_back(FBVec());
+            unsigned int numFbs = fbPerLayer ? 1 : getArraySize();
+            for (unsigned int layer = 0; layer < numFbs; ++layer)
+            {
+                XRFramebuffer *fb = new XRFramebuffer(getWidth(),
+                                                      getHeight(),
+                                                      getArraySize(),
+                                                      fbPerLayer ? fbPerLayer : layer,
+                                                      texture, depthTexture,
+                                                      chosenRGBAFormat,
+                                                      chosenDepthFormat);
+                fb->setFallbackDepthFormat(fallbackDepthFormat);
+                fbos.push_back(fb);
+            }
         }
     }
 }
@@ -120,7 +142,8 @@ XRState::XRSwapchain::~XRSwapchain()
     // Explicitly release FBOs etc
     // GL context must be current
     for (unsigned int i = 0; i < _imageFramebuffers.size(); ++i)
-        _imageFramebuffers[i]->releaseGLObjects(*state);
+        for (auto &fb: _imageFramebuffers[i])
+            fb->releaseGLObjects(*state);
 }
 
 void XRState::XRSwapchain::setupImage(const osg::FrameStamp *stamp)
@@ -138,14 +161,14 @@ void XRState::XRSwapchain::setupImage(const osg::FrameStamp *stamp)
             return;
         }
         _imageFramebuffers.setStamp(imageIndex, stamp);
-        opt_fbo.emplace(_imageFramebuffers[imageIndex]);
         _drawPassesDone = 0;
         // Images aren't ready until we've waited for them to be so
         _imagesReady = false;
     }
 }
 
-void XRState::XRSwapchain::preDrawCallback(osg::RenderInfo &renderInfo)
+void XRState::XRSwapchain::preDrawCallback(osg::RenderInfo &renderInfo,
+                                           unsigned int arrayIndex)
 {
     const osg::FrameStamp *stamp = renderInfo.getState()->getFrameStamp();
     setupImage(stamp);
@@ -154,11 +177,11 @@ void XRState::XRSwapchain::preDrawCallback(osg::RenderInfo &renderInfo)
     if (!opt_fbo.has_value())
         return;
 
-    const auto &fbo = opt_fbo.value();
+    const auto &fbo = opt_fbo.value()[arrayIndex];
 
     // Bind the framebuffer
     osg::State &state = *renderInfo.getState();
-    fbo->bind(state);
+    fbo->bind(state, _state->_instance);
 
     if (!_imagesReady)
     {
@@ -176,13 +199,14 @@ void XRState::XRSwapchain::preDrawCallback(osg::RenderInfo &renderInfo)
     }
 }
 
-void XRState::XRSwapchain::postDrawCallback(osg::RenderInfo &renderInfo)
+void XRState::XRSwapchain::postDrawCallback(osg::RenderInfo &renderInfo,
+                                            unsigned int arrayIndex)
 {
     const osg::FrameStamp *stamp = renderInfo.getState()->getFrameStamp();
     auto opt_fbo = _imageFramebuffers[stamp];
     if (!opt_fbo.has_value())
         return;
-    const auto &fbo = opt_fbo.value();
+    const auto &fbo = opt_fbo.value()[arrayIndex];
 
     // Unbind the framebuffer
     osg::State& state = *renderInfo.getState();
@@ -223,7 +247,7 @@ void XRState::XRSwapchain::endFrame()
     }
 }
 
-osg::ref_ptr<osg::Texture2D> XRState::XRSwapchain::getOsgTexture(const osg::FrameStamp *stamp)
+osg::ref_ptr<osg::Texture> XRState::XRSwapchain::getOsgTexture(const osg::FrameStamp *stamp)
 {
     int index = _imageFramebuffers.findStamp(stamp);
     if (index < 0)
@@ -254,33 +278,6 @@ XRState::XRView::~XRView()
 {
 }
 
-void XRState::XRView::setupCamera(osg::ref_ptr<osg::Camera> camera)
-{
-    camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-    // FIXME necessary I expect...
-    //camera->setRenderOrder(osg::Camera::PRE_RENDER, eye);
-    //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
-    camera->setAllowEventFocus(false);
-    camera->setReferenceFrame(osg::Camera::RELATIVE_RF);
-    //camera->setReferenceFrame(osg::Camera::ABSOLUTE_RF);
-    //camera->setReferenceFrame(osg::Camera::ABSOLUTE_RF_INHERIT_VIEWPOINT);
-    camera->setViewport(_swapchainSubImage.getX(),
-                        _swapchainSubImage.getY(),
-                        _swapchainSubImage.getWidth(),
-                        _swapchainSubImage.getHeight());
-
-    // Here we avoid doing anything regarding OSG camera RTT attachment.
-    // Ideally we would use automatic methods within OSG for handling RTT but in this
-    // case it seemed simpler to handle FBO creation and selection within this class.
-
-    // This initial draw callback is used to disable normal OSG camera setup which
-    // would undo our RTT FBO configuration.
-    camera->setInitialDrawCallback(new InitialDrawCallback(_state));
-
-    camera->setPreDrawCallback(new PreDrawCallback(getSwapchain()));
-    camera->setFinalDrawCallback(new PostDrawCallback(getSwapchain()));
-}
-
 void XRState::XRView::endFrame(OpenXR::Session::Frame *frame)
 {
     // Double check images are released
@@ -299,98 +296,58 @@ void XRState::XRView::endFrame(OpenXR::Session::Frame *frame)
     }
 }
 
-XRState::AppView::AppView(XRState *state,
-                          osgViewer::GraphicsWindow *window,
-                          osgViewer::View *osgView) :
-    View(window, osgView),
-    _valid(false),
-    _state(state)
+XRState::AppSubView::AppSubView(XRState::XRView *xrView,
+                                const osg::Matrix &viewMatrix,
+                                const osg::Matrix &projectionMatrix) :
+    _xrView(xrView),
+    _viewMatrix(viewMatrix),
+    _projectionMatrix(projectionMatrix)
 {
 }
 
-void XRState::AppView::init()
+unsigned int XRState::AppSubView::getArrayIndex() const
 {
-    // Notify app to create a new view
-    if (_state->_manager.valid())
-        _state->_manager->doCreateView(this);
-    _valid = true;
+    return _xrView->getSubImage().getArrayIndex();
 }
 
-XRState::AppView::~AppView()
+View::SubView::Viewport XRState::AppSubView::getViewport() const
 {
-    destroy();
+    return View::SubView::Viewport{
+        (double)_xrView->getSubImage().getX(),
+        (double)_xrView->getSubImage().getY(),
+        (double)_xrView->getSubImage().getWidth(),
+        (double)_xrView->getSubImage().getHeight()
+    };
 }
 
-void XRState::AppView::destroy()
+const osg::Matrix &XRState::AppSubView::getViewMatrix() const
 {
-    // Notify app to destroy this view
-    if (_valid && _state->_manager.valid())
-        _state->_manager->doDestroyView(this);
-    _valid = false;
+    return _viewMatrix;
 }
 
-XRState::SlaveCamsAppView::SlaveCamsAppView(XRState *state,
-                                            uint32_t viewIndex,
-                                            osgViewer::GraphicsWindow *window,
-                                            osgViewer::View *osgView) :
-    AppView(state, window, osgView),
-    _viewIndex(viewIndex)
+const osg::Matrix &XRState::AppSubView::getProjectionMatrix() const
 {
+    return _projectionMatrix;
 }
 
-void XRState::SlaveCamsAppView::addSlave(osg::Camera *slaveCamera)
+std::shared_ptr<Extension::Private> XRState::getExtension(const std::string &name)
 {
-    XRView *xrView = _state->_xrViews[_viewIndex];
-    xrView->setupCamera(slaveCamera);
-    xrView->getSwapchain()->incNumDrawPasses();
-
-    osg::ref_ptr<osg::MatrixTransform> visMaskTransform;
-    // Set up visibility mask for this slave camera
-    // We'll keep track of the transform in the slave callback so it can be
-    // positioned at the appropriate range
-    if (_state->needsVisibilityMask(slaveCamera))
-        _state->setupVisibilityMask(slaveCamera, _viewIndex, visMaskTransform);
-
-    osg::View::Slave *slave = _osgView->findSlaveForCamera(slaveCamera);
-    slave->_updateSlaveCallback = new SlaveCamsUpdateSlaveCallback(_viewIndex, _state, visMaskTransform.get());
-}
-
-void XRState::SlaveCamsAppView::removeSlave(osg::Camera *slaveCamera)
-{
-    XRView *xrView = _state->_xrViews[_viewIndex];
-    xrView->getSwapchain()->decNumDrawPasses();
-}
-
-XRState::SceneViewAppView::SceneViewAppView(XRState *state,
-                                            osgViewer::GraphicsWindow *window,
-                                            osgViewer::View *osgView) :
-    AppView(state, window, osgView)
-{
-}
-
-void XRState::SceneViewAppView::addSlave(osg::Camera *slaveCamera)
-{
-    _state->setupSceneViewCamera(slaveCamera);
-    _state->_xrViews[0]->getSwapchain()->incNumDrawPasses(2);
-
-    osg::ref_ptr<osg::MatrixTransform> visMaskTransform;
-    // Set up visibility masks for this slave camera
-    // We'll keep track of the transform in the slave callback so it can be
-    // positioned at the appropriate range
-    if (_state->needsVisibilityMask(slaveCamera))
-        _state->setupSceneViewVisibilityMasks(slaveCamera, visMaskTransform);
-
-    if (visMaskTransform.valid())
+    auto it = _extensions.find(name);
+    if (it != _extensions.end())
     {
-        osg::View::Slave *slave = _osgView->findSlaveForCamera(slaveCamera);
-        if (slave)
-            slave->_updateSlaveCallback = new SceneViewUpdateSlaveCallback(_state, visMaskTransform.get());
+        auto ret = (*it).second.lock();
+        if (ret)
+            return ret;
     }
+
+    auto extension = std::make_shared<Extension::Private>(this, name);
+    _extensions[name] = extension;
+    return extension;
 }
 
-void XRState::SceneViewAppView::removeSlave(osg::Camera *slaveCamera)
+std::vector<std::string> XRState::getExtensionNames()
 {
-    _state->_xrViews[0]->getSwapchain()->decNumDrawPasses(2);
+    return OpenXR::Instance::getExtensionNames();
 }
 
 std::shared_ptr<Subaction::Private> XRState::getSubaction(const std::string &path)
@@ -406,6 +363,21 @@ std::shared_ptr<Subaction::Private> XRState::getSubaction(const std::string &pat
     auto subaction = std::make_shared<Subaction::Private>(this, path);
     _subactions[path] = subaction;
     return subaction;
+}
+
+void XRState::addObject(Object *object)
+{
+    _objects.insert(object);
+    // Call now if session already active
+    if (_session.valid())
+        object->setup(_session);
+}
+
+void XRState::removeObject(Object *object)
+{
+    if (_session.valid())
+        object->cleanupSession();
+    _objects.erase(object);
 }
 
 InteractionProfile *XRState::getCurrentInteractionProfile(const OpenXR::Path &subactionPath) const
@@ -580,6 +552,7 @@ void XRState::syncSettings()
                      Settings::DIFF_VISIBILITY_MASK |
                      Settings::DIFF_VR_MODE |
                      Settings::DIFF_SWAPCHAIN_MODE |
+                     Settings::DIFF_VIEW_ALIGN_MASK |
                      Settings::DIFF_RGB_ENCODING |
                      Settings::DIFF_DEPTH_ENCODING |
                      Settings::DIFF_RGB_BITS |
@@ -821,6 +794,14 @@ void XRState::onSessionStateReady(OpenXR::Session *session)
         case VRMode::VRMODE_SCENE_VIEW:
             setupSceneViewCameras();
             break;
+
+        case VRMode::VRMODE_GEOMETRY_SHADERS:
+            setupGeomShadersCameras();
+            break;
+
+        case VRMode::VRMODE_OVR_MULTIVIEW:
+            setupOVRMultiviewCameras();
+            break;
     }
 
     // Attach a callback to detect swap
@@ -882,6 +863,13 @@ void XRState::unprobe() const
     OpenXR::Instance::invalidateLayers();
     OpenXR::Instance::invalidateExtensions();
 
+    for (auto &extension: _extensions)
+    {
+        auto ret = extension.second.lock();
+        if (ret)
+            ret->cleanup();
+    }
+
     _probed = false;
 }
 
@@ -897,9 +885,7 @@ XRState::UpResult XRState::upInstance()
 
     _instance = new OpenXR::Instance();
     _instance->setValidationLayer(_settingsCopy.getValidationLayer());
-    _instance->setDebugUtils(true);
-    _instance->setDepthInfo(true);
-    _instance->setVisibilityMask(true);
+
     auto severity = //XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                     XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
                     XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -909,6 +895,18 @@ XRState::UpResult XRState::upInstance()
                  XR_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
                  XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT;
     _instance->setDefaultDebugCallback(new DebugCallbackOsg(severity, types));
+
+    // Always try to enable these extensions
+    _extDepthInfo = enableExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+    _extDepthUtils = enableExtension(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    _extHandTracking = enableExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
+    _extVisibilityMask = enableExtension(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
+
+    // Enable any enabled extensions that are supported
+    for (auto &extension: _enabledExtensions)
+        if (extension->getAvailable())
+            extension->setup(_instance);
+
     switch (_instance->init(_settingsCopy.getAppName().c_str(),
                             _settingsCopy.getAppVersion()))
     {
@@ -1050,11 +1048,15 @@ XRState::UpResult XRState::upSession()
         // Maybe window & view haven't been initialized yet
         return UP_SOON;
 
+    chooseMode(&_vrMode, &_swapchainMode);
+
     // Update needed settings that may have changed
     _settingsCopy.setDepthInfo(_settings->getDepthInfo());
     _settingsCopy.setVisibilityMask(_settings->getVisibilityMask());
-    _settingsCopy.setVRMode(_settings->getVRMode());
-    _settingsCopy.setSwapchainMode(_settings->getSwapchainMode());
+    _settingsCopy.setPreferredVRModeMask(_settings->getPreferredVRModeMask());
+    _settingsCopy.setAllowedVRModeMask(_settings->getAllowedVRModeMask());
+    _settingsCopy.setPreferredSwapchainModeMask(_settings->getPreferredSwapchainModeMask());
+    _settingsCopy.setAllowedSwapchainModeMask(_settings->getAllowedSwapchainModeMask());
     _settingsCopy.setPreferredRGBEncodingMask(_settings->getPreferredRGBEncodingMask());
     _settingsCopy.setAllowedRGBEncodingMask(_settings->getAllowedRGBEncodingMask());
     _settingsCopy.setPreferredDepthEncodingMask(_settings->getPreferredDepthEncodingMask());
@@ -1065,47 +1067,17 @@ XRState::UpResult XRState::upSession()
     _settingsCopy.setStencilBits(_settings->getStencilBits());
     _useDepthInfo = _settingsCopy.getDepthInfo();
     _useVisibilityMask = _settingsCopy.getVisibilityMask();
-    _vrMode = _settingsCopy.getVRMode();
-    _swapchainMode = _settingsCopy.getSwapchainMode();
 
-    if (_useDepthInfo && !_instance->supportsCompositionLayerDepth())
+    if (_useDepthInfo && !hasDepthInfoExtension())
     {
         OSG_WARN << "osgXR: CompositionLayerDepth extension not supported, depth info will be disabled" << std::endl;
         _useDepthInfo = false;
     }
-    if (_useVisibilityMask && !_instance->supportsVisibilityMask())
+    if (_useVisibilityMask && !hasVisibilityMaskExtension())
     {
         OSG_WARN << "osgXR: VisibilityMask extension not supported, visibility masking will be disabled" << std::endl;
         _useVisibilityMask = false;
     }
-
-    // Decide on the algorithm to use. SceneView mode is faster.
-    if (_vrMode == VRMode::VRMODE_AUTOMATIC)
-        _vrMode = VRMode::VRMODE_SCENE_VIEW;
-
-    // SceneView mode only works with a stereo view config
-    if (_vrMode == VRMode::VRMODE_SCENE_VIEW &&
-        _chosenViewConfig->getType() != XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO)
-    {
-        _vrMode = VRMode::VRMODE_SLAVE_CAMERAS;
-        if (_settingsCopy.getVRMode() == VRMode::VRMODE_SCENE_VIEW)
-            OSG_WARN << "osgXR: No stereo view config for VR mode SCENE_VIEW, falling back to SLAVE_CAMERAS" << std::endl;
-    }
-
-    // SceneView mode requires a single swapchain
-    if (_vrMode == VRMode::VRMODE_SCENE_VIEW)
-    {
-        if (_swapchainMode != SwapchainMode::SWAPCHAIN_AUTOMATIC &&
-            _swapchainMode != SwapchainMode::SWAPCHAIN_SINGLE)
-        {
-            OSG_WARN << "osgXR: Overriding VR swapchain mode to SINGLE for VR mode SCENE_VIEW" << std::endl;
-        }
-        _swapchainMode = SwapchainMode::SWAPCHAIN_SINGLE;
-    }
-
-    // Decide on a swapchain mode to use
-    if (_swapchainMode == SwapchainMode::SWAPCHAIN_AUTOMATIC)
-        _swapchainMode = SwapchainMode::SWAPCHAIN_MULTIPLE;
 
     // Stop threading to prevent the GL context being bound in another thread
     // during certain OpenXR calls (session & swapchain handling).
@@ -1203,6 +1175,16 @@ XRState::UpResult XRState::upSession()
             }
             break;
 
+        case SwapchainMode::SWAPCHAIN_LAYERED:
+            if (!setupLayeredSwapchain(chosenRGBAFormat,
+                                       chosenDepthFormat,
+                                       fallbackDepthFormat))
+            {
+                dropSessionCheck();
+                return UP_ABORT;
+            }
+            break;
+
         case SwapchainMode::SWAPCHAIN_AUTOMATIC:
             // Should already have been handled by upSession()
         case SwapchainMode::SWAPCHAIN_MULTIPLE:
@@ -1226,6 +1208,9 @@ XRState::UpResult XRState::upSession()
     // Set up all layers
     for (auto *layer: _compositionLayers)
         layer->setup(_session);
+    // Set up all persistent objects
+    for (auto *obj: _objects)
+        obj->setup(_session);
 
     return UP_SUCCESS;
 }
@@ -1277,6 +1262,8 @@ XRState::DownResult XRState::downSession()
         if (subaction)
             subaction->cleanupSession();
     }
+    for (auto *obj: _objects)
+        obj->cleanupSession();
     dropSessionCheck();
 
     return DOWN_SUCCESS;
@@ -1316,6 +1303,261 @@ bool XRState::dropSessionCheck()
         return false;
     }
     return true;
+}
+
+bool XRState::validateMode(VRMode vrMode, SwapchainMode swapchainMode,
+                           std::vector<const char *> &outErrors) const
+{
+    osg::State *state = _window->getState();
+    unsigned int contextID = state->getContextID();
+
+    outErrors.clear();
+
+    if (vrMode == Settings::VRMODE_SLAVE_CAMERAS)
+    {
+        if (swapchainMode == Settings::SWAPCHAIN_LAYERED &&
+            !XRFramebuffer::supportsSingleLayer(*state))
+            outErrors.push_back("OpenGL: glFramebufferTextureLayer required");
+    }
+    else if (vrMode == Settings::VRMODE_SCENE_VIEW)
+    {
+        auto &views = _chosenViewConfig->getViews();
+        if (_chosenViewConfig->getType() != XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO)
+            outErrors.push_back("OpenXR: XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO required");
+        else if (views.size() != 2)
+            outErrors.push_back("OpenXR: View count must be 2");
+        else if (views[0].getRecommendedWidth() != views[1].getRecommendedWidth() ||
+                 views[0].getRecommendedHeight() != views[1].getRecommendedHeight())
+            outErrors.push_back("OpenXR: Views must have matching recommended widths and heights");
+    }
+    else if (vrMode == Settings::VRMODE_GEOMETRY_SHADERS)
+    {
+        if (!osg::isGLExtensionSupported(contextID, "GL_ARB_gpu_shader5"))
+            outErrors.push_back("OpenGL: GL_ARB_gpu_shader5 required");
+        if (!osg::isGLExtensionSupported(contextID, "GL_ARB_viewport_array"))
+            outErrors.push_back("OpenGL: GL_ARB_viewport_array required");
+        if (swapchainMode == Settings::SWAPCHAIN_LAYERED &&
+            !XRFramebuffer::supportsGeomLayer(*state))
+            outErrors.push_back("OpenGL: glFramebufferTexture required");
+    }
+    else if (vrMode == Settings::VRMODE_OVR_MULTIVIEW)
+    {
+        if (!XRFramebuffer::supportsMultiview(*state))
+            outErrors.push_back("OpenSceneGraph: GL_OVR_multiview2 support required");
+        if (!osg::isGLExtensionSupported(contextID, "GL_OVR_multiview2"))
+            outErrors.push_back("OpenGL: GL_OVR_multiview2 required");
+        if (!osg::isGLExtensionSupported(contextID, "GL_ARB_shader_viewport_layer_array"))
+            outErrors.push_back("OpenGL: GL_ARB_shader_viewport_layer_array required");
+    }
+
+    return outErrors.empty();
+}
+
+namespace {
+
+/// Encode mode, swapchain, preference into a single priority number.
+struct ModePriority
+{
+    uint8_t priority;
+
+    // Bit field positions in priority encoding
+    // More significant bits (higher shifts) are higher priority
+    enum {
+        PRIORITY_SWAPCHAIN_SHIFT = 0,
+        PRIORITY_SWAPCHAIN_MASK  = 0x3,
+        PRIORITY_VRMODE_SHIFT    = PRIORITY_SWAPCHAIN_SHIFT + 2,
+        PRIORITY_VRMODE_MASK     = 0x3,
+        PRIORITY_PREF_SHIFT      = PRIORITY_VRMODE_SHIFT + 2,
+        PRIORITY_PREF_MASK       = 0x3,
+    };
+    // Priority order, high to low
+    typedef enum {
+        PREF_1ST  = 0,
+        PREF_2ND  = 1,
+        PREF_NONE = 2,
+    } Preference;
+    // Priority order, high to low
+    static constexpr Settings::VRMode vrMapping[4] = {
+        Settings::VRMODE_OVR_MULTIVIEW,
+        Settings::VRMODE_GEOMETRY_SHADERS,
+        Settings::VRMODE_SCENE_VIEW,
+        Settings::VRMODE_SLAVE_CAMERAS,
+    };
+    // Priority order, high to low
+    static constexpr Settings::SwapchainMode swapchainMapping[4] = {
+        Settings::SWAPCHAIN_MULTIPLE,
+        Settings::SWAPCHAIN_LAYERED,
+        Settings::SWAPCHAIN_SINGLE,
+        Settings::SWAPCHAIN_AUTOMATIC
+    };
+
+    ModePriority(Settings::VRMode vrmode = Settings::VRMODE_SLAVE_CAMERAS,
+                 Settings::SwapchainMode swapchainMode = Settings::SWAPCHAIN_MULTIPLE,
+                 Preference pref = PREF_NONE) :
+        priority(0)
+    {
+        setVRMode(vrmode);
+        setSwapchainMode(swapchainMode);
+        setPreference(pref);
+    }
+
+    void setVRMode(Settings::VRMode mode)
+    {
+        for (unsigned int i = 0; i <= PRIORITY_VRMODE_MASK; ++i) {
+            if (vrMapping[i] == mode) {
+                priority &= ~(PRIORITY_VRMODE_MASK << PRIORITY_VRMODE_SHIFT);
+                priority |= i << PRIORITY_VRMODE_SHIFT;
+                return;
+            }
+        }
+    }
+    Settings::VRMode getVRMode() const
+    {
+        return vrMapping[(priority >> PRIORITY_VRMODE_SHIFT) & PRIORITY_VRMODE_MASK];
+    }
+
+    void setSwapchainMode(Settings::SwapchainMode mode)
+    {
+        for (unsigned int i = 0; i <= PRIORITY_SWAPCHAIN_MASK; ++i) {
+            if (swapchainMapping[i] == mode) {
+                priority &= ~(PRIORITY_SWAPCHAIN_MASK << PRIORITY_SWAPCHAIN_SHIFT);
+                priority |= i << PRIORITY_SWAPCHAIN_SHIFT;
+                return;
+            }
+        }
+    }
+    Settings::SwapchainMode getSwapchainMode() const
+    {
+        return swapchainMapping[(priority >> PRIORITY_SWAPCHAIN_SHIFT) & PRIORITY_SWAPCHAIN_MASK];
+    }
+
+    void setPreference(Preference pref)
+    {
+        if ((unsigned int)pref <= PRIORITY_PREF_MASK) {
+            priority &= ~(PRIORITY_PREF_MASK << PRIORITY_PREF_SHIFT);
+            priority |= (unsigned int)pref << PRIORITY_PREF_SHIFT;
+        }
+    }
+    Preference getPreference() const
+    {
+        return (Preference)((priority >> PRIORITY_PREF_SHIFT) & PRIORITY_PREF_MASK);
+    }
+
+    bool operator <(ModePriority other) const
+    {
+        return priority < other.priority;
+    }
+
+    friend std::ostream &operator << (std::ostream &ost, ModePriority rhs)
+    {
+        const char * vrmodeName = nullptr;
+        switch (rhs.getVRMode()) {
+        case Settings::VRMODE_SLAVE_CAMERAS:    vrmodeName = "slave"; break;
+        case Settings::VRMODE_SCENE_VIEW:       vrmodeName = "osg";   break;
+        case Settings::VRMODE_GEOMETRY_SHADERS: vrmodeName = "geom";  break;
+        case Settings::VRMODE_OVR_MULTIVIEW:    vrmodeName = "ovr";   break;
+        default:                                vrmodeName = "UNK";   break;
+        }
+        const char * swapchainName = nullptr;
+        switch (rhs.getSwapchainMode()) {
+        case Settings::SWAPCHAIN_MULTIPLE: swapchainName = "multiple"; break;
+        case Settings::SWAPCHAIN_SINGLE:   swapchainName = "tiled";    break;
+        case Settings::SWAPCHAIN_LAYERED:  swapchainName = "layered";  break;
+        default:                           swapchainName = "UNK";      break;
+        }
+        const char * prefName = nullptr;
+        switch (rhs.getPreference()) {
+        case ModePriority::PREF_1ST:  prefName = " (1st preference)"; break;
+        case ModePriority::PREF_2ND:  prefName = " (2nd preference)"; break;
+        default:                      prefName = "";                  break;
+        }
+        return ost << vrmodeName << "/" << swapchainName << prefName << std::hex
+                   << " [0x" << (unsigned int)rhs.priority << "]" << std::dec;
+    }
+};
+
+} // anon
+
+void XRState::chooseMode(VRMode *outVRMode,
+                         SwapchainMode *outSwapchainMode) const
+{
+    // Determine modes preferred and allowed by the application
+    uint32_t appModePrefMask = _settings->getPreferredVRModeMask();
+    uint32_t appModeAllowMask = _settings->getAllowedVRModeMask();
+    uint32_t appSwapchainPrefMask = _settings->getPreferredSwapchainModeMask();
+    uint32_t appSwapchainAllowMask = _settings->getAllowedSwapchainModeMask();
+    // Default allow masks
+    if (!appModeAllowMask || appModeAllowMask == (1u << Settings::VRMODE_AUTOMATIC))
+        appModeAllowMask |= (1u << Settings::VRMODE_SLAVE_CAMERAS) |
+                            (1u << Settings::VRMODE_SCENE_VIEW);
+    if (!appSwapchainAllowMask || appSwapchainAllowMask == (1u << Settings::SWAPCHAIN_AUTOMATIC))
+        appSwapchainAllowMask = (1u << Settings::SWAPCHAIN_MULTIPLE) |
+                                (1u << Settings::SWAPCHAIN_SINGLE);
+    // Preferring automatic prefers all allowed masks
+    if (appModePrefMask & (1u << Settings::VRMODE_AUTOMATIC))
+        appModePrefMask |= appModeAllowMask;
+    if (appSwapchainPrefMask & (1u << Settings::SWAPCHAIN_AUTOMATIC))
+        appSwapchainPrefMask |= appSwapchainAllowMask;
+
+    // A set is used to automatically sort modes by priority, with a fallback
+    // always present
+    std::set<ModePriority> modePriorities;
+    modePriorities.insert(ModePriority(Settings::VRMODE_SLAVE_CAMERAS,
+                                       Settings::SWAPCHAIN_MULTIPLE));
+    // Insert prioritised modes into the priority set
+    static const ModePriority modesValid[] = {
+        ModePriority(Settings::VRMODE_SLAVE_CAMERAS, Settings::SWAPCHAIN_MULTIPLE),
+        ModePriority(Settings::VRMODE_SLAVE_CAMERAS, Settings::SWAPCHAIN_LAYERED),
+        ModePriority(Settings::VRMODE_SLAVE_CAMERAS, Settings::SWAPCHAIN_SINGLE),
+        ModePriority(Settings::VRMODE_SCENE_VIEW, Settings::SWAPCHAIN_SINGLE),
+        ModePriority(Settings::VRMODE_GEOMETRY_SHADERS, Settings::SWAPCHAIN_LAYERED),
+        ModePriority(Settings::VRMODE_GEOMETRY_SHADERS, Settings::SWAPCHAIN_SINGLE),
+        ModePriority(Settings::VRMODE_OVR_MULTIVIEW, Settings::SWAPCHAIN_LAYERED),
+    };
+    for (ModePriority mode : modesValid)
+    {
+        uint32_t modeMask = 1u << mode.getVRMode();
+        uint32_t swapchainMask = 1u << mode.getSwapchainMode();
+        if (appModeAllowMask & modeMask &&
+            appSwapchainAllowMask & swapchainMask)
+        {
+            if (appModePrefMask & modeMask &&
+                appSwapchainPrefMask & swapchainMask)
+            {
+                mode.setPreference(ModePriority::PREF_1ST);
+            }
+            else if (appModePrefMask & modeMask ||
+                     appSwapchainPrefMask & swapchainMask)
+            {
+                mode.setPreference(ModePriority::PREF_2ND);
+            }
+            modePriorities.insert(mode);
+        }
+    }
+
+    // Choose the first (highest priority) mode that validates
+    ModePriority chosenMode;
+    std::vector<const char*> errors;
+    for (ModePriority mode : modePriorities)
+    {
+        if (validateMode(mode.getVRMode(), mode.getSwapchainMode(), errors))
+        {
+            // This is the one
+            OSG_WARN << "osgXR: Mode " << mode << " chosen" << std::endl;
+            chosenMode = mode;
+            break;
+        }
+        else
+        {
+            // This mode can't be supported
+            OSG_WARN << "osgXR: Mode " << mode << " rejected:" << std::endl;
+            for (const char *error: errors)
+                OSG_WARN << "    " << error << std::endl;
+        }
+    }
+
+    *outVRMode = chosenMode.getVRMode();
+    *outSwapchainMode = chosenMode.getSwapchainMode();
 }
 
 static void applyDefaultRGBEncoding(uint32_t &preferredRGBEncodingMask,
@@ -1575,14 +1817,16 @@ bool XRState::setupSingleSwapchain(int64_t format, int64_t depthFormat,
                                    GLenum fallbackDepthFormat)
 {
     const auto &views = _chosenViewConfig->getViews();
-    _xrViews.reserve(views.size());
 
     // Arrange viewports on a single swapchain image
-    OpenXR::System::ViewConfiguration::View singleView(0, 0);
+    OpenXR::System::ViewConfiguration::View singleView;
     std::vector<OpenXR::System::ViewConfiguration::View::Viewport> viewports;
     viewports.resize(views.size());
-    for (uint32_t i = 0; i < views.size(); ++i)
-        viewports[i] = singleView.tileHorizontally(views[i]);
+    for (uint32_t i = 0; i < views.size(); ++i) {
+        OpenXR::System::ViewConfiguration::View view = views[i];
+        view.alignSize(_settings->getViewAlignmentMask());
+        viewports[i] = singleView.tileHorizontally(view);
+    }
 
     // Create a single swapchain
     osg::ref_ptr<XRSwapchain> xrSwapchain = new XRSwapchain(this, _session,
@@ -1591,6 +1835,61 @@ bool XRState::setupSingleSwapchain(int64_t format, int64_t depthFormat,
                                                             fallbackDepthFormat);
     if (!xrSwapchain->valid()) {
         OSG_WARN << "osgXR: Invalid single swapchain" << std::endl;
+        return false; // failure
+    }
+
+    // And the views
+    _xrViews.reserve(views.size());
+    for (uint32_t i = 0; i < views.size(); ++i)
+    {
+        osg::ref_ptr<XRView> xrView = new XRView(this, i, xrSwapchain,
+                                                 viewports[i]);
+        if (!xrView.valid())
+        {
+            _xrViews.resize(0);
+            return false; // failure
+        }
+        _xrViews.push_back(xrView);
+    }
+
+    return true;
+}
+
+bool XRState::setupLayeredSwapchain(int64_t format, int64_t depthFormat,
+                                    GLenum fallbackDepthFormat)
+{
+    const auto &views = _chosenViewConfig->getViews();
+    _xrViews.reserve(views.size());
+
+    // Arrange viewports on a single layered swapchain image
+    OpenXR::System::ViewConfiguration::View layeredView;
+    std::vector<OpenXR::System::ViewConfiguration::View::Viewport> viewports;
+    viewports.resize(views.size());
+    for (uint32_t i = 0; i < views.size(); ++i) {
+        OpenXR::System::ViewConfiguration::View view = views[i];
+        view.alignSize(_settings->getViewAlignmentMask());
+        viewports[i] = layeredView.tileLayered(view);
+    }
+
+    // Create a single swapchain
+    unsigned int fbPerLayer = 0; // An FBO per layer per swapchain image
+    if (_vrMode == VRMode::VRMODE_GEOMETRY_SHADERS)
+    {
+        // Single FBO per swapchain image, gl_Layer specified by geom shader
+        fbPerLayer = XRFramebuffer::ARRAY_INDEX_GEOMETRY;
+    }
+    else if (_vrMode == VRMode::VRMODE_OVR_MULTIVIEW)
+    {
+        // Single FBO per swapchain image, gl_ViewID_OVR determines layer
+        fbPerLayer = XRFramebuffer::ARRAY_INDEX_MULTIVIEW;
+    }
+    osg::ref_ptr<XRSwapchain> xrSwapchain = new XRSwapchain(this, _session,
+                                                            layeredView, format,
+                                                            depthFormat,
+                                                            fallbackDepthFormat,
+                                                            fbPerLayer);
+    if (!xrSwapchain->valid()) {
+        OSG_WARN << "osgXR: Invalid layered swapchain" << std::endl;
         return false; // failure
     }
 
@@ -1641,6 +1940,20 @@ bool XRState::setupMultipleSwapchains(int64_t format, int64_t depthFormat,
     return true;
 }
 
+void XRState::initAppView(AppView *appView)
+{
+    // Notify app to create a new view
+    if (_manager.valid())
+        _manager->doCreateView(appView);
+}
+
+void XRState::destroyAppView(AppView *appView)
+{
+    // Notify app to destroy this view
+    if (_manager.valid())
+        _manager->doDestroyView(appView);
+}
+
 void XRState::setupSlaveCameras()
 {
     osg::ref_ptr<osg::GraphicsContext> gc = _window.get();
@@ -1650,7 +1963,7 @@ void XRState::setupSlaveCameras()
     _appViews.resize(_xrViews.size());
     for (uint32_t i = 0; i < _xrViews.size(); ++i)
     {
-        SlaveCamsAppView *appView = new SlaveCamsAppView(this, i, _window.get(),
+        AppViewSlaveCams *appView = new AppViewSlaveCams(this, i, _window.get(),
                                                          _view.get());
         appView->init();
         _appViews[i] = appView;
@@ -1673,7 +1986,7 @@ void XRState::setupSlaveCameras()
             }
 
             // And ensure it gets configured for VR
-            appView->addSlave(cam.get());
+            appView->addSlave(cam.get(), View::CAM_DEFAULT_BITS);
         }
     }
 
@@ -1686,16 +1999,14 @@ void XRState::setupSlaveCameras()
 
 void XRState::setupSceneViewCameras()
 {
-    _stereoDisplaySettings = new osg::DisplaySettings(*osg::DisplaySettings::instance().get());
-    _stereoDisplaySettings->setStereo(true);
-    _stereoDisplaySettings->setStereoMode(osg::DisplaySettings::HORIZONTAL_SPLIT);
-    _stereoDisplaySettings->setSplitStereoHorizontalEyeMapping(osg::DisplaySettings::LEFT_EYE_LEFT_VIEWPORT);
-    _stereoDisplaySettings->setUseSceneViewForStereoHint(true);
-
-    _appViews.resize(1);
-    SceneViewAppView *appView = new SceneViewAppView(this, _window.get(),
+    // Put both XR views in a single SceneView AppView
+    uint32_t viewIndices[2] = { 0, 1 };
+    AppViewSceneView *appView = new AppViewSceneView(this, viewIndices,
+                                                     _window.get(),
                                                      _view.get());
     appView->init();
+
+    _appViews.resize(1);
     _appViews[0] = appView;
 
     if (_view.valid() && !_manager.valid())
@@ -1729,43 +2040,63 @@ void XRState::setupSceneViewCameras()
     }
 }
 
-void XRState::setupSceneViewCamera(osg::Camera *camera)
+void XRState::setupGeomShadersCameras()
 {
-    camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
-    camera->setDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-    camera->setReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+    // Put all XR views in a single geometry shaders AppView
+    std::vector<uint32_t> viewIndices;
+    viewIndices.reserve(_xrViews.size());
+    for (uint32_t viewIndex = 0; viewIndex < _xrViews.size(); ++viewIndex)
+        viewIndices.push_back(viewIndex);
 
-    // Here we avoid doing anything regarding OSG camera RTT attachment.
-    // Ideally we would use automatic methods within OSG for handling RTT but in this
-    // case it seemed simpler to handle FBO creation and selection within this class.
+    AppViewGeomShaders *appView = new AppViewGeomShaders(this, viewIndices,
+                                                         _window.get(),
+                                                         _view.get());
+    appView->init();
 
-    // This initial draw callback is used to disable normal OSG camera setup which
-    // would undo our RTT FBO configuration.
-    camera->setInitialDrawCallback(new InitialDrawCallback(this));
+    _appViews.resize(1);
+    _appViews[0] = appView;
+}
 
-    camera->setPreDrawCallback(new PreDrawCallback(_xrViews[0]->getSwapchain()));
-    camera->setFinalDrawCallback(new PostDrawCallback(_xrViews[0]->getSwapchain()));
+void XRState::setupOVRMultiviewCameras()
+{
+    // Put all XR views in a single OVR_multiview AppView
+    std::vector<uint32_t> viewIndices;
+    viewIndices.reserve(_xrViews.size());
+    for (uint32_t viewIndex = 0; viewIndex < _xrViews.size(); ++viewIndex)
+        viewIndices.push_back(viewIndex);
 
-    // Set the viewport (seems to need redoing!)
-    camera->setViewport(0, 0,
-                        _xrViews[0]->getSwapchain()->getWidth(),
-                        _xrViews[0]->getSwapchain()->getHeight());
+    AppViewOVRMultiview *appView = new AppViewOVRMultiview(this, viewIndices,
+                                                           _window.get(),
+                                                           _view.get());
+    appView->init();
 
-    // Set the stereo matrices callback on each SceneView
-    osgViewer::Renderer *renderer = static_cast<osgViewer::Renderer *>(camera->getRenderer());
-    for (unsigned int i = 0; i < 2; ++i)
-    {
-        osgUtil::SceneView *sceneView = renderer->getSceneView(i);
-        sceneView->setComputeStereoMatricesCallback(
-            new ComputeStereoMatricesCallback(this, sceneView));
-    }
-
-    camera->setDisplaySettings(_stereoDisplaySettings);
+    _appViews.resize(1);
+    _appViews[0] = appView;
 }
 
 void XRState::setupSceneViewVisibilityMasks(osg::Camera *camera,
                                             osg::ref_ptr<osg::MatrixTransform> &transform)
 {
+    if (!_visibilityMaskProgram.valid()) {
+        const char* vertSrc =
+            "#version 330\n"
+            "void main()\n"
+            "{\n"
+            "    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
+            "}\n";
+        const char* fragSrc =
+            "#version 330\n"
+            "void main()\n"
+            "{\n"
+            "}\n";
+        auto* vertShader = new osg::Shader(osg::Shader::VERTEX, vertSrc);
+        auto* fragShader = new osg::Shader(osg::Shader::FRAGMENT, fragSrc);
+        auto* program = new osg::Program();
+        program->addShader(vertShader);
+        program->addShader(fragShader);
+        program->setName("osgXR VisibilityMask");
+        _visibilityMaskProgram = program;
+    }
     for (uint32_t i = 0; i < _xrViews.size(); ++i)
     {
         osg::ref_ptr<osg::Geode> geode = setupVisibilityMask(camera, i, transform);
@@ -1789,6 +2120,11 @@ osg::ref_ptr<osg::Geode> XRState::setupVisibilityMask(osg::Camera *camera, uint3
         return nullptr;
 
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+
+    char name[36];
+    snprintf(name, sizeof(name), "osgXR VisibilityMask view#%u", viewIndex);
+    geode->setName(name);
+
     geode->setCullingActive(false);
     geode->addDrawable(geometry);
 
@@ -1800,6 +2136,10 @@ osg::ref_ptr<osg::Geode> XRState::setupVisibilityMask(osg::Camera *camera, uint3
     state->setAttribute(new osg::Depth(osg::Depth::ALWAYS, 0.0f, 0.0f, true),
                         osg::StateAttribute::OVERRIDE);
     state->setRenderBinDetails(INT_MIN, "RenderBin");
+
+    auto gc = camera->getGraphicsContext();
+    if (gc->getState()->getUseVertexAttributeAliasing())
+        state->setAttribute(_visibilityMaskProgram);
 
     if (!transform.valid())
     {
@@ -1870,52 +2210,6 @@ void XRState::endFrame(osg::FrameStamp *stamp)
     _frames.endFrame(stamp);
 }
 
-void XRState::updateSlave(uint32_t viewIndex, osg::View& view,
-                          osg::View::Slave& slave)
-{
-    bool setProjection = false;
-    osg::Matrix projectionMatrix;
-
-    osg::ref_ptr<OpenXR::Session::Frame> frame = getFrame(view.getFrameStamp());
-    if (frame.valid())
-    {
-        if (frame->isPositionValid() && frame->isOrientationValid())
-        {
-            const auto &pose = frame->getViewPose(viewIndex);
-            osg::Vec3 position(pose.position.x,
-                               pose.position.y,
-                               pose.position.z);
-            osg::Quat orientation(pose.orientation.x,
-                                  pose.orientation.y,
-                                  pose.orientation.z,
-                                  pose.orientation.w);
-
-            osg::Matrix viewOffset;
-            viewOffset.setTrans(viewOffset.getTrans() + position * _settings->getUnitsPerMeter());
-            viewOffset.preMultRotate(orientation);
-            viewOffset = osg::Matrix::inverse(viewOffset);
-            slave._viewOffset = viewOffset;
-
-            double left, right, bottom, top, zNear, zFar;
-            if (view.getCamera()->getProjectionMatrixAsFrustum(left, right,
-                                                               bottom, top,
-                                                               zNear, zFar))
-            {
-                const auto &fov = frame->getViewFov(viewIndex);
-                createProjectionFov(projectionMatrix, fov, zNear, zFar);
-                setProjection = true;
-            }
-        }
-    }
-
-    //slave._camera->setViewMatrix(view.getCamera()->getViewMatrix() * slave._viewOffset);
-    slave.updateSlaveImplementation(view);
-    if (setProjection)
-    {
-        slave._camera->setProjectionMatrix(projectionMatrix);
-    }
-}
-
 void XRState::updateVisibilityMaskTransform(osg::Camera *camera,
                                             osg::MatrixTransform *transform)
 {
@@ -1934,68 +2228,27 @@ void XRState::updateVisibilityMaskTransform(osg::Camera *camera,
     transform->postMult(osg::Matrix::scale(scale, scale, scale));
 }
 
-osg::Matrixd XRState::getEyeProjection(osg::FrameStamp *stamp,
-                                       uint32_t viewIndex,
-                                       const osg::Matrixd& projection)
+void XRState::initialDrawCallback(osg::RenderInfo &renderInfo,
+                                  View::Flags flags)
 {
-    osg::ref_ptr<OpenXR::Session::Frame> frame = getFrame(stamp);
-    if (frame.valid())
+    if (flags & View::CAM_TOXR_BIT)
     {
-        double left, right, bottom, top, zNear, zFar;
-        if (projection.getFrustum(left, right,
-                                  bottom, top,
-                                  zNear, zFar))
+        osg::GraphicsOperation *graphicsOperation = renderInfo.getCurrentCamera()->getRenderer();
+        osgViewer::Renderer *renderer = dynamic_cast<osgViewer::Renderer*>(graphicsOperation);
+        if (renderer != nullptr)
         {
-            const auto &fov = frame->getViewFov(viewIndex);
-            osg::Matrix projectionMatrix;
-            createProjectionFov(projectionMatrix, fov, zNear, zFar);
-            return projectionMatrix;
+            // Disable normal OSG FBO camera setup because it will undo the MSAA FBO configuration.
+            renderer->setCameraRequiresSetUp(false);
         }
     }
-    return projection;
-}
 
-osg::Matrixd XRState::getEyeView(osg::FrameStamp *stamp, uint32_t viewIndex,
-                                 const osg::Matrixd& view)
-{
-    osg::ref_ptr<OpenXR::Session::Frame> frame = getFrame(stamp);
-    if (frame.valid())
+    if (flags & View::CAM_MVR_BIT)
     {
-        if (frame->isPositionValid() && frame->isOrientationValid())
-        {
-            const auto &pose = frame->getViewPose(viewIndex);
-            osg::Vec3 position(pose.position.x,
-                               pose.position.y,
-                               pose.position.z);
-            osg::Quat orientation(pose.orientation.x,
-                                  pose.orientation.y,
-                                  pose.orientation.z,
-                                  pose.orientation.w);
+        startRendering(renderInfo.getState()->getFrameStamp());
 
-            osg::Matrix viewOffset;
-            viewOffset.setTrans(viewOffset.getTrans() + position * _settings->getUnitsPerMeter());
-            viewOffset.preMultRotate(orientation);
-            viewOffset = osg::Matrix::inverse(viewOffset);
-            return view * viewOffset;
-        }
+        // Get up to date depth info from camera's projection matrix
+        _depthInfo.setZRangeFromProjection(renderInfo.getCurrentCamera()->getProjectionMatrix());
     }
-    return view;
-}
-
-void XRState::initialDrawCallback(osg::RenderInfo &renderInfo)
-{
-    osg::GraphicsOperation *graphicsOperation = renderInfo.getCurrentCamera()->getRenderer();
-    osgViewer::Renderer *renderer = dynamic_cast<osgViewer::Renderer*>(graphicsOperation);
-    if (renderer != nullptr)
-    {
-        // Disable normal OSG FBO camera setup because it will undo the MSAA FBO configuration.
-        renderer->setCameraRequiresSetUp(false);
-    }
-
-    startRendering(renderInfo.getState()->getFrameStamp());
-
-    // Get up to date depth info from camera's projection matrix
-    _depthInfo.setZRangeFromProjection(renderInfo.getCurrentCamera()->getProjectionMatrix());
 }
 
 void XRState::releaseGLObjects(osg::State *state)

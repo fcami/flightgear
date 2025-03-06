@@ -11,18 +11,26 @@ endif()
 set(osgXR_HEADERS
     include/osgXR/Action
     include/osgXR/ActionSet
+    include/osgXR/Condition
     include/osgXR/CompositionLayer
     include/osgXR/CompositionLayerQuad
     include/osgXR/Export
+    include/osgXR/Extension
+    include/osgXR/Hand
+    include/osgXR/HandPose
+    include/osgXR/HandPoseTracked
     include/osgXR/InteractionProfile
     include/osgXR/Manager
     include/osgXR/Mirror
     include/osgXR/MirrorSettings
     include/osgXR/OpenXRDisplay
+    include/osgXR/Pose
+    include/osgXR/PoseVelocity
     include/osgXR/Settings
     include/osgXR/SubImage
     include/osgXR/Subaction
     include/osgXR/Swapchain
+    include/osgXR/Version
     include/osgXR/View
     include/osgXR/osgXR
 )
@@ -35,6 +43,7 @@ set(osgXR_SRCS
     OpenXR/DebugUtilsMessenger.cpp
     OpenXR/EventHandler.cpp
     OpenXR/GraphicsBinding.cpp
+    OpenXR/HandTracker.cpp
     OpenXR/Instance.cpp
     OpenXR/InteractionProfile.cpp
     OpenXR/Path.cpp
@@ -48,17 +57,31 @@ set(osgXR_SRCS
     XRState.cpp
     XRRealizeOperation.cpp
     XRUpdateOperation.cpp
+    AppView.cpp
+    AppViewSlaveCams.cpp
+    AppViewSceneView.cpp
+    AppViewGeomShaders.cpp
+    AppViewOVRMultiview.cpp
     Action.cpp
     ActionSet.cpp
+    Condition.cpp
     CompositionLayer.cpp
     CompositionLayerQuad.cpp
     DebugCallbackOsg.cpp
+    Extension.cpp
     FrameStore.cpp
+    Hand.cpp
+    HandPose.cpp
+    HandPoseTracked.cpp
     InteractionProfile.cpp
     Manager.cpp
     Mirror.cpp
     MirrorSettings.cpp
+    MultiView.cpp
+    Object.cpp
     OpenXRDisplay.cpp
+    Pose.cpp
+    PoseVelocity.cpp
     Settings.cpp
     Subaction.cpp
     Swapchain.cpp
@@ -84,6 +107,14 @@ if(X11_FOUND)
     add_compile_definitions(OSGXR_USE_X11)
 endif()
 
+# GL_OVR_multiview support
+include(CheckOSGMultiview)
+if(HAVE_OSG_MULTIVIEW)
+    message(STATUS "OSG supports GL_OVR_multiview, enabling VRMODE_OVR_MULTIVIEW")
+    add_compile_definitions(OSGXR_USE_OVR_MULTIVIEW)
+else()
+    message(NOTICE "OSG does not support GL_OVR_multiview, disabling VRMODE_OVR_MULTIVIEW")
+endif()
 
 # Build osgXR as a library
 add_library(osgXR ${osgXR_LIBRARY_TYPE} ${osgXR_SRCS})
@@ -127,16 +158,24 @@ if(OSGXR_WARNINGS)
     )
 endif()
 
+# Make osgXR headers accessible
 target_include_directories(osgXR
     PRIVATE
         ${PROJECT_BINARY_DIR}/include
         ${PROJECT_SOURCE_DIR}/include
-        ${OPENGL_INCLUDE_DIR}
-        ${OPENSCENEGRAPH_INCLUDE_DIRS}
-        ${OpenXR_INCLUDE_DIR}
     PUBLIC
         "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>"
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+)
+
+# Treat OpenSceneGraph headers in particular as system headers to silence
+# -Woverloaded-virtual warnings from its headers
+target_include_directories(osgXR
+    SYSTEM
+    PRIVATE
+        ${OPENGL_INCLUDE_DIR}
+        ${OPENSCENEGRAPH_INCLUDE_DIRS}
+        ${OpenXR_INCLUDE_DIR}
 )
 
 target_link_libraries(osgXR
