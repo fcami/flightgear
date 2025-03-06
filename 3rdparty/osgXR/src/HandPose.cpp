@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-only
 // Copyright (C) 2022 James Hogan <james@albanarts.com>
 
+// for M_PI from cmath
+#define _USE_MATH_DEFINES
+
 #include "HandPose.h"
 
 #include <osg/BoundingSphere>
