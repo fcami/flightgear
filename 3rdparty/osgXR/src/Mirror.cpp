@@ -10,22 +10,63 @@
 
 using namespace osgXR;
 
+static osg::ref_ptr<osg::Program> shaderProgram;
+static unsigned int mirrorCount = 0;
+
 Mirror::Mirror(Manager *manager, osg::Camera *camera) :
     _manager(manager),
     _camera(camera),
     _mirrorSettings(manager->_getSettings()->getMirrorSettings())
 {
+    if (!shaderProgram.valid())
+    {
+        const char* vertSrc =
+            "#version 140\n"
+            "out vec3 texcoord;\n"
+            "void main()\n"
+            "{\n"
+            "    // Discard gl_Vertex.z, which stores array index\n"
+            "    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex.xyww;\n"
+            "    texcoord.st = gl_MultiTexCoord0.st;\n"
+            "    texcoord.p = gl_Vertex.z;\n"
+            "}\n";
+        const char* fragSrc =
+            "#version 140\n"
+            "#pragma import_defines (OSGXR_SWAPCHAIN_LAYERED)\n"
+            "in vec3 texcoord;\n"
+            "#ifdef OSGXR_SWAPCHAIN_LAYERED\n"
+            "    uniform sampler2DArray tex;\n"
+            "    #define TEXCOORD texcoord\n"
+            "#else\n"
+            "    uniform sampler2D tex;\n"
+            "    #define TEXCOORD texcoord.st\n"
+            "#endif\n"
+            "void main()\n"
+            "{\n"
+            "    gl_FragColor = texture(tex, TEXCOORD);\n"
+            "}\n";
+        auto* vertShader = new osg::Shader(osg::Shader::VERTEX, vertSrc);
+        auto* fragShader = new osg::Shader(osg::Shader::FRAGMENT, fragSrc);
+        auto* program = new osg::Program();
+        program->addShader(vertShader);
+        program->addShader(fragShader);
+        program->setName("osgXR Mirror");
+        shaderProgram = program;
+    }
+    ++mirrorCount;
 }
 
 Mirror::~Mirror()
 {
+    if (!--mirrorCount)
+        shaderProgram = nullptr;
 }
 
 void Mirror::_init()
 {
     _camera->setAllowEventFocus(false);
     _camera->setViewMatrix(osg::Matrix::identity());
-    _camera->setProjectionMatrix(osg::Matrix::ortho2D(0, 1, 0, 1));
+    _camera->setProjectionMatrix(osg::Matrix::ortho(0, 1, 0, 1, -1, 2));
 
     // Find the mirror settings
     MirrorSettings *mirrorSettings = &_mirrorSettings;
@@ -115,13 +156,19 @@ void Mirror::setupQuad(unsigned int viewIndex,
 
     // Build an always-visible quad to draw the view texture on
     osg::ref_ptr<osg::Geode> quad = new osg::Geode;
+
+    char name[32];
+    snprintf(name, sizeof(name), "osgXR Mirror view#%u", viewIndex);
+    quad->setName(name);
+
     quad->setCullingActive(false);
 
     XRState::TextureRect rect = xrState->getViewTextureRect(viewIndex);
+    // Z cooordinate stores array index
     quad->addDrawable(osg::createTexturedQuadGeometry(
-                                  osg::Vec3(x,    0.0f,  0.0f),
-                                  osg::Vec3(w,    0.0f,  0.0f),
-                                  osg::Vec3(0.0f, 1.0f,  0.0f),
+                                  osg::Vec3(x,    0.0f, rect.arrayIndex),
+                                  osg::Vec3(w,    0.0f, 0.0f),
+                                  osg::Vec3(0.0f, 1.0f, 0.0f),
                                   rect.x, rect.y,
                                   rect.x + rect.width, rect.y + rect.height));
 
@@ -131,6 +178,17 @@ void Mirror::setupQuad(unsigned int viewIndex,
     state->setMode(GL_LIGHTING, forceOff);
     state->setMode(GL_DEPTH_TEST, forceOff);
     state->setMode(GL_FRAMEBUFFER_SRGB, forceOn);
+
+    // Shaders are required with layered swapchains or with core profile
+    auto gc = _camera->getGraphicsContext();
+    bool layered = (xrState->getSwapchainMode() == Settings::SWAPCHAIN_LAYERED);
+    if (layered || gc->getState()->getUseVertexAttributeAliasing())
+    {
+        state->setAttribute(shaderProgram);
+        state->addUniform(new osg::Uniform("tex", 0));
+        if (layered)
+            state->setDefine("OSGXR_SWAPCHAIN_LAYERED");
+    }
 
     _camera->addChild(quad);
 

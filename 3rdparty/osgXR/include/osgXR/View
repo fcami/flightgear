@@ -8,6 +8,7 @@
 #include <osgXR/Export>
 
 #include <osg/Camera>
+#include <osg/Matrix>
 #include <osg/ref_ptr>
 
 #include <osgViewer/GraphicsWindow>
@@ -29,13 +30,52 @@ class OSGXR_EXPORT View : public osg::Referenced
          * Application -> osgXR notifications.
          */
 
+        enum eFlags {
+            /**
+             * The camera should use Multi-View Rendering.
+             * This indicates that the camera should render the scene using
+             * Multi-View rendering, and that osgXR should set it up as
+             * appropriate depending on the VR mode.
+             */
+            CAM_MVR_BIT = 1,
+            /**
+             * The camera does shading of MVR scene.
+             * This indicates that the camera should instance the scene but not
+             * mess with matrix transformations as only shading is taking place.
+             */
+            CAM_MVR_SHADING_BIT = 2,
+            /**
+             * The camera should render to OpenXR.
+             * This indicates that the camera should render to the OpenXR
+             * swapchain image rather than to the screen.
+             */
+            CAM_TOXR_BIT = 4,
+            /**
+             * The render buffer has fixed width per view.
+             * This indicates that viewports should be configured with equal
+             * widths.
+             */
+            CAM_MVR_FIXED_WIDTH_BIT = 8,
+            /**
+             * The render buffer has fixed height per view.
+             * This indicates that viewports should be configured with equal
+             * heights.
+             */
+            CAM_MVR_FIXED_HEIGHT_BIT = 16,
+
+            CAM_NO_BITS = 0,
+            CAM_DEFAULT_BITS = CAM_MVR_BIT | CAM_TOXR_BIT,
+        };
+        typedef unsigned int Flags;
+
         /**
          * Notify osgXR that a new slave camera has been added to the view.
          * This tells osgXR that a new slave camera has been added to the view
          * which it should hook into so that it renders to the appropriate
          * texture and submits for XR display.
          */
-        virtual void addSlave(osg::Camera *slaveCamera) = 0;
+        virtual void addSlave(osg::Camera *slaveCamera,
+                              Flags flags = CAM_DEFAULT_BITS) = 0;
 
         /**
          * Notify osgXR that a slave camera is being removed from the view.
@@ -43,6 +83,63 @@ class OSGXR_EXPORT View : public osg::Referenced
          * addSlave() is being removed.
          */
         virtual void removeSlave(osg::Camera *slaveCamera) = 0;
+
+        /*
+         * osgXR -> Application Notifications.
+         */
+
+        /**
+         * Interface for application to access individual subviews of an osgXR View.
+         * Each of these directly corresponds to a single OpenXR view.
+         */
+        class OSGXR_EXPORT SubView
+        {
+            public:
+                struct Viewport
+                {
+                    double x, y, w, h;
+                };
+                /// Get the array index / layer this MVR view uses in the FBO.
+                virtual unsigned int getArrayIndex() const = 0;
+                /// Get the viewport in pixels this MVR view uses in the FBO.
+                virtual Viewport getViewport() const = 0;
+                /// Get the local view matrix.
+                virtual const osg::Matrix &getViewMatrix() const = 0;
+                /// Get the projection matrix.
+                virtual const osg::Matrix &getProjectionMatrix() const = 0;
+        };
+
+        /// Interface for application to be notified of view changes.
+        class OSGXR_EXPORT Callback : public osg::Referenced
+        {
+            public:
+                /**
+                 * Notification that a subview has been determined.
+                 * The application may use this to update uniforms to reflect
+                 * the latest subview position.
+                 */
+                virtual void updateSubView(View *view,
+                                           unsigned int subviewIndex,
+                                           const SubView &subview);
+        };
+
+        /// Set the callback.
+        void setCallback(Callback *cb)
+        {
+            _callback = cb;
+        }
+
+        // Get the callback.
+        Callback *getCallback()
+        {
+            return _callback.get();
+        }
+
+        // Get the const callback.
+        const Callback *getCallback() const
+        {
+            return _callback.get();
+        }
 
         /*
          * Accessors.
@@ -60,6 +157,49 @@ class OSGXR_EXPORT View : public osg::Referenced
             return _osgView;
         }
 
+        /// Get the width in pixels screen width MVR framebuffer should be.
+        virtual unsigned int getMVRWidth() const = 0;
+        /// Get the height in pixels screen height MVR framebuffer should be.
+        virtual unsigned int getMVRHeight() const = 0;
+
+        /// Get the number of MVR views for view-specific app uniform arrays.
+        virtual unsigned int getMVRViews() const = 0;
+        /// Get the string to declare MVR view uniforms in global scope.
+        virtual std::string getMVRViewIdGlobalStr() const = 0;
+        /**
+         * Get the string to index MVR view uniform arrays in shader stage.
+         * @param[in]  stage    OpenGL shading stage (GL_VERTEX_SHADER,
+         *                      GL_GEOMETRY_SHADER or GL_FRAGMENT_SHADER).
+         * @returns GLSL string, possibly with GLSL extension enabler suffix,
+         *          possibly depending on use of getMVRViewIdGlobalStr().
+         */
+        virtual std::string getMVRViewIdStr(GLenum stage) const = 0;
+
+        /**
+         * Get the number of 2D cells fixed size MVR framebuffers should have.
+         * If > 1:
+         * CellID = ViewID
+         * LayerID = 0
+         */
+        virtual unsigned int getMVRCells() const = 0;
+
+        /**
+         * Get the number of layers MVR framebuffer textures should have.
+         * If > 1:
+         * CellID = 0
+         * LayerID = ViewID
+         */
+        virtual unsigned int getMVRLayers() const = 0;
+        /// Get the OSG face number to use for MVR attachments.
+        virtual unsigned int getMVRAttachmentFace() const = 0;
+        /**
+         * Get the string to specify MVR layer number in shader stage.
+         * @param[in]  stage    OpenGL shading stage (GL_VERTEX_SHADER,
+         *                      GL_GEOMETRY_SHADER or GL_FRAGMENT_SHADER).
+         * @returns GLSL string, possibly with GLSL extension enabler suffix.
+         */
+        virtual std::string getMVRLayerStr(GLenum stage) const = 0;
+
     protected:
 
         /*
@@ -72,6 +212,7 @@ class OSGXR_EXPORT View : public osg::Referenced
         osg::ref_ptr<osgViewer::GraphicsWindow> _window;
         osg::ref_ptr<osgViewer::View> _osgView;
 
+        osg::ref_ptr<Callback> _callback;
 };
 
 }

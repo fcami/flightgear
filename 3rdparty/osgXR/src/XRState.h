@@ -19,13 +19,13 @@
 #include "FrameStampedVector.h"
 #include "FrameStore.h"
 
-#include <osg/DisplaySettings>
 #include <osg/Referenced>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
 #include <osgXR/ActionSet>
 #include <osgXR/CompositionLayer>
+#include <osgXR/Extension>
 #include <osgXR/InteractionProfile>
 #include <osgXR/Settings>
 #include <osgXR/Subaction>
@@ -37,6 +37,7 @@
 
 namespace osg {
     class FrameStamp;
+    class Program;
 }
 
 namespace osgViewer {
@@ -45,7 +46,9 @@ namespace osgViewer {
 
 namespace osgXR {
 
+class AppView;
 class Manager;
+class Object;
 
 class XRState : public OpenXR::EventHandler
 {
@@ -65,7 +68,8 @@ class XRState : public OpenXR::EventHandler
                             const OpenXR::System::ViewConfiguration::View &view,
                             int64_t chosenRGBAFormat,
                             int64_t chosenDepthFormat,
-                            GLenum fallbackDepthFormat);
+                            GLenum fallbackDepthFormat,
+                            unsigned int fbPerLayer = 0);
 
                 // GL context must be current (for XRFramebuffer)
                 virtual ~XRSwapchain();
@@ -92,16 +96,20 @@ class XRState : public OpenXR::EventHandler
 
                 void setupImage(const osg::FrameStamp *stamp);
 
-                void preDrawCallback(osg::RenderInfo &renderInfo);
-                void postDrawCallback(osg::RenderInfo &renderInfo);
+                void preDrawCallback(osg::RenderInfo &renderInfo,
+                                     unsigned int arrayIndex);
+                void postDrawCallback(osg::RenderInfo &renderInfo,
+                                      unsigned int arrayIndex);
                 void endFrame();
 
-                osg::ref_ptr<osg::Texture2D> getOsgTexture(const osg::FrameStamp *stamp);
+                osg::ref_ptr<osg::Texture> getOsgTexture(const osg::FrameStamp *stamp);
 
             protected:
 
                 XRState *_state;
-                FrameStampedVector<osg::ref_ptr<XRFramebuffer> > _imageFramebuffers;
+                // Framebuffer for each layer, for each swapchain number
+                typedef std::vector<osg::ref_ptr<XRFramebuffer> > FBVec;
+                FrameStampedVector<FBVec> _imageFramebuffers;
 
                 float _forcedAlpha;
 
@@ -142,8 +150,6 @@ class XRState : public OpenXR::EventHandler
                     return _swapchainSubImage;
                 }
 
-                void setupCamera(osg::ref_ptr<osg::Camera> camera);
-
                 void endFrame(OpenXR::Session::Frame *frame);
 
             protected:
@@ -154,69 +160,55 @@ class XRState : public OpenXR::EventHandler
                 uint32_t _viewIndex;
         };
 
-        /** Represents a generic app level view.
-         * This may handle multiple OpenXR views.
-         */
-        class AppView : public View
+        /// Public View::SubView interface.
+        class AppSubView : public View::SubView
         {
             public:
+                AppSubView(XRView *xrView,
+                           const osg::Matrix &viewMatrix,
+                           const osg::Matrix &projectionMatrix);
 
-                AppView(XRState *state,
-                        osgViewer::GraphicsWindow *window,
-                        osgViewer::View *osgView);
-                virtual ~AppView();
-
-                void destroy();
-
-                void init();
+                // Inherited from View::SubView
+                unsigned int getArrayIndex() const override;
+                Viewport getViewport() const override;
+                const osg::Matrix &getViewMatrix() const override;
+                const osg::Matrix &getProjectionMatrix() const override;
 
             protected:
+                XRView *_xrView;
 
-                bool _valid;
-
-                XRState *_state;
+                osg::Matrix _viewMatrix;
+                osg::Matrix _projectionMatrix;
         };
 
-        /// Represents an app level view in slave cams mode
-        class SlaveCamsAppView : public AppView
+        inline Manager *getManager()
         {
-            public:
-
-                SlaveCamsAppView(XRState *state,
-                                 uint32_t viewIndex,
-                                 osgViewer::GraphicsWindow *window,
-                                 osgViewer::View *osgView);
-
-                void addSlave(osg::Camera *slaveCamera) override;
-                void removeSlave(osg::Camera *slaveCamera) override;
-
-            protected:
-
-                uint32_t _viewIndex;
-        };
-
-        /// Represents an app level view in scene view mode
-        class SceneViewAppView : public AppView
-        {
-            public:
-
-                SceneViewAppView(XRState *state,
-                                 osgViewer::GraphicsWindow *window,
-                                 osgViewer::View *osgView);
-
-                void addSlave(osg::Camera *slaveCamera) override;
-                void removeSlave(osg::Camera *slaveCamera) override;
-        };
+            return _manager.get();
+        }
 
         bool hasValidationLayer() const;
         bool hasDepthInfoExtension() const;
         bool hasVisibilityMaskExtension() const;
+
+        inline XrVersion getApiVersion() const
+        {
+            if (_currentState < VRSTATE_INSTANCE)
+                return 0;
+            return _instance->getApiVersion();
+        }
 
         inline const char *getRuntimeName() const
         {
             if (_currentState < VRSTATE_INSTANCE)
                 return "";
             return _instance->getRuntimeName();
+        }
+
+        inline XrVersion getRuntimeVersion() const
+        {
+            if (_currentState < VRSTATE_INSTANCE)
+                return 0;
+            return _instance->getRuntimeVersion();
         }
 
         inline const char *getSystemName() const
@@ -300,12 +292,30 @@ class XRState : public OpenXR::EventHandler
             return _currentState > _downState || _currentState < _upState;
         }
 
+        /// Get the session object.
+        OpenXR::Session *getSession()
+        {
+            return _session;
+        }
+
         /// Find if a VR session is running.
         bool isRunning() const
         {
             if (_currentState < VRSTATE_SESSION)
                 return false;
             return _session->isRunning() && !_session->isLost();
+        }
+
+        /// Get the VR mode in use.
+        VRMode getVRMode() const
+        {
+            return _vrMode;
+        }
+
+        /// Get the swapchain mode in use.
+        SwapchainMode getSwapchainMode() const
+        {
+            return _swapchainMode;
         }
 
         /// Set whether probing should be active.
@@ -347,8 +357,36 @@ class XRState : public OpenXR::EventHandler
             _visibilityMaskRight = right;
         }
 
+        /// Get the extension object for an extension name.
+        std::shared_ptr<Extension::Private> getExtension(const std::string &name);
+        /// Get a vector of all available extension names.
+        std::vector<std::string> getExtensionNames();
+        /// Enable an OpenXR extension.
+        void enableExtension(std::shared_ptr<Extension::Private> extension)
+        {
+            _enabledExtensions.insert(extension);
+        }
+        /// Disable an OpenXR extension.
+        void disableExtension(std::shared_ptr<Extension::Private> extension)
+        {
+            _enabledExtensions.erase(extension);
+        }
+        /// Enable an OpenXR extension by name.
+        std::shared_ptr<Extension::Private> enableExtension(const std::string &name)
+        {
+            auto extension = getExtension(name);
+            enableExtension(extension);
+            return extension;
+        }
+
         /// Get the subaction object for a subaction path string.
         std::shared_ptr<Subaction::Private> getSubaction(const std::string &path);
+
+        /// Add a persistent object.
+        void addObject(Object *object);
+
+        /// Remove a persistent object.
+        void removeObject(Object *object);
 
         /// Add an action set
         void addActionSet(ActionSet::Private *actionSet)
@@ -395,6 +433,12 @@ class XRState : public OpenXR::EventHandler
         /// Update down state depending on any changed settings.
         void syncSettings();
 
+        /// Get the number of virtual world units to fit per real world meter.
+        float getUnitsPerMeter() const
+        {
+            return _settings->getUnitsPerMeter();
+        }
+
         /// Find whether actions have been updated.
         bool getActionsUpdated() const;
 
@@ -431,18 +475,11 @@ class XRState : public OpenXR::EventHandler
         void startRendering(osg::FrameStamp *stamp);
         void endFrame(osg::FrameStamp *stamp);
 
-        void updateSlave(uint32_t viewIndex, osg::View& view,
-                         osg::View::Slave& slave);
-        void updateVisibilityMaskTransform(osg::Camera *camera,
-                                           osg::MatrixTransform *transform);
+        static void updateVisibilityMaskTransform(osg::Camera *camera,
+                                                  osg::MatrixTransform *transform);
 
-        osg::Matrixd getEyeProjection(osg::FrameStamp *stamp,
-                                      uint32_t viewIndex,
-                                      const osg::Matrixd& projection);
-        osg::Matrixd getEyeView(osg::FrameStamp *stamp, uint32_t viewIndex,
-                                const osg::Matrixd& view);
-
-        void initialDrawCallback(osg::RenderInfo &renderInfo);
+        void initialDrawCallback(osg::RenderInfo &renderInfo,
+                                 View::Flags flags);
         void releaseGLObjects(osg::State *state);
         void swapBuffersImplementation(osg::GraphicsContext* gc);
 
@@ -457,6 +494,7 @@ class XRState : public OpenXR::EventHandler
 
                 float x, y;
                 float width, height;
+                unsigned int arrayIndex;
 
                 TextureRect(const OpenXR::SwapchainGroup::SubImage &subImage)
                 {
@@ -466,6 +504,7 @@ class XRState : public OpenXR::EventHandler
                     y = (float)subImage.getY() / h;
                     width = (float)subImage.getWidth() / w;
                     height = (float)subImage.getHeight() / h;
+                    arrayIndex = subImage.getArrayIndex();
                 }
         };
 
@@ -474,17 +513,40 @@ class XRState : public OpenXR::EventHandler
             return _xrViews.size();
         }
 
+        XRView *getView(unsigned int viewIndex) const
+        {
+            return _xrViews[viewIndex].get();
+        }
+
         TextureRect getViewTextureRect(unsigned int viewIndex) const
         {
             return TextureRect(_xrViews[viewIndex]->getSubImage());
         }
 
         // Caller must validate viewIndex using getViewCount()
-        osg::ref_ptr<osg::Texture2D> getViewTexture(unsigned int viewIndex,
-                                                    const osg::FrameStamp *stamp) const
+        osg::ref_ptr<osg::Texture> getViewTexture(unsigned int viewIndex,
+                                                  const osg::FrameStamp *stamp) const
         {
             return _xrViews[viewIndex]->getSwapchain()->getOsgTexture(stamp);
         }
+
+        /**
+         * Validate a particular VR and swapchain mode combination.
+         * @param[in]  vrMode        VR mode.
+         * @param[in]  swapchainMode Swapchain mode.
+         * @param[out] outErrors     Vector of error messages (cleared).
+         * @return true on success, false on failure.
+         */
+        bool validateMode(VRMode vrMode, SwapchainMode swapchainMode,
+                          std::vector<const char *> &outErrors) const;
+        /**
+         * Choose a VR and swapchain mode.
+         * @param[out] outVRMode        Pointer to write chosen VR mode to.
+         * @param[out] outSwapchainMode Pointer to write chosen swapchain mode
+         *                              to.
+         */
+        void chooseMode(VRMode *outVRMode,
+                        SwapchainMode *outSwapchainMode) const;
 
         /**
          * Choose an RGBA swapchain format.
@@ -530,6 +592,24 @@ class XRState : public OpenXR::EventHandler
                                   uint32_t preferredDepthEncodingMask,
                                   uint32_t allowedDepthEncodingMask) const;
 
+
+        // Notify app of new AppView (for use by AppView)
+        void initAppView(AppView *appView);
+        // Notify app of destroyed AppView (for use by AppView)
+        void destroyAppView(AppView *appView);
+
+        // Visibility mask setup
+        inline bool needsVisibilityMask(osg::Camera *camera)
+        {
+            return _useVisibilityMask &&
+                (camera->getClearMask() & GL_DEPTH_BUFFER_BIT);
+        }
+        void setupSceneViewVisibilityMasks(osg::Camera *camera,
+                                           osg::ref_ptr<osg::MatrixTransform> &transform);
+        osg::ref_ptr<osg::Geode> setupVisibilityMask(osg::Camera *camera,
+                                                     uint32_t viewIndex,
+                                                     osg::ref_ptr<osg::MatrixTransform> &transform);
+
     protected:
 
         typedef enum {
@@ -570,6 +650,9 @@ class XRState : public OpenXR::EventHandler
         // Set up a single swapchain containing multiple viewports
         bool setupSingleSwapchain(int64_t format, int64_t depthFormat = 0,
                                   GLenum fallbackDepthFormat = 0);
+        // Set up a single swapchain containing multiple layers
+        bool setupLayeredSwapchain(int64_t format, int64_t depthFormat = 0,
+                                   GLenum fallbackDepthFormat = 0);
         // Set up a swapchain for each view
         bool setupMultipleSwapchains(int64_t format, int64_t depthFormat = 0,
                                      GLenum fallbackDepthFormat = 0);
@@ -577,26 +660,27 @@ class XRState : public OpenXR::EventHandler
         void setupSlaveCameras();
         // Set up SceneView VR mode cameras
         void setupSceneViewCameras();
-        void setupSceneViewCamera(osg::Camera *camera);
-        // Visibility mask setup
-        inline bool needsVisibilityMask(osg::Camera *camera)
-        {
-            return _useVisibilityMask &&
-                (camera->getClearMask() & GL_DEPTH_BUFFER_BIT);
-        }
-        void setupSceneViewVisibilityMasks(osg::Camera *camera,
-                                           osg::ref_ptr<osg::MatrixTransform> &transform);
-        osg::ref_ptr<osg::Geode> setupVisibilityMask(osg::Camera *camera,
-                                                     uint32_t viewIndex,
-                                                     osg::ref_ptr<osg::MatrixTransform> &transform);
+        // Set up geometry shaders VR mode cameras
+        void setupGeomShadersCameras();
+        // Set up OVR_multiview VR mode cameras
+        void setupOVRMultiviewCameras();
 
         osg::ref_ptr<Settings> _settings;
         Settings _settingsCopy;
         osg::observer_ptr<Manager> _manager;
+        std::map<std::string, std::weak_ptr<Extension::Private>> _extensions;
+        std::shared_ptr<Extension::Private> _extDepthInfo;
+        std::shared_ptr<Extension::Private> _extDepthUtils;
+        std::shared_ptr<Extension::Private> _extHandTracking;
+        std::shared_ptr<Extension::Private> _extVisibilityMask;
+        std::set<std::shared_ptr<Extension::Private>> _enabledExtensions;
 
         // app configuration
         osg::Node::NodeMask _visibilityMaskLeft;
         osg::Node::NodeMask _visibilityMaskRight;
+
+        // Persistent objects
+        std::set<Object *> _objects;
 
         // Actions
         bool _actionsUpdated;
@@ -656,7 +740,7 @@ class XRState : public OpenXR::EventHandler
         FrameStore _frames;
         osg::ref_ptr<OpenXR::CompositionLayerProjection> _projectionLayer;
         OpenXR::DepthInfo _depthInfo;
-        osg::ref_ptr<osg::DisplaySettings> _stereoDisplaySettings;
+        osg::ref_ptr<osg::Program> _visibilityMaskProgram;
 };
 
 } // osgXR

@@ -4,6 +4,7 @@
 #include <osgXR/Manager>
 #include <osgXR/Mirror>
 
+#include "Extension.h"
 #include "XRState.h"
 #include "XRRealizeOperation.h"
 
@@ -130,9 +131,40 @@ bool Manager::hasVisibilityMaskExtension() const
     return _state->hasVisibilityMaskExtension();
 }
 
+osg::ref_ptr<Extension> Manager::getExtension(const std::string &name)
+{
+    return new Extension(this, name);
+}
+
+std::vector<std::string> Manager::getExtensionNames()
+{
+    return _state->getExtensionNames();
+}
+
+void Manager::enableExtension(const Extension *extension)
+{
+    _state->enableExtension(Extension::Private::get(extension));
+}
+
+void Manager::disableExtension(const Extension *extension)
+{
+    _state->disableExtension(Extension::Private::get(extension));
+}
+
+Version Manager::getApiVersion() const
+{
+    XrVersion apiVersion = _state->getApiVersion();
+    return Version(XR_VERSION_MAJOR(apiVersion), XR_VERSION_MINOR(apiVersion));
+}
+
 const char *Manager::getRuntimeName() const
 {
     return _state->getRuntimeName();
+}
+
+Version Manager::getRuntimeVersion() const
+{
+    return _state->getRuntimeVersion();
 }
 
 const char *Manager::getSystemName() const
@@ -178,6 +210,11 @@ void Manager::addMirror(Mirror *mirror)
 void Manager::setupMirrorCamera(osg::Camera *camera)
 {
     addMirror(new Mirror(this, camera));
+}
+
+XRState *Manager::_getXrState()
+{
+    return _state;
 }
 
 void Manager::_setupMirrors()
