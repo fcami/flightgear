@@ -219,6 +219,7 @@ option(ENABLE_HID_INPUT  "Set to ON to build HID-based input code" ${EVENT_INPUT
 option(ENABLE_PLIB_JOYSTICK  "Set to ON to enable legacy joystick code (default)" ON)
 option(ENABLE_SWIFT      "Set to ON to build the swift module" ON)
 option(ENABLE_SENTRY     "Set to ON to build the Sentry.io crash reporting" ON)
+option(ENABLE_MQTT       "Set to ON to build FlightGear with MQTT support (default OFF)" OFF)
 
 option(CHECK_FOR_QT5        "Set to ON to attempt to look for Qt5" ON)
 option(CHECK_FOR_QT6        "Set to ON to attempt to look for Qt6" ON)
@@ -405,6 +406,18 @@ else()
     set(HAVE_QT 0)
     set(ENABLE_FGQCANVAS OFF)
 endif (ENABLE_QT)
+
+if (ENABLE_MQTT)
+    find_package(PahoMqttCpp CONFIG)
+    if (NOT PahoMqttCpp_FOUND)
+        message(STATUS "Paho MQTT library or dependencies not found, MQTT disabled")
+	set(ENABLE_MQTT OFF)
+    else()
+        message(STATUS "building with MQTT support")
+        add_compile_definitions(HAVE_MQTT)
+    endif()
+endif (ENABLE_MQTT)
+
 
 ##############################################################################
 

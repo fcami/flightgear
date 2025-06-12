@@ -18,7 +18,7 @@ set(SOURCES
 	jsclient.cxx
 	lfsglass.cxx
 	native.cxx
-        native_structs.cxx
+	native_structs.cxx
 	native_ctrls.cxx
 	native_fdm.cxx
 	native_gui.cxx
@@ -49,7 +49,7 @@ set(HEADERS
 	jsclient.hxx
 	lfsglass.hxx
 	native.hxx
-        native_ctrls.hxx
+	native_ctrls.hxx
 	native_ctrls.hxx
 	native_fdm.hxx
 	native_gui.hxx
@@ -75,6 +75,10 @@ endif()
 if(ENABLE_IAX)
     list(APPEND SOURCES fgcom.cxx)
     list(APPEND HEADERS fgcom.hxx)
+endif()
+
+if(ENABLE_MQTT)
+	add_subdirectory(MQTT)
 endif()
 
 flightgear_component(Network "${SOURCES}" "${HEADERS}")
