@@ -158,3 +158,48 @@ void MQTTTest::testPropertySubscription()
 
     CPPUNIT_ASSERT_DOUBLES_EQUAL(42.0, fgGetDouble("/target/foo/bar"), 0.0);
 }
+
+void MQTTTest::testTopicFilterMatcher()
+{
+    auto topic = std::make_shared<MQTTTopic>("/test/topic", "payload", 0, false);
+
+    CPPUNIT_ASSERT_EQUAL(true, topic->matchesFilter("/test/topic"));
+    CPPUNIT_ASSERT_EQUAL(true, topic->matchesFilter("/test/#"));
+    CPPUNIT_ASSERT_EQUAL(true, topic->matchesFilter("/test/+"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+/foo"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+foo"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+/foo/bar"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+/foo/bar/baz"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+/foo/bar/baz/"));
+    CPPUNIT_ASSERT_EQUAL(false, topic->matchesFilter("/test/+/foo/bar/baz/bla"));
+}
+
+void MQTTTest::testTopicFilterValidator()
+{
+    using namespace flightgear;
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("sensor/temperature"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/home/livingroom"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/test/+/status"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/test/#"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("+"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("#"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/+"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/#"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("foo/+"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("+/bar"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("foo/+/bar"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/foo/bar"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("foo/bar/"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("/foo/bar/"));
+    CPPUNIT_ASSERT(MQTTPropertySubscription::isValidTopicFilter("//foo///bar//"));
+
+
+    // invalid filters
+    CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("foo/#extra"));
+    CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("foo/extra#"));
+    CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter(""));
+    CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("foo/#/#"));
+    CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("#/#"));
+}

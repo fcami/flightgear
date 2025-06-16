@@ -42,6 +42,7 @@ public:
     virtual int getQos() const = 0;
     virtual bool isRetained() const = 0;
     virtual std::string getPayload() const = 0;
+    virtual bool matchesFilter(std::string_view filter) = 0;
 };
 
 class MQTTTopic : public IMQTTTopic
@@ -82,6 +83,8 @@ public:
     {
         _name = std::move(name);
     }
+
+    bool matchesFilter(std::string_view filter);
 
 private:
     std::string _name;
@@ -124,7 +127,7 @@ public:
     void connect() override;
     void disconnect() override;
     void publish(std::shared_ptr<IMQTTTopic>) override;
-    virtual void subscribe(const std::string& topic, IMQTTTopicListener * topicListener, int qos = 0) override;
+    virtual void subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos = 0) override;
     virtual void unsubscribe(IMQTTTopicListener* topicListener) override;
 
     static std::int64_t getCurrentTimestampMillis();

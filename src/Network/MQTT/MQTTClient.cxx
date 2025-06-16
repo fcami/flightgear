@@ -13,6 +13,36 @@
 #include <mqtt/async_client.h>
 #include <simgear/debug/logstream.hxx>
 
+bool MQTTTopic::matchesFilter( std::string_view filter)
+{
+    const std::string & topic = getName();
+
+    size_t ti = 0, fi = 0;
+
+    while (ti <= topic.size() && fi <= filter.size()) {
+        // Extract next topic segment
+        size_t tNext = topic.find('/', ti);
+        if (tNext == std::string_view::npos) tNext = topic.size();
+        std::string_view tToken = topic.substr(ti, tNext - ti);
+
+        // Extract next filter segment
+        size_t fNext = filter.find('/', fi);
+        if (fNext == std::string_view::npos) fNext = filter.size();
+        std::string_view fToken = filter.substr(fi, fNext - fi);
+
+        // Match logic
+        if (fToken == "#") return true; // Match rest
+        if (fToken != "+" && fToken != tToken) return false;
+
+        // Advance to next segment
+        ti = (tNext < topic.size()) ? tNext + 1 : topic.size() + 1;
+        fi = (fNext < filter.size()) ? fNext + 1 : filter.size() + 1;
+    }
+
+    // If both fully consumed, it's a match
+    return ti > topic.size() && fi > filter.size();
+}
+
 class MQTTClientImpl : public virtual mqtt::callback
 {
 public:
@@ -31,6 +61,10 @@ public:
     void message_arrived(mqtt::const_message_ptr msg) override
     {
         SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Message arrived: " << msg->get_topic() << " -> " << msg->to_string());
+        if( _inMessages.size() > maxQueueLength ) {
+            SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] Message queue is full (max=" << maxQueueLength << "), dropping message");
+            return;
+        }
         auto topic = std::make_shared<MQTTTopic>(msg->get_topic(), msg->to_string(), msg->get_qos(), msg->is_retained());
         _inMessages.push(topic);
     }
@@ -59,6 +93,7 @@ private:
     std::unique_ptr<mqtt::async_client> _client;
     std::vector<mqtt::token_ptr> tokens;
     std::unordered_map<std::string, std::string> _payloads;
+    unsigned maxQueueLength = 1000; // max queue length for _inMessages
     SGLockedQueue<std::shared_ptr<IMQTTTopic>> _inMessages;
     std::vector<IMQTTTopicListener*> _listeners;
 };
@@ -79,39 +114,6 @@ MQTTClientImpl::~MQTTClientImpl()
         }
     }
 }
-
-bool topicMatchesFilter(std::string_view topic, std::string_view filter)
-{
-    size_t ti = 0, fi = 0;
-
-    while (ti < topic.size() && fi < filter.size()) {
-        // Get topic token
-        size_t tStart = ti, tEnd = ti;
-        while (tEnd < topic.size() && topic[tEnd] != '/') ++tEnd;
-        std::string_view tToken = topic.substr(tStart, tEnd - tStart);
-
-        // Get filter token
-        size_t fStart = fi, fEnd = fi;
-        while (fEnd < filter.size() && filter[fEnd] != '/') ++fEnd;
-        std::string_view fToken = filter.substr(fStart, fEnd - fStart);
-
-        if (fToken == "#") return true;
-        if (fToken != "+" && fToken != tToken) return false;
-
-        // Advance
-        ti = (tEnd < topic.size()) ? tEnd + 1 : topic.size();
-        fi = (fEnd < filter.size()) ? fEnd + 1 : filter.size();
-    }
-
-    // Handle end of topic/filter
-    // Remaining filter segment is '#' only
-    if (fi < filter.size()) {
-        if (filter.substr(fi) == "#") return true;
-    }
-
-    return ti == topic.size() && fi == filter.size();
-}
-
 
 void MQTTClientImpl::tick()
 {
@@ -143,7 +145,7 @@ void MQTTClientImpl::tick()
         // distribute to listeners
         for (auto listener : _listeners) {
             // check if the topic matches the listeners filter
-            if (topicMatchesFilter(topic->getName(), listener->getTopicName())) {
+            if (topic->matchesFilter(listener->getTopicName())) {
                 listener->onMessage(topic);
             }
         }
@@ -318,3 +320,4 @@ std::string MQTTClient::getTimestamp()
 {
     return std::to_string(getCurrentTimestampMillis());
 }
+

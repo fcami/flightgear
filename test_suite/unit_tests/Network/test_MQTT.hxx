@@ -17,6 +17,9 @@ class MQTTTest : public CppUnit::TestFixture
     CPPUNIT_TEST(testPropertyPublisherRecursive);
     CPPUNIT_TEST(testTemplatePublisher);
     CPPUNIT_TEST(testPropertySubscription);
+    CPPUNIT_TEST(testTopicFilterMatcher);
+    CPPUNIT_TEST(testTopicFilterValidator);
+
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -28,6 +31,8 @@ public:
     void tearDown();
 
     // Test
+    void testTopicFilterValidator();
+    void testTopicFilterMatcher();
     void testPropertyPublisherNonrecursive();
     void testPropertyPublisherRecursive();
     void testTemplatePublisher();
