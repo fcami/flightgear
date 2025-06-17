@@ -223,6 +223,8 @@ void MQTTClientImpl::publish(std::shared_ptr<IMQTTTopic> topic)
         auto p = topic->getPayload();
         auto t = topic->getName();
 
+        // The number of topics is limited in the configuration so there is probably no
+        // no need for capping the size of the cache
         if (_options->isUniquePayload()) {
             // If unique payloads are enabled, we store the payload to avoid duplicates
             if (_payloads.find(t) != _payloads.end() && _payloads[t] == p) {

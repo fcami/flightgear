@@ -33,6 +33,8 @@ public:
     virtual void valueChanged(SGPropertyNode* node) override
     {
         auto payload = node->getStringValue();
+        // _name is sanitized in the constructor and never ends with a slash. Property path does start
+        // with a slash so our topic name will be good by just concatenating name and path
         auto topic = std::make_shared<MQTTTopic>(_name + node->getPath(true), payload, _qos, _retain);
         _client->publish(topic);
     }

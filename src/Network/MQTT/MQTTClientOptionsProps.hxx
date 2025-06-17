@@ -37,13 +37,15 @@ public:
     {
         return _rootNode->getIntValue("mqtt-version", 5);
     }
-    bool isAutomaticReconnect() const override
-    {
-        return _rootNode->hasChild("automatic-reconnect");
-    }
+
     int getConnectTimeout() const override
     {
         return _rootNode->getIntValue("connect-timeout", 30);
+    }
+    bool isAutomaticReconnect() const override
+    {
+        // just check the node here, not if it has a value.
+        return _rootNode->hasChild("automatic-reconnect");
     }
     int getMinRetryInterval() const override
     {
@@ -93,9 +95,17 @@ public:
     }
 
 private:
+    /**
+     * Get a string value from either a property node or environment variable
+     * @param key The property node path to look up
+     * @return If the node has an 'env' child, returns the value of that environment variable.
+     *         Otherwise returns the string value of the node directly.
+     *         Returns empty string if node doesn't exist or env var is not set.
+     */
     std::string getStringValueOrEnv(const std::string& key) const
     {
-        auto keyNode = _rootNode->getNode(key, true);
+        auto keyNode = _rootNode->getNode(key);
+        if( !keyNode ) return {};
         if (keyNode->hasChild("env")) {
             auto envVar = keyNode->getStringValue("env", "");
             auto p = std::getenv(envVar.c_str());

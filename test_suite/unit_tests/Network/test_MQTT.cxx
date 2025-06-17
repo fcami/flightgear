@@ -202,4 +202,15 @@ void MQTTTest::testTopicFilterValidator()
     CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter(""));
     CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("foo/#/#"));
     CPPUNIT_ASSERT(!MQTTPropertySubscription::isValidTopicFilter("#/#"));
+
+    auto mockClient = std::make_shared<MockClient>();
+    // assert the construction of MQTTPropertySubscription with an invalid filter throws an exception
+    CPPUNIT_ASSERT_THROW(
+        auto s = MQTTPropertySubscription(mockClient, "#foo+", "/test/property"),
+        std::invalid_argument
+    );
+
+    CPPUNIT_ASSERT_NO_THROW(
+        auto s = MQTTPropertySubscription(mockClient, "/good/filter/#", "/test/property");
+    );
 }

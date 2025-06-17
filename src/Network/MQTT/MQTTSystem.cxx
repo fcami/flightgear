@@ -111,9 +111,15 @@ void MQTTSystem::init()
                 }
 
                 for (auto target : topic->getChildren("target")) {
-                    auto subscription = std::make_shared<MQTTPropertySubscription>(client, topicName, target->getStringValue("property"), qos);
-                    _mqttPropertySubscriptions.push_back(subscription);
-                    client->subscribe(topicName, subscription.get(), qos);
+                    try {
+                        auto subscription = std::make_shared<MQTTPropertySubscription>(client, topicName, target->getStringValue("property"), qos);
+                        _mqttPropertySubscriptions.push_back(subscription);
+                        client->subscribe(topicName, subscription.get(), qos);
+                    }
+                    catch (const std::exception& e) {
+                        // subscribing might fail due to e.g. invalid topic filters
+                        SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] failed to subscribe to " << topicName << " : " << e.what());
+                    }
                 }
             }
         }
