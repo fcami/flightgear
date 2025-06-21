@@ -43,6 +43,17 @@ void MQTTSystem::init()
         auto props = std::make_shared<MQTTClientOptionsProps>(broker);
         auto client = std::make_shared<MQTTClient>(props);
 
+        SGPropertyNode_ptr connected = broker->getNode("connected", true );
+        client->onConnect([connected]() {
+            SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] connected to broker");
+            connected->setBoolValue(true);
+        });
+
+        client->onDisconnect([connected]() {
+            SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] disconnected from broker");
+            connected->setBoolValue(false);
+        });
+
         if (broker->hasChild("publish")) {
             // publish all topics in /broker/publish/topic
             for (auto topic : broker->getNode("publish")->getChildren("topic")) {
@@ -111,8 +122,14 @@ void MQTTSystem::init()
                 }
 
                 for (auto target : topic->getChildren("target")) {
+                    // check if a property path is specified
+                    auto targetPath = target->getStringValue("property","");
+                    if (targetPath.empty()) {
+                        // if not, use the target node's path
+                        targetPath = target->getPath();
+                    }
                     try {
-                        auto subscription = std::make_shared<MQTTPropertySubscription>(client, topicName, target->getStringValue("property"), qos);
+                        auto subscription = std::make_shared<MQTTPropertySubscription>(client, topicName, targetPath, qos);
                         _mqttPropertySubscriptions.push_back(subscription);
                         client->subscribe(topicName, subscription.get(), qos);
                     }

@@ -13,6 +13,7 @@
 #include "Network/MQTT/MQTTPropertyPublisher.hxx"
 #include "Network/MQTT/MQTTPropertySubscription.hxx"
 #include "Network/MQTT/MQTTTemplatePublisher.hxx"
+#include "Network/MQTT/EventEmitter.hxx"
 
 #include <Main/fg_props.hxx>
 #include <Main/util.hxx>
@@ -47,6 +48,16 @@ public:
     virtual void unsubscribe(IMQTTTopicListener* topicListener)
     {
         functionCalls["unsubscribe"]++;
+    }
+
+    virtual void onConnect()
+    {
+        functionCalls["connect"]++;
+    }
+
+    virtual void onDisconnect()
+    {
+        functionCalls["disconnect"]++;
     }
 
     std::shared_ptr<IMQTTTopic> publishedTopic = std::make_shared<MQTTTopic>("unset", "unset", -1, false);
@@ -213,4 +224,50 @@ void MQTTTest::testTopicFilterValidator()
     CPPUNIT_ASSERT_NO_THROW(
         auto s = MQTTPropertySubscription(mockClient, "/good/filter/#", "/test/property");
     );
+}
+
+void MQTTTest::testSingleListener()
+{
+    EventEmitter emitter;
+    bool called = false;
+    emitter.on("connect", [&]() { called = true; });
+    emitter.emit("connect");
+    CPPUNIT_ASSERT(called);
+}
+
+void MQTTTest::testMultipleListeners()
+{
+    EventEmitter emitter;
+    int counter = 0;
+    emitter.on("data", [&]() { counter += 1; });
+    emitter.on("data", [&]() { counter += 2; });
+    emitter.emit("data");
+    CPPUNIT_ASSERT_EQUAL(3, counter);
+}
+
+void MQTTTest::testListenerRemoval()
+{
+    EventEmitter emitter;
+    int counter = 0;
+    auto id = emitter.on("change", [&]() { counter++; });
+    emitter.off("change", id);
+    emitter.emit("change");
+    CPPUNIT_ASSERT_EQUAL(0, counter);
+}
+
+void MQTTTest::testNoEvent()
+{
+    EventEmitter emitter;
+    CPPUNIT_ASSERT_NO_THROW(emitter.emit("missing"));
+}
+
+void MQTTTest::testMultipleEvents()
+{
+    EventEmitter emitter;
+    bool a = false, b = false;
+    emitter.on("a", [&]() { a = true; });
+    emitter.on("b", [&]() { b = true; });
+    emitter.emit("a");
+    CPPUNIT_ASSERT(a);
+    CPPUNIT_ASSERT(!b);
 }

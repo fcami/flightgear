@@ -7,6 +7,14 @@
 
 #pragma once
 #include <string>
+#include "simgear/threads/SGQueue.hxx"
+#include "EventEmitter.hxx"
+namespace mqtt {
+    class async_client;
+    class callback;
+    class token;
+    using token_ptr = std::shared_ptr<token>;
+}
 
 class IMQTTClientOptions
 {
@@ -114,9 +122,12 @@ public:
 
     virtual void subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos = 0) = 0;
     virtual void unsubscribe(IMQTTTopicListener* topicListener) = 0;
-};
 
-class MQTTClientImpl; // Forward declaration for implementation details
+    virtual void onConnect() = 0;
+    virtual void onDisconnect() = 0;
+};
+class MQTTClientCallback;
+
 class MQTTClient : public IMQTTClient
 {
 public:
@@ -129,12 +140,29 @@ public:
     void publish(std::shared_ptr<IMQTTTopic>) override;
     virtual void subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos = 0) override;
     virtual void unsubscribe(IMQTTTopicListener* topicListener) override;
+    EventEmitter::ListenerID onConnect(EventEmitter::Listener);
+    EventEmitter::ListenerID onDisconnect(EventEmitter::Listener);
 
     static std::int64_t getCurrentTimestampMillis();
     static std::string getTimestamp();
 
+    friend class MQTTClientCallback;
+protected:
+    virtual void onConnect();
+    virtual void onDisconnect();
+    bool queueMessage(std::shared_ptr<IMQTTTopic> topic);
+    void subscribe(const std::string& topic, int qos = 0);
+
 private:
     MQTTClient();
-    std::shared_ptr<IMQTTClientOptions> options;
-    std::unique_ptr<MQTTClientImpl> impl;
+    std::shared_ptr<IMQTTClientOptions> _options;
+    std::unique_ptr<mqtt::async_client> _client;
+    std::vector<mqtt::token_ptr> tokens;
+    std::unordered_map<std::string, std::string> _payloads;
+    unsigned maxQueueLength = 1000; // max queue length for _inMessages
+    SGLockedQueue<std::shared_ptr<IMQTTTopic>> _inMessages;
+    std::vector<IMQTTTopicListener*> _listeners;
+
+    std::unique_ptr<MQTTClientCallback> _callback;
+    EventEmitter _eventEmitter;
 };

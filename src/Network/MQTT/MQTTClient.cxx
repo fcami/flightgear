@@ -6,16 +6,17 @@
  */
 
 #include "MQTTClient.hxx"
-#include <simgear/threads/SGQueue.hxx>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <mqtt/async_client.h>
 #include <simgear/debug/logstream.hxx>
+#include <simgear/threads/SGQueue.hxx>
 
-bool MQTTTopic::matchesFilter( std::string_view filter)
+bool MQTTTopic::matchesFilter(std::string_view filter)
 {
-    const std::string & topic = getName();
+    const std::string topicStr = getName();
+    std::string_view topic = topicStr;
 
     size_t ti = 0, fi = 0;
 
@@ -43,62 +44,41 @@ bool MQTTTopic::matchesFilter( std::string_view filter)
     return ti > topic.size() && fi > filter.size();
 }
 
-class MQTTClientImpl : public virtual mqtt::callback
+class MQTTClientCallback : public mqtt::callback
 {
+private:
+    MQTTClient& _parent;
+
 public:
-    MQTTClientImpl(std::shared_ptr<IMQTTClientOptions> options) : _options(std::move(options))
+    MQTTClientCallback(MQTTClient& parent) : _parent(parent)
     {
     }
-
-    virtual ~MQTTClientImpl();
-
-    void tick();
-
-    void connect();
-    void disconnect();
-    void publish(std::shared_ptr<IMQTTTopic>);
 
     void message_arrived(mqtt::const_message_ptr msg) override
     {
         SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Message arrived: " << msg->get_topic() << " -> " << msg->to_string());
-        if( _inMessages.size() > maxQueueLength ) {
-            SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] Message queue is full (max=" << maxQueueLength << "), dropping message");
-            return;
-        }
         auto topic = std::make_shared<MQTTTopic>(msg->get_topic(), msg->to_string(), msg->get_qos(), msg->is_retained());
-        _inMessages.push(topic);
+        _parent.queueMessage(topic);
     }
 
     void connected(const std::string& cause) override
     {
-        SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Connected to " << _options->getBrokerUri() << " as " << _client->get_client_id() << " : " << cause);
-        SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Subscribing to " << _listeners.size() << " topics");
-        for( auto topic : _listeners ) {
-            SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Subscribing to " << topic->getTopicName());
-            tokens.push_back(_client->subscribe(topic->getTopicName(), topic->getQos()));
-        }
+        _parent.onConnect();
     }
 
     void connection_lost(const std::string& cause) override
     {
-        SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Connection lost to " << _options->getBrokerUri() << " as " << _client->get_client_id() << " : " << cause);
+        _parent.onDisconnect();
     }
-
-    void subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos);
-    void unsubscribe(IMQTTTopicListener* topicListener);
-
-
-private:
-    std::shared_ptr<IMQTTClientOptions> _options;
-    std::unique_ptr<mqtt::async_client> _client;
-    std::vector<mqtt::token_ptr> tokens;
-    std::unordered_map<std::string, std::string> _payloads;
-    unsigned maxQueueLength = 1000; // max queue length for _inMessages
-    SGLockedQueue<std::shared_ptr<IMQTTTopic>> _inMessages;
-    std::vector<IMQTTTopicListener*> _listeners;
 };
 
-MQTTClientImpl::~MQTTClientImpl()
+MQTTClient::MQTTClient(std::shared_ptr<IMQTTClientOptions> options)
+    : _options(std::move(options)),
+      _callback(std::make_unique<MQTTClientCallback>(*this))
+{
+}
+
+MQTTClient::~MQTTClient()
 {
     /*
     Intentionally not unsubsscribing from topics. reconsider this if
@@ -115,7 +95,22 @@ MQTTClientImpl::~MQTTClientImpl()
     }
 }
 
-void MQTTClientImpl::tick()
+bool MQTTClient::queueMessage(std::shared_ptr<IMQTTTopic> topic)
+{
+    if (_inMessages.size() >= maxQueueLength) {
+        SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] Message queue is full (max=" << maxQueueLength << "), dropping message");
+        return false;
+    }
+    _inMessages.push(topic);
+    return true;
+}
+
+void MQTTClient::subscribe(const std::string& topic, int qos)
+{
+    tokens.push_back(_client->subscribe(topic, qos));
+}
+
+void MQTTClient::tick()
 {
     std::size_t n = tokens.size();
     tokens.erase(
@@ -136,7 +131,7 @@ void MQTTClientImpl::tick()
     }
 
     for (auto i = 0; i < 10; i++) {
-        if( _inMessages.empty() )
+        if (_inMessages.empty())
             break;
 
         auto topic = _inMessages.pop();
@@ -152,7 +147,7 @@ void MQTTClientImpl::tick()
     }
 }
 
-void MQTTClientImpl::connect()
+void MQTTClient::connect()
 {
     try {
         boost::uuids::uuid uuid = boost::uuids::random_generator()();
@@ -188,7 +183,8 @@ void MQTTClientImpl::connect()
             SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] using SSL trustStore: " << sslOpts.get_trust_store() << " keyStore: " << sslOpts.get_key_store() << " privateKey: " << sslOpts.get_private_key());
         }
 
-        _client->set_callback(*this);
+        auto cb = _callback.get();
+        _client->set_callback(*cb);
         tokens.push_back(_client->connect(connOpts));
 
         SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Connection initiated to " << _options->getBrokerUri() << " as " << _client->get_client_id());
@@ -197,7 +193,33 @@ void MQTTClientImpl::connect()
     }
 }
 
-void MQTTClientImpl::disconnect()
+void MQTTClient::onConnect()
+{
+    SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Connected to " << _options->getBrokerUri() << " as " << _client->get_client_id());
+    SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Subscribing to " << _listeners.size() << " topics");
+    for (auto topic : _listeners) {
+        SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Subscribing to " << topic->getTopicName());
+        subscribe(topic->getTopicName(), topic->getQos());
+    }
+    _eventEmitter.emit("connect");
+}
+void MQTTClient::onDisconnect()
+{
+    SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Connection lost to " << _options->getBrokerUri() << " as " << _client->get_client_id());
+    _eventEmitter.emit("disconnect");
+}
+
+EventEmitter::ListenerID MQTTClient::onConnect(EventEmitter::Listener listener)
+{
+    return _eventEmitter.on("connect", listener);
+}
+
+EventEmitter::ListenerID MQTTClient::onDisconnect(EventEmitter::Listener listener)
+{
+    return _eventEmitter.on("disconnect", listener);
+}
+
+void MQTTClient::disconnect()
 {
     SG_LOG(SG_NETWORK, SG_INFO, "[MQTT] Client disconnecting...");
     if (_client && _client->is_connected()) {
@@ -212,7 +234,7 @@ void MQTTClientImpl::disconnect()
     }
 }
 
-void MQTTClientImpl::publish(std::shared_ptr<IMQTTTopic> topic)
+void MQTTClient::publish(std::shared_ptr<IMQTTTopic> topic)
 {
     if (false == (_client && _client->is_connected())) {
         SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] Client not connected, cannot publish");
@@ -246,7 +268,7 @@ void MQTTClientImpl::publish(std::shared_ptr<IMQTTTopic> topic)
         SG_LOG(SG_NETWORK, SG_ALERT, "[MQTT] Publishing to " << topic->getName() << "failed: " << e.what());
     }
 }
-void MQTTClientImpl::subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos)
+void MQTTClient::subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos)
 {
     SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Subscribing to " << topic << " with QoS " << qos);
     if (std ::find(_listeners.begin(), _listeners.end(), topicListener) != _listeners.end()) {
@@ -260,54 +282,15 @@ void MQTTClientImpl::subscribe(const std::string& topic, IMQTTTopicListener* top
     }
 }
 
-void MQTTClientImpl::unsubscribe(IMQTTTopicListener* topicListener)
+void MQTTClient::unsubscribe(IMQTTTopicListener* topicListener)
 {
-    if( _client && _client->is_connected() ) {
+    if (_client && _client->is_connected()) {
         SG_LOG(SG_NETWORK, SG_DEBUG, "[MQTT] Client connected, unsubscribing from topic " << topicListener->getTopicName());
         tokens.push_back(_client->unsubscribe(topicListener->getTopicName()));
     } else {
         SG_LOG(SG_NETWORK, SG_WARN, "[MQTT] Client not connected, cannot unsubscribe from topic " << topicListener->getTopicName());
     }
     _listeners.erase(std::remove(_listeners.begin(), _listeners.end(), topicListener), _listeners.end());
-}
-
-
-MQTTClient::MQTTClient(std::shared_ptr<IMQTTClientOptions> options)
-{
-    impl = std::make_unique<MQTTClientImpl>(options);
-}
-
-MQTTClient::~MQTTClient()
-{
-}
-
-void MQTTClient::tick()
-{
-    impl->tick();
-}
-
-void MQTTClient::connect()
-{
-    impl->connect();
-}
-
-void MQTTClient::disconnect()
-{
-    impl->disconnect();
-}
-
-void MQTTClient::publish(std::shared_ptr<IMQTTTopic> topic)
-{
-    impl->publish(topic);
-}
-
-void MQTTClient::subscribe(const std::string& topic, IMQTTTopicListener* topicListener, int qos)
-{
-    impl->subscribe(topic, topicListener, qos);
-}
-void MQTTClient::unsubscribe(IMQTTTopicListener* topicListener)
-{
-    impl->unsubscribe(topicListener);
 }
 
 std::int64_t MQTTClient::getCurrentTimestampMillis()
@@ -322,4 +305,3 @@ std::string MQTTClient::getTimestamp()
 {
     return std::to_string(getCurrentTimestampMillis());
 }
-
