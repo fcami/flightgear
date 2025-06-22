@@ -25,6 +25,10 @@ function(setup_fgfs_libraries target)
         target_link_libraries(${target} osgXR)
     endif()
 
+    if(ENABLE_MQTT)
+        target_link_libraries(${target} PahoMqttCpp::paho-mqttpp3)
+    endif()
+
     target_link_libraries(${target} fgsqlite3 fgvoicesynth fgembeddedresources)
 
     target_link_libraries(${target}
