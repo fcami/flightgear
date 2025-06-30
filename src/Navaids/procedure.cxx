@@ -116,12 +116,13 @@ bool Approach::route(FGRunwayRef runway, WayptRef aIAF, WayptVec& aWps)
     if (!haveTrans) {
       if (_primary.front()->matches(aIAF)) {
         // direct IAF on the approach, no transition is needed
+      } else if (aIAF->type() == "vectors") {
+          // IAF is actually VECTORS, so assume ATC will vector us to the approach
       } else {
-        // we couldn't find the IAF at the front of any obvious thing - either
-        // the primary waypoints or any transition we have defined.
-        // warn and just use the primary waypoints down below
-        SG_LOG(SG_NAVAID, SG_INFO, "approach " << ident() << " has no transition " <<
-               "for IAF: " << aIAF->ident());
+          // we couldn't find the IAF at the front of any obvious thing - either
+          // the primary waypoints or any transition we have defined.
+          // warn and just use the primary waypoints down below
+          SG_LOG(SG_NAVAID, SG_INFO, "approach " << ident() << " has no transition " << "for IAF: " << aIAF->ident());
       }
     }
   }

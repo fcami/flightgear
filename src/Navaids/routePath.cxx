@@ -200,8 +200,7 @@ TurnInfo turnCenterAndAngleFromExit(const SGGeod& pt, double outHeadingDeg,
     double courseToTC, distanceToTC, az2;
     SGGeodesy::inverse(origin, r.turnCenter, courseToTC, az2, distanceToTC);
     if (distanceToTC < turnRadiusM) {
-        SG_LOG(SG_NAVAID, SG_WARN, "turnCenterAndAngleFromExit: origin point too close to turn center");
-        return r;
+        return r; // invalid
     }
 
     // find additional course angle away from the exit pos to intersect
