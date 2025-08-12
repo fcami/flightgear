@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 cmake_minimum_required (VERSION 3.20)
 
 include (CheckFunctionExists)
@@ -127,7 +130,9 @@ IF(APPLE)
 
     find_library(CORESERVICES_LIBRARY CoreServices)
     find_library(COCOA_LIBRARY Cocoa)
-    list(APPEND PLATFORM_LIBS ${COCOA_LIBRARY} ${CORESERVICES_LIBRARY})
+    find_library(UTI_LIBRARY UniformTypeIdentifiers)
+
+    list(APPEND PLATFORM_LIBS ${COCOA_LIBRARY} ${CORESERVICES_LIBRARY} ${UTI_LIBRARY})
 
     # silence Apple OpenGl warnings about legacy 1.x APIs
     add_compile_definitions(GL_SILENCE_DEPRECATION)
@@ -447,7 +452,7 @@ if (SG_HAVE_DDS)
     message(STATUS "Data Distribution Service support: CycloneDDS")
     set(FG_HAVE_DDS 1)
 else()
-    message(STATUS "Data Distribution Service support: DISBLED")
+    message(STATUS "Data Distribution Service support: DISABLED")
 endif()
 
 if(ENABLE_RTI)
@@ -601,7 +606,7 @@ include(SetupFGFSLibraries)
 # subdirectories will append sources to this target, and we'll
 # link it into our real executable targets
 # use of 'flightgear-version' text file here is a dummy; CMake 3.10
-# requries at least one direct source file for targets, even though
+# requires at least one direct source file for targets, even though
 # we use target_sources() later
 
 add_library(fgfsObjects OBJECT flightgear-version)
