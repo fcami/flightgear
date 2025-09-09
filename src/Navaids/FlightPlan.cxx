@@ -547,6 +547,11 @@ void FlightPlan::setDeparture(FGRunway* rwy)
     _departure = rwy->airport();
     clearSID();
   }
+
+  if (_sid && !_sid->isForRunway(_departureRunway)) {
+      clearSID();
+  }
+
   unlockDelegates();
 }
 
@@ -588,6 +593,10 @@ void FlightPlan::setSID(Transition* trans)
 
 void FlightPlan::clearSID()
 {
+    if (_sid == nullptr) {
+        return;
+    }
+
   lockDelegates();
   _departureChanged = true;
   _sid = nullptr;
@@ -631,6 +640,10 @@ void FlightPlan::setDestination(FGRunway* rwy)
   if (rwy && (_destination != rwy->airport())) {
     _destination = rwy->airport();
     clearSTAR();
+  }
+
+  if (_star && !_star->isForRunway(_destinationRunway)) {
+      clearSTAR();
   }
 
   unlockDelegates();
@@ -688,6 +701,9 @@ void FlightPlan::setSTAR(Transition* trans)
 
 void FlightPlan::clearSTAR()
 {
+    if (_star == nullptr) {
+        return;
+    }
 
   lockDelegates();
   _arrivalChanged = true;
@@ -1817,14 +1833,8 @@ void FlightPlan::lockDelegates()
   }
 }
 
-void FlightPlan::unlockDelegates()
+void FlightPlan::runDelegates()
 {
-  assert(_delegateLock > 0);
-  if (_delegateLock > 1) {
-    --_delegateLock;
-    return;
-  }
-
     if (_didLoadFP) {
         _didLoadFP = false;
         for (auto d : _delegates) {
@@ -1837,7 +1847,6 @@ void FlightPlan::unlockDelegates()
     for (auto d : _delegates) {
       d->departureChanged();
     }
-    assert(!_departureChanged);
   }
 
   if (_arrivalChanged) {
@@ -1845,7 +1854,6 @@ void FlightPlan::unlockDelegates()
     for (auto d : _delegates) {
       d->arrivalChanged();
     }
-    assert(!_arrivalChanged);
   }
 
   if (_cruiseDataChanged) {
@@ -1861,7 +1869,6 @@ void FlightPlan::unlockDelegates()
     for (auto d : _delegates) {
       d->waypointsChanged();
     }
-    assert(!_arrivalChanged);
   }
 
   if (_currentWaypointChanged) {
@@ -1871,11 +1878,25 @@ void FlightPlan::unlockDelegates()
     }
   }
 
-  --_delegateLock;
-  if (_delegateLock == 0) {
-      assert(!_departureChanged && !_arrivalChanged &&
-             !_waypointsChanged && !_currentWaypointChanged);
+  const auto cascadingUpdate = _departureChanged | _arrivalChanged | _waypointsChanged | _currentWaypointChanged;
+  if (cascadingUpdate) {
+      // one of our callbacks, caused a cascading change, so go around again.
+      // we assume the delegates will converge after one or more cascades, so we don't check for infinite looping here
+      SG_LOG(SG_AUTOPILOT, SG_INFO, "FlightPlan::runDelegates will re-run");
+      runDelegates();
   }
+}
+
+void FlightPlan::unlockDelegates()
+{
+    assert(_delegateLock > 0);
+    if (_delegateLock > 1) {
+        --_delegateLock;
+        return;
+    }
+
+    runDelegates();
+    --_delegateLock;
 }
 
 void FlightPlan::registerDelegateFactory(DelegateFactoryRef df)

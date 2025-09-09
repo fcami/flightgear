@@ -12,6 +12,7 @@
 #include <simgear/structure/exception.hxx>
 
 #include <Airports/airport.hxx>
+#include <Airports/airports_fwd.hxx>
 #include <Airports/runways.hxx>
 #include <Navaids/waypoint.hxx>
 
@@ -31,6 +32,17 @@ static void markWaypoints(WayptVec& wps, WayptFlag f)
 Procedure::Procedure(const string& aIdent) :
   _ident(aIdent)
 {
+}
+
+bool Procedure::isForRunway(FGRunwayRef rwy) const
+{
+    // this implementation is a bit wasteful but we don't call
+    // this on any hot paths
+    const auto rwys = runways();
+    auto it = std::find_if(rwys.cbegin(), rwys.cend(), [rwy](const FGRunwayRef& r) {
+        return r == rwy;
+    });
+    return it != rwys.end();
 }
 
 Approach::Approach(const string& aIdent, ProcedureType ty) : Procedure(aIdent),

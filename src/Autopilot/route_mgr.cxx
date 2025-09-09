@@ -40,6 +40,10 @@ using namespace std::string_literals;
 using std::string;
 namespace su = simgear::strutils;
 
+// we add this entry to some combo-boxes in route-manager.xml (the dialog),
+// and hence PUI will send them to us.
+const std::string kNoneString = "(none)"s;
+
 static bool commandLoadFlightPlan(const SGPropertyNode* arg, SGPropertyNode *)
 {
   auto self = globals->get_subsystem<FGRouteMgr>();
@@ -1030,9 +1034,9 @@ void FGRouteMgr::setSID(const std::string& aIdent)
     }
 
   FGAirport* apt = _plan->departureAirport();
-  if (!apt || aIdent.empty()) {
-    _plan->setSID((flightgear::SID*) NULL);
-    return;
+  if (!apt || aIdent.empty() || (aIdent == kNoneString)) {
+      _plan->setSID((flightgear::SID*)NULL);
+      return;
   }
 
   if (aIdent == "DEFAULT") {
@@ -1214,10 +1218,10 @@ void FGRouteMgr::setApproach(const std::string& aIdent)
     return;
   }
 
-  if (!apt || aIdent.empty()) {
+  if (!apt || aIdent.empty() || (aIdent == kNoneString)) {
       _plan->setApproach(static_cast<Approach*>(nullptr));
   } else {
-    _plan->setApproach(apt->findApproachWithIdent(aIdent));
+      _plan->setApproach(apt->findApproachWithIdent(aIdent));
   }
 }
 
@@ -1253,9 +1257,9 @@ void FGRouteMgr::setSTAR(const std::string& aIdent)
     }
 
   FGAirport* apt = _plan->destinationAirport();
-  if (!apt || aIdent.empty()) {
-    _plan->setSTAR((STAR*) NULL);
-    return;
+  if (!apt || aIdent.empty() || (aIdent == kNoneString)) {
+      _plan->setSTAR((STAR*)NULL);
+      return;
   }
 
   string ident(aIdent);
