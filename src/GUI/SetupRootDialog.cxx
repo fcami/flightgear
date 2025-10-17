@@ -744,7 +744,7 @@ bool SetupRootDialog::validateVersion(QString path)
         return false;
     }
 
-    return simgear::strutils::compare_versions(minBasePackageVersion, ver) >= 0;
+    return simgear::strutils::compare_versions(minBasePackageVersion, ver) <= 0;
 }
 
 bool SetupRootDialog::downloadedDataAcceptable()
