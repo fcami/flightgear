@@ -76,7 +76,7 @@ Item {
                     anchors.rightMargin: Style.margin
                     anchors.verticalCenter: parent.verticalCenter
                     autoSubmitTimeout: 250
-                    onSearch: {
+                    onSearch: function(term) {
                         _launcher.settingsSearchTerm = term
                     }
 
