@@ -48,7 +48,6 @@
 
 using namespace std::chrono_literals;
 
-const quint32 static_basePackagePatchLevel = 1;
 const qint64 fourMB = 4 * 1024 * 1024;
 
 namespace {
@@ -205,14 +204,14 @@ public:
             }
         }
 
-        QString templateUrl = m_servers.front() + QStringLiteral("/release-%1/FlightGear-%2.%3-data.txz");
+        QString templateUrl = m_servers.front() + QStringLiteral("/release-%1/FlightGear-%2-data.txz");
         if (templateUrl.startsWith("https://sourceforge.net/")) {
             // deal with different SF syntax
             templateUrl += QStringLiteral("/download");
         }
 
         QString majorMinorVersion = QString(FLIGHTGEAR_MAJOR_MINOR_VERSION);
-        m_downloadUrl = QUrl(templateUrl.arg(majorMinorVersion).arg(majorMinorVersion).arg(static_basePackagePatchLevel));
+        m_downloadUrl = QUrl(templateUrl.arg(majorMinorVersion).arg(FLIGHTGEAR_VERSION));
 
         qInfo() << "Download URI:" << m_downloadUrl;
 
@@ -737,8 +736,7 @@ bool SetupRootDialog::validatePath(QString path)
  */
 bool SetupRootDialog::validateVersion(QString path)
 {
-    std::string minBasePackageVersion = std::to_string(FLIGHTGEAR_MAJOR_VERSION) + "." + std::to_string(FLIGHTGEAR_MINOR_VERSION) + "." + std::to_string(static_basePackagePatchLevel);
-
+    const std::string minBasePackageVersion{FLIGHTGEAR_VERSION};
     std::string ver = fgBasePackageVersion(SGPath::fromUtf8(path.toStdString()));
 
     // ensure major & minor fields match exactly
@@ -764,7 +762,7 @@ bool SetupRootDialog::downloadedDataExistsButStale()
         return false;
     }
 
-    std::string minBasePackageVersion = std::to_string(FLIGHTGEAR_MAJOR_VERSION) + "." + std::to_string(FLIGHTGEAR_MINOR_VERSION) + "." + std::to_string(static_basePackagePatchLevel);
+    const std::string minBasePackageVersion{FLIGHTGEAR_VERSION};
     std::string ver = fgBasePackageVersion(r);
 
     // major or minor mismatch, we can't use it
@@ -791,7 +789,7 @@ bool SetupRootDialog::downloadedDataExistsButStale()
         return true;
     }
 
-    // update needed if the on-disk base package version is *lower* than static_basePackagePatchLevel
+    // update needed if the on-disk base package version is *lower* than our patch version
     return simgear::strutils::compare_versions(ver, minBasePackageVersion) < 0;
 }
 
