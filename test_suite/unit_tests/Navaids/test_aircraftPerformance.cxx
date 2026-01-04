@@ -14,7 +14,7 @@ using namespace flightgear;
 void AircraftPerformanceTests::setUp()
 {
     FGTestApi::setUp::initTestGlobals("aircraft-perf");
-    FGTestApi::setUp::initNavDataCache();
+    FGTestApi::setUp::initNavDataCache(); 
 }
 
 
@@ -70,4 +70,46 @@ void AircraftPerformanceTests::testAltitudeGradient()
 
 
 }
+
+
+void AircraftPerformanceTests::testLoadFromPropsNoTags()
+{
+    fgSetString("/aircraft/performance/icao-category", "");
+    AircraftPerformance ap;
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(3000, 6000), 100, 1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 5.430, 1e-3);
+}
+
+void AircraftPerformanceTests::testLoadFromPropsTurboprop()
+{
+    auto tagsNode = fgGetNode("/sim/tags");
+    if (!tagsNode) {
+        tagsNode = fgGetNode("/sim")->addChild("tags");
+    }
+    tagsNode->addChild("tag")->setStringValue("turboprop");
+    fgSetString("/aircraft/performance/icao-category", "");
+    AircraftPerformance ap;
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(3000, 6000), 100, 1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 5.430, 1e-3);
+}
+
+
+void AircraftPerformanceTests::testLoadFromPropsJet()
+{
+    auto tagsNode = fgGetNode("/sim/tags");
+    if (!tagsNode) {
+        tagsNode = fgGetNode("/sim")->addChild("tags");
+    }
+    tagsNode->addChild("tag")->setStringValue("jet");
+    fgSetString("/aircraft/performance/icao-category", "");
+    AircraftPerformance ap;
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(3000, 6000), 100, 1);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 6.31, 1e-3);
+    std::string_view expected = "unknown";
+    CPPUNIT_ASSERT_EQUAL(expected, ap.rwyType());
+    std::string_view expectedPerformanceClass = "unknown";
+    CPPUNIT_ASSERT_EQUAL(expectedPerformanceClass, ap.performanceClass());
+}
+
+
 

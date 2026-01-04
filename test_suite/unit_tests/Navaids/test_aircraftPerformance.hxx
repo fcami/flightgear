@@ -32,6 +32,9 @@ class AircraftPerformanceTests : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE(AircraftPerformanceTests);
     CPPUNIT_TEST(testBasic);
     CPPUNIT_TEST(testAltitudeGradient);
+    CPPUNIT_TEST(testLoadFromPropsNoTags);
+    CPPUNIT_TEST(testLoadFromPropsTurboprop);
+    CPPUNIT_TEST(testLoadFromPropsJet);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -44,6 +47,9 @@ public:
     // The tests.
     void testBasic();
     void testAltitudeGradient();
+    void testLoadFromPropsNoTags();
+    void testLoadFromPropsTurboprop();
+    void testLoadFromPropsJet();
 };
 
 #endif  // AircraftPerformanceTests

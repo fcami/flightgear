@@ -11,6 +11,7 @@
 #include <simgear/constants.h>
 
 #include <Main/fg_props.hxx>
+#include <Airports/AptDatConstants.hxx>
 
 using namespace flightgear;
 
@@ -18,6 +19,35 @@ double distanceForTimeAndSpeeds(double tSec, double v1, double v2)
 {
     return tSec * 0.5 * (v1 + v2);
 }
+
+/** Helper to map string to known performance class*/
+static std::string_view mapClass(const std::string& pc)
+{
+    if (pc == PERFORMANCE_CLASS_HEAVY)
+        return PERFORMANCE_CLASS_HEAVY;
+    if (pc == PERFORMANCE_CLASS_JETS)
+        return PERFORMANCE_CLASS_JETS;
+    if (pc == PERFORMANCE_CLASS_TURBOPROPS)
+        return PERFORMANCE_CLASS_TURBOPROPS;
+    if (pc == PERFORMANCE_CLASS_PROPS)
+        return PERFORMANCE_CLASS_PROPS;
+    if (pc == PERFORMANCE_CLASS_HELOS)
+        return PERFORMANCE_CLASS_HELOS;
+    if (pc == PERFORMANCE_CLASS_FIGHTERS)
+        return PERFORMANCE_CLASS_FIGHTERS;
+    if (pc == PERFORMANCE_CLASS_BALLOON)
+        return PERFORMANCE_CLASS_BALLOON;
+    if (pc == PERFORMANCE_CLASS_SEAPLANE)
+        return PERFORMANCE_CLASS_SEAPLANE;
+    if (pc == PERFORMANCE_CLASS_GLIDER)
+        return PERFORMANCE_CLASS_GLIDER;
+    if (pc == PERFORMANCE_CLASS_GROUNDVEHICLE)
+        return PERFORMANCE_CLASS_GROUNDVEHICLE;
+    if (pc == PERFORMANCE_CLASS_SHIP)
+        return PERFORMANCE_CLASS_SHIP;
+    return PERFORMANCE_CLASS_JETS;
+}
+
 
 AircraftPerformance::AircraftPerformance()
 {
@@ -116,6 +146,7 @@ void AircraftPerformance::icaoCategoryData()
         propCat = heuristicCatergoryFromTags();
     }
 
+    SG_LOG(SG_GENERAL, SG_INFO, "AircraftPerformance: Using ICAO category '" << propCat << "' for performance data\n");
     const char aircraftCategory = propCat.front();
      //     pathTurnRate = 3.0; // 3 deg/sec = 180deg/min = standard rate turn
       switch (aircraftCategory) {
@@ -147,6 +178,46 @@ void AircraftPerformance::icaoCategoryData()
           break;
       }
 }
+
+std::string_view AircraftPerformance::performanceClass() {
+    const auto tags(readTags());
+    auto performanceNode = fgGetNode("/aircraft/performance/");
+    if (performanceNode) {
+        auto pc = performanceNode->getStringValue("class");
+        if (!pc.empty()) {
+            return mapClass(pc);
+        }
+    }
+    //TODO: refine this further. Maybe use more performance data from the aircraft model?
+    if (stringListContains(tags, "jet")) {
+        return PERFORMANCE_CLASS_HEAVY;
+    }
+
+    if (stringListContains(tags, "propeller") || stringListContains(tags, "ultralight")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+
+    if (stringListContains(tags, "variable-pitch") || stringListContains(tags, "fixed-pitch")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+
+    if (stringListContains(tags, "piston") || stringListContains(tags, "radial") || stringListContains(tags, "uav")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+    if (stringListContains(tags, "seaplane") || stringListContains(tags, "flying-boat")) {
+        return PERFORMANCE_CLASS_SEAPLANE;
+    }
+    if (stringListContains(tags, "helicopter") || stringListContains(tags, "balloon")) {
+        return PERFORMANCE_CLASS_HELOS;
+    }
+
+    return PERFORMANCE_CLASS_JETS;
+}
+
+std::string_view AircraftPerformance::rwyType() {
+    return "unknown";  
+}
+
 
 void AircraftPerformance::readPerformanceData()
 {
