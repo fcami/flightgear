@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <vector>
 
 #include <simgear/math/SGMath.hxx>
@@ -59,10 +60,16 @@ public:
     /**
      * clear the history
      */
-
     void clear();
 
+    /**
+     * clear all samples older than a cutoff time
+     */
+    void clearOlderThan(std::chrono::seconds keepMostRecent);
+
 private:
+    bool clearHistoryCommand(const SGPropertyNode* args, SGPropertyNode*);
+
     /**
      * @class A single data sample in the history system.
      */
@@ -87,17 +94,31 @@ private:
     class SampleBucket
     {
     public:
-        Sample samples[SAMPLE_BUCKET_WIDTH];
+        const Sample& lastSample() const;
+
+        std::array<Sample, SAMPLE_BUCKET_WIDTH> samples;
+        size_t validSamples = 0; // mustbe between 0 and SAMPLE_BUCKET_WIDTH
+
+        size_t bucketMinAge() const;
+
+        bool isComplete() const
+        {
+            return validSamples == SAMPLE_BUCKET_WIDTH;
+        }
+
+        bool isEmpty() const
+        {
+            return validSamples == 0;
+        }
     };
 
-    double m_lastCaptureTime{0.0};
-    double m_sampleInterval; ///< sample interval in seconds
-                             /// our store of samples (in buckets). The last bucket is partially full,
-                             /// with the number of valid samples indicated by m_validSampleCount
-    std::vector<SampleBucket*> m_buckets;
+    SampleBucket& currentBucket();
 
-    /// number of valid samples in the final bucket
-    unsigned int m_validSampleCount;
+    double m_lastCaptureTime{0.0};
+    double m_sampleInterval = 5.0; ///< sample interval in seconds
+                                   /// our store of samples (in buckets). The last bucket is partially full,
+                                   /// with the number of valid samples indicated by m_validSampleCount
+    std::deque<SampleBucket> m_buckets;
 
     SGPropertyNode_ptr m_weightOnWheels;
     SGPropertyNode_ptr m_enabled;

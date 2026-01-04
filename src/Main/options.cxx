@@ -2091,9 +2091,7 @@ const std::initializer_list<OptionDesc> fgOptionArray = {
     {"random-vegetation",                ParamType::VAL_BOOL, OptionType::OPT_BOOL,   "/sim/rendering/random-vegetation", true,  "", nullptr },
     {"disable-random-vegetation",        ParamType::NONE,     OptionType::OPT_BOOL,   "/sim/rendering/random-vegetation", false, "", nullptr },
     {"enable-random-vegetation",         ParamType::NONE,     OptionType::OPT_BOOL,   "/sim/rendering/random-vegetation", true,  "", nullptr },
-    {"read-only",                        ParamType::VAL_BOOL, OptionType::OPT_BOOL,   "/sim/fghome-readonly", true,  "", nullptr },
-    {"disable-read-only",                ParamType::NONE,     OptionType::OPT_BOOL,   "/sim/fghome-readonly", false, "", nullptr },
-    {"enable-read-only",                 ParamType::NONE,     OptionType::OPT_BOOL,   "/sim/fghome-readonly", true,  "", nullptr },
+    {"read-only",                        ParamType::VAL_BOOL, OptionType::OPT_IGNORE, "", true,  "", nullptr },
     {"real-weather-fetch",               ParamType::VAL_BOOL, OptionType::OPT_BOOL,   "/environment/realwx/enabled", true,  "", nullptr },
     {"disable-real-weather-fetch",       ParamType::NONE,     OptionType::OPT_BOOL,   "/environment/realwx/enabled", false, "", nullptr },
     {"enable-real-weather-fetch",        ParamType::NONE,     OptionType::OPT_BOOL,   "/environment/realwx/enabled", true,  "", nullptr },
@@ -3507,7 +3505,6 @@ OptionResult Options::setupRoot(int argc, char** argv)
   globals->set_fg_root(root);
   string base_version = fgBasePackageVersion(root);
 
-
 #if defined(HAVE_QT)
     // only compare major and minor version, not the patch level.
     const int versionComp = simgear::strutils::compare_versions(FLIGHTGEAR_VERSION, base_version, 2);
@@ -3515,8 +3512,20 @@ OptionResult Options::setupRoot(int argc, char** argv)
     // note we never end up here if restoring a user selected root via
     // the Qt GUI, since that code pre-validates the path. But if we're using
     // a command-line, env-var or default root this check can fail and
-    // we still want to use the GUI in that case
+    // we still want to use the GUI in that case.
     if (versionComp != 0) {
+        // check for read-only mode, since in that case we can't run SetupRootDialog
+        // https://gitlab.com/flightgear/flightgear/-/issues/3286
+        const auto readOnly = fgGetBool("/sim/fghome-readonly", false);
+        if (readOnly) {
+            flightgear::fatalMessageBoxWithoutExit(
+                "Base package not found",
+                "The base package data files were not found, and this copy of FlightGear is running in read-only mode.",
+                "Looking for base-package files at: '" + root.str() + "'",
+                false);
+            return FG_OPTIONS_EXIT;
+        }
+
         flightgear::initApp(argc, argv);
         bool ok = flightgear::showSetupRootDialog(usingDefaultRoot);
         if (!ok) {

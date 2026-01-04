@@ -2,6 +2,7 @@
 ; SPDX-License-Identifier: GPL-2.0-or-later
 
 [codespell]
+skip = utils/fgcom/utils/fgcom.conf,utils/fgcom/utils/gen_phonebook.pl
 ; datas needed for replay-internal.cxx
 ; 'sav' needed for use as a file extension
 ; localY needed by NasalCanvas.cxx

@@ -1,20 +1,6 @@
 /*
- * Copyright (C) 2021 Keith Paterson
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: 2021 Keith Paterson
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "config.h"
@@ -54,6 +40,11 @@ void AirportTests::setUp()
 {
     FGTestApi::setUp::initTestGlobals("Airports");
     FGTestApi::setUp::initNavDataCache();
+
+    globals->get_subsystem_mgr()->bind();
+    globals->get_subsystem_mgr()->init();
+    FGTestApi::setUp::initStandardNasal();
+    globals->get_subsystem_mgr()->postinit();
 }
 
 // Clean up after each test.
@@ -64,7 +55,7 @@ void AirportTests::tearDown()
 
 /**
  * @brief Read an airport from the apt.dat
- * 
+ *
  */
 void AirportTests::testAirport()
 {
@@ -72,7 +63,7 @@ void AirportTests::testAirport()
     CPPUNIT_ASSERT_EQUAL_MESSAGE("Must have correct id", (std::string)"YSSY", departureAirport->getId());
     CPPUNIT_ASSERT_EQUAL_MESSAGE("Must have runways", (unsigned int) 6, departureAirport->numRunways());
     CPPUNIT_ASSERT_EQUAL_MESSAGE("Must have runway 16R", true, departureAirport->hasRunwayWithIdent("16R"));
-        
+
     int length = 3962;
 
     FGRunwayRef runway = departureAirport->getRunwayByIdent("16R");
@@ -81,4 +72,17 @@ void AirportTests::testAirport()
     calculated = SGGeodesy::distanceM(runway->begin(), runway->pointOnCenterline(-length));
     CPPUNIT_ASSERT_DOUBLES_EQUAL_MESSAGE("Distance between the runway start and point on centerline should be runway length", length, calculated, 1);
 
+}
+
+void AirportTests::testAirportNasal()
+{
+    bool ok = FGTestApi::executeNasal(R"(
+        var apt = airportinfo('EGCC');
+        var rwy = apt.runways['05R'];
+        unitTest.assert_doubles_equal(rwy.heading, 51, 0.1);
+
+        var mag = magvar(apt);
+        unitTest.assert_doubles_equal(rwy.magnetic_heading, 51 + mag, 0.1);
+    )");
+    CPPUNIT_ASSERT(ok);
 }

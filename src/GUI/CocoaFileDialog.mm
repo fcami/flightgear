@@ -113,15 +113,13 @@ void CocoaFileDialog::exec()
 
     [d->panel setDirectoryURL: pathToNSURL(_initialPath)];
 
-    [d->panel beginSheetModalForWindow:cocoaWindow completionHandler:^(NSInteger result)
-    {
-        if (result == NSModalResponseOK) {
-          NSString *nspath = [[d->panel URL] path];
-          // NSLog(@"the URL is: %@", d->panel URL]);
-          auto p = SGPath::fromUtf8([nspath UTF8String]);
-          handleSelectedPath(p);
-        }
-    }];
+    NSInteger result = [d->panel runModal];
+    if (result == NSModalResponseOK) {
+      NSString *nspath = [[d->panel URL] path];
+      // NSLog(@"the URL is: %@", d->panel URL]);
+      auto p = SGPath::fromUtf8([nspath UTF8String]);
+      handleSelectedPath(p);
+    }
 }
 
 void CocoaFileDialog::close()

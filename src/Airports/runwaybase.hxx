@@ -57,6 +57,14 @@ public:
   { return _heading; }
 
   /**
+   * @brief runway heading in degrees, with local *current* magnetic
+   * variation applied.
+   *
+   * @return double
+   */
+  double magneticHeadingDeg() const;
+
+  /**
    * Predicate to test if this runway has a hard surface. For the moment, this
    * means concrete or asphalt
    */

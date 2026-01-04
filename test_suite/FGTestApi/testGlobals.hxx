@@ -1,7 +1,5 @@
-/* 
-SPDX-Copyright: James Turner
-SPDX-License-Identifier: GPL-2.0-or-later 
-*/
+// SPDX-FileCopyrightText: 2016 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -41,35 +39,35 @@ void populateFPWithoutNasal(flightgear::FlightPlanRef f,
                          const std::string& depICAO, const std::string& depRunway,
                          const std::string& destICAO, const std::string& destRunway,
                          const std::string& waypoints);
-    
+
 void populateFPWithNasal(flightgear::FlightPlanRef f,
             const std::string& depICAO, const std::string& depRunway,
             const std::string& destICAO, const std::string& destRunway,
             const std::string& waypoints);
-    
+
 }  // End of namespace setUp.
 
 // helpers during tests
 
 SGPropertyNode_ptr propsFromString(const std::string& s);
 
-const SGGeod getPosition();    
+const SGGeod getPosition();
 void setPosition(const SGGeod& g);
 void setPositionAndStabilise(const SGGeod& g);
-    
+
 void runForTime(double t);
 
 /**
- @brief set the simulation date/time clock to 'time' 
+ @brief set the simulation date/time clock to 'time'
  */
 void adjustSimulationWorldTime(time_t time);
 
 using RunCheck = std::function<bool(void)>;
-    
+
 bool runForTimeWithCheck(double t, RunCheck check);
 
 void writeFlightPlanToKML(flightgear::FlightPlanRef fp);
-    
+
 void writeGeodsToKML(const std::string &label, const flightgear::SGGeodVec& geods);
 void writePointToKML(const std::string& ident, const SGGeod& pos);
 
@@ -85,6 +83,13 @@ bool executeNasal(const std::string& code);
  * Otherwise, return the list of runtime errors.
  */
 std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& code);
+
+/**
+ * @brief parse some Nasal expecting a parser error.
+ *
+ * return the parser error message, or empty if no error occurs
+ */
+std::string parseNasalExpectError(const std::string& code);
 
 bool geodsApproximatelyEqual(const SGGeod& a, const SGGeod& b);
 

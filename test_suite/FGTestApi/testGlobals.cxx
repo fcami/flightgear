@@ -463,6 +463,24 @@ bool executeNasal(const std::string& code)
     return true;
 }
 
+std::string parseNasalExpectError(const std::string& code)
+{
+    auto nasal = globals->get_subsystem<FGNasalSys>();
+    if (!nasal) {
+        throw sg_exception("Nasal not available");
+    }
+
+    std::string output, parseErrors;
+    bool ok = nasal->parseAndRunWithOutput(code, output, parseErrors);
+
+    if (ok) {
+        SG_LOG(SG_NASAL, SG_ALERT, "parseNasalExpectError: no parse error detected");
+        return {};
+    }
+
+    return parseErrors;
+}
+
 std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& code)
 {
     auto nasal = globals->get_subsystem<FGNasalSys>();

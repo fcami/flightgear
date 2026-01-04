@@ -550,7 +550,7 @@ int fgMainInit( int argc, char **argv )
     sglog().setStartupLoggingEnabled(true);
 
     globals = new FGGlobals;
-    auto initHomeResult = fgInitHome();
+    auto initHomeResult = fgInitHome(argc, argv);
     if (initHomeResult == InitHomeAbort) {
         flightgear::fatalMessageBoxThenExit("Unable to create lock file",
                                 "FlightGear was unable to create the lock file in FG_HOME");

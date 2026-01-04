@@ -343,6 +343,8 @@ static const char* runwayGhostGetMember(naContext c, void* g, naRef field, naRef
   else if (!strcmp(fieldName, "lat")) *out = naNum(base->latitude());
   else if (!strcmp(fieldName, "lon")) *out = naNum(base->longitude());
   else if (!strcmp(fieldName, "heading")) *out = naNum(base->headingDeg());
+  else if (!strcmp(fieldName, "magnetic_heading"))
+      *out = naNum(base->magneticHeadingDeg());
   else if (!strcmp(fieldName, "length")) *out = naNum(base->lengthM());
   else if (!strcmp(fieldName, "width")) *out = naNum(base->widthM());
   else if (!strcmp(fieldName, "surface")) *out = naNum(base->surface());

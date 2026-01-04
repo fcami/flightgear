@@ -43,7 +43,7 @@ private slots:
     void onDownload();
     void onUpdate();
     void onSelectDownloadDir();
-
+    void onUseDefaultDownloadDir();
     void updatePromptText();
 private:
     enum PromptState {
@@ -56,10 +56,14 @@ private:
         ChoseInvalidVersion,
         ChoseInvalidArchive,
         DownloadingExtractingArchive,
-        UpdatingViaTerrasync
+        UpdatingViaTerrasync,
+        ChoseInvalidDownloadLocation,
+        DownloadFailed
     };
 
     SetupRootDialog(PromptState prompt, const SGPath&);
+
+    bool locationIsWritable(QString path);
 
     static bool runDialog(PromptState prompt, const SGPath& checkedPath);
 

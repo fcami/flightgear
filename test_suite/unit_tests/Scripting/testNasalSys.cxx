@@ -1,22 +1,5 @@
-/*
- * Copyright (C) 2016 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
+// SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "testNasalSys.hxx"
 
@@ -97,24 +80,24 @@ void NasalSysTests::testStructEquality()
           "size": [512, 512],
           "mipmapping": 1.9
         };
-                                      
+
     var bar = {
       "name": "Bob",
           "size": [512, 512],
           "mipmapping": 1.9
-        };       
+        };
 
     unitTest.assert_equal(foo, bar);
-                                      
+
     append(bar.size, "Wowow");
     unitTest.assert(unitTest.equal(foo, bar) == 0);
-                                      
+
     append(foo.size, "Wowow");
     unitTest.assert_equal(foo, bar);
-                                      
+
     foo.wibble = 99.1;
     unitTest.assert(unitTest.equal(foo, bar) == 0);
-                                      
+
     bar.wibble = 99;
     unitTest.assert(unitTest.equal(foo, bar) == 0);
     bar.wibble = 99.1;
@@ -128,11 +111,11 @@ void NasalSysTests::testCommands()
 {
     fgSetInt("/foo/test", 7);
     bool ok = FGTestApi::executeNasal(R"(
-     var f = func { 
+     var f = func {
          var i = getprop('/foo/test');
          setprop('foo/test', i + 4);
      };
-                                      
+
       addcommand('do-foo', f);
       var ok = fgcommand('do-foo');
       unitTest.assert(ok);
@@ -180,7 +163,7 @@ void NasalSysTests::testAirportGhost()
 {
     bool ok = FGTestApi::executeNasal(R"(
         var apt = airportinfo('LFBD');
-        var taxiways = apt.taxiways;    
+        var taxiways = apt.taxiways;
         unitTest.assert_equal(size(taxiways), 0);
     )");
     CPPUNIT_ASSERT(ok);
@@ -196,7 +179,7 @@ void NasalSysTests::testFindComm()
         var comm = findCommByFrequencyMHz(123.125);
         unitTest.assert_equal(comm.id, "ATIS");
 
-    # explicit filter, should't match
+    # explicit filter, shouldn't match
         var noComm = findCommByFrequencyMHz(123.125, "tower");
         unitTest.assert_equal(noComm, nil);
 
@@ -223,7 +206,7 @@ void NasalSysTests::testCompileLarge()
 //    }
 //
 //    nasalSys->parseAndRun(code);
-    
+
 //    bool ok = FGTestApi::executeNasal(R"(
 //var try_compile = func(code) {
 //    call(compile, [code], nil,nil,var err=[]);
@@ -251,13 +234,13 @@ void NasalSysTests::testRoundFloor()
         unitTest.assert_equal(math.round(121266, 1000), 121000);
         unitTest.assert_equal(math.round(121.1234, 0.01), 121.12);
         unitTest.assert_equal(math.round(121266, 10), 121270);
-    
+
         unitTest.assert_equal(math.floor(121766, 1000), 121000);
         unitTest.assert_equal(math.floor(121.1299, 0.01), 121.12);
-    
+
         # floor towards lower value
         unitTest.assert_equal(math.floor(-121.1229, 0.01), -121.13);
-    
+
         # truncate towards zero
         unitTest.assert_equal(math.trunc(-121.1229, 0.01), -121.12);
         unitTest.assert_equal(math.trunc(-121.1299, 0.01), -121.12);
@@ -283,7 +266,7 @@ void NasalSysTests::testKeywordArgInHash()
         {
             return {'a':kw1, 'b':kw2};
         }
-        
+
         var d = foo(arg1:42, kw2:'apples', kw1:'pears');
         unitTest.assert_equal(d.a, 'pears');
         unitTest.assert_equal(d.b, 'apples');
@@ -300,7 +283,7 @@ void NasalSysTests::testKeywordArgInHash()
         {
             return bar({'a':kw1, 'b':kw2});
         }
-        
+
         var d = foo(arg1:42, kw2:'apples', kw1:'pears');
         unitTest.assert_equal(d.a, 'pears');
         unitTest.assert_equal(d.b, 'apples');
@@ -318,8 +301,8 @@ void NasalSysTests::testKeywordArgInHash()
         {
             return bar({'a':kw1, 'b':kw2});
         }
-        
-        var d = foo(arg1:42, kw2:'apples', kw1:'pears');    
+
+        var d = foo(arg1:42, kw2:'apples', kw1:'pears');
     )");
     CPPUNIT_ASSERT(ok);
 }
@@ -475,4 +458,33 @@ void NasalSysTests::testNullishChain()
     )");
 
     CPPUNIT_ASSERT(ok);
+}
+
+
+void NasalSysTests::testHashDeclarationError()
+{
+    auto perror = FGTestApi::parseNasalExpectError(R"(
+        var p = {
+            foo: 42,
+            bar = 99,
+            zot: 123
+        };
+    )");
+
+    CPPUNIT_ASSERT(!perror.empty());
+    CPPUNIT_ASSERT(perror.find("saw assignment inside hash/object initializer") != std::string::npos);
+    CPPUNIT_ASSERT(perror.find(", line 4") != std::string::npos);
+
+    perror = FGTestApi::parseNasalExpectError(R"(
+        var p = {
+            foo: 42,
+            wibble: "abc",
+            bar.zot,
+            apple:99
+        };
+    )");
+
+    CPPUNIT_ASSERT(!perror.empty());
+    CPPUNIT_ASSERT(perror.find("bad hash/object initializer") != std::string::npos);
+    CPPUNIT_ASSERT(perror.find(", line 5") != std::string::npos);
 }

@@ -3,5 +3,7 @@
 
 
 #include "test_controls.hxx"
+#include "test_history.hxx"
 
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(ControlsTests, "Unit tests");
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(HistoryTests, "Unit tests");

@@ -1600,7 +1600,7 @@ bool FGReplayInternal::loadTape(
     m_replay_error->setBoolValue(false);
     std::ifstream in_preview;
     std::ifstream& in(preview ? in_preview : m_continuous->m_in);
-    in.open(filename.str()), std::ifstream::binary;
+    in.open(filename.str(), std::ifstream::binary);
     if (!in) {
         SG_LOG(SG_SYSTEMS, SG_ALERT, "Failed to open"
                                          << " Filename=" << filename.str() << " in.is_open()=" << in.is_open());

@@ -7,11 +7,14 @@
 #include <config.h>
 
 #include <simgear/compiler.h>
+#include <simgear/magvar/magvar.hxx>
 #include <simgear/props/props.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include "runwaybase.hxx"
 
 #include <Airports/airport.hxx>
+#include <Main/globals.hxx>
 
 using std::string;
 
@@ -119,4 +122,11 @@ FGTaxiway::FGTaxiway(PositionedID aGuid,
                      const int surface_code,
                      const PositionedID airportId) : FGRunwayBase(aGuid, TAXIWAY, aIdent, aGeod, heading, length, width, surface_code, airportId)
 {
+}
+
+double FGRunwayBase::magneticHeadingDeg() const
+{
+    const double jd = globals->get_time_params()->getJD();
+    const auto var = sgGetMagVar(geod(), jd) * SG_RADIANS_TO_DEGREES;
+    return SGMiscd::normalizePeriodic(0, 360, _heading + var);
 }
