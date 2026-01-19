@@ -651,8 +651,18 @@ bool FGJSBsim::copy_to_JSBsim()
 
     Atmosphere->SetTemperature(temperature->getDoubleValue(), get_Altitude(), FGAtmosphere::eCelsius);
     Atmosphere->SetPressureSL(FGAtmosphere::eInchesHg, pressureSL->getDoubleValue());
-    static_cast<FGStandardAtmosphere*>(Atmosphere.get())->SetDewPoint(FGAtmosphere::eCelsius,
-                                                                dew_point->getDoubleValue());
+
+    // work-around for broken FlightGear dew-point calculation at altitude
+    // see https://gitlab.com/flightgear/flightgear/-/issues/3267
+    const double humidity_cutoff_altitude = 140000; // feet
+    auto fgAtmosphere = static_cast<FGStandardAtmosphere*>(Atmosphere.get());
+    if (get_Altitude() < humidity_cutoff_altitude) {
+      fgAtmosphere->SetDewPoint(FGAtmosphere::eCelsius, dew_point->getDoubleValue());
+    } else {
+      // Force humidity to zero.
+      fgAtmosphere->SetVaporMassFractionPPM(0.0);
+    }
+
 
     Winds->SetTurbType((FGWinds::tType)TURBULENCE_TYPE_NAMES[turbulence_model->getStringValue()]);
     switch( Winds->GetTurbType() ) {
