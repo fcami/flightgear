@@ -275,8 +275,12 @@ public:
     {
         std::unique_lock g(m_mutex);
         const int percent = calculateProgressPercentage(m_extractedBytes, m_totalSize);
-        auto fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
-        fullPathStr.erase(0, m_pathPrefixLength);
+        std::string fullPathStr;
+        if (m_archive) {
+            fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
+            fullPathStr.erase(0, m_pathPrefixLength);
+        }
+         
         emit installProgress(QString::fromStdString(fullPathStr), percent);
     }
 
