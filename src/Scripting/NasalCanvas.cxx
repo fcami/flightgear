@@ -7,7 +7,6 @@
 
 
 #include "config.h"
-#include "simgear/canvas/elements/CanvasImage.hxx"
 
 #include "NasalCanvas.hxx"
 #include <Canvas/canvas_mgr.hxx>
@@ -23,7 +22,9 @@
 #include <simgear/canvas/Canvas.hxx>
 #include <simgear/canvas/CanvasWindow.hxx>
 #include <simgear/canvas/elements/CanvasElement.hxx>
+#include <simgear/canvas/elements/CanvasImage.hxx>
 #include <simgear/canvas/elements/CanvasText.hxx>
+#include <simgear/canvas/elements/CanvasPangoText.hxx>
 #include <simgear/canvas/events/CanvasKeyBinding.hxx>
 #include <simgear/canvas/events/CustomEvent.hxx>
 #include <simgear/canvas/events/KeyboardEvent.hxx>
@@ -65,6 +66,7 @@ typedef nasal::Ghost<sc::CanvasPtr> NasalCanvas;
 typedef nasal::Ghost<sc::ElementPtr> NasalElement;
 typedef nasal::Ghost<sc::GroupPtr> NasalGroup;
 typedef nasal::Ghost<sc::TextPtr> NasalText;
+typedef nasal::Ghost<sc::PangoTextPtr> NasalPangoText;
 typedef nasal::Ghost<sc::ImagePtr> NasalImage;
 
 typedef nasal::Ghost<sc::LayoutItemRef> NasalLayoutItem;
@@ -641,6 +643,15 @@ naRef initNasalCanvas(naRef globals, naContext c)
     .method("lineLength", &sc::Text::lineLength)
     .method("getNearestCursor", &sc::Text::getNearestCursor)
     .method("getCursorPos", &sc::Text::getCursorPos);
+  
+  NasalPangoText::init("canvas.PangoText")
+    .bases<NasalElement>()
+    .method("heightForWidth", &sc::PangoText::heightForWidth)
+    .method("width", &sc::PangoText::width)
+    .method("lineCount", &sc::PangoText::lineCount)
+    .method("lineLength", &sc::PangoText::lineLength)
+    .method("getNearestCursor", &sc::PangoText::getNearestCursor)
+    .method("getCursorPos", &sc::PangoText::getCursorPos);
 
   NasalImage::init("canvas.Image")
       .bases<NasalElement>()
