@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "config.h"
+#include "simgear/debug/debug_types.h"
 
 #include <algorithm>
 
@@ -1133,13 +1134,15 @@ double RoutePath::computeDistanceForIndex(int index) const
     return 0.0;
   }
 
-    double dist = SGGeodesy::distanceM(prevIt->turnExitPos, it->turnEntryPos);
-    dist += prevIt->turnDistanceM();
 
-    if (!it->flyOver) {
-        // add entry distance
-        dist += it->turnDistanceM();
-    }
+  SGGeod p = it->hasEntry ? it->turnEntryPos : it->pos;
+  double dist = SGGeodesy::distanceM(prevIt->turnExitPos, p);
+  dist += prevIt->turnDistanceM();
+
+  if (!it->flyOver) {
+      // add entry distance
+      dist += it->turnDistanceM();
+  }
 
     return dist;
 }

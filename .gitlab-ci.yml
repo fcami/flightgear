@@ -234,13 +234,17 @@ macos-build:
 test:
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
   stage: test
+  before_script:
+    - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
+    - unzip $CI_PROJECT_DIR/.secure_files/testProcedures.zip
   script:
     - cd $BUILD_DIR
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CI_PROJECT_DIR/osg-dist/lib
+    - export FG_PROCEDURES_PATH=$CI_PROJECT_DIR/testProcedures
     - ./test_suite/fgfs_test_suite --fg-root $CI_PROJECT_DIR/testFGData --junit
   needs:
     - job: linux-build
-      artifacts: false
+      artifacts: true
     - project: flightgear/fgdata
       job: create-test-data
       ref: $BRANCH_REF

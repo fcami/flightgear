@@ -3,6 +3,7 @@ SPDX-FileCopyrightText: 2016 James Turner
 SPDX-License-Identifier: GPL-2.0-or-later
 */
 
+#include "Navaids/route.hxx"
 #include "config.h"
 
 #include "test_suite/dataStore.hxx"
@@ -224,9 +225,13 @@ void populateFPWithoutNasal(flightgear::FlightPlanRef f,
 
 
     auto destRwy = f->destinationRunway();
-    f->insertWayptAtIndex(new BasicWaypt(destRwy->pointOnCenterline(-8 * SG_NM_TO_METER),
-                                         destRwy->ident() + "-8", f), -1);
-    f->insertWayptAtIndex(new RunwayWaypt(destRwy, f), -1);
+    auto arrival8NmWp = new BasicWaypt(destRwy->pointOnCenterline(-8 * SG_NM_TO_METER),
+                                       destRwy->ident() + "-8", f);
+    auto arrivalRwyWp = new RunwayWaypt(destRwy, f);
+    arrival8NmWp->setFlag(WPT_APPROACH);
+    arrivalRwyWp->setFlag(WPT_APPROACH);
+    f->insertWayptAtIndex(arrival8NmWp, -1);
+    f->insertWayptAtIndex(arrivalRwyWp, -1);
 }
 
 void populateFPWithNasal(flightgear::FlightPlanRef f,
