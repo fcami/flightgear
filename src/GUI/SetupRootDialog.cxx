@@ -280,7 +280,7 @@ public:
             fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
             fullPathStr.erase(0, m_pathPrefixLength);
         }
-         
+
         emit installProgress(QString::fromStdString(fullPathStr), percent);
     }
 
@@ -610,7 +610,6 @@ bool SetupRootDialog::runDialog(PromptState prompt, const SGPath& checkedPath)
     return true;
 }
 
-
 flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgpath)
 {
     const auto readOnly = fgGetBool("/sim/fghome-readonly", false);
@@ -626,9 +625,7 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
 
     if (ask || (path == QStringLiteral("!ask"))) {
         if (readOnly) {
-            // assume the primary copy will ask, so just bail out
-            SG_LOG(SG_GENERAL, SG_MANDATORY_INFO, "restoreUserSelectedRoot: choice is 'ask', but we are read-only, exiting.");
-            return flightgear::SetupRootResult::UserExit;
+            return flightgear::SetupRootResult::ExitDueToReadOnly;
         }
 
         bool ok = runDialog(ManualChoiceRequested, SGPath{});
@@ -649,6 +646,10 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
 
     if (path.isEmpty()) {
         if (downloadedDataExistsButStale()) {
+            if (readOnly) {
+                return flightgear::SetupRootResult::ExitDueToReadOnly;
+            }
+
             bool ok = runDialog(NeedToUpdateDownloadedData, options->downloadedDataRoot());
             if (!ok) {
                 return flightgear::SetupRootResult::UserExit;
@@ -689,6 +690,11 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
         if (flightgear::Options::isFGData(r)) {
             checkedPath = r;
         }
+    }
+
+    // runDialog assumes writeable mode, so just bail out here and inform the user
+    if (readOnly) {
+        return flightgear::SetupRootResult::ExitDueToReadOnly;
     }
 
     // okay, we don't have an acceptable FG_DATA anywhere we can find, we
