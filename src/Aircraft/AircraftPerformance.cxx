@@ -12,6 +12,7 @@
 
 #include <Main/fg_props.hxx>
 #include <Airports/AptDatConstants.hxx>
+#include <Airports/DynamicsConstants.hxx>
 
 using namespace flightgear;
 
@@ -214,8 +215,24 @@ std::string_view AircraftPerformance::performanceClass() {
     return PERFORMANCE_CLASS_JETS;
 }
 
+
+/**Mapping from APT.dat to the rwy.use*/
 std::string_view AircraftPerformance::rwyType() {
-    return "unknown";  
+    std::string_view perfClass = performanceClass();
+    if (perfClass == PERFORMANCE_CLASS_HEAVY || perfClass == PERFORMANCE_CLASS_JETS || perfClass == PERFORMANCE_CLASS_TURBOPROPS) {
+        return RUNWAY_TYPE_COM;
+    }
+    if (perfClass == PERFORMANCE_CLASS_FIGHTERS) {
+        return RUNWAY_TYPE_MIL;
+    }
+    if (perfClass == PERFORMANCE_CLASS_GLIDER) {
+        return RUNWAY_TYPE_UL;
+    }
+    if (perfClass == PERFORMANCE_CLASS_PROPS) {
+        return RUNWAY_TYPE_GEN;
+    }
+    
+    return RUNWAY_TYPE_COM;
 }
 
 

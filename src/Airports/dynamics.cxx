@@ -676,7 +676,23 @@ std::string FGAirportDynamics::fallbackGetActiveRunway(int action, double headin
 bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
                                              int action, std::string& runway,
                                              double heading)
-{
+{ 
+    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
+    if (!fgGetBool("/environment/metar/valid")) {
+        SG_LOG(SG_GENERAL, SG_WARN, "innerGetActiveRunway METAR invalid");
+        return false;
+    }
+    int index = 0;
+    auto node = fgGetNode("/environment/metar/", index);
+    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << node);
+    while (node) {
+        SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << node->getChild("valid"));
+        SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: " << node->getIndex() << " " << node->getChild("station-id")->getStringValue() << " valid " << node->getChild("valid")->getBoolValue());
+        node = fgGetNode("/environment/metar/", ++index);
+    }
+    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType 2");
+
+
     if (!rwyPrefs.available()) {
         runway = fallbackGetActiveRunway(action, heading);
         return !runway.empty();
@@ -774,7 +790,7 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         //cerr << endl;
     }
 
-    if (action == 1) // takeoff
+    if (action == RunwayAction::TAKEOFF) // takeoff
     {
         int nr = takeoff.size();
         if (nr) {
@@ -787,7 +803,7 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         }
     }
 
-    if (action == 2) // landing
+    if (action == RunwayAction::LANDING) // landing
     {
         if (!landing.empty()) {
             runway = chooseRwyByHeading(landing, heading);
@@ -823,6 +839,7 @@ std::string FGAirportDynamics::chooseRwyByHeading(stringVec rwys,
             bestError = headingError;
         }
     }
+    SG_LOG(SG_ATC, SG_DEBUG, "Using active runway " << runway << " for heading " << heading);
     //cerr << "Using active runway " << runway << " for heading " << heading << endl;
     return runway;
 }

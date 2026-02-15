@@ -359,14 +359,14 @@ void FGATCController::transmit(FGTrafficRecord* rec, FGAirportDynamics* parent, 
         break;
     case MSG_TAXI_PARK:
         if (!rec->getAircraft()->GetFlightPlan()->getParkingGate()) {
-            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
+            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << " (" << rec->getId() << ") ");
             break;
         }
         text = receiver + " taxi to " + rec->getAircraft()->GetFlightPlan()->getParkingGate()->getName() + " . " + sender;
         break;
     case MSG_ACKNOWLEDGE_TAXI_PARK:
         if (!rec->getAircraft()->GetFlightPlan()->getParkingGate()) {
-            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
+            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << " (" << rec->getId() << ") ");
             break;
         }
         text = receiver + " taxi to " + rec->getAircraft()->GetFlightPlan()->getParkingGate()->getName() + " . " + sender;

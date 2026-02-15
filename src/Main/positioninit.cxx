@@ -36,6 +36,7 @@
 #include <Scenery/scenery.hxx>
 #include <GUI/MessageBox.hxx>
 #include <Viewer/renderer.hxx>
+#include <Aircraft/AircraftPerformance.hxx>
 
 using std::endl;
 using std::string;
@@ -157,7 +158,17 @@ static bool setPosFromAirportIDandHdg( const string& id, double tgt_hdg ) {
       startPos = apt->geod();
     }
   } else {
-    FGRunway* r = apt->findBestRunwayForHeading(tgt_hdg);
+      AircraftPerformance perf;
+      string rwyIdent;
+      if (fgGetBool("/environment/metar/valid")) {
+          apt->getDynamics()->getActiveRunway(std::string(perf.rwyType()), RunwayAction::TAKEOFF, rwyIdent, tgt_hdg);
+      }
+
+      FGRunway* r = apt->findBestRunwayForHeading(tgt_hdg);
+      if (apt->hasRunwayWithIdent(rwyIdent)) {
+          r = apt->getRunwayByIdent(rwyIdent);
+      }
+
       std::tie(startPos, heading) = runwayStartPos(r);
   }
 
@@ -751,7 +762,7 @@ bool finalizeMetar()
     parkpos.empty();
 
   if (needMetar) {
-    // timeout so we don't spin forever if the network is down
+      // timeout so we don't spin forever if the network is down
     if (global_finalizeTime.elapsedMSec() > fgGetInt("/sim/startup/metar-fetch-timeout-msec", 6000)) {
       SG_LOG(SG_GENERAL, SG_WARN, "finalizePosition: timed out waiting for METAR fetch");
       return true;
@@ -846,6 +857,7 @@ void finalizePosition()
             finalizeMetar();
         }
     } else {
+        SG_LOG(SG_GENERAL, SG_WARN, "finalizePosition METAR");
         done = finalizeMetar();
     }
 
