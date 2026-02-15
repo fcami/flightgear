@@ -682,16 +682,6 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         SG_LOG(SG_GENERAL, SG_WARN, "innerGetActiveRunway METAR invalid");
         return false;
     }
-    int index = 0;
-    auto node = fgGetNode("/environment/metar/", index);
-    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << node);
-    while (node) {
-        SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << node->getChild("valid"));
-        SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: " << node->getIndex() << " " << node->getChild("station-id")->getStringValue() << " valid " << node->getChild("valid")->getBoolValue());
-        node = fgGetNode("/environment/metar/", ++index);
-    }
-    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType 2");
-
 
     if (!rwyPrefs.available()) {
         runway = fallbackGetActiveRunway(action, heading);

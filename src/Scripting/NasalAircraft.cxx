@@ -7,10 +7,12 @@
 
 #include "NasalAircraft.hxx"
 #include <Aircraft/FlightHistory.hxx>
+#include <Aircraft/AircraftPerformance.hxx>
 #include <Main/globals.hxx>
 
 #include <simgear/nasal/cppbind/NasalHash.hxx>
 #include <simgear/nasal/cppbind/Ghost.hxx>
+using namespace flightgear;
 
 //------------------------------------------------------------------------------
 static naRef f_getHistory(const nasal::CallContext& ctx)
@@ -23,6 +25,14 @@ static naRef f_getHistory(const nasal::CallContext& ctx)
 }
 
 //------------------------------------------------------------------------------
+static naRef f_getPerformanceClass(const nasal::CallContext& ctx)
+{
+    AircraftPerformance perf;
+
+    return ctx.to_nasal(std::string(perf.performanceClass()));
+}
+
+//------------------------------------------------------------------------------
 void initNasalAircraft(naRef globals, naContext c)
 {
   nasal::Ghost<SGSharedPtr<FGFlightHistory> >::init("FGFlightHistory")
@@ -30,4 +40,5 @@ void initNasalAircraft(naRef globals, naContext c)
 
   nasal::Hash aircraft_module = nasal::Hash(globals, c).createHash("aircraft");
   aircraft_module.set("history", &f_getHistory);
+  aircraft_module.set("performanceClass", &f_getPerformanceClass);
 }
