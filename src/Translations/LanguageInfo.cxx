@@ -19,7 +19,9 @@ using std::string;
 
 namespace flightgear {
 
+// clang-format off
 const map<string, std::size_t> LanguageInfo::nbPluralFormsMap = {
+    {"cs",      3},
     {"de",      2},
     {"default", 1},             // “engineering English” (default translation)
     {"en",      2},             // English (with singular and plural forms)
@@ -31,6 +33,7 @@ const map<string, std::size_t> LanguageInfo::nbPluralFormsMap = {
     {"pl",      3},
     {"pt",      2},
     {"ru",      3},
+    {"sk",      3},
     {"tr",      1},
     {"zh_CN",   1}
 };
@@ -70,8 +73,15 @@ std::size_t LanguageInfo::pluralFormIndex_RussianStyle(uintType n)
                n % uintType(100) >= uintType(20)) ? 1 : 2);
 }
 
+std::size_t LanguageInfo::pluralFormIndex_SlovakStyle(uintType n)
+{
+    return ((n == uintType(1)) ? 0 :
+            (n >= uintType(2) && n <= uintType(4)) ? 1 : 2);
+}
+
 const map<string, LanguageInfo::funcType>
     LanguageInfo::pluralFormIndexFuncMap = {
+        {"cs",      pluralFormIndex_SlovakStyle},
         {"de",      pluralFormIndex_EnglishStyle},
         {"default", pluralFormIndex_EngineeringEnglishStyle},
         {"en",      pluralFormIndex_EnglishStyle},
@@ -83,9 +93,11 @@ const map<string, LanguageInfo::funcType>
         {"pl",      pluralFormIndex_PolishStyle},
         {"pt",      pluralFormIndex_EnglishStyle},
         {"ru",      pluralFormIndex_RussianStyle},
+        {"sk",      pluralFormIndex_SlovakStyle},
         {"tr",      pluralFormIndex_EngineeringEnglishStyle},
         {"zh_CN",   pluralFormIndex_EngineeringEnglishStyle},
 };
+// clang-format on
 
 // Static member function
 std::size_t LanguageInfo::getNumberOfPluralForms(const string& languageId)

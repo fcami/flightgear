@@ -92,7 +92,7 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
     m_selectedAircraftInfo = new QmlAircraftInfo(this);
 
     // ensure uninstall disables the fly button
-    connect(m_selectedAircraftInfo, &QmlAircraftInfo::downloadChanged, this, &LauncherController::updateSelectedAircraft);
+    connect(m_selectedAircraftInfo, &QmlAircraftInfo::downloadChanged, this, &LauncherController::canFlyChanged);
 
     m_config = new LaunchConfig(this);
     connect(m_config, &LaunchConfig::collect, this, &LauncherController::collectAircraftArgs);

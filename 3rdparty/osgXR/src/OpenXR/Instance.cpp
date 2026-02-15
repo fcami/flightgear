@@ -21,9 +21,6 @@
                          OSGXR_PATCH_VERSION)
 
 // Preserve compatibility with older versions of OpenXR SDK as best we can
-#if XR_CURRENT_API_VERSION < XR_MAKE_VERSION(1, 0, 16)
-#define XR_ERROR_RUNTIME_UNAVAILABLE (-51)
-#endif
 #ifndef XR_API_VERSION_1_0
 #define XR_API_VERSION_1_0 XR_MAKE_VERSION(1, 0, XR_VERSION_PATCH(XR_CURRENT_API_VERSION))
 #endif
@@ -188,14 +185,6 @@ bool Instance::hasExtension(const char *name, uint32_t *outVersion)
     if (outVersion)
         *outVersion = 0;
     return false;
-}
-
-Instance::Instance(): 
-    _layerValidation(false),
-    _instance(XR_NULL_HANDLE),
-    _lost(false),
-    _apiVersion(0)
-{
 }
 
 Instance::~Instance()
@@ -463,6 +452,13 @@ Session *Instance::getSession(XrSession xrSession)
     if (it == _sessions.end())
         return nullptr;
     return (*it).second;
+}
+
+Session *Instance::getLoneSession()
+{
+    if (_sessions.size() == 1)
+        return _sessions.begin()->second;
+    return nullptr;
 }
 
 void Instance::pollEvents(EventHandler *handler)

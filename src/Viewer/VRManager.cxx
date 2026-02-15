@@ -25,31 +25,36 @@ using namespace compositor;
 // then its destruction should take place before fgExitCleanup() is called.
 static osg::ref_ptr<VRManager> managerInstance;
 
-VRManager::VRManager() :
-    _reloadCompositorCallback(new ReloadCompositorCallback(this)),
-    _propXrLayersValidation("/sim/vr/openxr/layers/validation"),
-    _propXrExtensionsDepthInfo("/sim/vr/openxr/extensions/depth-info"),
-    _propXrExtensionsVisibilityMask("/sim/vr/openxr/extensions/visibility-mask"),
-    _propXrRuntimeName("/sim/vr/openxr/runtime/name"),
-    _propXrSystemName("/sim/vr/openxr/system/name"),
-    _propStateString("/sim/vr/state-string"),
-    _propPresent("/sim/vr/present"),
-    _propRunning("/sim/vr/running"),
-    _propEnabled("/sim/vr/enabled"),
-    _propDepthInfo("/sim/vr/depth-info"),
-    _propVisibilityMask("/sim/vr/visibility-mask"),
-    _propValidationLayer("/sim/vr/validation-layer"),
-    _propMode("/sim/vr/mode"),
-    _propSwapchainMode("/sim/vr/swapchain-mode"),
-    _propMirrorEnabled("/sim/vr/mirror-enabled"),
-    _propMirrorMode("/sim/vr/mirror-mode"),
-    _listenerEnabled(this, &osgXR::Manager::setEnabled),
-    _listenerDepthInfo(this, &VRManager::setDepthInfo),
-    _listenerVisibilityMask(this, &VRManager::setVisibilityMask),
-    _listenerValidationLayer(this, &VRManager::setValidationLayer),
-    _listenerMode(this, &VRManager::setVRMode),
-    _listenerSwapchainMode(this, &VRManager::setSwapchainMode),
-    _listenerMirrorMode(this, &VRManager::setMirrorMode)
+VRManager::VRManager()
+    : _reloadCompositorCallback(new ReloadCompositorCallback(this)),
+      _headSpace(new osgXR::RefSpaceView(this,
+                                         // Offset head space back 10cm from view space
+                                         osgXR::Pose(osg::Quat(), osg::Vec3f(0.0f, 0.0f, -0.1f)))),
+      _propXrLayersValidation("/sim/vr/openxr/layers/validation"),
+      _propXrExtensionsDepthInfo("/sim/vr/openxr/extensions/depth-info"),
+      _propXrExtensionsVisibilityMask("/sim/vr/openxr/extensions/visibility-mask"),
+      _propXrRuntimeName("/sim/vr/openxr/runtime/name"),
+      _propXrSystemName("/sim/vr/openxr/system/name"),
+      _propXrSystemUserPresence("/sim/vr/openxr/system/supports-user-presence"),
+      _propStateString("/sim/vr/state-string"),
+      _propPresent("/sim/vr/present"),
+      _propRunning("/sim/vr/running"),
+      _propUserPresent("/sim/vr/user-present"),
+      _propEnabled("/sim/vr/enabled"),
+      _propDepthInfo("/sim/vr/depth-info"),
+      _propVisibilityMask("/sim/vr/visibility-mask"),
+      _propValidationLayer("/sim/vr/validation-layer"),
+      _propMode("/sim/vr/mode"),
+      _propSwapchainMode("/sim/vr/swapchain-mode"),
+      _propMirrorEnabled("/sim/vr/mirror-enabled"),
+      _propMirrorMode("/sim/vr/mirror-mode"),
+      _listenerEnabled(this, &osgXR::Manager::setEnabled),
+      _listenerDepthInfo(this, &VRManager::setDepthInfo),
+      _listenerVisibilityMask(this, &VRManager::setVisibilityMask),
+      _listenerValidationLayer(this, &VRManager::setValidationLayer),
+      _listenerMode(this, &VRManager::setVRMode),
+      _listenerSwapchainMode(this, &VRManager::setSwapchainMode),
+      _listenerMirrorMode(this, &VRManager::setMirrorMode)
 {
     uint32_t fgVersion = (FLIGHTGEAR_MAJOR_VERSION << 16 |
                           FLIGHTGEAR_MINOR_VERSION << 8 |
@@ -69,6 +74,7 @@ VRManager::VRManager() :
     }
 
     syncReadOnlyProperties();
+    _propUserPresent = false;
 
     _propEnabled.node(true)->addChangeListener(&_listenerEnabled, true);
     _propDepthInfo.node(true)->addChangeListener(&_listenerDepthInfo, true);
@@ -166,6 +172,7 @@ void VRManager::syncReadOnlyProperties()
     _propXrExtensionsVisibilityMask = hasVisibilityMaskExtension();
     _propXrRuntimeName = getRuntimeName();
     _propXrSystemName = getSystemName();
+    _propXrSystemUserPresence = supportsUserPresence();
 
     _propStateString = getStateString();
     _propPresent = getPresent();
@@ -325,6 +332,8 @@ void VRManager::onRunning()
 
 void VRManager::onStopped()
 {
+    _propUserPresent = false;
+
     // As long as we're not in the process of destroying FlightGear, reload
     // compositors to trigger switch away from mirror of VR
     if (!isDestroying())
@@ -332,6 +341,11 @@ void VRManager::onStopped()
         CameraGroup *cgroup = CameraGroup::getDefault();
         reloadCompositors(cgroup);
     }
+}
+
+void VRManager::onUserPresence(bool userPresent)
+{
+    _propUserPresent = userPresent;
 }
 
 static osgXR::View::Flags getPassVRFlags(const simgear::compositor::Pass *pass)

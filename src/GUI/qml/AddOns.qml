@@ -118,7 +118,7 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: addonModulePathsColumn.childrenRect.height + 1
+                height: addonModulePathsColumn.childrenRect.height + Style.margin
                 border.width: 1
                 border.color: Style.frameColor
                 clip: true
@@ -200,7 +200,7 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: aircraftPathsColumn.childrenRect.height + 1
+                height: aircraftPathsColumn.childrenRect.height + Style.margin
                 border.width: 1
                 border.color: Style.frameColor
                 clip: true
@@ -253,7 +253,7 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: sceneryPathsColumn.childrenRect.height + 1
+                height: sceneryPathsColumn.childrenRect.height + Style.margin
                 border.width: 1
                 border.color: Style.frameColor
                 clip: true

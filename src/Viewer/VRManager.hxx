@@ -12,6 +12,7 @@
 #include <osg/observer_ptr>
 
 #include <osgXR/Manager>
+#include <osgXR/Space>
 
 #include <simgear/props/propertyObject.hxx>
 #include <simgear/scene/viewer/CompositorPass.hxx>
@@ -108,6 +109,7 @@ class VRManager : public osgXR::Manager
 
         void onRunning() override;
         void onStopped() override;
+        void onUserPresence(bool userPresent) override;
 
         // Callback entry points
 
@@ -121,6 +123,12 @@ class VRManager : public osgXR::Manager
 
         bool cmdRecenter(const SGPropertyNode* arg, SGPropertyNode* root);
 
+        // Access head space
+        osgXR::Space* getHeadSpace()
+        {
+            return _headSpace;
+        }
+
     protected:
 
         typedef std::map<osgXR::View *, osg::ref_ptr<CameraInfo>> XRViewToCamInfo;
@@ -131,6 +139,8 @@ class VRManager : public osgXR::Manager
 
         osg::ref_ptr<ReloadCompositorCallback> _reloadCompositorCallback;
 
+        osg::ref_ptr<osgXR::Space> _headSpace;
+
         // Properties
 
         SGPropObjBool _propXrLayersValidation;
@@ -138,10 +148,12 @@ class VRManager : public osgXR::Manager
         SGPropObjBool _propXrExtensionsVisibilityMask;
         SGPropObjString _propXrRuntimeName;
         SGPropObjString _propXrSystemName;
+        SGPropObjBool _propXrSystemUserPresence;
 
         SGPropObjString _propStateString;
         SGPropObjBool _propPresent;
         SGPropObjBool _propRunning;
+        SGPropObjBool _propUserPresent;
 
         SGPropObjBool _propEnabled;
         SGPropObjBool _propDepthInfo;

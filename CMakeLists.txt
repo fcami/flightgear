@@ -168,7 +168,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux" OR
 endif()
 
 if (ENABLE_VR_DEFAULT)
-    find_package(osgXR 0.5.5 QUIET)
+    find_package(osgXR 0.5.6 QUIET)
     if (osgXR_FOUND)
         set(SYSTEM_OSGXR_DEFAULT 1)
     endif()
@@ -220,10 +220,6 @@ option(CHECK_FOR_QT6        "Set to ON to attempt to look for Qt6" ON)
 option(ENABLE_AUTOTESTING "Set to ON to execute the test suite after building the test_suite target (default)" ON)
 
 include (DetectArch)
-
-# when building an OSG with commit 15ec7e2ae7a8b983ecc44e1ce7363a9a9fa7da95
-# applied, we can use better link options
-option(OSG_FSTREAM_EXPORT_FIXED "Set to ON if the osgDB fstream export patch is applied" OFF)
 
 if(LOGGING)
     # nothing
@@ -349,13 +345,13 @@ if (ENABLE_VR)
         set(ENABLE_OSGXR 1)
         set(ENABLE_SYSTEM_OSGXR 1)
     else()
-        find_package(OpenXR QUIET)
+        find_package(OpenXR 1.0.34 QUIET)
         if (OpenXR_FOUND)
             message(STATUS "VR support enabled, using built-in osgXR library")
             set(ENABLE_OSGXR 1)
             set(ENABLE_SYSTEM_OSGXR 0)
         else()
-            message(STATUS "VR support disabled, OpenXR not found")
+            message(STATUS "VR support disabled, OpenXR >=1.0.34 not found")
             set(ENABLE_OSGXR 0)
         endif()
     endif()
@@ -535,13 +531,6 @@ if(WIN32)
         if (X86)
             set(SIMD_COMPILER_FLAGS "/arch:SSE /arch:SSE2")
         endif()
-
-        if (NOT OSG_FSTREAM_EXPORT_FIXED AND ${MSVC_VERSION} GREATER 1599)
-          message(STATUS "For better linking performance, use OSG with fixed fstream header")
-          # needed to avoid link errors on multiply-defined standard C++
-          # symbols. This issue was fixed in OSG commit 15ec7e2ae7a8b983ecc44e1ce7363a9a9fa7da95
-          set( MSVC_LD_FLAGS "/FORCE:MULTIPLE" )
-        endif ()
     endif(MSVC)
 
     set(NOMINMAX 1)

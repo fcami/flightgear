@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2007 Mathias Froehlich <Mathias.Froehlich@web.de>
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -47,7 +50,7 @@ namespace flightgear
 {
 const int displayStatsKey = 1;
 const int printStatsKey = 2;
-    
+
 // The manipulator is responsible for updating a Viewer's camera. Its
 // event handling method is also a convenient place to run the FG idle
 // and draw handlers.
@@ -90,7 +93,7 @@ void FGEventHandler::reset()
     _print = fgGetNode("/sim/rendering/print-statistics", true);
     statsHandler->reset();
 }
-    
+
 #if 0
 void FGEventHandler::init(const osgGA::GUIEventAdapter& ea,
                           osgGA::GUIActionAdapter& us)
@@ -107,7 +110,7 @@ FGEventHandler::eventToViewport(const osgGA::GUIEventAdapter& ea, osgGA::GUIActi
                 int& x, int& y)
 {
     WindowType  ret = WindowType_NONE;
-    
+
     flightgear::WindowSystemAdapter* wsa = flightgear::WindowSystemAdapter::getWSA();
     flightgear::GraphicsWindow* main_window = wsa->getGUIWindow();
     if (!main_window) {
@@ -122,9 +125,9 @@ FGEventHandler::eventToViewport(const osgGA::GUIEventAdapter& ea, osgGA::GUIActi
     if( !eventGC )
       return WindowType_NONE; // TODO how can this happen?
     const osg::GraphicsContext::Traits* traits = eventGC->getTraits();
-    
+
     osg::Viewport* vport;
-    
+
     if (eventGC != main_window->gc.get()) {
         // This is not the main window.
         simgear::compositor::Compositor* compositor = SviewGetEventViewport(ea);
@@ -148,7 +151,7 @@ FGEventHandler::eventToViewport(const osgGA::GUIEventAdapter& ea, osgGA::GUIActi
             return WindowType_NONE;
         ret = WindowType_MAIN;
     }
-    
+
     // Scale x, y to the dimensions of the window
     double wx = (((ea.getX() - ea.getXmin()) / (ea.getXmax() - ea.getXmin()))
                  * (float)traits->width);
@@ -168,7 +171,7 @@ FGEventHandler::eventToViewport(const osgGA::GUIEventAdapter& ea, osgGA::GUIActi
 enabled. It seems that OSG-3.4 incorrectly calls our event handler for
 extra view windows (e.g. resize/close events), so we try to detect
 this. Unfortunately OSG also messes up <ea>'s graphics context pointer so this
-does't alwys work. */
+doesn't always work. */
 bool FGEventHandler::isMainWindow(const osgGA::GUIEventAdapter& ea, osgGA::GUIActionAdapter& us)
 {
     int x;
@@ -261,7 +264,7 @@ bool FGEventHandler::handle(const osgGA::GUIEventAdapter& ea,
     {
         WindowType window_type = eventToViewport(ea, us, x, y);
         bool mainWindow = (window_type == WindowType_MAIN);
-        
+
         int button;
         if (ea.getScrollingMotion() == osgGA::GUIEventAdapter::SCROLL_2D) {
             if (ea.getScrollingDeltaY() > 0)
@@ -270,7 +273,7 @@ bool FGEventHandler::handle(const osgGA::GUIEventAdapter& ea,
                 button = 4;
             else
                 button = -1;
-            
+
 #if defined(SG_MAC)
             // bug https://code.google.com/p/flightgear-bugs/issues/detail?id=1286
             // Mac (Cocoa) interprets shuft+wheel as horizontal scroll
@@ -281,7 +284,7 @@ bool FGEventHandler::handle(const osgGA::GUIEventAdapter& ea,
                     button = 4;
             }
 #endif
-            
+
         } else if (ea.getScrollingMotion() == osgGA::GUIEventAdapter::SCROLL_UP)
             button = 3;
         else
@@ -302,6 +305,12 @@ bool FGEventHandler::handle(const osgGA::GUIEventAdapter& ea,
             return true;
         if (eventToViewport(ea, us, x, y) != WindowType_NONE && mouseMotionHandler)
             (*mouseMotionHandler)(x, y, &ea);
+        return true;
+    case osgGA::GUIEventAdapter::LEAVE:
+        if (mouseWarped)
+            return true;
+        if (mouseLeaveHandler)
+            (*mouseLeaveHandler)(&ea);
         return true;
     case osgGA::GUIEventAdapter::RESIZE:
         SG_LOG(SG_VIEW, SG_DEBUG, "FGEventHandler::handle: RESIZE event " << ea.getWindowHeight() << " x " << ea.getWindowWidth() << ", resizable: " << resizable);
@@ -346,17 +355,17 @@ bool FGEventHandler::handle(const osgGA::GUIEventAdapter& ea,
         return false;
     }
 }
-    
+
 int FGEventHandler::translateKey(const osgGA::GUIEventAdapter& ea)
 {
     using namespace osgGA;
 
     static std::map<int, int> numlockKeyMap;
     static std::map<int, int> noNumlockKeyMap;
-    
+
     if (numlockKeyMap.empty()) {
         // init these first time around
-        
+
         // OSG reports NumPad keycodes independent of the NumLock modifier.
         // Both KP-4 and KP-Left are reported as KEY_KP_Left (0xff96), so we
         // have to generate the locked keys ourselves.
@@ -371,7 +380,7 @@ int FGEventHandler::translateKey(const osgGA::GUIEventAdapter& ea)
         numlockKeyMap[GUIEventAdapter::KEY_KP_Up] = '8';
         numlockKeyMap[GUIEventAdapter::KEY_KP_Page_Up] = '9';
         numlockKeyMap[GUIEventAdapter::KEY_KP_Delete] = '.';
-        
+
         // The comment above is incorrect on Mac osgViewer, at least. So we
         // need to map the 'num-locked' key codes to real values.
         numlockKeyMap[GUIEventAdapter::KEY_KP_0]  = '0';
@@ -385,7 +394,7 @@ int FGEventHandler::translateKey(const osgGA::GUIEventAdapter& ea)
         numlockKeyMap[GUIEventAdapter::KEY_KP_8] = '8';
         numlockKeyMap[GUIEventAdapter::KEY_KP_9] = '9';
         numlockKeyMap[GUIEventAdapter::KEY_KP_Decimal] = '.';
-        
+
         // mapping when NumLock is off
         noNumlockKeyMap[GUIEventAdapter::KEY_KP_Insert]     = PU_KEY_INSERT;
         noNumlockKeyMap[GUIEventAdapter::KEY_KP_End]        = PU_KEY_END;
@@ -399,7 +408,7 @@ int FGEventHandler::translateKey(const osgGA::GUIEventAdapter& ea)
         noNumlockKeyMap[GUIEventAdapter::KEY_KP_Page_Up]    = PU_KEY_PAGE_UP;
         noNumlockKeyMap[GUIEventAdapter::KEY_KP_Delete]     = 127;
     }
-    
+
     int key = ea.getKey();
     // XXX Probably other translations are needed too.
     switch (key) {
@@ -435,7 +444,7 @@ int FGEventHandler::translateKey(const osgGA::GUIEventAdapter& ea)
         case GUIEventAdapter::KEY_KP_Multiply: key = '*';  break;
         case GUIEventAdapter::KEY_KP_Subtract: key = '-';  break;
     }
-    
+
 #ifdef __APPLE__
     // Num Lock is always true on Mac
     auto  numPadIter = numlockKeyMap.find(key);
@@ -466,19 +475,19 @@ int FGEventHandler::translateModifiers(const osgGA::GUIEventAdapter& ea)
     const auto modifiers =  ea.getModKeyMask();
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_SHIFT)
         result |= KEYMOD_SHIFT;
-    
+
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_CTRL)
         result |= KEYMOD_CTRL;
-    
+
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_ALT)
         result |= KEYMOD_ALT;
-    
+
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_META)
         result |= KEYMOD_META;
-    
+
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_SUPER)
         result |= KEYMOD_SUPER;
-    
+
     if (modifiers & osgGA::GUIEventAdapter::MODKEY_HYPER)
         result |= KEYMOD_HYPER;
     return result;

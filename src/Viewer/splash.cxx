@@ -660,6 +660,7 @@ void SplashScreen::doUpdate()
 
     if (alpha <= 0 || !fgGetBool("/sim/startup/splash-screen")) {
         removeChild(0, getNumChildren());
+        _items.clear();
         _splashFBOCamera = nullptr;
         _splashQuadCamera = nullptr;
 #ifdef ENABLE_OSGXR
@@ -678,7 +679,7 @@ void SplashScreen::doUpdate()
         (*_splashFSQuadColor)[0] = osg::Vec4(1.0, 1.0, 1.0, _splashAlphaNode->getFloatValue());
         _splashFSQuadColor->dirty();
 
-        for (const TextItem& item : _items) {
+        for (TextItem& item : _items) {
             if (item.condition != nullptr) {
 
                 if (item.condition->test())
@@ -687,9 +688,21 @@ void SplashScreen::doUpdate()
                     item.textNode->setDrawMode(0);
             }
             if (item.dynamicContent) {
-                item.textNode->setText(
-                  item.dynamicContent->getStringValue(),
-                  osgText::String::Encoding::ENCODING_UTF8);
+                // Avoid DYNAMIC DataVariance by just recreating the text
+                // drawable when it changes.
+                auto newText = item.dynamicContent->getStringValue();
+                if (item.textNode->getText().createUTF8EncodedString() != newText) {
+                    auto oldText = item.textNode;
+                    item.textNode = new osgText::Text(*item.textNode.get());
+                    item.textNode->setText(
+                        newText,
+                        osgText::String::Encoding::ENCODING_UTF8);
+
+                    // Clearing _items alongside removeChild (above) should
+                    // ensure existing Text objects always have a parent
+                    assert(oldText->getNumParents());
+                    oldText->getParent(0)->replaceChild(oldText, item.textNode);
+                }
             }
         }
         for (const ImageItem& image : _imageItems) {

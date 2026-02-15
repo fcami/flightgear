@@ -475,10 +475,11 @@ private:
           const SGPath dir(fgGetString("/sim/aircraft-dir"));
           if (dir.file() != expectedDirNode->getStringValue()) {
               flightgear::fatalMessageBoxThenExit("Aircraft folder named incorrectly",
-                                          "The folder of the selected aircraft must be named '" + expectedDir +
-                                          "' (instead of '" + dir.file() + "') to work correctly. If you downloaded it yourself, " +
-                                          "please ensure the folder is called '" +
-                                          expectedDir + "' and re-name if necessary.");
+                                                  "The folder of the selected aircraft must be named '" + expectedDir +
+                                                      "' (instead of '" + dir.file() + "') to work correctly. If you downloaded it yourself, " +
+                                                      "please ensure the folder is called '" +
+                                                      expectedDir + "' and re-name if necessary.",
+                                                  {}, EXIT_FAILURE, false /* don't report to Sentry */);
               return false;
           }
       } else {

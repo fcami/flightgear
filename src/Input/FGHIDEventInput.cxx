@@ -209,11 +209,7 @@ FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*)
     }
 
     std::string _usage = HID::nameForUsage(devInfo->usage_page, devInfo->usage);
-    SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " "
-                                             << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " "
-                                             << "release " << devInfo->release_number << " "
-                                             << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") "
-                                             << "ifn " << devInfo->interface_number << " " << GetName());
+    SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " " << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " " << "release " << devInfo->release_number << " " << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") " << "ifn " << devInfo->interface_number << " " << GetName());
 }
 
 FGHIDDevice::~FGHIDDevice()
@@ -256,8 +252,11 @@ bool FGHIDDevice::Open()
     SG_LOG(SG_INPUT, SG_INFO, "HID open " << GetUniqueName());
     _device = hid_open_path(_hidPath.c_str());
     if (_device == nullptr) {
-        SG_LOG(SG_INPUT, SG_WARN, GetUniqueName() << ": HID: Failed to open:" << _hidPath);
-        SG_LOG(SG_INPUT, SG_WARN, "\tnote on Linux you may need to adjust permissions of the device using UDev rules.");
+        const auto path = SGPath(_hidPath);
+        simgear::reportFailure(simgear::LoadFailure::IOError,
+                               simgear::ErrorCode::InputDeviceConfig,
+                               "Failed to open HID device " + _hidPath + " '" + GetUniqueName() + "'. On Linux you may need to adjust permissions of the device using UDev rules.",
+                               path);
         return false;
     }
 
@@ -300,8 +299,7 @@ bool FGHIDDevice::parseUSBHIDDescriptor()
 {
 #if defined(SG_WINDOWS)
     if (_rawXMLDescriptor.empty()) {
-        SG_LOG(SG_INPUT, SG_ALERT, GetUniqueName() << ": on Windows, there is no way to extract the UDB-HID report descriptor. "
-                                                   << "\nPlease supply the report descriptor in the device XML configuration.");
+        SG_LOG(SG_INPUT, SG_ALERT, GetUniqueName() << ": on Windows, there is no way to extract the UDB-HID report descriptor. " << "\nPlease supply the report descriptor in the device XML configuration.");
         SG_LOG(SG_INPUT, SG_ALERT, "See this page:<> for information on extracting the report descriptor on Windows");
         return false;
     }
@@ -783,8 +781,7 @@ void FGHIDEventInput::postinit()
                 d->evaluateDevice(curDev);
             } else {
                 std::string _usage = HID::nameForUsage(curDev->usage_page, curDev->usage);
-                SG_LOG(SG_INPUT, SG_DEBUG, "Skipping duplicate path " << pathStr << " "
-                                                                      << "usage " << _usage << "(0x" << std::hex << curDev->usage_page << ":0x" << std::hex << curDev->usage << ")");
+                SG_LOG(SG_INPUT, SG_DEBUG, "Skipping duplicate path " << pathStr << " " << "usage " << _usage << "(0x" << std::hex << curDev->usage_page << ":0x" << std::hex << curDev->usage << ")");
             }
         }
     }

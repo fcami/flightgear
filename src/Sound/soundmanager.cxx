@@ -59,6 +59,7 @@ void FGSoundManager::init()
     _sound_enabled = fgGetNode("/sim/sound/enabled");
     _volume        = fgGetNode("/sim/sound/volume");
     _device_name   = fgGetNode("/sim/sound/device-name");
+    _headTracked = SGPropObjBool("/sim/sound/head-tracked");
 
     _velocityNorthFPS = fgGetNode("velocities/speed-north-fps", true);
     _velocityEastFPS  = fgGetNode("velocities/speed-east-fps", true);
@@ -71,6 +72,8 @@ void FGSoundManager::init()
 
     globals->get_commands()->addCommand("play-audio-sample", this, &FGSoundManager::playAudioSampleCommand);
 
+    // ensure PropertyObject properties exist.
+    _headTracked.node(true);
 
     reinit();
 }
@@ -163,8 +166,13 @@ void FGSoundManager::update(double dt)
         if (enabled)
         {
             flightgear::View* _view = globals->get_current_view();
-            set_position( _view->getViewPosition(), _view->getPosition() );
-            set_orientation( _view->getViewOrientation() );
+            if (_headTracked) {
+                set_position(_view->getViewPosition(), _view->getPosition());
+                set_orientation(_view->getViewOrientation());
+            } else {
+                set_position(_view->getLocalPosition(), _view->getPosition());
+                set_orientation(_view->getLocalOrientation());
+            }
 
             SGVec3d velocity(SGVec3d::zeros());
             if (!stationaryView()) {

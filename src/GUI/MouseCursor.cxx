@@ -1,21 +1,7 @@
-// MouseCursor.cxx - abstract inteface for  mouse cursor control
+// MouseCursor.cxx - abstract interface for  mouse cursor control
 
-// Copyright (C) 2013 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2013 James Turner <zakalawe@mac.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifdef HAVE_CONFIG_H
   #include "config.h"
@@ -72,7 +58,7 @@ public:
 
     virtual void setCursorVisible(bool aVis)
     {
-        if (mCursorObscured == aVis) {
+        if (mCursorVisible == aVis) {
             return;
         }
 
@@ -181,10 +167,10 @@ FGMouseCursor* FGMouseCursor::instance()
         }
     #endif
 	#ifdef SG_WINDOWS
-	// set osgViewer cursor inherit, otherwise it will interefere
-		std::vector<osgViewer::GraphicsWindow*> gws;
-		globals->get_renderer()->getViewerBase()->getWindows(gws);
-		for (auto gw : gws) {
+        // set osgViewer cursor inherit, otherwise it will interfere
+        std::vector<osgViewer::GraphicsWindow*> gws;
+        globals->get_renderer()->getViewerBase()->getWindows(gws);
+        for (auto gw : gws) {
             gw->setCursor(osgViewer::GraphicsWindow::InheritCursor);
         }
 
@@ -222,7 +208,7 @@ FGMouseCursor::Cursor FGMouseCursor::getCursor() const
 
 bool FGMouseCursor::setCursorCommand(const SGPropertyNode* arg, SGPropertyNode*)
 {
-    // JMT 2013 - I would prefer this was a seperate 'warp' command, but
+    // JMT 2013 - I would prefer this was a separate 'warp' command, but
     // historically set-cursor has done both.
     if (arg->hasValue("x") || arg->hasValue("y")) {
         SGPropertyNode *mx = fgGetNode("/devices/status/mice/mouse/x", true);

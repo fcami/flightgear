@@ -146,7 +146,7 @@ FGViewMgr::unbind ()
 
   _tiedProperties.Untie();
     _viewNumberProp.clear();
-    
+
     ViewPropertyEvaluator::clear();
     SviewClear();
 }
@@ -192,8 +192,8 @@ FGViewMgr::update (double dt)
     if (cameraGroup) {
         cameraGroup->setCameraParameters(currentView->get_v_fov(),
                                          cameraGroup->getMasterAspectRatio());
-        cameraGroup->update(toOsg(currentView->getViewPosition()),
-                            toOsg(currentView->getViewOrientation()));
+        cameraGroup->update(toOsg(currentView->getLocalPosition()),
+                            toOsg(currentView->getLocalOrientation()));
     }
 
     SviewUpdate(dt);
@@ -201,7 +201,7 @@ FGViewMgr::update (double dt)
     if (_video_encoder)
     {
         flightgear::CameraGroup* camera_group = flightgear::CameraGroup::getDefault();
-        
+
         for (auto& camera_info : camera_group->getCameras())
         {
             if (camera_info->flags & flightgear::CameraInfo::GUI)   continue;
@@ -218,23 +218,21 @@ FGViewMgr::update (double dt)
             break;
         }
     }
-    
+
     std::string callsign = globals->get_props()->getStringValue("/sim/log-multiplayer-callsign");
     if (callsign != "")
     {
         auto multiplayers = globals->get_props()->getNode("/ai/models")->getChildren("multiplayer");
-        for (auto mutiplayer: multiplayers)
-        {
-            std::string callsign2 = mutiplayer->getStringValue("callsign");
+        for (auto multiplayer : multiplayers) {
+            std::string callsign2 = multiplayer->getStringValue("callsign");
             if (callsign2 == callsign)
             {
                 static SGVec3d pos_prev;
                 static double t = 0;
-                SGGeod  pos_geod = SGGeod::fromDegFt(
-                        mutiplayer->getDoubleValue("position/longitude-deg"),
-                        mutiplayer->getDoubleValue("position/latitude-deg"),
-                        mutiplayer->getDoubleValue("position/altitude-ft")
-                        );
+                SGGeod pos_geod = SGGeod::fromDegFt(
+                    multiplayer->getDoubleValue("position/longitude-deg"),
+                    multiplayer->getDoubleValue("position/latitude-deg"),
+                    multiplayer->getDoubleValue("position/altitude-ft"));
                 SGVec3d pos = SGVec3d::fromGeod(pos_geod);
                 double distance = length(pos - pos_prev);
                 double speed = distance / dt;
@@ -244,9 +242,9 @@ FGViewMgr::update (double dt)
                 item->setDoubleValue("speed", speed);
                 item->setDoubleValue("dt", dt);
                 item->setDoubleValue("t", t);
-                item->setDoubleValue("ubody", mutiplayer->getDoubleValue("velocities/uBody-fps"));
-                item->setDoubleValue("vbody", mutiplayer->getDoubleValue("velocities/vBody-fps"));
-                item->setDoubleValue("wbody", mutiplayer->getDoubleValue("velocities/wBody-fps"));
+                item->setDoubleValue("ubody", multiplayer->getDoubleValue("velocities/uBody-fps"));
+                item->setDoubleValue("vbody", multiplayer->getDoubleValue("velocities/vBody-fps"));
+                item->setDoubleValue("wbody", multiplayer->getDoubleValue("velocities/wBody-fps"));
                 pos_prev = pos;
                 t += dt;
                 break;
@@ -377,10 +375,10 @@ bool FGViewMgr::video_start(
             << " bitrate=" << bitrate
             );
     globals->get_props()->setIntValue("/sim/video/error", 0);
-    
+
     std::string name;
     std::string name_link;
-    
+
     if (name_in == "")
     {
         /* Use a default name containing aircraft-name, current date and time
@@ -389,9 +387,9 @@ bool FGViewMgr::video_start(
         struct tm* local_tm = localtime(&calendar_time);
         char time_string[256];
         strftime(time_string, sizeof(time_string), "-%Y%m%d-%H%M%S", local_tm);
-        
+
         std::string suffix = "." + fgGetString("/sim/video/container", "mpeg");
-        
+
         name = std::string("fgvideo-") + fgGetString("/sim/aircraft");
         name_link = name + suffix;
         name += time_string + suffix;
@@ -402,9 +400,9 @@ bool FGViewMgr::video_start(
         name_link empty so we don't attempt to create a link. */
         name = name_in;
     }
-    
+
     std::string codec = codec_in;
-    
+
     std::string directory = fgGetString("/sim/video/directory");
     SGPath  path = SGPath(directory);
     path.append(name);
@@ -431,7 +429,7 @@ bool FGViewMgr::video_start(
     if (quality == -1)  quality = fgGetDouble("/sim/video/quality");
     if (speed == -1)    speed = fgGetDouble("/sim/video/speed");
     if (bitrate == 0)   bitrate = fgGetInt("/sim/video/bitrate");
-    
+
     std::string warning;
     if (quality != -1 && (quality < 0 || quality > 1))
     {
@@ -452,7 +450,7 @@ bool FGViewMgr::video_start(
     {
         videoEncodingPopup(warning, 10);
     }
-    
+
     SG_LOG(SG_SYSTEMS, SG_ALERT, "Video encoding starting."
             << " codec=" << codec
             << " quality=" << quality
@@ -473,7 +471,7 @@ bool FGViewMgr::video_start(
         videoEncodingError(e.what());
         return false;
     }
-    
+
     vidoEncodingUpdateStatus(path.str());
     return true;
 }

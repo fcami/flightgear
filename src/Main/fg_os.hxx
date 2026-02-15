@@ -72,6 +72,7 @@ typedef void (*fgWindowResizeHandler)(int w, int h);
 typedef void (*fgKeyHandler)(int key, int keymod, int mousex, int mousey);
 typedef void (*fgMouseClickHandler)(int button, int updown, int x, int y, bool mainWindow, const osgGA::GUIEventAdapter*);
 typedef void (*fgMouseMotionHandler)(int x, int y, const osgGA::GUIEventAdapter*);
+typedef void (*fgMouseLeaveHandler)(const osgGA::GUIEventAdapter*);
 
 void fgRegisterIdleHandler(fgIdleHandler func);
 void fgRegisterDrawHandler(fgDrawHandler func);
@@ -80,3 +81,4 @@ void fgRegisterWindowResizeHandler(fgWindowResizeHandler func);
 void fgRegisterKeyHandler(fgKeyHandler func);
 void fgRegisterMouseClickHandler(fgMouseClickHandler func);
 void fgRegisterMouseMotionHandler(fgMouseMotionHandler func);
+void fgRegisterMouseLeaveHandler(fgMouseLeaveHandler func);

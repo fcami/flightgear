@@ -127,6 +127,13 @@ class OSGXR_EXPORT Manager : public osgViewer::ViewConfig
          */
         bool hasVisibilityMaskExtension() const;
 
+        /**
+         * Find whether OpenXR supports user presence events.
+         * Without this, onUserPresent() and onUserAbsent() events will not be
+         * called, and the app may guess at user presence based on focus.
+         */
+        bool supportsUserPresence() const;
+
         /// Get an extension object by name.
         osg::ref_ptr<Extension> getExtension(const std::string &name);
 
@@ -217,6 +224,13 @@ class OSGXR_EXPORT Manager : public osgViewer::ViewConfig
          */
         virtual void onUnfocus();
 
+        /**
+         * Callback telling the app whether the user is now known to be present.
+         * This only happens when user presence is supported, i.e. when
+         * supportsUserPresence() returns true.
+         */
+        virtual void onUserPresence(bool userPresent);
+
 
         /// Add a custom mirror to the queue of mirrors to configure.
         void addMirror(Mirror *mirror);
@@ -234,12 +248,12 @@ class OSGXR_EXPORT Manager : public osgViewer::ViewConfig
          * Internal
          */
 
-        inline Settings *_getSettings()
+        Settings *_getSettings()
         {
             return _settings.get();
         }
 
-        inline XRState *_getXrState()
+        XRState *_getXrState()
         {
             return _state;
         }

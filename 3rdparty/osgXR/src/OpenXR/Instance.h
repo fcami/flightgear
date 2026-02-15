@@ -34,7 +34,6 @@ class Instance : public osg::Referenced
 {
     public:
 
-        Instance();
         virtual ~Instance();
 
         // Layers and extensions
@@ -84,18 +83,18 @@ class Instance : public osg::Referenced
 
         // Error checking
 
-        inline bool valid() const
+        bool valid() const
         {
             return _instance != XR_NULL_HANDLE;
         }
 
-        inline bool lost() const
+        bool lost() const
         {
             return _lost;
         }
 
         /// Get the selected API version, or 0 if !valid()
-        inline XrVersion getApiVersion() const
+        XrVersion getApiVersion() const
         {
             return _apiVersion;
         }
@@ -124,22 +123,22 @@ class Instance : public osg::Referenced
 
         // Conversions
 
-        inline XrInstance getXrInstance() const
+        XrInstance getXrInstance() const
         {
             return _instance;
         }
 
         // Instance properties
-        inline const char *getRuntimeName() const
+        const char *getRuntimeName() const
         {
             return _properties.runtimeName;
         }
-        inline XrVersion getRuntimeVersion() const
+        XrVersion getRuntimeVersion() const
         {
             return _properties.runtimeVersion;
         }
 
-        inline bool getQuirk(Quirk quirk) const
+        bool getQuirk(Quirk quirk) const
         {
             return _quirks[quirk];
         }
@@ -235,6 +234,8 @@ class Instance : public osg::Referenced
         void registerSession(Session *session);
         void unregisterSession(Session *session);
         Session *getSession(XrSession xrSession);
+        // Get the single lone session (for quirk handling)
+        Session *getLoneSession();
 
         // Events
 
@@ -243,7 +244,7 @@ class Instance : public osg::Referenced
     protected:
 
         // Setup data
-        bool _layerValidation;
+        bool _layerValidation = false;
         std::set<std::string> _extensions;
 
         // Default debug callback to configure
@@ -251,10 +252,10 @@ class Instance : public osg::Referenced
         osg::ref_ptr<DebugUtilsMessenger> _defaultDebugMessenger;
 
         // Instance data
-        XrInstance _instance;
-        mutable bool _lost;
+        XrInstance _instance = XR_NULL_HANDLE;
+        mutable bool _lost = false;
         mutable Result _lastError;
-        XrVersion _apiVersion;
+        XrVersion _apiVersion = 0;
 
         // Extension functions
         PFN_xrGetOpenGLGraphicsRequirementsKHR _xrGetOpenGLGraphicsRequirementsKHR = nullptr;

@@ -64,6 +64,7 @@ private:
     static std::size_t pluralFormIndex_FrenchStyle(uintType n);
     static std::size_t pluralFormIndex_PolishStyle(uintType n);
     static std::size_t pluralFormIndex_RussianStyle(uintType n);
+    static std::size_t pluralFormIndex_SlovakStyle(uintType n);
 };
 
 }

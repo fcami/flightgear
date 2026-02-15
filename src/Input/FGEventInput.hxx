@@ -9,8 +9,8 @@
 
 #include "FGCommonInput.hxx"
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "FGButton.hxx"
 #include "FGDeviceConfigurationMap.hxx"
@@ -28,10 +28,10 @@ class SGInterpTable;
  * To be extended for O/S specific implementation data
  */
 struct FGEventData {
-    FGEventData( double aValue, double aDt, int aModifiers ) : modifiers(aModifiers), value(aValue), dt(aDt) {}
-    int modifiers {0};
-    double value {0.0};
-    double dt {0.0};
+    FGEventData(double aValue, double aDt, int aModifiers) : modifiers(aModifiers), value(aValue), dt(aDt) {}
+    int modifiers{0};
+    double value{0.0};
+    double dt{0.0};
 };
 
 
@@ -61,17 +61,17 @@ class FGInputEvent : public SGReferenced,
                      FGCommonInput
 {
 public:
-    FGInputEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode );
+    FGInputEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
     virtual ~FGInputEvent();
 
     // dispatch the event value through all bindings
-    virtual void fire( FGEventData & eventData );
+    virtual void fire(FGEventData& eventData);
 
     std::string GetName() const { return name; }
     std::string GetDescription() const { return desc; }
 
-    virtual void update( double dt );
-    static FGInputEvent * NewObject( FGInputDevice * device, SGPropertyNode_ptr node );
+    virtual void update(double dt);
+    static FGInputEvent* NewObject(FGInputDevice* device, SGPropertyNode_ptr node);
 
 protected:
     virtual void fire(SGAbstractBinding* binding, FGEventData& eventData);
@@ -88,7 +88,7 @@ protected:
     setting_list_t settings;
 
     /* A pointer to the associated device */
-    FGInputDevice * device;
+    FGInputDevice* device;
 
     double lastDt;
     double intervalSec;
@@ -98,10 +98,11 @@ protected:
 class FGButtonEvent : public FGInputEvent
 {
 public:
-    FGButtonEvent( FGInputDevice * device, SGPropertyNode_ptr node );
-    virtual void fire( FGEventData & eventData );
+    FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr node);
+    virtual void fire(FGEventData& eventData);
 
-  void update( double dt ) override;
+    void update(double dt) override;
+
 protected:
     bool repeatable;
     bool lastState;
@@ -110,15 +111,19 @@ protected:
 class FGAxisEvent : public FGInputEvent
 {
 public:
-    FGAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode );
+    FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
     ~FGAxisEvent();
 
-    void SetMaxRange( double value ) { maxRange = value; }
-    void SetMinRange( double value ) { minRange = value; }
-    void SetRange( double min, double max ) { minRange = min; maxRange = max; }
+    void SetMaxRange(double value) { maxRange = value; }
+    void SetMinRange(double value) { minRange = value; }
+    void SetRange(double min, double max)
+    {
+        minRange = min;
+        maxRange = max;
+    }
 
 protected:
-    virtual void fire( FGEventData & eventData );
+    virtual void fire(FGEventData& eventData);
     double tolerance;
     double minRange;
     double maxRange;
@@ -134,7 +139,7 @@ protected:
 class FGRelAxisEvent : public FGAxisEvent
 {
 public:
-    FGRelAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode );
+    FGRelAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
 
 protected:
     void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
@@ -143,7 +148,7 @@ protected:
 class FGAbsAxisEvent : public FGAxisEvent
 {
 public:
-    FGAbsAxisEvent( FGInputDevice * device, SGPropertyNode_ptr eventNode ) : FGAxisEvent( device, eventNode ) {}
+    FGAbsAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGAxisEvent(device, eventNode) {}
 
 protected:
     void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
@@ -160,52 +165,53 @@ class FGInputDevice : public SGReferenced
 {
 public:
     FGInputDevice() {}
-    FGInputDevice( std::string aName, std::string aSerial = {} ) :
-        name(aName), serialNumber(aSerial) {}
+    FGInputDevice(std::string aName, std::string aSerial = {}) : name(aName), serialNumber(aSerial) {}
 
     virtual ~FGInputDevice();
 
     virtual bool Open() = 0;
     virtual void Close() = 0;
 
-    virtual void Send( const char * eventName, double value ) = 0;
+    virtual void Send(const char* eventName, double value) = 0;
 
-    inline void Send( const std::string & eventName, double value ) {
-        Send( eventName.c_str(), value );
+    inline void Send(const std::string& eventName, double value)
+    {
+        Send(eventName.c_str(), value);
     }
 
     virtual void SendFeatureReport(unsigned int reportId, const simgear::UInt8Vector& data);
     virtual void SendOutputReport(unsigned int reportId, const simgear::UInt8Vector& data);
 
-    virtual const char * TranslateEventName( FGEventData & eventData ) = 0;
+    virtual const char* TranslateEventName(FGEventData& eventData) = 0;
 
 
-    void SetName( std::string name );
-    std::string & GetName() { return name; }
+    void SetName(std::string name);
+    std::string& GetName() { return name; }
 
     void SetUniqueName(const std::string& name);
     const std::string GetUniqueName() const { return _uniqueName; }
 
-    void SetSerialNumber( std::string serial );
+    void SetSerialNumber(std::string serial);
     std::string& GetSerialNumber() { return serialNumber; }
 
-    void HandleEvent( FGEventData & eventData );
+    void HandleEvent(FGEventData& eventData);
 
-    virtual void AddHandledEvent( FGInputEvent_ptr handledEvent );
+    virtual void AddHandledEvent(FGInputEvent_ptr handledEvent);
 
-    virtual void Configure( SGPropertyNode_ptr deviceNode );
+    virtual void Configure(SGPropertyNode_ptr deviceNode);
 
-    virtual void update( double dt );
+    virtual void update(double dt);
 
-    bool GetDebugEvents () const { return debugEvents; }
+    bool GetDebugEvents() const { return debugEvents; }
 
     bool GetGrab() const { return grab; }
 
-    const std::string & GetNasalModule() const { return nasalModule; }
+    const std::string& GetNasalModule() const { return nasalModule; }
     std::string class_id = "FGInputDevice";
+
 protected:
     // A map of events, this device handles
-    std::map<std::string,FGInputEvent_ptr> handledEvents;
+    std::map<std::string, FGInputEvent_ptr> handledEvents;
 
     // the device has a name to be recognized
     std::string name;
@@ -231,10 +237,10 @@ protected:
 
     report_setting_list_t reportSettings;
 
-  /// name, but with suffix / serial appended. This is important
-  /// when loading the device multiple times, to ensure the Nasal
-  /// module is unique
-  std::string _uniqueName;
+    /// name, but with suffix / serial appended. This is important
+    /// when loading the device multiple times, to ensure the Nasal
+    /// module is unique
+    std::string _uniqueName;
 };
 
 typedef SGSharedPtr<FGInputDevice> FGInputDevice_ptr;
@@ -266,13 +272,13 @@ protected:
     const char* propertyRoot;
 
     unsigned AddDevice(FGInputDevice* inputDevice);
-    void RemoveDevice( unsigned index );
+    void RemoveDevice(unsigned index);
 
-    std::map<int,FGInputDevice*> inputDevices;
+    std::map<int, FGInputDevice*> inputDevices;
     FGDeviceConfigurationMap configMap;
 
     SGPropertyNode_ptr nasalClose;
 
 private:
-    std::string computeDeviceIndexName(FGInputDevice *dev) const;
+    std::string computeDeviceIndexName(FGInputDevice* dev) const;
 };

@@ -111,7 +111,7 @@ relativeProjection(const osg::Matrix& P0, const osg::Matrix& R, const osg::Vec2d
     osg::Matrix S = osg::Matrix::scale(s, s, 1);
 
     // For the translation offset, incorporate the now known scale
-    // and recompute the position ot the first reference point in the
+    // and recompute the position of the first reference point in the
     // currents projection space without the yet unknown T.
     pRefInThis[0] = preMult(pRef[0], PtoPwithoutTS*S);
     // The translation is then the difference of the reference points
@@ -157,7 +157,7 @@ private:
             n->setDoubleValue(val);
         }
         n->addChangeListener(this);
-        valueChanged(n); // propogate initial state through
+        valueChanged(n); // propagate initial state through
     }
 
     void unlisten(const std::string& name) {
@@ -532,9 +532,9 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
     osg::ref_ptr<SGReaderWriterOptions> options =
         SGReaderWriterOptions::fromPath(globals->get_fg_root());
     options->setPropertyNode(globals->get_props());
-    
+
     SViewSetCompositorParams(options, compositor_path);
-    
+
     Compositor *compositor = nullptr;
     if (info->flags & CameraInfo::VR_MIRROR)
         compositor = buildVRMirrorCompositor(window->gc, viewport);
@@ -589,7 +589,7 @@ void CameraGroup::buildSplashCamera(SGPropertyNode* cameraNode,
     camera->setGraphicsContext(window->gc.get());
     // If a viewport isn't set on the camera, then it's hard to dig it
     // out of the SceneView objects in the viewer, and the coordinates
-    // of mouse events are somewhat bizzare.
+    // of mouse events are somewhat bizarre.
     osg::Viewport* viewport = new osg::Viewport(
         0, 0, window->gc->getTraits()->width, window->gc->getTraits()->height);
     camera->setViewport(viewport);
@@ -664,7 +664,7 @@ void CameraGroup::buildGUICamera(SGPropertyNode* cameraNode,
     camera->setGraphicsContext(window->gc.get());
     // If a viewport isn't set on the camera, then it's hard to dig it
     // out of the SceneView objects in the viewer, and the coordinates
-    // of mouse events are somewhat bizzare.
+    // of mouse events are somewhat bizarre.
     osg::Viewport *viewport = new osg::Viewport(
         0, 0, window->gc->getTraits()->width, window->gc->getTraits()->height);
     camera->setViewport(viewport);
@@ -844,6 +844,57 @@ const CameraGroup::CameraList& CameraGroup::getCameras()
 }
 
 static bool
+computeSceneIntersection(const CameraGroup* cgroup,
+                         const osg::Vec3d& start,
+                         const osg::Vec3d& end,
+                         osgUtil::LineSegmentIntersector::Intersections& intersections)
+{
+    osg::ref_ptr<osgUtil::LineSegmentIntersector> picker =
+        new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL,
+                                            start, end);
+    osgUtil::IntersectionVisitor iv(picker);
+    iv.setTraversalMask(simgear::PICK_BIT);
+
+    const_cast<CameraGroup*>(cgroup)->getView()->getSceneData()->accept(iv);
+    if (picker->containsIntersections()) {
+        intersections = picker->getIntersections();
+        return true;
+    }
+
+    return false;
+}
+
+static bool
+computeSceneIntersection(const CameraGroup* cgroup,
+                         const std::vector<osg::Vec3d>& lineStrip,
+                         osgUtil::LineSegmentIntersector::Intersections& intersections)
+{
+    osg::ref_ptr<osgUtil::IntersectorGroup> group = new osgUtil::IntersectorGroup();
+    for (unsigned int i = 1; i < lineStrip.size(); ++i)
+        group->addIntersector(new osgUtil::LineSegmentIntersector(
+            osgUtil::Intersector::MODEL,
+            lineStrip[i - 1], lineStrip[i]));
+    osgUtil::IntersectionVisitor iv(group);
+    iv.setTraversalMask(simgear::PICK_BIT);
+
+    const_cast<CameraGroup*>(cgroup)->getView()->getSceneData()->accept(iv);
+    if (group->containsIntersections()) {
+        // Append each segment's intersections to the list
+        intersections.clear();
+        for (auto& intersector : group->getIntersectors())
+            if (intersector->containsIntersections()) {
+                auto* lineIntersector = static_cast<osgUtil::LineSegmentIntersector*>(intersector.get());
+                auto& someIntersections = lineIntersector->getIntersections();
+                intersections.insert(std::begin(someIntersections),
+                                     std::end(someIntersections));
+            }
+        return true;
+    }
+
+    return false;
+}
+
+static bool
 computeCameraIntersection(const CameraGroup *cgroup,
                           const CameraInfo *cinfo,
                           const osg::Vec2d &windowPos,
@@ -854,8 +905,7 @@ computeCameraIntersection(const CameraGroup *cgroup,
 
     const osg::Viewport *viewport = cinfo->compositor->getViewport();
     SGRect<double> viewportRect(viewport->x(), viewport->y(),
-                                viewport->x() + viewport->width() - 1.0,
-                                viewport->y() + viewport->height()- 1.0);
+                                viewport->width(), viewport->height());
     double epsilon = 0.5;
     if (!viewportRect.contains(windowPos.x(), windowPos.y(), epsilon))
         return false;
@@ -872,20 +922,10 @@ computeCameraIntersection(const CameraGroup *cgroup,
     start = start * invViewMat;
     end = end * invViewMat;
 
-    osg::ref_ptr<osgUtil::LineSegmentIntersector> picker =
-        new osgUtil::LineSegmentIntersector(osgUtil::Intersector::MODEL,
-                                            osg::Vec3d(start.x(), start.y(), start.z()),
-                                            osg::Vec3d(end.x(), end.y(), end.z()));
-    osgUtil::IntersectionVisitor iv(picker);
-    iv.setTraversalMask(simgear::PICK_BIT);
-
-    const_cast<CameraGroup*>(cgroup)->getView()->getSceneData()->accept(iv);
-    if (picker->containsIntersections()) {
-        intersections = picker->getIntersections();
-        return true;
-    }
-
-    return false;
+    return computeSceneIntersection(cgroup,
+                                    osg::Vec3d(start.x(), start.y(), start.z()),
+                                    osg::Vec3d(end.x(), end.y(), end.z()),
+                                    intersections);
 }
 
 bool computeIntersections(const CameraGroup* cgroup,
@@ -899,6 +939,22 @@ bool computeIntersections(const CameraGroup* cgroup,
             continue;
 
         if (computeCameraIntersection(cgroup, cinfo, windowPos, intersections))
+            return true;
+    }
+
+    intersections.clear();
+    return false;
+}
+
+bool computeSceneIntersections(const CameraGroup* cgroup,
+                               const std::vector<osg::Vec3d>& lineStrip,
+                               osgUtil::LineSegmentIntersector::Intersections& intersections)
+{
+    if (lineStrip.size() > 2) {
+        if (computeSceneIntersection(cgroup, lineStrip, intersections))
+            return true;
+    } else if (lineStrip.size() == 2) {
+        if (computeSceneIntersection(cgroup, lineStrip[0], lineStrip[1], intersections))
             return true;
     }
 

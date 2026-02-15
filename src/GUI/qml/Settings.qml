@@ -460,6 +460,9 @@ Item {
                         description: qsTr("Start the simulator in full-screen mode.");
                         setting: "fullscreen"
                         option: "fullscreen"
+                    // always set, so launcher overrides autosave.xml
+                    // https://gitlab.com/flightgear/flightgear/-/issues/3079
+                        setIfDefault: true
                     },
 
                     SettingsComboBox {

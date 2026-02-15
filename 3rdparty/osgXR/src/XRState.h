@@ -28,6 +28,7 @@
 #include <osgXR/Extension>
 #include <osgXR/InteractionProfile>
 #include <osgXR/Settings>
+#include <osgXR/Space>
 #include <osgXR/Subaction>
 #include <osgXR/View>
 
@@ -180,7 +181,7 @@ class XRState : public OpenXR::EventHandler
                 osg::Matrix _projectionMatrix;
         };
 
-        inline Manager *getManager()
+        Manager *getManager()
         {
             return _manager.get();
         }
@@ -188,41 +189,42 @@ class XRState : public OpenXR::EventHandler
         bool hasValidationLayer() const;
         bool hasDepthInfoExtension() const;
         bool hasVisibilityMaskExtension() const;
+        bool supportsUserPresence() const;
 
-        inline XrVersion getApiVersion() const
+        XrVersion getApiVersion() const
         {
             if (_currentState < VRSTATE_INSTANCE)
                 return 0;
             return _instance->getApiVersion();
         }
 
-        inline const char *getRuntimeName() const
+        const char *getRuntimeName() const
         {
             if (_currentState < VRSTATE_INSTANCE)
                 return "";
             return _instance->getRuntimeName();
         }
 
-        inline XrVersion getRuntimeVersion() const
+        XrVersion getRuntimeVersion() const
         {
             if (_currentState < VRSTATE_INSTANCE)
                 return 0;
             return _instance->getRuntimeVersion();
         }
 
-        inline const char *getSystemName() const
+        const char *getSystemName() const
         {
             if (_currentState < VRSTATE_SYSTEM)
                 return "";
             return _system->getSystemName();
         }
 
-        inline bool getPresent() const
+        bool getPresent() const
         {
             return _instance.valid() && _instance->valid();
         }
 
-        inline bool valid() const
+        bool valid() const
         {
             return _currentState >= VRSTATE_SESSION;
         }
@@ -412,6 +414,18 @@ class XRState : public OpenXR::EventHandler
         /// Get the current interaction profile for the given subaction path.
         InteractionProfile *getCurrentInteractionProfile(const OpenXR::Path &subactionPath) const;
 
+        /// Add a space
+        void addSpace(Space::Private *space)
+        {
+            _spaces.insert(space);
+        }
+
+        /// Remove a space
+        void removeSpace(Space::Private *space)
+        {
+            _spaces.erase(space);
+        }
+
         /// Get a string describing the state (for user consumption).
         const char *getStateString() const;
 
@@ -462,6 +476,8 @@ class XRState : public OpenXR::EventHandler
                                            const XrEventDataReferenceSpaceChangePending *event) override;
         void onSessionStateChanged(OpenXR::Session *session,
                                    const XrEventDataSessionStateChanged *event) override;
+        void onUserPresenceChanged(OpenXR::Session *session,
+                                   const XrEventDataUserPresenceChangedEXT *event) override;
         void onSessionStateStart(OpenXR::Session *session) override;
         void onSessionStateEnd(OpenXR::Session *session, bool retry) override;
         void onSessionStateReady(OpenXR::Session *session) override;
@@ -481,7 +497,7 @@ class XRState : public OpenXR::EventHandler
         void releaseGLObjects(osg::State *state);
         void swapBuffersImplementation(osg::GraphicsContext* gc);
 
-        inline osg::ref_ptr<OpenXR::CompositionLayerProjection> getProjectionLayer()
+        osg::ref_ptr<OpenXR::CompositionLayerProjection> getProjectionLayer()
         {
             return _projectionLayer;
         }
@@ -597,7 +613,7 @@ class XRState : public OpenXR::EventHandler
         void destroyAppView(AppView *appView);
 
         // Visibility mask setup
-        inline bool needsVisibilityMask(osg::Camera *camera)
+        bool needsVisibilityMask(osg::Camera *camera)
         {
             return _useVisibilityMask &&
                 (camera->getClearMask() & GL_DEPTH_BUFFER_BIT);
@@ -669,6 +685,7 @@ class XRState : public OpenXR::EventHandler
         std::map<std::string, std::weak_ptr<Extension::Private>> _extensions;
         std::shared_ptr<Extension::Private> _extDepthInfo;
         std::shared_ptr<Extension::Private> _extDepthUtils;
+        std::shared_ptr<Extension::Private> _extUserPresence;
         std::shared_ptr<Extension::Private> _extVisibilityMask;
         std::set<std::shared_ptr<Extension::Private>> _enabledExtensions;
 
@@ -681,6 +698,9 @@ class XRState : public OpenXR::EventHandler
         std::set<ActionSet::Private *> _actionSets;
         std::set<InteractionProfile::Private *> _interactionProfiles;
         std::map<std::string, std::weak_ptr<Subaction::Private>> _subactions;
+
+        // Spaces
+        std::set<Space::Private *> _spaces;
 
         // Composition layers
         bool _compositionLayersUpdated;

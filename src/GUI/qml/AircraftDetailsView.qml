@@ -193,7 +193,7 @@ Rectangle {
                     Grid {
                         id: ratingGrid
 
-                        visible: aircraft.ratings !== undefined
+                        visible: (aircraft.ratings !== undefined) && (aircraft.ratings.length > 0)
 
                         rows: 2
                         columns: 3

@@ -22,38 +22,34 @@ class System
 
         System(Instance *instance, XrSystemId systemId) :
             _instance(instance),
-            _systemId(systemId),
-            _readProperties(false),
-            _orientationTracking(false),
-            _positionTracking(false),
-            _readViewConfigurations(false)
+            _systemId(systemId)
         {
         }
 
         // Error checking
 
-        inline bool check(XrResult result, const char *actionMsg) const
+        bool check(XrResult result, const char *actionMsg) const
         {
             return _instance->check(result, actionMsg);
         }
 
         // Conversions
 
-        inline Instance *getInstance()
+        Instance *getInstance()
         {
             return _instance;
         }
-        inline const Instance *getInstance() const
+        const Instance *getInstance() const
         {
             return _instance;
         }
 
-        inline XrInstance getXrInstance() const
+        XrInstance getXrInstance() const
         {
             return _instance->getXrInstance();
         }
 
-        inline XrSystemId getXrSystemId() const
+        XrSystemId getXrSystemId() const
         {
             return _systemId;
         }
@@ -62,25 +58,32 @@ class System
 
         void getProperties() const;
 
-        inline const char *getSystemName() const
+        const char *getSystemName() const
         {
             if (!_readProperties)
                 getProperties();
             return _systemName;
         }
 
-        inline bool getOrientationTracking() const
+        bool getOrientationTracking() const
         {
             if (!_readProperties)
                 getProperties();
             return _orientationTracking;
         }
 
-        inline bool getPositionTracking() const
+        bool getPositionTracking() const
         {
             if (!_readProperties)
                 getProperties();
             return _positionTracking;
+        }
+
+        bool getUserPresence() const
+        {
+            if (!_readProperties)
+                getProperties();
+            return _userPresence;
         }
 
         class ViewConfiguration
@@ -225,7 +228,7 @@ class System
 
             protected:
 
-                inline bool check(XrResult result, const char *actionMsg) const
+                bool check(XrResult result, const char *actionMsg) const
                 {
                     return _system->getInstance()->check(result, actionMsg);
                 }
@@ -252,13 +255,14 @@ class System
         XrSystemId _systemId;
 
         // Properties
-        mutable char _systemName[XR_MAX_SYSTEM_NAME_SIZE];
-        mutable bool _readProperties;
-        mutable bool _orientationTracking;
-        mutable bool _positionTracking;
+        mutable char _systemName[XR_MAX_SYSTEM_NAME_SIZE] = {0};
+        mutable bool _readProperties = false;
+        mutable bool _orientationTracking = false;
+        mutable bool _positionTracking = false;
+        mutable bool _userPresence = false;
 
         // View configurations
-        mutable bool _readViewConfigurations;
+        mutable bool _readViewConfigurations = false;
         mutable ViewConfigurations _viewConfigurations;
 
 };

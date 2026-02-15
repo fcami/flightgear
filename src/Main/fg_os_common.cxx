@@ -37,3 +37,8 @@ void fgRegisterMouseMotionHandler(fgMouseMotionHandler func)
 {
     globals->get_renderer()->getEventHandler()->setMouseMotionHandler(func);
 }
+
+void fgRegisterMouseLeaveHandler(fgMouseLeaveHandler func)
+{
+    globals->get_renderer()->getEventHandler()->setMouseLeaveHandler(func);
+}

@@ -84,6 +84,11 @@ public:
      * @param windowPos A 2D coordinate in window space.
      */
     PickList pick(const osg::Vec2& windowPos);
+    PickList pick(const std::vector<osg::Vec3d>& lineStrip);
+    PickList pick(const osg::Vec3d& start, const osg::Vec3d& end)
+    {
+        return pick({start, end});
+    }
 
     /**
      * @brief Add a Canvas RTT camera to the renderer.
@@ -98,7 +103,7 @@ public:
     void removeCanvasCamera(osg::Camera* camera);
 
     osgViewer::ViewerBase* getViewerBase() const;
-    
+
     /** Both should only be used on reset. */
     osg::ref_ptr<osgViewer::CompositeViewer> getCompositeViewer();
     void setCompositeViewer(osg::ref_ptr<osgViewer::CompositeViewer> composite_viewer);

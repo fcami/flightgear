@@ -8,9 +8,10 @@
 #include <memory>
 #include <map>
 
+#include <simgear/props/propertyObject.hxx>
 #include <simgear/props/props.hxx>
-#include <simgear/structure/subsystem_mgr.hxx>
 #include <simgear/sound/soundmgr.hxx>
+#include <simgear/structure/subsystem_mgr.hxx>
 
 class FGSampleQueue;
 class SGSoundMgr;
@@ -48,6 +49,7 @@ private:
     double _active_dt;
     bool _is_initialized, _enabled;
     SGPropertyNode_ptr _sound_working, _sound_enabled, _volume, _device_name;
+    SGPropObjBool _headTracked;
     SGPropertyNode_ptr _velocityNorthFPS, _velocityEastFPS, _velocityDownFPS;
     SGPropertyNode_ptr _frozen;
     std::unique_ptr<Listener> _listener;

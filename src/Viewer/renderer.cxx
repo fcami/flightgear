@@ -266,7 +266,7 @@ FGRenderer::init()
         }
         _composite_viewer->setUseConfigureAffinity(osg_affinity_flag);
     }
-        
+
     // https://stackoverflow.com/questions/15207076/openscenegraph-and-multiple-viewers
     _composite_viewer->setReleaseContextAtEndOfFrameHint(false);
     _composite_viewer->setThreadingModel(osgViewer::Viewer::SingleThreaded);
@@ -386,7 +386,7 @@ FGRenderer::setupView()
     // The sun and moon radius are scaled down numbers of the actual
     // diameters. This is needed to fit both the sun and the moon
     // within the distance to the far clip plane.
-    // 
+    //
     // Their distance to the observer is specified in FGRendered::updateSky() and
     // set to 40000 for the Moon semi-mayor axis, 50000 for the mean
     // Earth-Sun distance (1AU). The location of the stars is
@@ -595,7 +595,7 @@ FGRenderer::updateSky()
     scolor.sun_angle   = l->get_sun_angle();
     scolor.moon_angle  = l->get_moon_angle();
     scolor.altitude_m =  altitude_m;
-    
+
     auto ephemerisSub = globals->get_subsystem<Ephemeris>();
     double delta_time_sec = _sim_delta_sec->getDoubleValue();
     _sky->reposition( sstate, *ephemerisSub->data(), delta_time_sec );
@@ -630,6 +630,7 @@ FGRenderer::resize(int width, int height)
 namespace {
 
 typedef osgUtil::LineSegmentIntersector::Intersection Intersection;
+typedef osgUtil::LineSegmentIntersector::Intersections Intersections;
 
 SGVec2d uvFromIntersection(const Intersection& hit)
 {
@@ -682,19 +683,26 @@ SGVec2d uvFromIntersection(const Intersection& hit)
 
 } // anonymous namespace
 
-FGRenderer::PickList FGRenderer::pick(const osg::Vec2& windowPos)
+FGRenderer::PickList handlePickIntersections(Intersections& intersections)
 {
-    PickList result;
-    osgUtil::LineSegmentIntersector::Intersections intersections;
+    FGRenderer::PickList result;
 
-    if (!computeIntersections(CameraGroup::getDefault(), windowPos, intersections))
-        return result; // return empty list
-    
     // We attempt to highlight nodes until Highlight::highlight_nodes()
     // succeeds and returns +ve, or highlighting is disabled and it returns -1.
     auto highlight = globals->get_subsystem<Highlight>();
     int highlight_num_props = 0;
-    
+
+    // Treat first physical object as hit, even without a pick callback
+    if (!intersections.empty()) {
+        auto hit = intersections.begin();
+
+        SGSceneryPick sceneryPick;
+        sceneryPick.info.local = toSG(hit->getLocalIntersectPoint());
+        sceneryPick.info.wgs84 = toSG(hit->getWorldIntersectPoint());
+        sceneryPick.callback = nullptr;
+        result.push_back(sceneryPick);
+    }
+
     for (const auto& hit : intersections) {
         const osg::NodePath& np = hit.nodePath;
         osg::NodePath::const_reverse_iterator npi;
@@ -725,6 +733,26 @@ FGRenderer::PickList FGRenderer::pick(const osg::Vec2& windowPos)
     }
 
     return result;
+}
+
+FGRenderer::PickList FGRenderer::pick(const osg::Vec2& windowPos)
+{
+    Intersections intersections;
+
+    if (!computeIntersections(CameraGroup::getDefault(), windowPos, intersections))
+        return PickList();
+
+    return handlePickIntersections(intersections);
+}
+
+FGRenderer::PickList FGRenderer::pick(const std::vector<osg::Vec3d>& lineStrip)
+{
+    Intersections intersections;
+
+    if (!computeSceneIntersections(CameraGroup::getDefault(), lineStrip, intersections))
+        return PickList();
+
+    return handlePickIntersections(intersections);
 }
 
 void

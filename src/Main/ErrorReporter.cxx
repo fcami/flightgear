@@ -291,7 +291,7 @@ public:
         }
 
         // log it once we know it's not a duplicate
-        SG_LOG(SG_GENERAL, SG_WARN, "Error:" << static_errorTypeIds.at(static_cast<int>(type)) << " from " << static_errorIds.at(static_cast<int>(code)) << "::" << details << "\n\t" << location.asString());
+        SG_LOG(SG_GENERAL, SG_ALERT, "Error:" << static_errorTypeIds.at(static_cast<int>(type)) << " from " << static_errorIds.at(static_cast<int>(code)) << "::" << details << "\n\t" << location.asString());
 
         it->lastErrorTime.stamp();
         _reportsDirty = true;
@@ -506,19 +506,20 @@ auto ErrorReporter::ErrorReporterPrivate::getAggregateForOccurence(const ErrorRe
         // likely what we want/expect
         auto path = oc.hasContextKey("terrain-stg") ? oc.getContextValue("terrain-stg") : oc.getContextValue("btg");
 
-        // custom scenery, find out the prefix
-        for (const auto& sceneryPath : globals->get_fg_scenery()) {
-            const auto pathStr = sceneryPath.utf8Str();
-            if (simgear::strutils::starts_with(path, pathStr)) {
-                return getAggregate(Aggregation::CustomScenery, pathStr);
-            }
-        }
-
         // try generic paths
         if (simgear::strutils::starts_with(path, _fgdataPathPrefix)) {
             return getAggregate(Aggregation::FGData, {});
         } else if (simgear::strutils::starts_with(path, _terrasyncPathPrefix)) {
             return getAggregate(Aggregation::TerraSync, {});
+        }
+
+        // custom scenery, find out the prefix. Order matters here because
+        // TerraSync path is added to FG scenery list, so we check those first
+        for (const auto& sceneryPath : globals->get_fg_scenery()) {
+            const auto pathStr = sceneryPath.utf8Str();
+            if (simgear::strutils::starts_with(path, pathStr)) {
+                return getAggregate(Aggregation::CustomScenery, pathStr);
+            }
         }
 
         // shouldn't ever happen

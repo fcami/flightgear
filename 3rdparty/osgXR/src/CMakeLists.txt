@@ -1,5 +1,5 @@
 # Dependencies
-find_package(OpenXR REQUIRED)
+find_package(OpenXR 1.0.34 REQUIRED)
 
 # Old OpenXR SDK versions don't find Threads but Threads::Threads is an
 # INTERFACE link library of openxr_loader, so do so explicitly
@@ -23,6 +23,7 @@ set(osgXR_HEADERS
     include/osgXR/OpenXRDisplay
     include/osgXR/Pose
     include/osgXR/Settings
+    include/osgXR/Space
     include/osgXR/SubImage
     include/osgXR/Subaction
     include/osgXR/Swapchain
@@ -74,6 +75,7 @@ set(osgXR_SRCS
     OpenXRDisplay.cpp
     Pose.cpp
     Settings.cpp
+    Space.cpp
     Subaction.cpp
     Swapchain.cpp
     View.cpp
