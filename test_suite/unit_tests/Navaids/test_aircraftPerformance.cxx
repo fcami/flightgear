@@ -41,16 +41,16 @@ void AircraftPerformanceTests::testBasic()
     
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(36000, 34000), 100, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(36000, 34000), 12.805, 1e-1);
-    
+
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(15000, 20000), 300, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(15000, 18000), 14.270, 1);
 
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(2000, 25000), 1191.6, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(2000, 25000), 123.06, 1);
-    
+
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(36000, 3000), 1666.6, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(36000, 3000), 162.02, 1);
-    
+
     CPPUNIT_ASSERT_DOUBLES_EQUAL(251.5, ap.timeToCruise(32.0, 350000), 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(503.0, ap.timeToCruise(64.0, 380000), 1);
 
@@ -65,10 +65,8 @@ void AircraftPerformanceTests::testAltitudeGradient()
     fgSetString("/aircraft/performance/icao-category", "E");
     AircraftPerformance ap;
     CPPUNIT_ASSERT_DOUBLES_EQUAL(8332, ap.computePreviousAltitude(10000, 6000), 1);
-    
+
     CPPUNIT_ASSERT_DOUBLES_EQUAL(3260, ap.computeNextAltitude(4000, 2000), 1);
-
-
 }
 
 
@@ -110,6 +108,3 @@ void AircraftPerformanceTests::testLoadFromPropsJet()
     std::string_view expectedPerformanceClass = "unknown";
     CPPUNIT_ASSERT_EQUAL(expectedPerformanceClass, ap.performanceClass());
 }
-
-
-
