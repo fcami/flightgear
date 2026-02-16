@@ -99,7 +99,7 @@ public:
     inline double airspeed() const { return props->getFloatValue("velocities/airspeed-kt"); };
     
     /**Returns the performance class aligned with APT.DAT.*/
-    const std::string_view getPerformanceClass();
+    const std::string_view getPerformanceClass() const;
 
     const std::string& atGate();
     std::string acwakecategory;
@@ -114,7 +114,7 @@ public:
     void dumpCSVHeader(const std::unique_ptr<sg_ofstream>& o);
     void dumpCSV(const std::unique_ptr<sg_ofstream>& o, int lineIndex);
 
-    void setPerformanceClass(const std::string& perfClass) { performanceClass = perfClass; }
+    void setPerformanceClass(const std::string& perfClass);
 
 protected:
     void Run(double dt);

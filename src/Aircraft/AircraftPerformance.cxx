@@ -147,7 +147,7 @@ void AircraftPerformance::icaoCategoryData()
         propCat = heuristicCatergoryFromTags();
     }
 
-    SG_LOG(SG_GENERAL, SG_INFO, "AircraftPerformance: Using ICAO category '" << propCat << "' for performance data\n");
+    SG_LOG(SG_GENERAL, SG_DEBUG, "AircraftPerformance: Using ICAO category '" << propCat << "' for performance data\n");
     const char aircraftCategory = propCat.front();
      //     pathTurnRate = 3.0; // 3 deg/sec = 180deg/min = standard rate turn
       switch (aircraftCategory) {
@@ -180,7 +180,7 @@ void AircraftPerformance::icaoCategoryData()
       }
 }
 
-std::string_view AircraftPerformance::performanceClass() {
+std::string_view AircraftPerformance::performanceClass() const {
     const auto tags(readTags());
     auto performanceNode = fgGetNode("/aircraft/performance/");
     if (performanceNode) {
@@ -217,7 +217,7 @@ std::string_view AircraftPerformance::performanceClass() {
 
 
 /**Mapping from APT.dat to the rwy.use*/
-std::string_view AircraftPerformance::rwyType() {
+std::string_view AircraftPerformance::rwyType() const {
     std::string_view perfClass = performanceClass();
     if (perfClass == PERFORMANCE_CLASS_HEAVY || perfClass == PERFORMANCE_CLASS_JETS || perfClass == PERFORMANCE_CLASS_TURBOPROPS) {
         return RUNWAY_TYPE_COM;
