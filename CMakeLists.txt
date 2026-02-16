@@ -18,7 +18,7 @@ endif()
 
 # Boost 'does Boost ship with its own BoostConfig or not' policy
 if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 OLD)
+  cmake_policy(SET CMP0167 NEW)
 endif()
 
 if (CMAKE_BUILD_TYPE)
