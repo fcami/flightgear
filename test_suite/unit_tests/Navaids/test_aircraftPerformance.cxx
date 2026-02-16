@@ -14,7 +14,7 @@ using namespace flightgear;
 void AircraftPerformanceTests::setUp()
 {
     FGTestApi::setUp::initTestGlobals("aircraft-perf");
-    FGTestApi::setUp::initNavDataCache(); 
+    FGTestApi::setUp::initNavDataCache();
 }
 
 
@@ -38,7 +38,7 @@ void AircraftPerformanceTests::testBasic()
 
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(3000, 6000), 100, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 5.430, 1e-3);
-    
+
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(36000, 34000), 100, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(36000, 34000), 12.805, 1e-1);
 

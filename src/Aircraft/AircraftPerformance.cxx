@@ -231,7 +231,7 @@ std::string_view AircraftPerformance::rwyType() const {
     if (perfClass == PERFORMANCE_CLASS_PROPS) {
         return RUNWAY_TYPE_GEN;
     }
-    
+
     return RUNWAY_TYPE_COM;
 }
 

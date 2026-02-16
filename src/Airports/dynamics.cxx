@@ -676,7 +676,7 @@ std::string FGAirportDynamics::fallbackGetActiveRunway(int action, double headin
 bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
                                              int action, std::string& runway,
                                              double heading)
-{ 
+{
     SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
     if (!fgGetBool("/environment/metar/valid")) {
         SG_LOG(SG_GENERAL, SG_WARN, "innerGetActiveRunway METAR invalid");

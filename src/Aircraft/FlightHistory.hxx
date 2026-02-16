@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <vector>
 

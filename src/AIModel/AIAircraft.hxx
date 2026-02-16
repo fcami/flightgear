@@ -97,7 +97,7 @@ public:
     inline double getVerticalSpeedFPM() const { return vs_fps * 60; };
     inline double altitudeAGL() const { return props->getFloatValue("position/altitude-agl-ft"); };
     inline double airspeed() const { return props->getFloatValue("velocities/airspeed-kt"); };
-    
+
     /**Returns the performance class aligned with APT.DAT.*/
     const std::string_view getPerformanceClass() const;
 
