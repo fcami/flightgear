@@ -1,25 +1,10 @@
-//
-//  Written by David Megginson, started January 2000.
-//  Adopted for standalone fgpanel application by Torsten Dreyer, August 2009
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License as
-//  published by the Free Software Foundation; either version 2 of the
-//  License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//  General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2000 David Megginson
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ApplicationProperties.hxx"
 #include "GL_utils.hxx"
 #include "FGTextLayer.hxx"
+using std::string;
 
 SGPath FGTextLayer::The_Font_Path;
 
@@ -139,7 +124,7 @@ FGTextLayer::draw () {
       // difference of 35.8 minutes since the returned value is in
       // usec.  So if the panel is left off longer than that we can
       // over flow the math with it is turned back on.  This (diff <
-      // 0) catches that situation, get's us out of trouble, and
+      // 0) catches that situation, gets us out of trouble, and
       // back on track.
       recalc_value ();
       m_then = m_now;

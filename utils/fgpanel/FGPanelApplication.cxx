@@ -1,20 +1,5 @@
-//
-//  Written and (c) Torsten Dreyer - Torsten(at)t3r_dot_de
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License as
-//  published by the Free Software Foundation; either version 2 of the
-//  License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//  General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2011 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <config.h>
 
@@ -30,6 +15,7 @@
 #endif
 
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
@@ -58,6 +44,7 @@
 
 
 using namespace std;
+using namespace std::string_literals;
 
 inline static string
 ParseArgs (int argc, char **argv, const string &token) {
@@ -74,9 +61,9 @@ ParseArgs (int argc, char **argv, const string &token) {
 inline static SGPath
 platformDefaultRoot () {
 #if defined(__CYGWIN__)
-  return SGPath ("../data");
+    return SGPath("../data"s);
 #elif defined(_WIN32)
-  return SGPath ("..\\data");
+    return SGPath("..\\data"s);
 #elif defined(__APPLE__)
   /*
    The following code looks for the base package inside the application
@@ -95,9 +82,9 @@ platformDefaultRoot () {
   CFRelease (dataDir);
   CFRelease (path);
 
-  return SGPath (root);
+  return SGPath(root);
 #else
-  return SGPath (PKGLIBDIR);
+    return SGPath(std::string(PKGLIBDIR));
 #endif
 }
 

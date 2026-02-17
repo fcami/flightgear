@@ -130,7 +130,12 @@ LockStatus acquireLock()
 
     // acquire the mutex, so that other processes can check the status.
     const int result = WaitForSingleObject(static_fgMultipleInstanceMutex, 100);
+    if (result == WAIT_TIMEOUT) {
+        return LockAlreadyLocked;
+    }
+
     if (result != WAIT_OBJECT_0) {
+        // failed, somehow
         SG_LOG(SG_IO, SG_ALERT, "Failed to lock exclusive mutex:" << GetLastError());
         return LockFailed;
     }

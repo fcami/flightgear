@@ -1338,7 +1338,6 @@ const string NavDataCache::defaultDatFile[] = {
 
 NavDataCache::NavDataCache()
 {
-    const int MAX_TRIES = 3;
     SGPath homePath(globals->get_fg_home());
 
     std::ostringstream os;
@@ -1349,13 +1348,24 @@ NavDataCache::NavDataCache()
         os << "navdata_" << versionParts[0] << "_" << versionParts[1] << ".cache";
     }
 
+    SGPath dbPath = homePath / os.str();
+    dbPath.set_cached(false);
+
+    const auto readOnly = fgGetBool("/sim/fghome-readonly", false);
+    if (readOnly && !dbPath.exists()) {
+        flightgear::fatalMessageBoxThenExit(
+            "Missing navigation cache",
+            "Unable to open navigation cache in read-only mode. Please run FlightGear in normal (writeable) mode at least once to create the cache file.",
+            "No navigation data was found at '" + dbPath.utf8Str() + "'");
+    }
+
+    const int MAX_TRIES = readOnly ? 1 : 3;
     // permit additional DB connections from the same process
     sqlite3_config(SQLITE_CONFIG_MULTITHREAD);
 
-    for (int t=0; t < MAX_TRIES; ++t) {
-        SGPath cachePath = homePath / os.str();
+    for (int t = 0; t < MAX_TRIES; ++t) {
         try {
-            d.reset(new NavDataCachePrivate(cachePath, this));
+            d.reset(new NavDataCachePrivate(dbPath, this));
             d->init();
             //d->checkCacheFile();
             // reached this point with no exception, success
@@ -1375,14 +1385,14 @@ NavDataCache::NavDataCache()
             d.reset();
 
             // only wipe the existing if not readonly
-            if (cachePath.exists() && !fgGetBool("/sim/fghome-readonly", false)) {
-                bool ok = cachePath.remove();
+            if (dbPath.exists() && !readOnly) {
+                bool ok = dbPath.remove();
                 if (!ok) {
                     SG_LOG(SG_NAVCACHE, SG_ALERT, "NavCache: failed to remove previous cache file");
                     flightgear::fatalMessageBoxThenExit(
-                      "Unable to re-create navigation cache",
-                      "Attempting to remove the old cache failed.",
-                      "Location: "  + cachePath.utf8Str());
+                        "Unable to re-create navigation cache",
+                        "Attempting to remove the old cache failed.",
+                        "Location: " + dbPath.utf8Str());
                 }
             }
         }

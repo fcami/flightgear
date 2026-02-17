@@ -1,21 +1,5 @@
-//
-//  Written by David Megginson, started January 2000.
-//  Adopted for standalone fgpanel application by Torsten Dreyer, August 2009
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License as
-//  published by the Free Software Foundation; either version 2 of the
-//  License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful, but
-//  WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//  General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2000 David Megginson
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifndef FGTEXTUREDLAYER_HXX
 #define FGTEXTUREDLAYER_HXX
@@ -27,7 +11,7 @@
  * A textured layer of an instrument.
  *
  * This is a layer holding a single texture.  Normally, the texture's
- * backgound should be transparent so that lower layers and the panel
+ * background should be transparent so that lower layers and the panel
  * background can show through.
  */
 class FGTexturedLayer : public FGInstrumentLayer {
