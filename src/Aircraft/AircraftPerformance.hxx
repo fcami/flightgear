@@ -45,7 +45,7 @@ public:
 
 
     std::string_view performanceClass() const;
-    std::string_view rwyType() const; 
+    std::string_view rwyType() const;
 
     static double groundSpeedForCAS(int altitudeFt, double cas);
     static double machForCAS(int altitudeFt, double cas);

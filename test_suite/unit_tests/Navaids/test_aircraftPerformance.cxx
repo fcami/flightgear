@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2012 James Turner <james@flightgear.org>
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "test_aircraftPerformance.hxx"
 
 #include "test_suite/FGTestApi/testGlobals.hxx"
@@ -103,8 +106,8 @@ void AircraftPerformanceTests::testLoadFromPropsJet()
     AircraftPerformance ap;
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.timeBetween(3000, 6000), 100, 1);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 6.31, 1e-3);
-    std::string_view expected = "unknown";
+    std::string_view expected = "com";
     CPPUNIT_ASSERT_EQUAL(expected, ap.rwyType());
-    std::string_view expectedPerformanceClass = "unknown";
+    std::string_view expectedPerformanceClass = "jet";
     CPPUNIT_ASSERT_EQUAL(expectedPerformanceClass, ap.performanceClass());
 }
