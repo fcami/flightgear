@@ -21,6 +21,8 @@
 
 #include <Traffic/Schedule.hxx>
 
+#include <Main/sentryIntegration.hxx>
+
 #include "AIAircraft.hxx"
 #include "AIFlightPlan.hxx"
 #include "performancedata.hxx"
@@ -80,6 +82,9 @@ bool FGAIFlightPlan::createPushBack(FGAIAircraft* ac,
         return true;
     }
 
+    // catch because taxiRoute creation sometimes fails, see eg
+    // https://gitlab.com/flightgear/flightgear/-/issues/3289
+    try {
     FGGroundNetwork* groundNet = dep->groundNetwork();
     FGParking* parking = gate.parking();
     if (!parking) {
@@ -193,6 +198,14 @@ bool FGAIFlightPlan::createPushBack(FGAIAircraft* ac,
     }
 
     return true;
+    } catch (sg_exception& e) {
+        SG_LOG(SG_AI, SG_DEV_WARN, "Exception while creating pushback route: " << e.what() << "\nUsing fallback pushback.");
+        flightgear::sentryReportException("Failed to create pushback route for " + dep->ident() + " " + gate.parking()->ident() +
+            ": " + e.getFormattedMessage());
+        createPushBackFallBack(ac, firstFlight, dep,
+                               radius, fltType, aircraftType, airline);
+        return true;
+    }
 }
 /*******************************************************************
 * createPushBackFallBack
