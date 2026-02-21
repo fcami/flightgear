@@ -418,11 +418,11 @@ void PosInitTests::testFixOnlyStartup()
     }
 
     CPPUNIT_ASSERT(! fgGetBool("/sim/presets/airport-requested"));
-    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s); // codespell:ignore FOLER
+    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s); // codespell:ignore "FOLER"s
     initPosition();
 
     FGNavList::TypeFilter filter(FGPositioned::Type::FIX);
-    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter ); // codespell:ignore FOLER
+    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter ); // codespell:ignore "FOLER"
 
     double dist = SGGeodesy::distanceM(globals->get_aircraft_position(),
                                        navlist[0]->geod());
