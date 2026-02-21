@@ -1,5 +1,7 @@
-#ifndef THUMBNAILIMAGEITEM_HXX
-#define THUMBNAILIMAGEITEM_HXX
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
 
 #include <memory>
 
@@ -7,12 +9,14 @@
 #include <QUrl>
 #include <QImage>
 
+#include <simgear/package/PackageCommon.hxx>
+
 class ThumbnailImageItem : public QQuickItem
 {
     Q_OBJECT
 
     Q_PROPERTY(QString aircraftUri READ aircraftUri WRITE setAircraftUri NOTIFY aircraftUriChanged)
-    Q_PROPERTY(QUrl url READ url NOTIFY aircraftUriChanged)
+    // Q_PROPERTY(QUrl url READ url NOTIFY aircraftUriChanged)
 
     Q_PROPERTY(QSize sourceSize READ sourceSize NOTIFY sourceSizeChanged)
 
@@ -51,13 +55,13 @@ private:
     void setImage(QImage image);
     void clearImage();
 
+    std::string packageId() const;
+
     QString m_aircraftUri;
-    QUrl m_imageUrl;
     std::unique_ptr<ThumbnailPackageDelegate> m_delegate;
 
+    QUrl m_imageUrl;
     bool m_imageDirty = false;
     QImage m_image;
     QSize m_maximumSize;
 };
-
-#endif // THUMBNAILIMAGEITEM_HXX

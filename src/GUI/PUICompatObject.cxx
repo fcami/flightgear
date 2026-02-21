@@ -4,6 +4,7 @@
 
 #include "config.h"
 #include "simgear/debug/debug_types.h"
+#include "simgear/structure/SGBinding.hxx"
 
 #include "PUICompatObject.hxx"
 
@@ -232,7 +233,7 @@ void PUICompatObject::init()
                 bindingNode = copiedBinding;
             }
 
-            _bindings.push_back(new SGBinding(bindingNode, globals->get_props()));
+            _bindings.push_back(SGAbstractBinding::createFromProps(bindingNode, globals->get_props()));
         }
     }
 

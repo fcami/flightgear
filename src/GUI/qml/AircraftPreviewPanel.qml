@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear.Launcher 1.0
 import FlightGear 1.0
@@ -6,11 +9,12 @@ Rectangle {
     id: root
     property var previews: []
     property int activePreview: 0
+    property alias packageId: preview.packageId
 
     readonly property bool __havePreviews: (previews.length > 0)
     onPreviewsChanged: {
-        activePreview = 0
-        preview.clear()
+        activePreview = 0;
+        preview.clearImage();
     }
 
     height: width / preview.aspectRatio

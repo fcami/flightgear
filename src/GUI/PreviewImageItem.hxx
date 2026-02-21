@@ -1,7 +1,7 @@
-#ifndef PREVIEW_IMAGEITEM_HXX
-#define PREVIEW_IMAGEITEM_HXX
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <memory>
+#pragma once
 
 #include <QQuickItem>
 #include <QUrl>
@@ -21,6 +21,8 @@ class PreviewImageItem : public QQuickItem
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
 
     Q_PROPERTY(float aspectRatio READ aspectRatio NOTIFY sourceSizeChanged)
+
+    Q_PROPERTY(QString packageId READ packageId WRITE setPackageId NOTIFY packageIdChanged)
 public:
     PreviewImageItem(QQuickItem* parent = nullptr);
     ~PreviewImageItem();
@@ -38,33 +40,40 @@ public:
     float aspectRatio() const;
 
     /**
-      @brief clear the image immediately, so we don't see a stale / expired
-      one while attemtping to load the next one
+      * @brief clear the image immediately, so we don't see a stale / expired
+      * one while attempting to load the next one
       */
-    Q_INVOKABLE void clear();
+    Q_INVOKABLE void clearImage();
+
+    QString packageId() const;
 signals:
     void imageUrlChanged();
     void sourceSizeChanged();
     void isLoadingChanged();
+    void packageIdChanged();
 
 public slots:
 
     void setImageUrl(QUrl url);
+    void setPackageId(QString packageId);
 
 private slots:
     void onDownloadError(QNetworkReply::NetworkError errorCode);
 
     void onFinished();
 private:
+    void clear();
+
     void setImage(QImage image);
     void startDownload();
+    void computeUrls();
 
     QUrl m_imageUrl;
+    QList<QUrl> m_urlsToTry;
+    QString m_packageId;
 
     bool m_imageDirty = false;
     QImage m_image;
     unsigned int m_downloadRetryCount = 0;
     bool m_requestActive = false;
 };
-
-#endif // PREVIEW_IMAGEITEM_HXX

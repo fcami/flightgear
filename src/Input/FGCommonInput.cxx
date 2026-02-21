@@ -10,8 +10,9 @@
 #include <config.h>
 
 #include "FGCommonInput.hxx"
-#include <Main/globals.hxx>
+#include "simgear/structure/SGBinding.hxx"
 #include <Main/fg_os.hxx>
+#include <Main/globals.hxx>
 
 using simgear::PropertyList;
 using std::string;
@@ -24,7 +25,9 @@ void FGCommonInput::read_bindings (const SGPropertyNode * node, binding_list_t *
     std::string cmd = bindings[i]->getStringValue("command");
     if (nasal.compare(cmd) == 0 && !module.empty())
       bindings[i]->setStringValue("module", module.c_str());
-    binding_list[modifiers].push_back(new SGBinding(bindings[i], globals->get_props()));
+
+    auto b = SGAbstractBinding::createFromProps(bindings[i], globals->get_props());
+    binding_list[modifiers].push_back(b);
   }
 
                                 // Read nested bindings for modifiers

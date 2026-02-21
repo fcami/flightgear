@@ -1,13 +1,22 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "PreviewImageItem.hxx"
 
-#include <QSGSimpleTextureNode>
-#include <QQuickWindow>
-#include <QFileInfo>
 #include <QDir>
+#include <QFileInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QQuickWindow>
+#include <QSGSimpleTextureNode>
+#include <QTimer>
 
 #include <Main/globals.hxx>
+
+
+#include <simgear/package/Catalog.hxx>
+#include <simgear/package/Package.hxx>
+#include <simgear/package/Root.hxx>
 
 namespace {
 
@@ -25,9 +34,7 @@ PreviewImageItem::PreviewImageItem(QQuickItem* parent) :
     Q_ASSERT(global_previewNetAccess);
 }
 
-PreviewImageItem::~PreviewImageItem()
-{
-}
+PreviewImageItem::~PreviewImageItem() = default;
 
 QSGNode *PreviewImageItem::updatePaintNode(QSGNode* oldNode, QQuickItem::UpdatePaintNodeData *)
 {
@@ -63,6 +70,20 @@ QSize PreviewImageItem::sourceSize() const
     return m_image.size();
 }
 
+QString PreviewImageItem::packageId() const
+{
+    return m_packageId;
+}
+
+void PreviewImageItem::setPackageId(QString packageId)
+{
+    if (m_packageId == packageId)
+        return;
+
+    m_packageId = packageId;
+    emit packageIdChanged();
+}
+
 void PreviewImageItem::setGlobalNetworkAccess(QNetworkAccessManager *netAccess)
 {
     global_previewNetAccess = netAccess;
@@ -78,15 +99,24 @@ float PreviewImageItem::aspectRatio() const
     return static_cast<float>(m_image.width()) / m_image.height();
 }
 
+void PreviewImageItem::clearImage()
+{
+    m_image = QImage{};
+    m_imageDirty = true;
+    update();
+    emit isLoadingChanged();
+}
+
 void PreviewImageItem::clear()
 {
     m_imageUrl.clear();
-    m_image = QImage{};
-    m_imageDirty = true;
+    m_packageId.clear();
     m_requestActive = false;
-    update();
+
     emit imageUrlChanged();
     emit isLoadingChanged();
+
+    clearImage();
 }
 
 void PreviewImageItem::setImageUrl( QUrl url)
@@ -95,17 +125,50 @@ void PreviewImageItem::setImageUrl( QUrl url)
         return;
 
     m_imageUrl = url;
+    m_urlsToTry.clear();
     m_downloadRetryCount = 0;
-    startDownload();
+
+    if (m_imageUrl.isEmpty()) {
+        clear();
+    } else {
+        // deferred since packageId may also change at the same time,
+        // and this impacts URL resolution
+        QTimer::singleShot(0, this, [this]() {
+            computeUrls();
+            startDownload();
+        });
+    }
+
     emit imageUrlChanged();
+}
+
+void PreviewImageItem::computeUrls()
+{
+    m_urlsToTry.clear();
+    if (m_imageUrl.isEmpty())
+        return;
+
+    if (m_imageUrl.isRelative()) {
+        auto pkg = globals->packageRoot()->getPackageById(m_packageId.toStdString());
+        if (!pkg) {
+            return;
+        }
+
+        auto urls = pkg->catalog()->resolveUrl(m_imageUrl.toString().toStdString());
+        for (const auto& u : urls) {
+            m_urlsToTry.push_back(QString::fromStdString(u));
+        }
+    } else {
+        m_urlsToTry.append(m_imageUrl);
+    }
 }
 
 void PreviewImageItem::startDownload()
 {
-    if (m_imageUrl.isEmpty())
+    if (m_urlsToTry.isEmpty())
         return;
 
-    QNetworkRequest request(m_imageUrl);
+    QNetworkRequest request(m_urlsToTry.front());
     QNetworkReply* reply = global_previewNetAccess->get(request);
     connect(reply, &QNetworkReply::finished, this, &PreviewImageItem::onFinished);
 
@@ -132,7 +195,9 @@ void PreviewImageItem::setImage(QImage image)
 void PreviewImageItem::onFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
-    if (reply->url() != m_imageUrl) {
+    reply->deleteLater();
+
+    if (m_urlsToTry.empty() || (reply->url() != m_urlsToTry.front())) {
         // if replies arrive out of order, don't trample the correct one
         return;
     }
@@ -142,6 +207,7 @@ void PreviewImageItem::onFinished()
         qWarning() << Q_FUNC_INFO << "failed to read image data from" << reply->url();
         return;
     }
+
     setImage(img);
     m_requestActive = false;
     emit isLoadingChanged();
@@ -150,15 +216,18 @@ void PreviewImageItem::onFinished()
 void PreviewImageItem::onDownloadError(QNetworkReply::NetworkError errorCode)
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
-    if (errorCode == 403) {
-        if (m_downloadRetryCount++ < 4) {
-            startDownload(); // retry
-            return;
-        }
+    // remove the URL that just failed; this also ensures that onFinished()
+    // doesn't process this QNetworkReply further.
+    m_urlsToTry.pop_front();
+
+    if (m_urlsToTry.isEmpty()) {
+        qWarning() << Q_FUNC_INFO << "download failed for" << reply->url() << "with error code" << errorCode
+                   << "and no more URLs to try";
+        m_requestActive = false;
+        emit isLoadingChanged();
+        return;
     }
 
-    qWarning() << Q_FUNC_INFO << "failed to download:" << reply->url();
-    qWarning() << "\t" << reply->errorString();
-    m_requestActive = false;
-    emit isLoadingChanged();
+    qInfo() << "Retrying download for" << reply->url() << ", next URL" << m_urlsToTry.front();
+    startDownload();
 }

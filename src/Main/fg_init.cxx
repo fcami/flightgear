@@ -498,15 +498,16 @@ private:
 #ifdef _WIN32
 static SGPath platformDefaultDataPath()
 {
-  SGPath appDataPath = SGPath::fromEnv("APPDATA");
+    SGPath appDataPath = SGPath::standardLocation(SGPath::USER_APP_DATA);
 
-  if (appDataPath.isNull()) {
-    flightgear::fatalMessageBoxThenExit(
-      "FlightGear", "Unable to get the value of APPDATA.",
-      "FlightGear is unable to retrieve the value of the APPDATA environment "
-      "variable. This is quite unexpected on Windows platforms, and FlightGear "
-      "can't continue its execution without this value, sorry.");
-  }
+    if (appDataPath.isNull()) {
+        flightgear::fatalMessageBoxThenExit(
+            "FlightGear", "Unable to find the LOCAL_APPDATA location.",
+            "FlightGear is unable to find the LOCAL_APPDATA location which is the "
+            "filesystem directory that serves as a data repository for local, "
+            "non-roaming applications. This is quite unexpected on Windows platforms, "
+            "and FlightGear can't continue its execution without this value, sorry.");
+    }
 
   return appDataPath / "flightgear.org";
 }
@@ -518,7 +519,9 @@ static SGPath platformDefaultDataPath()
 #else
 static SGPath platformDefaultDataPath()
 {
-  return SGPath::home() / ".fgfs";
+    // currently NOT using SGPath::standardLocation(SGPath::USER_APP_DATA)
+    // because there's a lot of existing users and docs which might be impacted
+    return SGPath::home() / ".fgfs";
 }
 #endif
 

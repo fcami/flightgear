@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "ThumbnailImageItem.hxx"
 
 #include <QSGSimpleTextureNode>
@@ -27,16 +30,18 @@ public:
     void startInstall(pkg::InstallRef) override {}
     void installProgress(pkg::InstallRef, unsigned int, unsigned int) override {}
     void finishInstall(pkg::InstallRef, StatusCode ) override {}
-    void dataForThumbnail(const std::string& aThumbnailUrl,
+    void dataForThumbnail(const std::string& aPackageId,
                           size_t length, const uint8_t* bytes) override;
 
     ThumbnailImageItem* owner;
 };
 
-void ThumbnailImageItem::ThumbnailPackageDelegate::dataForThumbnail(const std::string& aThumbnailUrl,
-        size_t length, const uint8_t* bytes)
+void ThumbnailImageItem::ThumbnailPackageDelegate::dataForThumbnail(
+    const std::string& aPackageId,
+    size_t length, const uint8_t* bytes)
 {
-    if (aThumbnailUrl != owner->url().toString().toStdString()) {
+    if (aPackageId != owner->packageId()) {
+        // this can happen if the user changes the aircraft while we have a pending thumbnail request
         return;
     }
 
@@ -45,7 +50,7 @@ void ThumbnailImageItem::ThumbnailPackageDelegate::dataForThumbnail(const std::s
     if (img.isNull()) {
         if (length > 0) {
             // warn if we had valid bytes but couldn't load it, i.e corrupted data or similar
-            qWarning() << "failed to load image data for URL:" << QString::fromStdString(aThumbnailUrl);
+            qWarning() << "failed to load image data for package ID:" << QString::fromStdString(aPackageId);
             owner->clearImage();
         }
         return;
@@ -121,19 +126,7 @@ void ThumbnailImageItem::setAircraftUri(QString uri)
     m_aircraftUri = uri;
 
     if (uri.startsWith("package:")) {
-        const std::string packageId = m_aircraftUri.toStdString().substr(8);
-        pkg::Root* root = globals->packageRoot();
-        pkg::PackageRef package = root->getPackageById(packageId);
-        if (package) {
-            auto variant = package->indexOfVariant(packageId);
-            const auto thumbnail = package->thumbnailForVariant(variant);
-            m_imageUrl = QUrl(QString::fromStdString(thumbnail.url));
-            if (m_imageUrl.isValid()) {
-                globals->packageRoot()->requestThumbnailData(m_imageUrl.toString().toStdString());
-            } else {
-                clearImage();
-            }
-        }
+        globals->packageRoot()->requestThumbnailData(packageId());
     } else {
         QFileInfo aircraftSetPath(QUrl(uri).toLocalFile());
         const QString thumbnailPath = aircraftSetPath.dir().filePath("thumbnail.jpg");
@@ -151,6 +144,15 @@ void ThumbnailImageItem::setAircraftUri(QString uri)
     } // of local aircraft case
 
     emit aircraftUriChanged();
+}
+
+std::string ThumbnailImageItem::packageId() const
+{
+    if (!m_aircraftUri.startsWith("package:")) {
+        return {};
+    }
+
+    return m_aircraftUri.toStdString().substr(8);
 }
 
 void ThumbnailImageItem::setMaximumSize(QSize maximumSize)

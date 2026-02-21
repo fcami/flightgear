@@ -36,6 +36,8 @@ Item {
             value: _launcher.selectedAircraftInfo.previews
         }
 
+        packageId: _launcher.selectedAircraftInfo.packageId
+
         onUrlsListChanged: {
             var len = preview.urlsList.length;
             __currentUrl = Math.floor(Math.random() * len)
