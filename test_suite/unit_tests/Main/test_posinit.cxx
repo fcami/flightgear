@@ -87,10 +87,6 @@ void PosInitTests::checkPosition(SGGeod expectedPos, float delta)
 {
   double dist = SGGeodesy::distanceM(globals->get_aircraft_position(),
                                      expectedPos);
-  SG_LOG(SG_INPUT, SG_INFO, "Pos " << globals->get_aircraft_position());
-  SG_LOG(SG_INPUT, SG_INFO, "Pos " << expectedPos);
-  SG_LOG(SG_INPUT, SG_INFO, "Dist " << dist);
-
   CPPUNIT_ASSERT_MESSAGE("Unexpected Position ", dist < delta);
 }
 
@@ -685,7 +681,7 @@ void PosInitTests::testParkInvalid()
 
 
     fgSetDouble("/environment/metar/base-wind-dir-deg",  350.0);
-    fgSetDouble("/environment/metar/base-wind-speed-kt-deg", 50.0);
+    fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
     simulateFinalizePosition();
@@ -719,7 +715,7 @@ void PosInitTests::testParkAtOccupied()
     auto dynamics = apt->getDynamics();
     dynamics->setParkingAvailable(parking, false);
     fgSetDouble("/environment/metar/base-wind-dir-deg",  350.0);
-    fgSetDouble("/environment/metar/base-wind-speed-kt-deg", 50.0);
+    fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
     simulateFinalizePosition();
@@ -862,7 +858,7 @@ void PosInitTests::testRepositionAtOccupied()
     CPPUNIT_ASSERT(parking1);
 
     fgSetDouble("/environment/metar/base-wind-dir-deg",  350.0);
-    fgSetDouble("/environment/metar/base-wind-speed-kt-deg", 50.0);
+    fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
     simulateFinalizePosition();
@@ -913,7 +909,7 @@ void PosInitTests::testRepositionAtInvalid()
     CPPUNIT_ASSERT(parking1);
 
     fgSetDouble("/environment/metar/base-wind-dir-deg",  350.0);
-    fgSetDouble("/environment/metar/base-wind-speed-kt-deg", 50.0);
+    fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
     simulateFinalizePosition();
@@ -1014,7 +1010,7 @@ void PosInitTests::testParkNoAI()
     CPPUNIT_ASSERT(parking1);
 
     fgSetDouble("/environment/metar/base-wind-dir-deg",  350.0);
-    fgSetDouble("/environment/metar/base-wind-speed-kt-deg", 50.0);
+    fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
     simulateFinalizePosition();

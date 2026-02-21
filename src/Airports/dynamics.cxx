@@ -438,6 +438,11 @@ double runwayWindScore(const FGRunwayRef& runway, double windHeading,
     double crossWind = windSpeedKts * sin(hdgDiff);
     double tailWind = -windSpeedKts * cos(hdgDiff);
 
+    if (fabs(crossWind) > 40) {
+        // As if all wind from tail
+        return -windSpeedKts;
+    }
+
     return -(crossWind + tailWind);
 }
 
@@ -541,7 +546,7 @@ public:
 
     bool operator()(const FGRunwayRef& rwy) const
     {
-        return (runwayWindScore(rwy, _windHeading, _windSpeedKts) > 30);
+        return (-runwayWindScore(rwy, _windHeading, _windSpeedKts) > 30);
     }
 
 private:
