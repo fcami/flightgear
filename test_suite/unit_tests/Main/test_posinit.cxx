@@ -412,17 +412,17 @@ void PosInitTests::testFixOnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--fix=FOLER"};
+        const char* args[] = {"dummypath", "--fix=FOLER"}; // codespell:ignore FOLER
         opts->init(2, (char**) args, SGPath());
         opts->processOptions();
     }
 
     CPPUNIT_ASSERT(! fgGetBool("/sim/presets/airport-requested"));
-    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s);
+    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s); // codespell:ignore FOLER
     initPosition();
 
     FGNavList::TypeFilter filter(FGPositioned::Type::FIX);
-    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter );
+    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter ); // codespell:ignore FOLER
 
     double dist = SGGeodesy::distanceM(globals->get_aircraft_position(),
                                        navlist[0]->geod());
@@ -436,20 +436,20 @@ void PosInitTests::testFixOffsetAltitudeHeadingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--fix=FOLER", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"};
+        const char* args[] = {"dummypath", "--fix=FOLER", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"}; // codespell:ignore FOLER
         opts->init(6, (char**) args, SGPath());
         opts->processOptions();
     }
 
     CPPUNIT_ASSERT(! fgGetBool("/sim/presets/airport-requested"));
     CPPUNIT_ASSERT(! fgGetBool("/sim/presets/runway-requested"));
-    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s);
+    CPPUNIT_ASSERT(globals->get_props()->getStringValue("/sim/presets/fix") == "FOLER"s); // codespell:ignore FOLER
     CPPUNIT_ASSERT(globals->get_props()->getIntValue("/sim/presets/offset-distance-nm") == 5);
     initPosition();
 
 
     FGNavList::TypeFilter filter(FGPositioned::Type::FIX);
-    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter );
+    const nav_list_type navlist = FGNavList::findByIdentAndFreq( "FOLER", 0.0, &filter ); // codespell:ignore FOLER
 
     double dist = SGGeodesy::distanceM(globals->get_aircraft_position(),
                                        SGGeodesy::direct(navlist[0]->geod(), 180 + 78, 5 * SG_NM_TO_METER));
