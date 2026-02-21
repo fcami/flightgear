@@ -3,6 +3,8 @@
 // SPDX-FileCopyrightText: Copyright (C) 2026 Keith Paterson <keith.paterson@gmx.de>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#pragma once
+
 namespace flightgear
 {
 	/*

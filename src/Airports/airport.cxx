@@ -220,15 +220,6 @@ FGRunwayRef FGAirport::findBestRunwayForHeading(double aHeading, struct FindBest
     int index = 0;
     auto node = fgGetNode("/environment/metar/", index);
     SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading Heading " << node);
-    /*
-    while (node && node->getChild("valid")) {
-        SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading: " << node->getIndex() << " " << node->getChild("station-id"));
-        SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading: " << node->getIndex() << " " << node->getChild("valid")->getBoolValue());
-        SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading: " << node->getIndex() << " " << node->getChild("station-id")->getStringValue() << " valid " << node->getChild("valid")->getBoolValue());
-        node = fgGetNode("/environment/metar/", ++index);
-    }
-    */
-
     loadRunways();
 
     FGRunway* result = NULL;
