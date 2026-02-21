@@ -412,7 +412,7 @@ void PosInitTests::testFixOnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--fix=FOLER"}; // codespell:ignore FOLER
+        const char* args[] = {"dummypath", "--fix=FOLER"}; // codespell:ignore --fix=FOLER
         opts->init(2, (char**) args, SGPath());
         opts->processOptions();
     }
