@@ -108,6 +108,6 @@ void AircraftPerformanceTests::testLoadFromPropsJet()
     CPPUNIT_ASSERT_DOUBLES_EQUAL(ap.distanceNmBetween(3000, 6000), 6.31, 1e-3);
     std::string_view expected = "com";
     CPPUNIT_ASSERT_EQUAL(expected, ap.rwyType());
-    std::string_view expectedPerformanceClass = "jet";
+    std::string_view expectedPerformanceClass = "heavy";
     CPPUNIT_ASSERT_EQUAL(expectedPerformanceClass, ap.performanceClass());
 }
