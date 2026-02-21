@@ -212,14 +212,11 @@ FGRunwayRef FGAirport::findBestRunwayForHeading(double aHeading, struct FindBest
 {
     //FIXME must align with FGAirportDynamics::getActiveRunway
     // METAR
-    SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading Heading " << aHeading );
     double windSpeed = fgGetInt("/environment/metar/base-wind-speed-kt");
     double windHeading = fgGetInt("/environment/metar/base-wind-dir-deg");
 
-    SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading Heading " << aHeading << " vs " << windHeading);
     int index = 0;
     auto node = fgGetNode("/environment/metar/", index);
-    SG_LOG(SG_ATC, SG_WARN, "findBestRunwayForHeading Heading " << node);
     loadRunways();
 
     FGRunway* result = NULL;
