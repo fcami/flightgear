@@ -205,14 +205,13 @@ std::string fgJunitOutputter::xmlEscape(const std::string& input)
 {
     std::string out;
     for (std::string::const_iterator it = input.cbegin(); it != input.cend(); ++it) {
-
         switch (*it) {
-        case '&':  out += "&amp;";  break;
-        case '<':  out += "&lt;";   break;
-        case '>':  out += "&gt;";   break;
+        case '&': out += "&amp;"; break;
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
         case '\"': out += "&quot;"; break;
         case '\'': out += "&apos;"; break;
-        default:   out += (*it);      break;
+        default: out += (*it); break;
         }
     }
     return out;
