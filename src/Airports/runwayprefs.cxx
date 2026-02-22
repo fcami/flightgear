@@ -233,7 +233,7 @@ void RunwayGroup::setActive(const FGAirport* airport,
             hdgDiff = fabs(windHeading - rwy->headingDeg());
 #ifdef AI_DEBUG
             SG_LOG(SG_GENERAL, SG_DEBUG,
-                "Preference " << rwy->airport()->ident() << " "  << rwy->ident() << " Wind " << windHeading << " Rwy " << rwy->headingDeg() << " Diff " << hdgDiff);
+                   "Preference " << rwy->airport()->ident() << " " << rwy->ident() << " Wind " << windHeading << " Rwy " << rwy->headingDeg() << " Diff " << hdgDiff);
 #endif
             std::string l_name = rwy->name();
 
@@ -274,7 +274,7 @@ void RunwayGroup::setActive(const FGAirport* airport,
             }
         }
         SG_LOG(SG_GENERAL, SG_INFO,
-            "Preference " << i << " Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection);
+               "Preference " << i << " Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection);
 
         //cerr << "Preference " << i << "Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection << endl;
     }
