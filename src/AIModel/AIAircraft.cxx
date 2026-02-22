@@ -185,7 +185,6 @@ void FGAIAircraft::setPerformance(const std::string& acType, const std::string& 
 }
 
 
-
 void FGAIAircraft::Run(double dt)
 {
     // We currently have one situation in which an AIAircraft object is used that is not attached to the
@@ -1443,7 +1442,8 @@ void FGAIAircraft::updatePitchAngleTarget()
 
 /**Maps from the AI schedule classes to to the general ones.*/
 
-const std::string_view FGAIAircraft::getPerformanceClass() const {
+const std::string_view FGAIAircraft::getPerformanceClass() const
+{
     if (performanceClass == "heavy_jet")
         return PERFORMANCE_CLASS_HEAVY;
     if (performanceClass == "tanker")
