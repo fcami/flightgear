@@ -307,7 +307,7 @@ public:
         // decide if it's a critical error or not
         // aircraft errors are critical if they occur during initial
         // aircraft load, otherwise we just show the warning
-        if (!_haveDonePostInit && (ty == Aggregation::MainAircraft)) {
+        if (!_haveDonePostInit && ((ty == Aggregation::MainAircraft) || (ty == Aggregation::HangarAircraft))) {
             it->isCritical = true;
         }
     }
@@ -449,7 +449,9 @@ auto ErrorReporter::ErrorReporterPrivate::mainAircraftAggregate()
     // we use the dir name so we combine reports from different variants, on Sentry
     const auto aircraftDirName = lastPathComponent(fgGetString("/sim/aircraft-dir"));
 
-    if (fullId != fgGetString("/sim/aircraft")) {
+    const auto isFromPackage = fgGetBool("/sim/aircraft-from-package");
+
+    if (!isFromPackage) {
         return getAggregate(Aggregation::MainAircraft, aircraftDirName);
     }
 
