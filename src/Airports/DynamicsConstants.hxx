@@ -5,12 +5,14 @@
 
 #pragma once
 
+using namespace std::literals::string_view_literals;
+
 namespace flightgear {
 /*
 	* Categories from rwyuse
 	*/
-inline constexpr std::string_view RUNWAY_TYPE_COM = "com";
-inline constexpr std::string_view RUNWAY_TYPE_GEN = "gen";
-inline constexpr std::string_view RUNWAY_TYPE_UL = "ul";
-inline constexpr std::string_view RUNWAY_TYPE_MIL = "mil";
+inline constexpr auto RUNWAY_TYPE_COM = "com"sv;
+inline constexpr auto RUNWAY_TYPE_GEN = "gen"sv;
+inline constexpr auto RUNWAY_TYPE_UL = "ul"sv;
+inline constexpr auto RUNWAY_TYPE_MIL = "mil"sv;
 } // namespace flightgear
