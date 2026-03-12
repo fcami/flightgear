@@ -188,4 +188,6 @@ public:
     void setRwyUse(const FGRunwayPreference& ref);
 
     ActiveRunwayQueue* getRunwayQueue(const std::string& name);
+
+    FGRunwayRef getActiveRunwayForUsage() const;
 };

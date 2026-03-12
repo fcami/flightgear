@@ -20,6 +20,7 @@
 #include <Airports/runways.hxx>
 #include <Environment/environment.hxx>
 #include <Environment/environment_mgr.hxx>
+#include <Environment/realwx_ctrl.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
 #include <Main/locale.hxx>
@@ -35,6 +36,7 @@
 using std::sort;
 using std::string;
 using std::vector;
+using Environment::RealWxController;
 
 // #define RUNWAY_FALLBACK_DEBUG
 
@@ -872,7 +874,7 @@ ActiveRunwayQueue *FGAirportDynamics::getRunwayQueue(const string& name)
 
 std::string FGAirportDynamics::chooseRunwayFallback()
 {
-    FGRunway* rwy = _ap->getActiveRunwayForUsage();
+    FGRunway* rwy = getActiveRunwayForUsage();
     if (!rwy) {
         SG_LOG(SG_AI, SG_WARN, "FGAirportDynamics::chooseRunwayFallback failed at " << _ap->ident());
 
@@ -1021,4 +1023,26 @@ int FGAirportDynamics::updateAtisSequence(int interval, bool forceUpdate)
     atisSequenceIndex = (atisSequenceIndex + steps) % 26;
     // return a huge value if no update occurred
     return (atisSequenceIndex + (steps ? 0 : 26 * 1000));
+}
+
+FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
+{
+    auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+    // This forces West-facing rwys to be used in no-wind situations
+    // which is consistent with Flightgear's initial setup.
+    double hdg = 270;
+
+    if (envMgr) {
+        // FIXME : this should use the weather at the airport, not the player's
+        // location.
+        const auto stationWeather = envMgr->getAircraftEnvironment();
+
+        double windSpeed = stationWeather->get_wind_speed_kt();
+        if (windSpeed > 0.0) {
+            hdg = stationWeather->get_wind_from_heading_deg();
+        }
+    }
+
+    // Zugriff auf die Runway-Auswahl über das zugehörige FGAirport-Objekt
+    return _ap->findBestRunwayForHeading(hdg);
 }

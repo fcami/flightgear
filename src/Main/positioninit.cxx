@@ -157,20 +157,16 @@ static bool setPosFromAirportIDandHdg(const string& id, double tgt_hdg)
     } else {
         AircraftPerformance perf;
         string rwyIdent;
-        if (fgGetBool("/environment/metar/valid")) {
-            if (apt->getDynamics()) {
-                apt->getDynamics()->getActiveRunway(std::string(perf.rwyType()), RunwayAction::TAKEOFF, rwyIdent, tgt_hdg);
-            } else {
-                SG_LOG(SG_GENERAL, SG_WARN, "setPosFromAirportIDandHdg failed to get dynamics " << apt->ident());
-            }
+        if (apt->getDynamics()) {
+            apt->getDynamics()->getActiveRunway(std::string(perf.rwyType()), RunwayAction::TAKEOFF, rwyIdent, tgt_hdg);
+        } else {
+            SG_LOG(SG_GENERAL, SG_WARN, "setPosFromAirportIDandHdg failed to get dynamics " << apt->ident());
         }
 
-        FGRunway* r = apt->findBestRunwayForHeading(tgt_hdg);
         if (apt->hasRunwayWithIdent(rwyIdent)) {
-            r = apt->getRunwayByIdent(rwyIdent);
+            FGRunway* r = apt->getRunwayByIdent(rwyIdent);
+            std::tie(startPos, heading) = runwayStartPos(r);
         }
-
-        std::tie(startPos, heading) = runwayStartPos(r);
     }
 
     fgApplyStartOffset(startPos, heading);
