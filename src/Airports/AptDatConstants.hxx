@@ -8,9 +8,9 @@
 using namespace std::literals::string_view_literals;
 
 namespace flightgear {
-   /*
+/*
 	* Categories from APT.dat
-	* Pipe-separated list (“|”). Can include “heavy”, ”jets”, “turboprops”, “props” and “helos”
+	* Pipe-separated list ("|"). Can include "heavy", "jets", "turboprops", "props" and "helos"
 	*/
 inline constexpr auto PERFORMANCE_CLASS_HEAVY = "heavy"sv;
 inline constexpr auto PERFORMANCE_CLASS_JETS = "jets"sv;

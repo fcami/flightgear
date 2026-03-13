@@ -36,7 +36,6 @@
 using std::sort;
 using std::string;
 using std::vector;
-using Environment::RealWxController;
 
 // #define RUNWAY_FALLBACK_DEBUG
 
@@ -853,7 +852,7 @@ void FGAirportDynamics::getActiveRunway(const std::string& trafficType,
     }
 }
 
-ActiveRunwayQueue *FGAirportDynamics::getRunwayQueue(const string& name)
+ActiveRunwayQueue* FGAirportDynamics::getRunwayQueue(const string& name)
 {
     ActiveRunwayVecIterator rwy = activeRunways.begin();
     if (activeRunways.size()) {
