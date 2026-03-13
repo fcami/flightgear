@@ -6,8 +6,9 @@
 // SPDX-FileCopyrightText: (C) 2017  Bertrand Coconnier  - bcoconni@users.sf.net
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifndef _FG_AIWAKEGROUP_HXX
-#define _FG_AIWAKEGROUP_HXX
+#pragma once
+
+#include <map>
 
 #include <simgear/math/SGGeod.hxx>
 #include <simgear/math/SGQuat.hxx>
@@ -47,5 +48,3 @@ public:
     // Garbage collection
     void gc(void);
 };
-
-#endif

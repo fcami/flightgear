@@ -152,6 +152,7 @@ void FGPUICompatDialog::close()
     }
 
     _root->recursiveOnDelete();
+    _root.clear();
 
     _peer.clear();
 }

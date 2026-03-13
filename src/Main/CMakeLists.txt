@@ -97,8 +97,10 @@ if(APPLE)
     setup_fgfs_bundle(fgfs)
 endif()
 
-target_precompile_headers(fgfs PRIVATE
+if(ENABLE_PRECOMPILED_HEADERS)
+    target_precompile_headers(fgfs PRIVATE
         "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_SOURCE_DIR}/src/Include/flightgear_precompile.h>")
+endif()
 
 # Set up the target links.
 setup_fgfs_libraries(fgfs)

@@ -2401,12 +2401,14 @@ OptionResult Options::init(int argc, char** argv, const SGPath& appDataPath)
   } // of arguments iteration
   p->insertGroupMarker(); // command line is one group
 
-  // establish log-level before anything else - otherwise it is not possible
-  // to show extra (debug/info/warning) messages for the start-up phase.
-  // Leave the simgear logstream default value of SG_ALERT if the argument is
-  // not supplied.
-  if (isOptionSet("log-level"))
+  if (isOptionSet("log-level")) {
+      // establish log-level before anything else - otherwise it is not possible
+      // to show extra (debug/info/warning) messages for the start-up phase.
+      // Leave the simgear logstream default value of SG_ALERT if the argument is
+      // not supplied.
+
       fgOptLogLevel(valueForOption("log-level").c_str());
+  }
 
   simgear::PathList::const_iterator i;
   for (i = p->configFiles.begin(); i != p->configFiles.end(); ++i) {
@@ -3591,6 +3593,17 @@ bool Options::checkForArg(int argc, char* argv[], const char* checkArg)
 
     return false;
 }
+
+bool Options::checkForEarlyExitArg(int argc, char* argv[])
+{
+    return checkForArg(argc, argv, "help") ||
+           checkForArg(argc, argv, "version") ||
+           checkForArg(argc, argv, "info") ||
+           checkForArg(argc, argv, "show-aircraft") ||
+           checkForArg(argc, argv, "show-sound-devices") ||
+           checkForArg(argc, argv, "json-report");
+}
+
 
 std::optional<bool> Options::checkForBoolArg(int argc, char* argv[], const string& checkArg)
 {

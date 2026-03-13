@@ -625,6 +625,11 @@ FGParking* FGAIFlightPlan::getParkingGate() const
     return gate.parking();
 }
 
+void FGAIFlightPlan::setDeparture(FGAirportRef apt)
+{
+    departure = apt;
+}
+
 FGAirportRef FGAIFlightPlan::departureAirport() const
 {
     return departure;

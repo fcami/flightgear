@@ -374,7 +374,7 @@ public:
         });
         assert(it != _aggregated.end());
         _activeReportIndex = static_cast<int>(std::distance(_aggregated.begin(), it));
-        _displayNode->setBoolValue("index", _activeReportIndex);
+        _displayNode->setIntValue("index", _activeReportIndex);
         _displayNode->setBoolValue("have-next", _activeReportIndex < (int)_aggregated.size() - 1);
         _displayNode->setBoolValue("have-previous", _activeReportIndex > 0);
     }
@@ -694,10 +694,19 @@ bool ErrorReporter::ErrorReporterPrivate::dismissReportCommand(const SGPropertyN
 
 bool ErrorReporter::ErrorReporterPrivate::showErrorReportCommand(const SGPropertyNode* args, SGPropertyNode*)
 {
-    std::lock_guard<std::mutex> g(_lock);
+    auto gui = globals->get_subsystem<NewGUI>();
 
+    std::lock_guard<std::mutex> g(_lock);
     if (_aggregated.empty()) {
-        return false;
+        _displayNode->setStringValue("category", "No errors to report");
+        _displayNode->setIntValue("index", -1);
+        _displayNode->setBoolValue("have-next", false);
+        _displayNode->setBoolValue("have-previous", false);
+
+        if (!gui->getDialog("error-report")) {
+            gui->showDialog("error-report");
+        }
+        return true;
     }
 
     const auto numAggregates = static_cast<int>(_aggregated.size());
@@ -723,11 +732,9 @@ bool ErrorReporter::ErrorReporterPrivate::showErrorReportCommand(const SGPropert
     auto& report = _aggregated.at(_activeReportIndex);
     presentErrorToUser(report);
 
-    auto gui = globals->get_subsystem<NewGUI>();
     if (!gui->getDialog("error-report")) {
         gui->showDialog("error-report");
     }
-
     return true;
 }
 

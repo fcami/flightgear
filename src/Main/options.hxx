@@ -218,6 +218,12 @@ SGPath defaultDownloadDir();
         static bool checkForArgDisable(int argc, char* argv[], const std::string& checkArg);
 
         /**
+   * @brief check for any of the arguments which exit 'immediately' and print information to stdout,
+  * such as --help, --version, etc.
+   */
+        static bool checkForEarlyExitArg(int argc, char* argv[]);
+
+        /**
    * @brief getArgValue - get the value of an argument if it exists, or
    * an empty string otherwise
    * @param argc

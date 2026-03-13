@@ -1,6 +1,13 @@
 # SPDX-FileCopyrightText: James Turner <james@flightgear.org>
-#
 # SPDX-License-Identifier: GPL-2.0-or-later
+
+spec:
+  inputs:
+    clear-ccache-cache:
+      type: boolean
+      default: false
+      description: "Clear the 'ccache' cache before starting the builds"
+---
 
 variables:
   BUILD_DIR: "$CI_PROJECT_DIR/build"
@@ -11,7 +18,7 @@ variables:
   # complains about INTERFACE_INCLUDE_DIRECTORIES being the source dir
   WIN_FG_DIR: $CI_BUILDS_DIR\flightgear
   MAC_IMAGE: macos-14-xcode-15
-  PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+
 # do not run pipelines on forks
 # build merge requests, tags and the protected branches
 workflow:
@@ -22,26 +29,31 @@ workflow:
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_REF_PROTECTED == "true"
 
-# see https://pre-commit.com/#gitlab-ci-example if changing this
-
-# this job runs only on MRs, but needs to pass.
-# the version below can fail, but runs over the whole repo, for now
-pre-commit-merge:
+# There is an example at https://pre-commit.com/#gitlab-ci-example
+.pre-commit-common:
   stage: build
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/pre-commit:latest
-  script:
-    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-    - pre-commit run --from-ref origin/"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --to-ref "$CI_COMMIT_SHA"
-    - git-clang-format --diff origin/"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
   cache:
+    key: pre-commit
     paths:
       - ${PRE_COMMIT_HOME}
 
+# This job runs only on MR branches and needs to pass.
+pre-commit-merge:
+  extends: .pre-commit-common
+  script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - >
+      pre-commit run --from-ref origin/"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+      --to-ref "$CI_COMMIT_SHA"
+    - git-clang-format --diff origin/"$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
 pre-commit:
-  stage: build
-  image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/pre-commit:latest
+  extends: .pre-commit-common
   script:
     # Run on all files. We're quite far from this being error-free, so report
     # success despite reality. This way, the pipeline status can be used to
@@ -49,59 +61,117 @@ pre-commit:
     - pre-commit run --all-files || true
   rules:
     - if: $CI_COMMIT_REF_PROTECTED == "true"
-  cache:
-    paths:
-      - ${PRE_COMMIT_HOME}
 
-linux-build:
+.ccache-variables:
+  variables:
+    CCACHE_DIR: ${CI_PROJECT_DIR}/ccache-cache
+    # This allows one to obtain ccache stats for a single job.
+    CCACHE_STATSLOG: ${CI_PROJECT_DIR}/ccache-stats.log
+
+# Optional clearing of the 'ccache' cache (Bash version)
+.ccache-pre_non-windows:
+  before_script:
+    - |
+      if $[[ inputs.clear-ccache-cache ]]; then
+        echo "Clearing the 'ccache' cache"
+        ccache --clear
+      fi
+
+# Optional clearing of the 'ccache' cache (PowerShell version)
+.ccache-pre_windows:
+  before_script:
+    - |
+      if ('$[[ inputs.clear-ccache-cache ]]' -eq 'true') {
+        echo 'Clearing the ''ccache'' cache'
+        ccache --clear
+      }
+
+.ccache-stats:
+  after_script:
+    # For the particular build recorded in ${CCACHE_STATSLOG}
+    - ccache --show-log-stats
+    # Shows how much of the configurable cache size is used
+    - ccache --show-stats
+
+linux-build-and-test:
+  extends: .ccache-variables
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
   stage: build
+  before_script:
+    - !reference [.ccache-pre_non-windows, before_script]
   script:
+    # --fresh would be ideal here to avoid this line, but needs CMake 3.24
     - rm -f $BUILD_DIR/CMakeCache.txt
 
-    # --fresh would be ideal here to avoid the line above, but needs CMake 3.25
     - >
       cmake -B $BUILD_DIR -S $CI_PROJECT_DIR -G Ninja
       -D CMAKE_BUILD_TYPE=RelWithDebInfo
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
       -D ENABLE_FGQCANVAS=ON
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/simgear-dist;$CI_PROJECT_DIR/osg-dist"
+      -D ENABLE_CCACHE=ON
 
     - cmake --build $BUILD_DIR
     - cmake --build $BUILD_DIR --target fgfs_test_suite
     - cmake --build $BUILD_DIR --target install
+
+    # Now run the tests
+    - cd $BUILD_DIR
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CI_PROJECT_DIR/osg-dist/lib
+    - ./test_suite/fgfs_test_suite --fg-root $CI_PROJECT_DIR/testFGData --junit
+  after_script:
+    - !reference [.ccache-stats, after_script]
   artifacts:
+    # Note that the artifacts in artifacts:reports are _always_ uploaded,
+    # even for failed jobs (special rule).
+    when: on_success
     paths:
-      - dist
+      - $PREFIX_DIR
+      - $BUILD_DIR/FGData_tests_junit.xml
+      - $BUILD_DIR/Simgear_unit_tests_junit.xml
+      - $BUILD_DIR/System_tests_junit.xml
+      - $BUILD_DIR/Unit_tests_junit.xml
+    reports:
+      junit: $BUILD_DIR/*_junit.xml
   needs:
     - project: flightgear/simgear
-      job: linux-build
+      job: linux-build-and-test
       artifacts: true
       ref: $BRANCH_REF
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
       artifacts: true
+    - project: flightgear/fgdata
+      job: create-test-data
+      ref: $BRANCH_REF
+      artifacts: true
   cache:
-    key: "linux-$CI_COMMIT_REF_SLUG"
+    key: linux-amd64-$BRANCH_REF
     paths:
-      - $BUILD_DIR
+      - $CCACHE_DIR
 
 linux-qt5-build:
+  extends: .ccache-variables
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear-qt5:latest
   stage: build
+  before_script:
+    - !reference [.ccache-pre_non-windows, before_script]
   script:
+    # --fresh would be ideal here to avoid this line, but needs CMake 3.24
     - rm -f $BUILD_DIR/CMakeCache.txt
 
-    # --fresh would be ideal here to avoid the line above, but needs CMake 3.25
     - >
       cmake -B $BUILD_DIR -S $CI_PROJECT_DIR -G Ninja
       -D CMAKE_BUILD_TYPE=RelWithDebInfo
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/simgear-dist;$CI_PROJECT_DIR/osg-dist"
+      -D ENABLE_CCACHE=ON
 
     - cmake --build $BUILD_DIR
     - cmake --build $BUILD_DIR --target install
+  after_script:
+    - !reference [.ccache-stats, after_script]
   needs:
     - project: flightgear/simgear
       job: linux-qt5-build
@@ -112,9 +182,9 @@ linux-qt5-build:
       ref: $OSG_REF
       artifacts: true
   cache:
-    key: "linux-qt5-$CI_COMMIT_REF_SLUG"
+    key: linux-amd64-qt5-$BRANCH_REF
     paths:
-      - $BUILD_DIR
+      - $CCACHE_DIR
 
 canvas-pi-build:
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/fgqcanvas-raspbian:latest
@@ -149,6 +219,9 @@ canvas-pi-build:
   allow_failure: true
 
 windows-build:
+  variables:
+    CCACHE_DIR: ${CI_PROJECT_DIR}\ccache-cache
+    CCACHE_STATSLOG: ${CI_PROJECT_DIR}\ccache-stats.log
   stage: build
   tags:
     - saas-windows-medium-amd64
@@ -158,21 +231,26 @@ windows-build:
     # CMake gets sad.
     - Move-Item -Path $CI_PROJECT_DIR\boost $WIN_FG_DIR\boost
     - Move-Item -Path $CI_PROJECT_DIR\msvc140 $WIN_FG_DIR\msvc140
+    # Should ideally be done inside CMake but this works for now.
+    # The addition of $CI_PROJECT_DIR is for ccache.exe.
+    - $Env:PATH += ";$WIN_FG_DIR\msvc140\3rdparty.x64\bin;$CI_PROJECT_DIR"
+    - !reference [.ccache-pre_windows, before_script]
   script:
-    # should ideally be done inside CMake but this works for now
-    - $Env:PATH += ";$WIN_FG_DIR\msvc140\3rdparty.x64\bin"
-    #  -D CMAKE_BUILD_TYPE=RelWithDebInfo
-
     - >
-      cmake -B $env:BUILD_DIR -S $env:CI_PROJECT_DIR -G "Visual Studio 17 2022" -A x64
+      cmake -B $env:BUILD_DIR -S $env:CI_PROJECT_DIR -G "Ninja Multi-Config"
       --fresh
       -D CMAKE_INSTALL_PREFIX=$env:PREFIX_DIR
       -D MSVC_3RDPARTY_ROOT=$WIN_FG_DIR
       -D OSG_FSTREAM_EXPORT_FIXED:BOOL=ON
       -D CMAKE_PREFIX_PATH="$env:CI_PROJECT_DIR\simgear-dist;$env:CI_PROJECT_DIR\osg-dist"
+      -D ENABLE_CCACHE=ON
 
-    - cmake --build $BUILD_DIR --config RelWithDebInfo
-    - cmake --build $BUILD_DIR --config RelWithDebInfo --target install
+    - cmake --build $BUILD_DIR --config Release
+    - cmake --build $BUILD_DIR --config Release --target install
+  after_script:
+    # This is needed for ccache.exe.
+    - $Env:PATH += ";$CI_PROJECT_DIR"
+    - !reference [.ccache-stats, after_script]
   needs:
     - project: flightgear/simgear
       job: windows-build
@@ -189,15 +267,22 @@ windows-build:
   artifacts:
     paths:
       - dist
+  cache:
+    key: windows-amd64-$BRANCH_REF
+    paths:
+      - ccache-cache
+
 macos-build:
   stage: build
+  extends: .ccache-variables
   tags:
     - saas-macos-medium-m1
   image: $MAC_IMAGE
   before_script:
     - export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
     - export HOMEBREW_NO_INSTALL_CLEANUP=1
-    - brew install ninja cmake boost nlohmann-json
+    - brew install ninja cmake boost nlohmann-json ccache
+    - !reference [.ccache-pre_non-windows, before_script]
   script:
     # ensure we use our FreeType and not the one from Homebrew
     # ours is UB, HomeBrew's is not
@@ -209,9 +294,12 @@ macos-build:
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
       -D CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/osg-dist;$CI_PROJECT_DIR/simgear-dist"
+      -D ENABLE_CCACHE=ON
 
     - cmake --build $BUILD_DIR
     - cmake --build $BUILD_DIR --target install
+  after_script:
+    - !reference [.ccache-stats, after_script]
   needs:
     - project: flightgear/simgear
       job: macos-build
@@ -229,37 +317,6 @@ macos-build:
     paths:
       - dist
   cache:
+    key: macos-universal-$BRANCH_REF
     paths:
-      - $BUILD_DIR
-test:
-  image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
-  stage: test
-  script:
-    - cd $BUILD_DIR
-    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CI_PROJECT_DIR/osg-dist/lib
-    - ./test_suite/fgfs_test_suite --fg-root $CI_PROJECT_DIR/testFGData --junit
-  needs:
-    - job: linux-build
-      artifacts: false
-    - project: flightgear/fgdata
-      job: create-test-data
-      ref: $BRANCH_REF
-      artifacts: true
-    - project: flightgear/openscenegraph
-      job: linux-build
-      ref: $OSG_REF
-      artifacts: true
-  artifacts:
-    when: always
-    paths:
-      - $BUILD_DIR/FGData_tests_junit.xml
-      - $BUILD_DIR/Simgear_unit_tests_junit.xml
-      - $BUILD_DIR/System_tests_junit.xml
-      - $BUILD_DIR/Unit_tests_junit.xml
-    reports:
-      junit: build/*_junit.xml
-  cache:
-    key: "linux-$CI_COMMIT_REF_SLUG"
-    policy: pull
-    paths:
-      - $BUILD_DIR
+      - $CCACHE_DIR

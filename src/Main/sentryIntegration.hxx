@@ -9,7 +9,8 @@
 #include <string>
 
 namespace flightgear {
-void initSentry();
+
+void initSentry(bool quiet);
 
 void shutdownSentry();
 

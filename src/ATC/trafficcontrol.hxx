@@ -416,11 +416,11 @@ public:
     };
 
 
-    void setDeparture(const FGAirportRef& dep) { departure = dep; }
-    FGAirportRef getDeparture() const { return departure; }
+    void setDeparture(const FGAirportRef& dep);
+    FGAirportRef getDeparture() const;
 
-    void setArrival(const FGAirportRef& arr) { arrival = arr; }
-    FGAirportRef getArrival() const { return arrival; }
+    void setArrival(const FGAirportRef& arr);
+    FGAirportRef getArrival() const;
 
     void setAircraft(FGAIAircraft* ref);
     FGAIAircraft* getAircraft() const;

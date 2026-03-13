@@ -525,7 +525,6 @@ void restartTheApp()
     // see 'man open' for details, but '-n' ensures we launch a new instance,
     // and we want to pass remaining arguments to us, not open.
     args << "-n" << dir.absolutePath() << "--args" << "--launcher" << fgArgs;
-    qDebug() << "args" << args;
     proc.startDetached("open", args);
 #else
     args << "--launcher" << fgArgs;

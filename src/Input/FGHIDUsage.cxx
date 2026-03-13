@@ -3,6 +3,9 @@
 
 #include "config.h"
 
+#include <simgear/debug/debug_types.h>
+#include <simgear/debug/logstream.hxx>
+
 #include "FGHIDUsage.hxx"
 
 #include <sstream>

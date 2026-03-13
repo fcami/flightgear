@@ -380,8 +380,10 @@ NewGUI::closeDialog (const string& name)
             flightgear::addSentryBreadcrumb("closing GUI dialog:" + name, "info");
         }
 
+        _active_dialogs[name]->close();
         if(_active_dialog == _active_dialogs[name])
             _active_dialog.clear();
+
 
         _active_dialogs.erase(name);
         return true;

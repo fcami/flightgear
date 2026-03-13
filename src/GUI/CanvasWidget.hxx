@@ -12,6 +12,7 @@ class CanvasWidget : public PUICompatObject
 {
 public:
     CanvasWidget(naRef impl);
+    virtual ~CanvasWidget();
 
     static void setupGhost(nasal::Hash& guiModule);
 

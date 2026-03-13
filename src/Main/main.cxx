@@ -488,50 +488,6 @@ extern "C" {
 }
 #endif
 
-static void rotateOldLogFiles()
-{
-    const int maxLogCount = 10;
-    const auto homePath = globals->get_fg_home();
-
-    for (int i = maxLogCount; i > 0; --i) {
-        const auto name = "fgfs_" + std::to_string(i - 1) + ".log";
-        SGPath curLogFile = homePath / name;
-        if (curLogFile.exists()) {
-            auto newName = "fgfs_" + std::to_string(i) + ".log";
-            curLogFile.rename(homePath / newName);
-        }
-    }
-
-    SGPath p = homePath / "fgfs.log";
-    if (!p.exists())
-        return;
-    SGPath log0Path = homePath / "fgfs_0.log";
-    if (!p.rename(log0Path)) {
-        std::cerr << "Failed to rename " << p.str() << " to " << log0Path.str() << std::endl;
-    }
-}
-
-static void logToHome(const std::string& pri)
-{
-    sgDebugPriority fileLogLevel = SG_INFO;
-    // https://sourceforge.net/p/flightgear/codetickets/2100/
-    if (!pri.empty()) {
-        try {
-            fileLogLevel = std::min(fileLogLevel, logstream::priorityFromString(pri));
-        } catch (std::exception& ) {
-            // let's not worry about this, and just log at INFO
-        }
-    }
-
-    SGPath logPath = globals->get_fg_home();
-    logPath.append("fgfs.log");
-    if (logPath.exists()) {
-        rotateOldLogFiles();
-    }
-
-    sglog().logToFile(logPath, SG_ALL, fileLogLevel);
-}
-
 struct SGLogDeltasListener : SGPropertyChangeListener
 {
     void valueChanged(SGPropertyNode* node) override
@@ -602,11 +558,8 @@ int fgMainInit( int argc, char **argv )
     }
 
     const bool readOnlyFGHome = fgGetBool("/sim/fghome-readonly");
-    if (!readOnlyFGHome) {
-        // now home is initialised, we can log to a file inside it
-        const auto level = flightgear::Options::getArgValue(argc, argv, "--log-level");
-        logToHome(level);
-    }
+    const auto level = flightgear::Options::getArgValue(argc, argv, "--log-level");
+    fgInitLogging(level);
 
     if (readOnlyFGHome) {
         flightgear::addSentryTag("fghome-readonly", "true");

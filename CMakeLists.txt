@@ -210,6 +210,9 @@ option(ENABLE_HID_INPUT  "Set to ON to build HID-based input code" ${EVENT_INPUT
 option(ENABLE_PLIB_JOYSTICK  "Set to ON to enable legacy joystick code (default)" ON)
 option(ENABLE_SWIFT      "Set to ON to build the swift module" ON)
 option(ENABLE_SENTRY     "Set to ON to build the Sentry.io crash reporting" ON)
+
+option(ENABLE_CCACHE     "Set to ON to build FlightGear with the ccache compiler cache (note: precompiled headers are disabled when ccache is used)." OFF)
+option(ENABLE_PRECOMPILED_HEADERS "Set to ON to enable use of precompiled headers." ON)
 option(ENABLE_ASAN       "Set to ON to build FlightGear with LLVM AddressSanitizer (ASan) support.  Incompatile with ENABLE_TSAN." OFF)
 option(ENABLE_TSAN       "Set to ON to build FlightGear with LLVM ThreadSanitizer (TSan) support. Incompatile with ENABLE_ASAN." OFF)
 
@@ -218,6 +221,9 @@ option(CHECK_FOR_QT6        "Set to ON to attempt to look for Qt6" ON)
 
 # Test-suite options.
 option(ENABLE_AUTOTESTING "Set to ON to execute the test suite after building the test_suite target (default)" ON)
+
+# If ccache is effectively going to be used, this disables precompiled headers.
+include(CcacheSetup)
 
 include (DetectArch)
 
@@ -597,8 +603,10 @@ add_dependencies(fgfsObjects buildId)
 # remove once we use CMake 3.12, since then the dependency will be explicit
 add_dependencies(fgfsObjects fgembeddedresources)
 
-target_precompile_headers(fgfsObjects PRIVATE
+if(ENABLE_PRECOMPILED_HEADERS)
+  target_precompile_headers(fgfsObjects PRIVATE
         "$<$<COMPILE_LANGUAGE:CXX>:${PROJECT_SOURCE_DIR}/src/Include/flightgear_precompile.h>")
+endif()
 
 ########################################################################
 

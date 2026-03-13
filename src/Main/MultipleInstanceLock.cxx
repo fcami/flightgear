@@ -3,6 +3,8 @@
 
 #include "config.h"
 
+#include <simgear/compiler.h>
+
 #include <cassert>
 #include <cstdlib>
 
@@ -16,6 +18,7 @@
 
 #include "MultipleInstanceLock.hxx"
 
+#include <Main/globals.hxx>
 #include <Main/sentryIntegration.hxx>
 
 #include <GUI/MessageBox.hxx>

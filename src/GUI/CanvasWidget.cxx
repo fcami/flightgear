@@ -55,6 +55,13 @@ void CanvasWidget::init()
     }
 }
 
+CanvasWidget::~CanvasWidget()
+{
+    if (_canvas) {
+        _canvas->destroy();
+    }
+}
+
 void CanvasWidget::createChildCanvas(int width, int height)
 {
     auto canvasMgr = globals->get_subsystem<CanvasMgr>();

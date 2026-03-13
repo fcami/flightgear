@@ -52,6 +52,8 @@ InitHomeResult fgInitHome(int argc, char** argv);
 void fgShutdownHome();
 void fgDeleteLockFile();
 
+void fgInitLogging(const std::string& pri);
+
 // Read in configuration (file and command line)
 int fgInitConfig ( int argc, char **argv, bool reinit );
 

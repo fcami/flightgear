@@ -7,8 +7,15 @@
 
 #include <config.h>
 
-#ifdef HAVE_WINDOWS_H
-#include <windows.h>
+#include <simgear/compiler.h>
+
+#if defined(SG_WINDOWS)
+    #include <windows.h>
+
+    #include <io.h> // isatty()
+    #define isatty _isatty
+#else
+    #include <unistd.h> // for gethostname()
 #endif
 
 #if defined(__linux__)
@@ -22,9 +29,6 @@
 #include <fenv.h>
 #endif
 
-#ifndef _WIN32
-#  include <unistd.h> // for gethostname()
-#endif
 
 #include <iostream>
 #include <cerrno>
@@ -295,13 +299,6 @@ int main ( int argc, char **argv )
 
   _bootstrap_OSInit = 0;
 
-#if defined(HAVE_SENTRY)
-  const bool noSentry = flightgear::Options::checkForArgDisable(argc, argv, "sentry");
-  if (!noSentry) {
-      flightgear::initSentry();
-  }
-  #endif
-
 // if we're not using the normal crash-reported, install our
 // custom segfault handler on Linux, in debug builds.
 // NB On OpenBSD this seems to lose info about where the signal
@@ -324,6 +321,22 @@ int main ( int argc, char **argv )
     if (flightgear::Options::checkForArg(argc, argv, "uninstall")) {
         return fgUninstall();
     }
+
+    // ensure that we don't log anything to stderr if we're showing version, json-report, help
+    const bool earlyExit = flightgear::Options::checkForEarlyExitArg(argc, argv);
+    if (earlyExit) {
+        // if the user has redirected stderr, assume they know what they are doing :)
+        if (isatty(2)) {
+            logstream::disableStderrLogging();
+        }
+    }
+
+#if defined(HAVE_SENTRY)
+    const bool noSentry = flightgear::Options::checkForArgDisable(argc, argv, "sentry");
+    if (!noSentry) {
+        flightgear::initSentry(earlyExit);
+    }
+#endif
 
     bool fgviewer = flightgear::Options::checkForArg(argc, argv, "fgviewer");
     int exitStatus = EXIT_FAILURE;

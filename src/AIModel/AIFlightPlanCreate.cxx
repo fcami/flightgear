@@ -1,13 +1,9 @@
-/*
- * SPDX-FileName: AIFlightPlanCreate.cxx
- * SPDX-FileCopyrightText: Written by Durk Talsma, started May, 2004
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
+// SPDX-FileCopyrightText: 2004 Durk Talsma
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <config.h>
 
 #include <algorithm>
-
 #include <cstdio>
 #include <cstdlib>
 
@@ -177,8 +173,6 @@ void FGAIFlightPlan::createArc(FGAIAircraft* ac, const SGGeod& center, int start
     if (endAngle < startAngle && increment > 0) {
         endAngle += 360;
     }
-
-    int nPoints = fabs(fabs(endAngle - startAngle) / increment);
 
     for (int i = startAngle; !(endAngle <= i && i < endAngle + fabs(increment)); i += increment) {
         if (fabs(i) > 720) {

@@ -294,6 +294,27 @@ FGTrafficRecord::~FGTrafficRecord()
 {
 }
 
+void FGTrafficRecord::setDeparture(const FGAirportRef& dep)
+{
+    departure = dep;
+}
+
+FGAirportRef FGTrafficRecord::getDeparture() const
+{
+    return departure;
+}
+
+
+void FGTrafficRecord::setArrival(const FGAirportRef& arr)
+{
+    arrival = arr;
+}
+
+FGAirportRef FGTrafficRecord::getArrival() const
+{
+    return arrival;
+}
+
 void FGTrafficRecord::setPositionAndIntentions(int pos,
                                                FGAIFlightPlan* route)
 {

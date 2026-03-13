@@ -51,14 +51,18 @@ auto exception_messageWhitelist = {
     "position is invalid, NaNs", ///< avoid spam when NaNs occur
     "bad AI flight plan",        ///< adjusting logic to avoid this is tricky
     "couldn't find shader",      ///< handled separately
-    "(EMEXEC)"                   ///< Emesary log spam
-
+    "(EMEXEC)",                  ///< Emesary log spam
     /// suppress noise from user-entered METAR values : we special case
     /// when live metar fails to parse
     "metar data bogus",
     "metar data incomplete",
     "metar temperature data",
     "metar pressure data"};
+
+auto general_messageWhitelist = {
+    " -- Recipient",              ///< emmessary overrun message, note leading whitespace
+    "Overrun: GlobalTransmitter", ///< emmesary overrun message
+};
 
 // we don't want sentry enabled for the test suite
 #if defined(HAVE_SENTRY) && !defined(BUILDING_TESTSUITE)
@@ -122,6 +126,10 @@ public:
         }
 
         if ((e.debugClass == SG_OSG) && doesStringMatchPrefixes(e.message, OSG_messageWhitelist)) {
+            return true;
+        }
+
+        if (doesStringMatchPrefixes(e.message, general_messageWhitelist)) {
             return true;
         }
 
@@ -263,7 +271,7 @@ std::string sentryUserId()
     return static_sentryUUID;
 }
 
-void initSentry()
+void initSentry(bool quiet)
 {
     sentry_options_t* options = sentry_options_new();
     // API key is defined in config.h, set in an environment variable prior
@@ -281,6 +289,7 @@ void initSentry()
         // first occurs, and then bisect the commits. We could switch to using
         // year and week number, but this makes more noise in sentry.
         sentry_options_set_release(options, "flightgear-nightly@" BUILD_MONTH);
+        sentry_options_set_environment(options, "testing");
     } else if (strcmp(FG_BUILD_TYPE, "Release") == 0) {
         // RC builds are for testing
         if (strncmp(BUILD_SUFFIX, "rc", 2) == 0) {
@@ -298,7 +307,7 @@ void initSentry()
     sentry_options_set_dist(options, REVISION);
 
     // for dev / nightly builds, put Sentry in debug mode
-    if (strcmp(FG_BUILD_TYPE, "Release")) {
+    if (!quiet && strcmp(FG_BUILD_TYPE, "Release")) {
         sentry_options_set_debug(options, 1);
     }
 

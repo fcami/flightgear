@@ -229,7 +229,7 @@ public:
     void setGate(const ParkingAssignment& pka);
     FGParking* getParkingGate() const;
 
-    void setDeparture(FGAirportRef apt) { departure = apt; }
+    void setDeparture(FGAirportRef apt);
     FGAirportRef departureAirport() const;
     FGAirportRef arrivalAirport() const;
 
