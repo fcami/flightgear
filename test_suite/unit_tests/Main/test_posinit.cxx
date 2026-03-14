@@ -41,6 +41,9 @@ void PosInitTests::setUp()
     Options::reset();
     fgLoadProps("defaults.xml", globals->get_props());
 
+
+    SG_LOG(SG_NAVAID, SG_DEBUG, "Terrasync " << fgGetString("/sim/terrasync/scenery-dir"));
+
     // ensure EDDF has a valid ground net for parking testing
     FGAirport::clearAirportsCache();
     auto apt = FGAirport::getByIdent("EDDF");
@@ -951,9 +954,9 @@ void PosInitTests::testMPRunwayStartNoGroundnet()
 
         // set dummy value to pretend MP is active
         fgSetString("/sim/multiplay/txhost", "lalalal");
-
-        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07"};
-        opts->init(3, (char**)args, SGPath());
+        // We have that doesn't exist, so the groundnet won't load
+        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 

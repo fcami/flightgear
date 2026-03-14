@@ -58,7 +58,9 @@ FGATCController::~FGATCController()
 {
     if (initialized) {
         auto mgr = globals->get_subsystem<FGATCManager>();
-        mgr->removeController(this);
+        if (mgr) {
+            mgr->removeController(this);
+        }
     }
     _isDestroying = true;
     clearTrafficControllers();
