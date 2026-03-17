@@ -24,7 +24,7 @@
 #include <simgear/canvas/elements/CanvasElement.hxx>
 #include <simgear/canvas/elements/CanvasImage.hxx>
 #include <simgear/canvas/elements/CanvasText.hxx>
-#include <simgear/canvas/elements/CanvasPangoText.hxx>
+#include <simgear/canvas/elements/CanvasRichText.hxx>
 #include <simgear/canvas/events/CanvasKeyBinding.hxx>
 #include <simgear/canvas/events/CustomEvent.hxx>
 #include <simgear/canvas/events/KeyboardEvent.hxx>
@@ -66,7 +66,7 @@ typedef nasal::Ghost<sc::CanvasPtr> NasalCanvas;
 typedef nasal::Ghost<sc::ElementPtr> NasalElement;
 typedef nasal::Ghost<sc::GroupPtr> NasalGroup;
 typedef nasal::Ghost<sc::TextPtr> NasalText;
-typedef nasal::Ghost<sc::PangoTextPtr> NasalPangoText;
+typedef nasal::Ghost<sc::RichTextPtr> NasalRichText;
 typedef nasal::Ghost<sc::ImagePtr> NasalImage;
 
 typedef nasal::Ghost<sc::LayoutItemRef> NasalLayoutItem;
@@ -644,28 +644,28 @@ naRef initNasalCanvas(naRef globals, naContext c)
     .method("getNearestCursor", &sc::Text::getNearestCursor)
     .method("getCursorPos", &sc::Text::getCursorPos);
   
-  NasalPangoText::init("canvas.PangoText")
+  NasalRichText::init("canvas.RichText")
     .bases<NasalElement>()
-    .method("text", &sc::PangoText::text)
-    .method("markup", &sc::PangoText::markup)
-    .method("heightForWidth", &sc::PangoText::heightForWidth)
-    .method("widthForHeight", &sc::PangoText::widthForHeight)
-    .method("width", &sc::PangoText::width)
-    .method("height", &sc::PangoText::height)
-    .method("lineCount", &sc::PangoText::lineCount)
-    .method("lineLength", &sc::PangoText::lineLength)
-    .method("cursorRect", &sc::PangoText::cursorRect)
-    .method("cursorByteIndex", &sc::PangoText::cursorByteIndex)
-    .method("selection", &sc::PangoText::selection)
-    .method("setSelection", &sc::PangoText::setSelection)
-    .method("clearSelection", &sc::PangoText::clearSelection)
-    .method("removeSelection", &sc::PangoText::removeSelection)
-    .method("selectedText", &sc::PangoText::selectedText)
-    .method("moveCursorToPosition", &sc::PangoText::moveCursorToPosition)
-    .method("moveCursorToByteIndex", &sc::PangoText::moveCursorToByteIndex)
-    .method("moveCursor", &sc::PangoText::moveCursor)
-    .method("insertAtCursor", &sc::PangoText::insertAtCursor)
-    .method("removeAtCursor", &sc::PangoText::removeAtCursor);
+    .method("text", &sc::RichText::text)
+    .method("markup", &sc::RichText::markup)
+    .method("heightForWidth", &sc::RichText::heightForWidth)
+    .method("widthForHeight", &sc::RichText::widthForHeight)
+    .method("width", &sc::RichText::width)
+    .method("height", &sc::RichText::height)
+    .method("lineCount", &sc::RichText::lineCount)
+    .method("lineLength", &sc::RichText::lineLength)
+    .method("cursorRect", &sc::RichText::cursorRect)
+    .method("cursorByteIndex", &sc::RichText::cursorByteIndex)
+    .method("selection", &sc::RichText::selection)
+    .method("setSelection", &sc::RichText::setSelection)
+    .method("clearSelection", &sc::RichText::clearSelection)
+    .method("removeSelection", &sc::RichText::removeSelection)
+    .method("selectedText", &sc::RichText::selectedText)
+    .method("moveCursorToPosition", &sc::RichText::moveCursorToPosition)
+    .method("moveCursorToByteIndex", &sc::RichText::moveCursorToByteIndex)
+    .method("moveCursor", &sc::RichText::moveCursor)
+    .method("insertAtCursor", &sc::RichText::insertAtCursor)
+    .method("removeAtCursor", &sc::RichText::removeAtCursor);
 
   NasalImage::init("canvas.Image")
       .bases<NasalElement>()
