@@ -132,7 +132,7 @@ bool FGAIFlightPlan::createPushBack(FGAIAircraft* ac,
 
                 auto intersection = groundnet->findIntersectionSegment(parking->geod(), parking->getReverseHeading());
                 if (!intersection) {
-                    SG_LOG(SG_AI, SG_DEV_WARN, "No pushforward intersection found for pushback gate " << parking->ident());
+                    SG_LOG(SG_AI, SG_DEV_WARN, "No pushforward intersection found for pushback gate " << dep->getId() << "/" << parking->ident());
                     return false;
                 }
 

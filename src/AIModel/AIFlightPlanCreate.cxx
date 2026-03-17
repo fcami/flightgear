@@ -851,7 +851,7 @@ bool FGAIFlightPlan::createClimb(FGAIAircraft* ac, bool firstFlight,
             FGAIWaypoint* wpt = createInAir(ac, "5000ft climb", climb1, 5000, vClimb);
             pushBackWaypoint(wpt);
             int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? 4 : -4;
+            int firstTurnIncrement = headingDiffRunway > 0 ? 5 : -5;
 
             SGGeod firstTurnCenter = SGGeodesy::direct(climb1, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             createArc(ac, firstTurnCenter, ac->_getHeading() - rightAngle, course - rightAngle, firstTurnIncrement, initialTurnRadius, 5000, 100, vClimb, "climb-out-%03d");
@@ -953,7 +953,7 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
 
             // Entering not "straight" into runway so we do a s-curve
             int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? 3 : -3;
+            int firstTurnIncrement = headingDiffRunway > 0 ? 5 : -5;
 
             SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             SGGeod newCurrent = current;
@@ -1218,11 +1218,10 @@ bool FGAIFlightPlan::createLanding(FGAIAircraft* ac, FGAirport* apt,
 
     double rolloutDistance = accelDistance(vTouchdownMetric, vTaxiMetric, decelMetric);
 
-    SG_LOG(SG_AI, SG_BULK, "Landing " << glideslopeEntry << "\t" << decelPoint << " Rollout " << rolloutDistance);
-
-    int nPoints = (int)(rolloutDistance / 60);
+    int nPoints = (int)(rolloutDistance / 100);
+    SG_LOG(SG_AI, SG_DEBUG, ac->getCallSign() << "(" << ac->getID() << ") Landing " << glideslopeEntry << "\t" << decelPoint << " Rollout " << rolloutDistance << " Num points " << nPoints);
     for (int i = 1; i <= nPoints; i++) {
-        snprintf(buffer, sizeof(buffer), "rollout%03d", i);
+        snprintf(buffer, sizeof(buffer), "rollout-%03d", i);
         double t = 1 - pow((double)(nPoints - i), 2) / pow(nPoints, 2);
         coord = rwy->pointOnCenterline(touchdownDistance + (rolloutDistance * t));
         double vel = (vTouchdownMetric * (1.0 - t)) + (vTaxiMetric * t);

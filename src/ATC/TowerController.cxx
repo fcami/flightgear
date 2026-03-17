@@ -109,7 +109,7 @@ void FGTowerController::announcePosition(int id,
 
             } else {
                 SG_LOG(SG_ATC, SG_DEV_WARN,
-                       "Not Added " << (*i)->getCallsign() << "(" << (*i)->getId() << ") " << (*i));
+                       "Not Added " << (*i)->getCallsign() << "(" << (*i)->getId() << ") " << (*i) << " Leg " << (*i)->getLeg() << " " << leg);
             }
         }
         if (((*i)->getLeg() > AILeg::RUNWAY_TAXI) && ((*i)->getLeg() < AILeg::CRUISE ||
@@ -117,8 +117,8 @@ void FGTowerController::announcePosition(int id,
             // We must be on the ground
             bool moved = airportGroundRadar->move(SGRect<double>(lat, lon), *i);
             if (!moved) {
-                SG_LOG(SG_ATC, SG_ALERT,
-                       "Not moved " << (*i)->getCallsign() << "(" << (*i)->getId() << ")" << *i);
+                SG_LOG(SG_ATC, SG_DEV_WARN,
+                       "Not moved " << (*i)->getCallsign() << "(" << (*i)->getId() << ")" << *i << " Leg " << (*i)->getLeg());
             }
         }
         (*i)->setPositionAndHeading(lat, lon, heading, speed, alt, leg);
@@ -251,8 +251,8 @@ void FGTowerController::signOff(int id)
     // Search activeTraffic for a record matching our id
     TrafficVectorIterator i = FGATCController::searchActiveTraffic(id);
     if (i == activeTraffic.end() || (activeTraffic.empty())) {
-        SG_LOG(SG_ATC, SG_ALERT,
-               "AI error: Aircraft without traffic record is signing off from tower at " << SG_ORIGIN);
+        SG_LOG(SG_ATC, SG_WARN,
+            "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
         return;
     }
     SG_LOG(SG_ATC, SG_BULK, "Signing off " << (*i)->getCallsign() << "(" << id << ") from " << getName() << " Leg : " << (*i)->getLeg());

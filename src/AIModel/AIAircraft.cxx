@@ -392,15 +392,15 @@ void FGAIAircraft::ProcessFlightPlan(double dt, time_t now)
 
         prev = fp->getPreviousWaypoint();
         if (prev) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Previous WP \t" << prev->getName() << "\t" << prev->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Previous WP \t" << prev->getName() << "\t" << prev->getPos());
         }
         curr = fp->getCurrentWaypoint();
         if (curr) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Current WP \t" << curr->getName() << "\t" << curr->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Current WP \t" << curr->getName() << "\t" << curr->getPos());
         }
         next = fp->getNextWaypoint();
         if (next) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Next WP \t" << next->getName() << "\t" << next->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Next WP \t" << next->getName() << "\t" << next->getPos());
         }
 
         // Now that we have incremented the waypoints, execute some traffic manager specific code
@@ -566,9 +566,12 @@ const char* FGAIAircraft::_getTransponderCode() const
 // NOTE: Check whether the new (delayed leg increment code has any effect on this code.
 // Probably not, because it should only be executed after we have already passed the leg incrementing waypoint.
 
-bool FGAIAircraft::loadNextLeg(double distance)
+bool FGAIAircraft::loadNextLeg(const double distance)
 {
     const int leg = fp->getLeg();
+    if (leg > AILeg::APPROACH) {
+        SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") " << " Dist "  << distance << " Old Leg " << leg);
+    }
     if (leg == AILeg::PARKING) {
         FGAirport* oldArr = trafficRef->getArrivalAirport();
         if (!trafficRef->next()) {
@@ -1553,7 +1556,7 @@ bool FGAIAircraft::reachedEndOfCruise(double& distance)
 {
     FGAIWaypoint* curr = fp->getCurrentWaypoint();
     if (!curr) {
-        SG_LOG(SG_AI, SG_WARN, "FGAIAircraft::reachedEndOfCruise: no current waypoint");
+        SG_LOG(SG_AI, SG_DEV_WARN, "FGAIAircraft::reachedEndOfCruise: no current waypoint");
 
         // return true (=done) here, so we don't just get stuck on this forever
         return true;

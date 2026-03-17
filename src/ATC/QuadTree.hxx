@@ -81,7 +81,7 @@ public:
         }
         if (isLeaf()) {
             if (!bounds.contains(pos.x(), pos.y())) {
-                SG_LOG(SG_ATC, SG_ALERT, "Not in node Quadrant " << quadrant << " to bounds  " << bounds.x() << "\t" << bounds.y() << "\t" << (bounds.x() + bounds.width()) << "\t" << (bounds.y() + bounds.height()) << "\t Pos : \t" << pos.x() << "\t" << pos.y());
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Not in node Quadrant " << quadrant << " to bounds  " << bounds.x() << "\t" << bounds.y() << "\t" << (bounds.x() + bounds.width()) << "\t" << (bounds.y() + bounds.height()) << "\t Pos : \t" << pos.x() << "\t" << pos.y());
                 return false;
             }
             if (depth >= MAX_DEPTH || data.size() < SPLIT_THRESHOLD) {
@@ -174,7 +174,7 @@ public:
         auto it = std::find_if(std::begin(data), std::end(data),
                                [equalFkt, value](auto rhs) { return equalFkt(value, rhs); });
         if (it == std::end(data)) {
-            SG_LOG(SG_ATC, SG_DEV_ALERT, "Trying to remove non existent data " << data.size());
+            SG_LOG(SG_ATC, SG_DEBUG, "Trying to remove non existent data Restsize " << data.size());
             return false;
         }
         // Swap with the last element and pop back
@@ -583,7 +583,7 @@ public:
             }
             bool removed = rootNode.get()->removeFullScan(value, equalFunction, "Error/");
             if (!removed) {
-                SG_LOG(SG_ATC, SG_ALERT, "Not removed while moving " << value);
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Not removed while moving " << value);
                 rootNode.get()->findFullScan(value, equalFunction, "Error/");
             }
             return rootNode.get()->add(getBoxFunction(value), value, equalFunction, getBoxFunction);

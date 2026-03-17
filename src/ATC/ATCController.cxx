@@ -359,14 +359,14 @@ void FGATCController::transmit(FGTrafficRecord* rec, FGAirportDynamics* parent, 
         break;
     case MSG_TAXI_PARK:
         if (!rec->getAircraft()->GetFlightPlan()->getParkingGate()) {
-            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
+            SG_LOG(SG_ATC, SG_WARN, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
             break;
         }
         text = receiver + " taxi to " + rec->getAircraft()->GetFlightPlan()->getParkingGate()->getName() + " . " + sender;
         break;
     case MSG_ACKNOWLEDGE_TAXI_PARK:
         if (!rec->getAircraft()->GetFlightPlan()->getParkingGate()) {
-            SG_LOG(SG_ATC, SG_ALERT, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
+            SG_LOG(SG_ATC, SG_WARN, "Flightplan without gate " << rec->getCallsign() << "(" << rec->getId() << ") ");
             break;
         }
         text = receiver + " taxi to " + rec->getAircraft()->GetFlightPlan()->getParkingGate()->getName() + " . " + sender;
@@ -426,8 +426,8 @@ SGSharedPtr<FGTrafficRecord> FGATCController::getRecord(int id) const
     TrafficVectorIterator i = searchActiveTraffic(id);
     if (i == activeTraffic.end()) {
         // Dead traffic should never reach here
-        SG_LOG(SG_ATC, SG_ALERT,
-               "AI error: Aircraft without traffic record " << getName() << " at " << SG_ORIGIN << " list " << activeTraffic.empty());
+        SG_LOG(SG_ATC, SG_WARN,
+            "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
         return nullptr;
     }
     return *i;
@@ -468,8 +468,8 @@ void FGATCController::signOff(int id)
     TrafficVectorIterator i = searchActiveTraffic(id);
     if (i == activeTraffic.end()) {
         // Dead traffic should never reach here
-        SG_LOG(SG_ATC, SG_ALERT,
-               "AI error: Aircraft without traffic record is signing off from " << getName() << " at " << SG_ORIGIN << " list " << activeTraffic.empty());
+        SG_LOG(SG_ATC, SG_WARN,
+               "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
         return;
     }
     const auto leg = (*i)->getLeg();
@@ -482,9 +482,9 @@ void FGATCController::signOff(int id)
             SG_LOG(SG_ATC, SG_DEV_WARN, "Couldn't remove from index " << (*i));
         }
 
-        SG_LOG(SG_ATC, SG_DEBUG, (*i)->getCallsign() << " (" << (*i)->getId() << ") signing off from " << getName() << "(" << getFrequency() << ") and removed from AirportGroundradar Leg " << (*i)->getLeg() << " at " << (*i)->getPos());
+        SG_LOG(SG_ATC, SG_DEBUG, (*i)->getCallsign() << "(" << (*i)->getId() << ") signing off from " << getName() << "(" << getFrequency() << ") and removed from AirportGroundradar Leg " << (*i)->getLeg() << " at " << (*i)->getPos());
     } else {
-        SG_LOG(SG_ATC, SG_DEBUG, (*i)->getCallsign() << " (" << (*i)->getId() << ") signing off from " << getName() << "(" << getFrequency() << ") Leg " << (*i)->getLeg() << " at " << (*i)->getPos());
+        SG_LOG(SG_ATC, SG_DEBUG, (*i)->getCallsign() << "(" << (*i)->getId() << ") signing off from " << getName() << "(" << getFrequency() << ") Leg " << (*i)->getLeg() << " at " << (*i)->getPos());
     }
 
     activeTraffic.erase(i);

@@ -186,6 +186,7 @@ void FGAIFlightPlan::createWaypoints(FGAIAircraft* ac,
 {
     time_t now = globals->get_time_params()->get_cur_time();
     time_t timeDiff = now - start;
+    //FIXME Why guess the leg based on time?
     leg = AILeg::STARTUP_PUSHBACK;
 
     if ((timeDiff > 60) && (timeDiff < 500))
