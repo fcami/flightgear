@@ -836,7 +836,7 @@ void finalizePosition()
             finalizeMetar();
         }
     } else {
-        SG_LOG(SG_GENERAL, SG_WARN, "finalizePosition METAR");
+        SG_LOG(SG_GENERAL, SG_DEBUG, "finalizePosition METAR");
         done = finalizeMetar();
     }
 

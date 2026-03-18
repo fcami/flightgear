@@ -683,9 +683,9 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
                                              int action, std::string& runway,
                                              double heading)
 {
-    SG_LOG(SG_ATC, SG_WARN, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
+    SG_LOG(SG_ATC, SG_BULK, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
     if (!fgGetBool("/environment/metar/valid")) {
-        SG_LOG(SG_GENERAL, SG_WARN, "innerGetActiveRunway METAR invalid");
+        SG_LOG(SG_GENERAL, SG_DEV_WARN, "innerGetActiveRunway METAR invalid");
         return false;
     }
 
@@ -821,7 +821,7 @@ std::string FGAirportDynamics::chooseRwyByHeading(stringVec rwys,
     std::string runway;
     for (stringVecIterator i = rwys.begin(); i != rwys.end(); ++i) {
         if (!_ap->hasRunwayWithIdent(*i)) {
-            SG_LOG(SG_ATC, SG_WARN, "chooseRwyByHeading: runway " << *i << " not found at " << _ap->ident());
+            SG_LOG(SG_ATC, SG_DEV_WARN, "chooseRwyByHeading: runway " << *i << " not found at " << _ap->ident());
             continue;
         }
 
@@ -1029,7 +1029,7 @@ FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
     auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
     // This forces West-facing rwys to be used in no-wind situations
     // which is consistent with Flightgear's initial setup.
-    double hdg = 270;
+    double hdg = 270.0;
 
     if (envMgr) {
         // FIXME : this should use the weather at the airport, not the player's

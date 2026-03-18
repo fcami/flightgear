@@ -210,8 +210,6 @@ FGHelipadRef FGAirport::getHelipadByIdent(const std::string& aIdent) const
 //------------------------------------------------------------------------------
 FGRunwayRef FGAirport::findBestRunwayForHeading(double aHeading, struct FindBestRunwayForHeadingParams* params) const
 {
-    int index = 0;
-    auto node = fgGetNode("/environment/metar/", index);
     loadRunways();
 
     FGRunway* result = NULL;

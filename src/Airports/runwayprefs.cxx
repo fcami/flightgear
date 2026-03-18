@@ -273,7 +273,7 @@ void RunwayGroup::setActive(const FGAirport* airport,
                 bestChoice = i;
             }
         }
-        SG_LOG(SG_GENERAL, SG_INFO,
+        SG_LOG(SG_GENERAL, SG_BULK,
                "Preference " << i << " Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection);
 
         //cerr << "Preference " << i << "Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection << endl;

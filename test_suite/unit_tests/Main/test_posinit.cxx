@@ -954,7 +954,7 @@ void PosInitTests::testMPRunwayStartNoGroundnet()
 
         // set dummy value to pretend MP is active
         fgSetString("/sim/multiplay/txhost", "lalalal");
-        // We have that doesn't exist, so the groundnet won't load
+        // We have to add a bogus dir that doesn't exist, so the EDDS groundnet won't load
         const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07", "--terrasync-dir=."};
         opts->init(4, (char**)args, SGPath());
         opts->processOptions();

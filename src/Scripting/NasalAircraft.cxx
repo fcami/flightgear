@@ -29,7 +29,7 @@ static naRef f_getPerformanceClass(const nasal::CallContext& ctx)
 {
     AircraftPerformance perf;
 
-    return ctx.to_nasal(std::string(perf.performanceClass()));
+    return ctx.to_nasal(perf.performanceClass());
 }
 
 //------------------------------------------------------------------------------
