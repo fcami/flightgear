@@ -186,10 +186,12 @@ TCAS::VoicePlayer::init(void)
     ADD_VOICE(Voices.pDescendIncrease,"increase_descent",        false);
     ADD_VOICE(Voices.pAdjustVSpeed,   "adjust_vertical_speed",   false);
     ADD_VOICE(Voices.pMaintVSpeed,    "maintain_vertical_speed", false);
-    ADD_VOICE(Voices.pMonitorVSpeed,  "monitor_vertical_speed",  false);
-    ADD_VOICE(Voices.pLevelOff,       "level_off",               false);
+    ADD_VOICE(Voices.pMonitorVSpeed, "monitor_vertical_speed", false);
     ADD_VOICE(Voices.pTestOk,         "test_ok",                 false);
     ADD_VOICE(Voices.pTestFail,       "test_fail",               false);
+
+    // add an empty voice for pLevelOff (since we don't have a sample for it)
+    make_voice(&Voices.pLevelOff);
 
     speaker.update_configuration();
 }
