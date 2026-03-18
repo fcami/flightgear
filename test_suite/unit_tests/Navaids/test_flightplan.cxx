@@ -1119,6 +1119,9 @@ void FlightplanTests::loadFGFPWithProcedureIdents()
     auto eham = FGAirport::findByIdent("EHAM"s);
     CPPUNIT_ASSERT(f->load(fgfpPath));
     
+    CPPUNIT_ASSERT(f->sid());
+    CPPUNIT_ASSERT(f->star());
+
     CPPUNIT_ASSERT_EQUAL(f->sid()->ident(), "DEEZZ5.13L"s);
     CPPUNIT_ASSERT_EQUAL(f->sidTransition()->ident(), "CANDR"s);
     
@@ -1324,6 +1327,8 @@ void FlightplanTests::testCloningProcedures() {
     fp1->setSID(sid);
     auto eham = FGAirport::findByIdent("EHAM"s);
     auto eel1A = eham->findSTARWithIdent("EEL1A"s);
+    CPPUNIT_ASSERT(eel1A);
+
     fp1->setSTAR(eel1A, "BEDUM"s);
     
     auto fp2 = fp1->clone();

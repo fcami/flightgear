@@ -128,5 +128,5 @@ double FGRunwayBase::magneticHeadingDeg() const
 {
     const double jd = globals->get_time_params()->getJD();
     const auto var = sgGetMagVar(geod(), jd) * SG_RADIANS_TO_DEGREES;
-    return SGMiscd::normalizePeriodic(0, 360, _heading + var);
+    return SGMiscd::normalizePeriodic(0, 360, _heading - var);
 }

@@ -38,7 +38,8 @@ class FPNasalTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testApproachTransitionAPIWithCloning);
     CPPUNIT_TEST(testAirwaysAPI);
     CPPUNIT_TEST(testTotalDistanceAPI);
-
+    CPPUNIT_TEST(testRunwayMagVar);
+    
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -58,4 +59,5 @@ public:
     void testApproachTransitionAPIWithCloning();
     void testAirwaysAPI();
     void testTotalDistanceAPI();
+    void testRunwayMagVar();
 };

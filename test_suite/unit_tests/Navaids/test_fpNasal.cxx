@@ -4,6 +4,7 @@
 #include "test_suite/FGTestApi/NavDataCache.hxx"
 
 #include <simgear/misc/strutils.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <Navaids/FlightPlan.hxx>
 #include <Navaids/routePath.hxx>
@@ -487,4 +488,16 @@ void FPNasalTests::testTotalDistanceAPI()
 
     auto fp = rm->flightPlan();
     CPPUNIT_ASSERT_DOUBLES_EQUAL(fp->totalDistanceNm(), 1025.9, 0.1);
+}
+
+void FPNasalTests::testRunwayMagVar()
+{
+    auto kclt = FGAirport::getByIdent("KCLT");
+    globals->get_time_params()->update(kclt->geod(), 1773677431, 0);
+    bool ok = FGTestApi::executeNasal(R"(
+        var rwy18C = airportinfo("KCLT").runway("18C");
+        unitTest.assert_doubles_equal(rwy18C.magnetic_heading, 184.1, 0.1, "Magnetic heading is not correct");
+    )");
+
+    CPPUNIT_ASSERT(ok);
 }
