@@ -98,7 +98,7 @@ void FGApproachController::updateAircraftInformation(int id, SGGeod geod,
 
     // update position of the current aircraft
     if (i == activeTraffic.end() || activeTraffic.empty()) {
-        SG_LOG(SG_ATC, SG_ALERT,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "FGApproachController updating aircraft without traffic record at " << SG_ORIGIN);
     } else {
         (*i)->setPositionAndHeading(geod.getLatitudeDeg(), geod.getLongitudeDeg(), heading, speed, alt, AILeg::UNKNOWN);

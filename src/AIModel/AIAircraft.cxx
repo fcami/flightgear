@@ -570,7 +570,7 @@ bool FGAIAircraft::loadNextLeg(const double distance)
 {
     const int leg = fp->getLeg();
     if (leg > AILeg::APPROACH) {
-        SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") " << " Dist "  << distance << " Old Leg " << leg);
+        SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") " << " Dist " << distance << " Old Leg " << leg);
     }
     if (leg == AILeg::PARKING) {
         FGAirport* oldArr = trafficRef->getArrivalAirport();
@@ -746,7 +746,7 @@ void FGAIAircraft::announcePositionToController()
         if (trafficRef->getArrivalAirport()->getDynamics()->getGroundController()->exists()) {
             controller = trafficRef->getArrivalAirport()->getDynamics()->getGroundController();
         } else {
-            SG_LOG(SG_ATC, SG_ALERT, trafficRef->getArrivalAirport()->getId() << " doesn't have a groundcontroller");
+            SG_LOG(SG_ATC, SG_DEV_WARN, trafficRef->getArrivalAirport()->getId() << " doesn't have a groundcontroller");
         }
         break;
     case AILeg::PARKING: // Parked
@@ -759,7 +759,7 @@ void FGAIAircraft::announcePositionToController()
         controller = nullptr;
         break;
     default:
-        SG_LOG(SG_AI, SG_ALERT, "AILeg " << leg << " not covered by a controller type");
+        SG_LOG(SG_AI, SG_DEV_WARN, "AILeg " << leg << " not covered by a controller type");
         if (prevController) {
             SG_LOG(SG_AI, SG_BULK, "Will be signing off from " << prevController->getName());
         }
@@ -787,7 +787,7 @@ void FGAIAircraft::announcePositionToController()
     } else {
         if (fp->getLeg() < AILeg::PARKING) {
             // No controller when parked
-            SG_LOG(SG_AI, SG_ALERT, "Can't announcePosition " << this->getCallSign() << " no controller on Leg " << fp->getLeg());
+            SG_LOG(SG_AI, SG_DEV_WARN, "Can't announcePosition " << this->getCallSign() << " no controller on Leg " << fp->getLeg());
         }
     }
 }

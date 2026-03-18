@@ -152,7 +152,7 @@ public:
                     bool removed = children[static_cast<std::size_t>(oldQuadrant)].get()->remove(oldPos, value, equalFkt);
                     bool added = children[static_cast<std::size_t>(newQuadrant)].get()->add(newPos, value, equalFkt, getBoxFunction);
                     if (!removed || !added) {
-                        SG_LOG(SG_ATC, SG_ALERT,
+                        SG_LOG(SG_ATC, SG_DEV_WARN,
                                "Error moving " << (removed ? " true " : " false ") << (added ? " true " : " false "));
                     }
                     return removed && added;
@@ -199,7 +199,7 @@ public:
                 }
                 // Otherwise, we remove the value from the current node
             } else {
-                SG_LOG(SG_ATC, SG_ALERT, "Trying to remove from UNKNOWN non leaf ");
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Trying to remove from UNKNOWN non leaf ");
                 return removeValue(value, equalFunction);
             }
             return false;
@@ -283,7 +283,7 @@ public:
                 std::string subpath = path + std::to_string(i) + "/";
                 return children[static_cast<std::size_t>(i)].get()->printPath(computeBox(pos, i), value, equalFkt, subpath);
             } else {
-                SG_LOG(SG_ATC, SG_ALERT, "Unknown quadrant ");
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Unknown quadrant ");
             }
             return false;
         }
@@ -300,7 +300,7 @@ public:
                 std::string subpath = path + std::to_string(i) + "/";
                 return children[static_cast<std::size_t>(i)].get()->printPath(computeBox(pos, i), subpath);
             } else {
-                SG_LOG(SG_ATC, SG_ALERT, "Unknown quadrant ");
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Unknown quadrant ");
             }
             return false;
         }
@@ -397,7 +397,7 @@ public:
         }
         if (!isLeaf()) {
             if (children.size() != 4) {
-                SG_LOG(SG_ATC, SG_ALERT, "Wrong Box Size");
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Wrong Box Size");
             }
             for (auto i = std::size_t(0); i < children.size(); i++) {
                 auto childBox = computeBox(bounds, static_cast<int>(i));
@@ -525,7 +525,7 @@ public:
         char fname[160];
         time_t t = time(0); // get time now
         snprintf(fname, sizeof(fname), "%ld_%f.json", t, globals->get_sim_time_sec());
-        SG_LOG(SG_ATC, SG_ALERT, "Exported " << fname);
+        SG_LOG(SG_ATC, SG_DEV_WARN, "Exported " << fname);
 
         SGPath p = globals->get_download_dir() / fname;
         geoJsonFile->open(p);
@@ -554,10 +554,10 @@ public:
             if (ret) {
                 bool printed = printPath(value);
                 if (!printed) {
-                    SG_LOG(SG_ATC, SG_ALERT, "Not printed " << value);
+                    SG_LOG(SG_ATC, SG_DEV_WARN, "Not printed " << value);
                 }
             } else {
-                SG_LOG(SG_ATC, SG_ALERT, "Not added " << value);
+                SG_LOG(SG_ATC, SG_DEV_WARN, "Not added " << value);
             }
             //            exportJson();
             return ret;

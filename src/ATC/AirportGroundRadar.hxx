@@ -27,7 +27,7 @@ public:
     {
         /*
 		if ((*aiObject).getCallsign() == "BA780") {
-		  SG_LOG(SG_ATC, SG_ALERT, "getBox " << (*aiObject).getCallsign() << "(" << (*aiObject).getId() << ") " << aiObject << " " << (*aiObject).getPos().getLatitudeDeg() << " " << (*aiObject).getPos().getLongitudeDeg());
+		  SG_LOG(SG_ATC, SG_DEV_WARN, "getBox " << (*aiObject).getCallsign() << "(" << (*aiObject).getId() << ") " << aiObject << " " << (*aiObject).getPos().getLatitudeDeg() << " " << (*aiObject).getPos().getLongitudeDeg());
 		}
 		  */
         return SGRect<double>((*aiObject).getPos().getLatitudeDeg(),

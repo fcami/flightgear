@@ -427,7 +427,7 @@ SGSharedPtr<FGTrafficRecord> FGATCController::getRecord(int id) const
     if (i == activeTraffic.end()) {
         // Dead traffic should never reach here
         SG_LOG(SG_ATC, SG_WARN,
-            "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
+               "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
         return nullptr;
     }
     return *i;
@@ -468,7 +468,7 @@ void FGATCController::signOff(int id)
     TrafficVectorIterator i = searchActiveTraffic(id);
     if (i == activeTraffic.end()) {
         // Dead traffic should never reach here
-        SG_LOG(SG_ATC, SG_WARN,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "AI error: Aircraft without traffic record is signing off from " << getName() << " list " << activeTraffic.empty());
         return;
     }
@@ -496,7 +496,7 @@ bool FGATCController::hasInstruction(int id)
     TrafficVectorIterator i = searchActiveTraffic(id);
 
     if (i == activeTraffic.end()) {
-        SG_LOG(SG_ATC, SG_ALERT,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "AI error: checking ATC instruction for aircraft without traffic record at " << SG_ORIGIN);
     } else {
         return (*i)->hasInstruction();
@@ -515,7 +515,7 @@ FGATCInstruction FGATCController::getInstruction(int id)
             return (*i)->getInstruction();
     }
 
-    SG_LOG(SG_ATC, SG_ALERT, "AI error: requesting ATC instruction for aircraft without traffic record from " << getName());
+    SG_LOG(SG_ATC, SG_DEV_WARN, "AI error: requesting ATC instruction for aircraft without traffic record from " << getName());
     return FGATCInstruction();
 }
 
