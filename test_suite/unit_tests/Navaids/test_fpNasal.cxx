@@ -1,9 +1,13 @@
+// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "test_fpNasal.hxx"
 
 #include "test_suite/FGTestApi/testGlobals.hxx"
 #include "test_suite/FGTestApi/NavDataCache.hxx"
 
 #include <simgear/misc/strutils.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <Navaids/FlightPlan.hxx>
 #include <Navaids/routePath.hxx>
@@ -35,13 +39,13 @@ void FPNasalTests::setUp()
         static_haveProcedures = true;
         globals->append_fg_scenery(proceduresPath);
     }
-    
-    // flightplan() acces needs the route manager
+
+    // flightplan() access needs the route manager
     globals->get_subsystem_mgr()->add<FGRouteMgr>();
 
     globals->get_subsystem_mgr()->bind();
     globals->get_subsystem_mgr()->init();
-    
+
     FGTestApi::setUp::initStandardNasal();
     globals->get_subsystem_mgr()->postinit();
 }
@@ -64,11 +68,10 @@ static FlightPlanRef makeTestFP(const std::string& depICAO, const std::string& d
 
 void FPNasalTests::testBasic()
 {
-    
     FlightPlanRef fp1 = makeTestFP("EGCC", "23L", "EHAM", "24",
                                    "TNT CLN");
     fp1->setIdent("testplan");
-    
+
 // setup the FP on the route-manager, so flightplan() call works
     auto rm = globals->get_subsystem<FGRouteMgr>();
     rm->setFlightPlan(fp1);
@@ -85,9 +88,9 @@ void FPNasalTests::testBasic()
     // check the value updated in the leg
     CPPUNIT_ASSERT_EQUAL(RESTRICT_AT, fp1->legAtIndex(3)->altitudeRestriction());
     CPPUNIT_ASSERT_EQUAL(6000, fp1->legAtIndex(3)->altitudeFt());
-    
+
 // insert some waypoints from Nasal
-    
+
     ok = FGTestApi::executeNasal(R"(
         var fp = flightplan();
         var leg = fp.getWP(2);
@@ -200,7 +203,7 @@ void FPNasalTests::testRestrictions()
     CPPUNIT_ASSERT(ok);
 
     CPPUNIT_ASSERT_EQUAL(RESTRICT_DELETE, fp1->legAtIndex(3)->speedRestriction());
-    
+
     ok = FGTestApi::executeNasal(R"(
         var fp = flightplan(); # retrieve the global flightplan
         var leg = fp.getWP(3);
@@ -215,7 +218,7 @@ void FPNasalTests::testRestrictions()
     CPPUNIT_ASSERT_DOUBLES_EQUAL(30000, fp1->legAtIndex(3)->altitudeFt(), 1.0);
 }
 
-void FPNasalTests::testSegfaultWaypointGhost() 
+void FPNasalTests::testSegfaultWaypointGhost()
 {
     // checking for a segfault here, no segfault indicates success. A runtime error in the log is acceptable here.
     bool ok = FGTestApi::executeNasal(R"(
@@ -241,9 +244,9 @@ void FPNasalTests::testSIDTransitionAPI()
         var fp = flightplan();
         fp.departure = airportinfo("KJFK");
         fp.destination = airportinfo("EGLL");
-                                      
+
         var sid = fp.departure.getSid("DEEZZ5.13L");
-                                      
+
         unitTest.assert(sid != nil, "SID not found");
         unitTest.assert_equal(sid.id, "DEEZZ5.13L", "Incorrect SID loaded");
 
@@ -256,9 +259,9 @@ void FPNasalTests::testSIDTransitionAPI()
     )");
 
     CPPUNIT_ASSERT(ok);
-    
+
     auto fp = rm->flightPlan();
-    
+
     CPPUNIT_ASSERT(fp->departureRunway());
     CPPUNIT_ASSERT(fp->sid());
     CPPUNIT_ASSERT(fp->sidTransition());
@@ -269,7 +272,7 @@ void FPNasalTests::testSIDTransitionAPI()
 
     // test specify SID via transition in Nasal
     rm->setFlightPlan(FlightPlan::create());
-    
+
     ok = FGTestApi::executeNasal(R"(
          var fp = flightplan();
          fp.departure = airportinfo("KJFK");
@@ -279,11 +282,11 @@ void FPNasalTests::testSIDTransitionAPI()
          fp.sid_trans = "CANDR";
 
     )");
-    
+
     CPPUNIT_ASSERT(ok);
-    
+
     fp = rm->flightPlan();
-    
+
     CPPUNIT_ASSERT(fp->departureRunway());
     CPPUNIT_ASSERT(fp->sid());
     CPPUNIT_ASSERT(fp->sidTransition());
@@ -300,14 +303,14 @@ void FPNasalTests::testSTARTransitionAPI()
     }
 
     auto rm = globals->get_subsystem<FGRouteMgr>();
-    
+
     bool ok = FGTestApi::executeNasal(R"(
         var fp = flightplan();
         fp.departure = airportinfo("EGLL");
         fp.destination = airportinfo("EDDM");
-                                      
+
         var star = fp.destination.getStar("RIXE3A.26L");
-                                      
+
         unitTest.assert(star != nil, "STAR not found");
         unitTest.assert_equal(star.id, "RIXE3A.26L", "Incorrect STAR loaded");
 
@@ -315,11 +318,11 @@ void FPNasalTests::testSTARTransitionAPI()
         fp.star = star;
         fp.destination_runway = fp.destination.runway('26L')
     )");
-    
+
     CPPUNIT_ASSERT(ok);
-    
+
     auto fp = rm->flightPlan();
-    
+
     CPPUNIT_ASSERT(fp->star());
     CPPUNIT_ASSERT(fp->starTransition() == nullptr);
 
@@ -338,26 +341,26 @@ void FPNasalTests::testApproachTransitionAPI()
         var fp = flightplan();
         fp.departure = airportinfo("EGLL");
         fp.destination = airportinfo("EDDM");
-                                      
+
         var star = fp.destination.getStar("RIXE3A.08L");
-                                      
+
         unitTest.assert(star != nil, "STAR not found");
         unitTest.assert_equal(star.id, "RIXE3A.08L", "Incorrect STAR loaded");
 
         fp.star = star;
         fp.destination_runway = fp.destination.runway('08L');
-                                      
+
         var approach = fp.destination.getApproach("ILS08L");
         unitTest.assert(approach != nil, "No approach loaded");
-                                      
+
         var trans = approach.transition('LUL1C');
-                    
+
         unitTest.assert(trans != nil, "approach transition not found");
         unitTest.assert_equal(trans.id, "LUL1C", "Incorrect approach transition loaded");
         unitTest.assert_equal(trans.tp_type, "transition", "Procedure type incorrect");
-                                      
+
         fp.approach = trans;
-                  
+
         unitTest.assert_equal(fp.approach.id, "ILS08L", "Incorrect approach returned");
         unitTest.assert_equal(fp.approach_trans.id, "LUL1C", "Incorrect transition returned");
         unitTest.assert_equal(fp.approach_trans.tp_type, "transition", "Procedure type incorrect");
@@ -386,15 +389,15 @@ void FPNasalTests::testApproachTransitionAPIWithCloning()
         fp.destination = airportinfo("EHAM");
         fp.star = fp.destination.getStar("REDF1A");
         fp.destination_runway = fp.destination.runway('06');
-                                      
+
         var approach = fp.destination.getApproach("ILS06");
         unitTest.assert(approach != nil, "No approach loaded");
-                                      
+
         var trans = approach.transition('SUG2A');
         unitTest.assert(trans != nil, "approach transition not found");
-                                      
+
         fp.approach = trans;
-                  
+
         unitTest.assert_equal(fp.approach.id, "ILS06", "Incorrect approach returned");
         unitTest.assert_equal(fp.approach_trans.id, "SUG2A", "Incorrect transition returned");
         unitTest.assert_equal(fp.approach_trans.tp_type, "transition", "Procedure type incorrect");
@@ -439,7 +442,7 @@ void FPNasalTests::testAirwaysAPI()
     CPPUNIT_ASSERT(ok);
 
     ok = FGTestApi::executeNasal(R"(
-    
+
         var airwayIdent = "L620";
         var airwayStore = airway(airwayIdent, Airway.LOW);
         var cln = findNavaidsByID("CLN", "VOR")[0];
@@ -455,10 +458,10 @@ void FPNasalTests::testAirwaysAPI()
 
         var v3 = createViaFromTo(cln, "L620", 'low', "TULIP");
         unitTest.assert_equal(v3.airway.id, 'L620');
-    
+
         var v4 = createViaFromTo(cln, "L620", "REDFA");
         unitTest.assert_equal(v4.airway.level_code, Airway.LOW);
-    
+
         # test direct API (no Vias)
         var wps = airwayStore.viaWaypoints(cln, "TULIP");
         unitTest.assert_equal(size(wps), 3);
@@ -469,7 +472,6 @@ void FPNasalTests::testAirwaysAPI()
     )");
 
     CPPUNIT_ASSERT(ok);
-    
 }
 
 void FPNasalTests::testTotalDistanceAPI()
@@ -487,4 +489,16 @@ void FPNasalTests::testTotalDistanceAPI()
 
     auto fp = rm->flightPlan();
     CPPUNIT_ASSERT_DOUBLES_EQUAL(fp->totalDistanceNm(), 1025.9, 0.1);
+}
+
+void FPNasalTests::testRunwayMagVar()
+{
+    auto kclt = FGAirport::getByIdent("KCLT");
+    globals->get_time_params()->update(kclt->geod(), 1773677431, 0);
+    bool ok = FGTestApi::executeNasal(R"(
+        var rwy18C = airportinfo("KCLT").runway("18C");
+        unitTest.assert_doubles_equal(rwy18C.magnetic_heading, 184.1, 0.1, "Magnetic heading is not correct");
+    )");
+
+    CPPUNIT_ASSERT(ok);
 }
