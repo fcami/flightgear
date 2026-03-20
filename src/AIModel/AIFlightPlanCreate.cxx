@@ -31,7 +31,24 @@
 using std::string;
 
 constexpr int kDefaultTurnIncrement = 5;
-constexpr int kDefaultTurnIncrementNegative = -5;
+
+/**
+* Helper to determine the turn increment for a given heading difference.
+*/
+
+int FGAIFlightPlan::turnIncrementForHeadingDifference(const double d) const
+{
+    return d > 0 ? kDefaultTurnIncrement : -kDefaultTurnIncrement;
+}
+
+/**
+* Helper to determine whether to turn left or right.
+*/
+
+int FGAIFlightPlan::rightAngleToTurn(const double headingDiff) const
+{
+    return headingDiff > 0 ? 90 : -90;
+}
 
 /* FGAIFlightPlan::create()
  * dynamically create a flight plan for AI traffic, based on data provided by the
@@ -852,8 +869,8 @@ bool FGAIFlightPlan::createClimb(FGAIAircraft* ac, bool firstFlight,
             SGGeod climb1 = SGGeodesy::direct(cur, runway->headingDeg(), 5 * SG_NM_TO_METER);
             FGAIWaypoint* wpt = createInAir(ac, "5000ft climb", climb1, 5000, vClimb);
             pushBackWaypoint(wpt);
-            int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+            int rightAngle = rightAngleToTurn(headingDiffRunway);
+            int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
 
             SGGeod firstTurnCenter = SGGeodesy::direct(climb1, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             createArc(ac, firstTurnCenter, ac->_getHeading() - rightAngle, course - rightAngle, firstTurnIncrement, initialTurnRadius, 5000, 100, vClimb, "climb-out-%03d");
@@ -954,8 +971,8 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
                 rwy->pointOffCenterline(-3 * distanceOut, -lateralOffset);
 
             // Entering not "straight" into runway so we do a s-curve
-            int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+            int rightAngle = rightAngleToTurn(headingDiffRunway);
+            int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
 
             SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             SGGeod newCurrent = current;
@@ -982,8 +999,8 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
         } else {
             SG_LOG(SG_AI, SG_BULK, ac->getCallSign() << "| Enter far S curve");
             // Entering not "straight" into runway so we do a s-curve
-            int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+            int rightAngle = rightAngleToTurn(headingDiffRunway);
+            int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
             SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             int innerTangent = headingDiffRunway < 0 ? 0 : 1;
             int offset = 1000;
@@ -1017,8 +1034,8 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
                 rwy->pointOffCenterline(-3 * distanceOut, -lateralOffset);
 
             // Entering not "straight" into runway so we do a s-curve
-            int rightAngle = azimuth > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+            int rightAngle = rightAngleToTurn(headingDiffRunway);
+            int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
 
             SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             // rwy->headingDeg()-rightAngle
@@ -1039,8 +1056,8 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
         } else {
             SG_LOG(SG_AI, SG_BULK, ac->getCallSign() << "| Enter far S downrunway");
             // Entering not "straight" into runway so we do a s-curve
-            int rightAngle = headingDiffRunway > 0 ? 90 : -90;
-            int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+            int rightAngle = rightAngleToTurn(headingDiffRunway);
+            int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
             int innerTangent = headingDiffRunway < 0 ? 0 : 1;
             SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() + rightAngle, initialTurnRadius);
             const double dHeading = VectorMath::innerTangentsAngle(firstTurnCenter, secondaryTarget, initialTurnRadius, initialTurnRadius)[innerTangent];
@@ -1056,9 +1073,9 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
     } else {
         SG_LOG(SG_AI, SG_BULK, ac->getCallSign() << "| Enter far straight");
         // Entering "straight" into runway so only one turn
-        int rightAngle = headingDiffRunway > 0 ? 90 : -90;
+        int rightAngle = rightAngleToTurn(headingDiffRunway);
         SGGeod firstTurnCenter = SGGeodesy::direct(current, ac->getTrueHeadingDeg() - rightAngle, initialTurnRadius);
-        int firstTurnIncrement = headingDiffRunway > 0 ? kDefaultTurnIncrement : kDefaultTurnIncrementNegative;
+        int firstTurnIncrement = turnIncrementForHeadingDifference(headingDiffRunway);
         const double dHeading = rwy->headingDeg();
         createArc(ac, firstTurnCenter, ac->_getHeading() + rightAngle, dHeading + rightAngle, firstTurnIncrement, initialTurnRadius, ac->getAltitude(), altDiff / 3, vDescent, "straight_turn_%03d");
     }
