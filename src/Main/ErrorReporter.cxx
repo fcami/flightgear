@@ -307,7 +307,7 @@ public:
         // decide if it's a critical error or not
         // aircraft errors are critical if they occur during initial
         // aircraft load, otherwise we just show the warning
-        if (!_haveDonePostInit && (ty == Aggregation::MainAircraft)) {
+        if (!_haveDonePostInit && ((ty == Aggregation::MainAircraft) || (ty == Aggregation::HangarAircraft))) {
             it->isCritical = true;
         }
     }
