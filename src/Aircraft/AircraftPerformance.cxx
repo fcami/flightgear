@@ -5,11 +5,13 @@
 
 #include "AircraftPerformance.hxx"
 
-#include <cassert>
 #include <algorithm>
+#include <cassert>
 
 #include <simgear/constants.h>
 
+#include <Airports/AptDatConstants.hxx>
+#include <Airports/DynamicsConstants.hxx>
 #include <Main/fg_props.hxx>
 
 using namespace flightgear;
@@ -18,6 +20,35 @@ double distanceForTimeAndSpeeds(double tSec, double v1, double v2)
 {
     return tSec * 0.5 * (v1 + v2);
 }
+
+/** Helper to map string to known performance class*/
+static std::string_view mapClass(const std::string& pc)
+{
+    if (pc == PERFORMANCE_CLASS_HEAVY)
+        return PERFORMANCE_CLASS_HEAVY;
+    if (pc == PERFORMANCE_CLASS_JETS)
+        return PERFORMANCE_CLASS_JETS;
+    if (pc == PERFORMANCE_CLASS_TURBOPROPS)
+        return PERFORMANCE_CLASS_TURBOPROPS;
+    if (pc == PERFORMANCE_CLASS_PROPS)
+        return PERFORMANCE_CLASS_PROPS;
+    if (pc == PERFORMANCE_CLASS_HELOS)
+        return PERFORMANCE_CLASS_HELOS;
+    if (pc == PERFORMANCE_CLASS_FIGHTERS)
+        return PERFORMANCE_CLASS_FIGHTERS;
+    if (pc == PERFORMANCE_CLASS_BALLOON)
+        return PERFORMANCE_CLASS_BALLOON;
+    if (pc == PERFORMANCE_CLASS_SEAPLANE)
+        return PERFORMANCE_CLASS_SEAPLANE;
+    if (pc == PERFORMANCE_CLASS_GLIDER)
+        return PERFORMANCE_CLASS_GLIDER;
+    if (pc == PERFORMANCE_CLASS_GROUNDVEHICLE)
+        return PERFORMANCE_CLASS_GROUNDVEHICLE;
+    if (pc == PERFORMANCE_CLASS_SHIP)
+        return PERFORMANCE_CLASS_SHIP;
+    return PERFORMANCE_CLASS_JETS;
+}
+
 
 AircraftPerformance::AircraftPerformance()
 {
@@ -43,13 +74,13 @@ int AircraftPerformance::computePreviousAltitude(double distanceM, int targetAlt
     auto d = bracket->descendDistanceM(bracket->atOrBelowAltitudeFt, targetAltFt);
     if (d < distanceM) {
         // recurse to previous bracket
-        return computePreviousAltitude(distanceM - d, bracket->atOrBelowAltitudeFt+1);
+        return computePreviousAltitude(distanceM - d, bracket->atOrBelowAltitudeFt + 1);
     }
 
     // work out how far we travel laterally per foot change in altitude
     // this value is in metres, we have to map FPM and GS in Knots to make
     // everything work out
-    const double gsMPS =  bracket->gsForAltitude(targetAltFt) * SG_KT_TO_MPS;
+    const double gsMPS = bracket->gsForAltitude(targetAltFt) * SG_KT_TO_MPS;
     const double t = distanceM / gsMPS;
     return targetAltFt + bracket->descentRateFPM * (t / 60.0);
 }
@@ -60,13 +91,13 @@ int AircraftPerformance::computeNextAltitude(double distanceM, int initialAltFt)
     auto d = bracket->climbDistanceM(initialAltFt, bracket->atOrBelowAltitudeFt);
     if (d < distanceM) {
         // recurse to next bracket
-        return computeNextAltitude(distanceM - d, bracket->atOrBelowAltitudeFt+1);
+        return computeNextAltitude(distanceM - d, bracket->atOrBelowAltitudeFt + 1);
     }
 
     // work out how far we travel laterally per foot change in altitude
     // this value is in metres, we have to map FPM and GS in Knots to make
     // everything work out
-    const double gsMPS =  bracket->gsForAltitude(initialAltFt) * SG_KT_TO_MPS;
+    const double gsMPS = bracket->gsForAltitude(initialAltFt) * SG_KT_TO_MPS;
     const double t = distanceM / gsMPS;
     return initialAltFt + bracket->climbRateFPM * (t / 60.0);
 }
@@ -116,37 +147,96 @@ void AircraftPerformance::icaoCategoryData()
         propCat = heuristicCatergoryFromTags();
     }
 
+    SG_LOG(SG_GENERAL, SG_DEBUG, "AircraftPerformance: Using ICAO category '" << propCat << "' for performance data\n");
     const char aircraftCategory = propCat.front();
-     //     pathTurnRate = 3.0; // 3 deg/sec = 180deg/min = standard rate turn
-      switch (aircraftCategory) {
-      case ICAO_AIRCRAFT_CATEGORY_A:
-          _perfData.push_back(Bracket(4000, 600, 1200, 75));
-          _perfData.push_back(Bracket(10000, 600, 1200, 140));
-          break;
+    //     pathTurnRate = 3.0; // 3 deg/sec = 180deg/min = standard rate turn
+    switch (aircraftCategory) {
+    case ICAO_AIRCRAFT_CATEGORY_A:
+        _perfData.push_back(Bracket(4000, 600, 1200, 75));
+        _perfData.push_back(Bracket(10000, 600, 1200, 140));
+        break;
 
-      case ICAO_AIRCRAFT_CATEGORY_B:
-          _perfData.push_back(Bracket(4000, 100, 1200, 100));
-          _perfData.push_back(Bracket(10000, 800, 1200, 160));
-          _perfData.push_back(Bracket(18000, 600, 1800, 200));
-          break;
+    case ICAO_AIRCRAFT_CATEGORY_B:
+        _perfData.push_back(Bracket(4000, 100, 1200, 100));
+        _perfData.push_back(Bracket(10000, 800, 1200, 160));
+        _perfData.push_back(Bracket(18000, 600, 1800, 200));
+        break;
 
-      case ICAO_AIRCRAFT_CATEGORY_C:
-          _perfData.push_back(Bracket(4000, 1800, 1800, 150));
-          _perfData.push_back(Bracket(10000, 1800, 1800, 200));
-          _perfData.push_back(Bracket(18000, 1200, 1800, 270));
-          _perfData.push_back(Bracket(60000, 800, 1200, 0.80, true /* is Mach */));
-          break;
+    case ICAO_AIRCRAFT_CATEGORY_C:
+        _perfData.push_back(Bracket(4000, 1800, 1800, 150));
+        _perfData.push_back(Bracket(10000, 1800, 1800, 200));
+        _perfData.push_back(Bracket(18000, 1200, 1800, 270));
+        _perfData.push_back(Bracket(60000, 800, 1200, 0.80, true /* is Mach */));
+        break;
 
-      case ICAO_AIRCRAFT_CATEGORY_D:
-      case ICAO_AIRCRAFT_CATEGORY_E:
-      default:
-          _perfData.push_back(Bracket(4000, 1800, 1800, 180));
-          _perfData.push_back(Bracket(10000, 1800, 1800, 230));
-          _perfData.push_back(Bracket(18000, 1200, 1800, 270));
-          _perfData.push_back(Bracket(60000, 800, 1200, 0.87, true /* is Mach */));
-          break;
-      }
+    case ICAO_AIRCRAFT_CATEGORY_D:
+    case ICAO_AIRCRAFT_CATEGORY_E:
+    default:
+        _perfData.push_back(Bracket(4000, 1800, 1800, 180));
+        _perfData.push_back(Bracket(10000, 1800, 1800, 230));
+        _perfData.push_back(Bracket(18000, 1200, 1800, 270));
+        _perfData.push_back(Bracket(60000, 800, 1200, 0.87, true /* is Mach */));
+        break;
+    }
 }
+
+std::string_view AircraftPerformance::performanceClass() const
+{
+    const auto tags(readTags());
+    auto performanceNode = fgGetNode("/aircraft/performance/");
+    if (performanceNode) {
+        auto pc = performanceNode->getStringValue("class");
+        if (!pc.empty()) {
+            return mapClass(pc);
+        }
+    }
+    //TODO: refine this further. Maybe use more performance data from the aircraft model?
+    if (stringListContains(tags, "jet")) {
+        return PERFORMANCE_CLASS_HEAVY;
+    }
+
+    if (stringListContains(tags, "propeller") || stringListContains(tags, "ultralight")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+
+    if (stringListContains(tags, "variable-pitch") || stringListContains(tags, "fixed-pitch")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+
+    if (stringListContains(tags, "piston") || stringListContains(tags, "radial") || stringListContains(tags, "uav")) {
+        return PERFORMANCE_CLASS_PROPS;
+    }
+    if (stringListContains(tags, "seaplane") || stringListContains(tags, "flying-boat")) {
+        return PERFORMANCE_CLASS_SEAPLANE;
+    }
+    if (stringListContains(tags, "helicopter") || stringListContains(tags, "balloon")) {
+        return PERFORMANCE_CLASS_HELOS;
+    }
+
+    return PERFORMANCE_CLASS_JETS;
+}
+
+
+/**Mapping from APT.dat to the rwy.use*/
+std::string_view AircraftPerformance::rwyType() const
+{
+    std::string_view perfClass = performanceClass();
+    if (perfClass == PERFORMANCE_CLASS_HEAVY || perfClass == PERFORMANCE_CLASS_JETS || perfClass == PERFORMANCE_CLASS_TURBOPROPS) {
+        return RUNWAY_TYPE_COM;
+    }
+    if (perfClass == PERFORMANCE_CLASS_FIGHTERS) {
+        return RUNWAY_TYPE_MIL;
+    }
+    if (perfClass == PERFORMANCE_CLASS_GLIDER) {
+        return RUNWAY_TYPE_UL;
+    }
+    if (perfClass == PERFORMANCE_CLASS_PROPS) {
+        return RUNWAY_TYPE_GEN;
+    }
+
+    return RUNWAY_TYPE_COM;
+}
+
 
 void AircraftPerformance::readPerformanceData()
 {
@@ -168,7 +258,7 @@ void AircraftPerformance::readPerformanceData()
 }
 
 auto AircraftPerformance::bracketForAltitude(int altitude) const
-        -> PerformanceVec::const_iterator
+    -> PerformanceVec::const_iterator
 {
     assert(!_perfData.empty());
     if (_perfData.front().atOrBelowAltitudeFt >= altitude)
@@ -184,7 +274,7 @@ auto AircraftPerformance::bracketForAltitude(int altitude) const
 }
 
 auto AircraftPerformance::rangeForAltitude(int lowAltitude, int highAltitude) const
-        -> BracketRange
+    -> BracketRange
 {
     return {bracketForAltitude(lowAltitude), bracketForAltitude(highAltitude)};
 }
@@ -194,8 +284,8 @@ void AircraftPerformance::traverseAltitudeRange(int initialElevationFt, int targ
 {
     auto r = rangeForAltitude(initialElevationFt, targetElevationFt);
     if (r.first == r.second) {
-       tf(*r.first, initialElevationFt, targetElevationFt);
-       return;
+        tf(*r.first, initialElevationFt, targetElevationFt);
+        return;
     }
 
     if (initialElevationFt < targetElevationFt) {
@@ -295,7 +385,7 @@ double computeMachFromIAS(int iasKnots, int altitudeFt)
   M=(5*( (DP/P + 1)^(2/7) -1) )^0.5   (*)
 #endif
     const double Cs_0 = 661.4786; // speed of sound at sea level, knots
-    const double P_0 = 29.92126; // (standard) sea-level pressure
+    const double P_0 = 29.92126;  // (standard) sea-level pressure
     const double iasCsRatio = iasKnots / Cs_0;
     const double P = pressureAtAltitude(altitudeFt);
     // differential pressure
@@ -388,7 +478,7 @@ double AircraftPerformance::turnRadiusMForAltitude(int altitudeFt) const
 #endif
     const double gsKts = groundSpeedForAltitudeKnots(altitudeFt);
     const double gs = gsKts * SG_KT_TO_MPS;
-    const double bankAngleRad = atan(gsKts/362.1);
-    const double r = (gs * gs)/(SG_g0_m_p_s2 * tan(bankAngleRad));
+    const double bankAngleRad = atan(gsKts / 362.1);
+    const double r = (gs * gs) / (SG_g0_m_p_s2 * tan(bankAngleRad));
     return r;
 }

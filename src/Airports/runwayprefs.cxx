@@ -231,6 +231,10 @@ void RunwayGroup::setActive(const FGAirport* airport,
 
             //cerr << "Success" << endl;
             hdgDiff = fabs(windHeading - rwy->headingDeg());
+#ifdef AI_DEBUG
+            SG_LOG(SG_GENERAL, SG_DEBUG,
+                   "Preference " << rwy->airport()->ident() << " " << rwy->ident() << " Wind " << windHeading << " Rwy " << rwy->headingDeg() << " Diff " << hdgDiff);
+#endif
             std::string l_name = rwy->name();
 
             if (hdgDiff > 180)
@@ -239,9 +243,12 @@ void RunwayGroup::setActive(const FGAirport* airport,
             hdgDiff *= ((2 * M_PI) / 360.0); // convert to radians
             crossWind = windSpeed * sin(hdgDiff);
             tailWind = -windSpeed * cos(hdgDiff);
-            //cerr << "Runway : " << rwy->name() << ": " << rwy->headingDeg() << endl;
-            //cerr << ". Tailwind : " << tailWind;
-            //cerr << ". Crosswnd : " << crossWind;
+#ifdef AI_DEBUG
+            SG_LOG(SG_AI, SG_DEBUG, "Runway : " << rwy->name() << ": " << rwy->headingDeg());
+            SG_LOG(SG_GENERAL, SG_DEBUG, ". Tailwind : " << tailWind);
+            SG_LOG(SG_GENERAL, SG_DEBUG, ". Crosswnd : " << crossWind);
+#endif // AI_DEBUG
+
             if ((tailWind > maxTail) || (crossWind > maxCross)) {
                 //cerr << ". [Invalid] " << endl;
                 validSelection = false;
@@ -266,6 +273,9 @@ void RunwayGroup::setActive(const FGAirport* airport,
                 bestChoice = i;
             }
         }
+        SG_LOG(SG_GENERAL, SG_BULK,
+               "Preference " << i << " Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection);
+
         //cerr << "Preference " << i << "Match " << match << " bestMatch " << bestMatch << " choice " << bestChoice << " valid selection " << validSelection << endl;
     }
 

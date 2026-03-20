@@ -82,7 +82,7 @@ void AirportTests::testAirportNasal()
         unitTest.assert_doubles_equal(rwy.heading, 51, 0.1);
 
         var mag = magvar(apt);
-        unitTest.assert_doubles_equal(rwy.magnetic_heading, 51 + mag, 0.1);
+        unitTest.assert_doubles_equal(rwy.magnetic_heading, 51 - mag, 0.1);
     )");
     CPPUNIT_ASSERT(ok);
 }
