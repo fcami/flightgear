@@ -71,6 +71,7 @@ private:
     sg_ofstream junitReportFile;
 
     void writeJunit();
+    static std::string xmlEscape(const std::string& input);
     //        void writeJunitTestresult(const TestDataCapt test_data);
     // Simgear logstream IO printout.
     void printIOStreamMessages(std::string heading, std::string messages, bool empty);

@@ -97,6 +97,10 @@ public:
     inline double getVerticalSpeedFPM() const { return vs_fps * 60; };
     inline double altitudeAGL() const { return props->getFloatValue("position/altitude-agl-ft"); };
     inline double airspeed() const { return props->getFloatValue("velocities/airspeed-kt"); };
+
+    /**Returns the performance class aligned with APT.DAT.*/
+    const std::string_view getPerformanceClass() const;
+
     const std::string& atGate();
     std::string acwakecategory;
 
@@ -109,6 +113,8 @@ public:
     bool isBlockedBy(FGAIAircraft* other);
     void dumpCSVHeader(const std::unique_ptr<sg_ofstream>& o);
     void dumpCSV(const std::unique_ptr<sg_ofstream>& o, int lineIndex);
+
+    void setPerformanceClass(const std::string& perfClass);
 
 protected:
     void Run(double dt);
@@ -186,6 +192,7 @@ private:
     void lazyInitControlsNodes();
 
     std::string acType;
+    std::string performanceClass; // Performance class from traffic schedule.
     std::string company;
     std::string transponderCode;
 

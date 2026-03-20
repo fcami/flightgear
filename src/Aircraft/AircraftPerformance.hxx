@@ -18,6 +18,7 @@ const char ICAO_AIRCRAFT_CATEGORY_C = 'C';
 const char ICAO_AIRCRAFT_CATEGORY_D = 'D';
 const char ICAO_AIRCRAFT_CATEGORY_E = 'E';
 
+
 /**
  * Calculate flight parameter based on aircraft performance data.
  * This is based on simple rules: it does not (yet) include data
@@ -42,6 +43,10 @@ public:
 
     double timeToCruise(double cruiseDistanceNm, int cruiseAltitudeFt) const;
 
+
+    std::string_view performanceClass() const;
+    std::string_view rwyType() const;
+
     static double groundSpeedForCAS(int altitudeFt, double cas);
     static double machForCAS(int altitudeFt, double cas);
     static double groundSpeedForMach(int altitudeFt, double mach);
@@ -50,6 +55,7 @@ private:
     void readPerformanceData();
 
     void icaoCategoryData();
+
 
     /**
      * @brief heuristicCatergoryFromTags - based on the aircraft tags, figure

@@ -20,6 +20,7 @@
 #include <Airports/runways.hxx>
 #include <Environment/environment.hxx>
 #include <Environment/environment_mgr.hxx>
+#include <Environment/realwx_ctrl.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
 #include <Main/locale.hxx>
@@ -438,6 +439,11 @@ double runwayWindScore(const FGRunwayRef& runway, double windHeading,
     double crossWind = windSpeedKts * sin(hdgDiff);
     double tailWind = -windSpeedKts * cos(hdgDiff);
 
+    if (fabs(crossWind) > 40) {
+        // As if all wind from tail
+        return -windSpeedKts;
+    }
+
     return -(crossWind + tailWind);
 }
 
@@ -541,7 +547,7 @@ public:
 
     bool operator()(const FGRunwayRef& rwy) const
     {
-        return (runwayWindScore(rwy, _windHeading, _windSpeedKts) > 30);
+        return (-runwayWindScore(rwy, _windHeading, _windSpeedKts) > 30);
     }
 
 private:
@@ -677,6 +683,12 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
                                              int action, std::string& runway,
                                              double heading)
 {
+    SG_LOG(SG_ATC, SG_BULK, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
+    if (!fgGetBool("/environment/metar/valid")) {
+        SG_LOG(SG_GENERAL, SG_DEV_WARN, "innerGetActiveRunway METAR invalid");
+        return false;
+    }
+
     if (!rwyPrefs.available()) {
         runway = fallbackGetActiveRunway(action, heading);
         return !runway.empty();
@@ -774,7 +786,7 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         //cerr << endl;
     }
 
-    if (action == 1) // takeoff
+    if (action == RunwayAction::TAKEOFF) // takeoff
     {
         int nr = takeoff.size();
         if (nr) {
@@ -787,7 +799,7 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         }
     }
 
-    if (action == 2) // landing
+    if (action == RunwayAction::LANDING) // landing
     {
         if (!landing.empty()) {
             runway = chooseRwyByHeading(landing, heading);
@@ -809,7 +821,7 @@ std::string FGAirportDynamics::chooseRwyByHeading(stringVec rwys,
     std::string runway;
     for (stringVecIterator i = rwys.begin(); i != rwys.end(); ++i) {
         if (!_ap->hasRunwayWithIdent(*i)) {
-            SG_LOG(SG_ATC, SG_WARN, "chooseRwyByHeading: runway " << *i << " not found at " << _ap->ident());
+            SG_LOG(SG_ATC, SG_DEV_WARN, "chooseRwyByHeading: runway " << *i << " not found at " << _ap->ident());
             continue;
         }
 
@@ -823,6 +835,7 @@ std::string FGAirportDynamics::chooseRwyByHeading(stringVec rwys,
             bestError = headingError;
         }
     }
+    SG_LOG(SG_ATC, SG_DEBUG, "Using active runway " << runway << " for heading " << heading);
     //cerr << "Using active runway " << runway << " for heading " << heading << endl;
     return runway;
 }
@@ -839,7 +852,7 @@ void FGAirportDynamics::getActiveRunway(const std::string& trafficType,
     }
 }
 
-ActiveRunwayQueue *FGAirportDynamics::getRunwayQueue(const string& name)
+ActiveRunwayQueue* FGAirportDynamics::getRunwayQueue(const string& name)
 {
     ActiveRunwayVecIterator rwy = activeRunways.begin();
     if (activeRunways.size()) {
@@ -860,7 +873,7 @@ ActiveRunwayQueue *FGAirportDynamics::getRunwayQueue(const string& name)
 
 std::string FGAirportDynamics::chooseRunwayFallback()
 {
-    FGRunway* rwy = _ap->getActiveRunwayForUsage();
+    FGRunway* rwy = getActiveRunwayForUsage();
     if (!rwy) {
         SG_LOG(SG_AI, SG_WARN, "FGAirportDynamics::chooseRunwayFallback failed at " << _ap->ident());
 
@@ -1009,4 +1022,26 @@ int FGAirportDynamics::updateAtisSequence(int interval, bool forceUpdate)
     atisSequenceIndex = (atisSequenceIndex + steps) % 26;
     // return a huge value if no update occurred
     return (atisSequenceIndex + (steps ? 0 : 26 * 1000));
+}
+
+FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
+{
+    auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+    // This forces West-facing rwys to be used in no-wind situations
+    // which is consistent with Flightgear's initial setup.
+    double hdg = 270.0;
+
+    if (envMgr) {
+        // FIXME : this should use the weather at the airport, not the player's
+        // location.
+        const auto stationWeather = envMgr->getAircraftEnvironment();
+
+        double windSpeed = stationWeather->get_wind_speed_kt();
+        if (windSpeed > 0.0) {
+            hdg = stationWeather->get_wind_from_heading_deg();
+        }
+    }
+
+    // Zugriff auf die Runway-Auswahl über das zugehörige FGAirport-Objekt
+    return _ap->findBestRunwayForHeading(hdg);
 }

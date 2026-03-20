@@ -210,7 +210,6 @@ FGHelipadRef FGAirport::getHelipadByIdent(const std::string& aIdent) const
 //------------------------------------------------------------------------------
 FGRunwayRef FGAirport::findBestRunwayForHeading(double aHeading, struct FindBestRunwayForHeadingParams* params) const
 {
-    //FIXME must align with FGAirportDynamics::getActiveRunway
     loadRunways();
 
     FGRunway* result = NULL;
@@ -396,29 +395,6 @@ FGPavementList FGAirport::getLineFeatures() const
 void FGAirport::addLineFeature(FGPavementRef linefeature)
 {
   mLineFeatures.push_back(linefeature);
-}
-
-//------------------------------------------------------------------------------
-FGRunwayRef FGAirport::getActiveRunwayForUsage() const
-{
-  auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
-
-  // This forces West-facing rwys to be used in no-wind situations
-  // which is consistent with Flightgear's initial setup.
-  double hdg = 270;
-
-  if (envMgr) {
-      // FIXME : this should use the weather at the airport, not the player's
-      // location.
-      const auto stationWeather = envMgr->getAircraftEnvironment();
-
-    double windSpeed = stationWeather->get_wind_speed_kt();
-    if (windSpeed > 0.0) {
-      hdg = stationWeather->get_wind_from_heading_deg();
-    }
-  }
-
-  return findBestRunwayForHeading(hdg);
 }
 
 //------------------------------------------------------------------------------

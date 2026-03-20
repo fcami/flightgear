@@ -36,6 +36,8 @@ extern double fgIsFinite(double x);
 #include <ATC/ATCController.hxx>
 #include <ATC/atc_mgr.hxx>
 #include <ATC/trafficcontrol.hxx>
+#include <Airports/AptDatConstants.hxx>
+using namespace flightgear;
 
 
 FGAIAircraft::FGAIAircraft(FGAISchedule* ref) : /* HOT must be disabled for AI Aircraft,
@@ -126,7 +128,8 @@ void FGAIAircraft::readFromScenario(SGPropertyNode* scFileNode)
         return;
 
     FGAIBase::readFromScenario(scFileNode);
-
+    //TODO: read acType from scenario file
+    setPerformanceClass("jet_transport");
     setPerformance("", scFileNode->getStringValue("class", "jet_transport"));
     setFlightPlan(scFileNode->getStringValue("flightplan"),
                   scFileNode->getBoolValue("repeat", false));
@@ -180,6 +183,7 @@ void FGAIAircraft::setPerformance(const std::string& acType, const std::string& 
         _performance = PerformanceData::getDefaultData();
     }
 }
+
 
 void FGAIAircraft::Run(double dt)
 {
@@ -1436,6 +1440,39 @@ void FGAIAircraft::updatePitchAngleTarget()
     }
 }
 
+/**Maps from the AI schedule classes to to the general ones.*/
+
+const std::string_view FGAIAircraft::getPerformanceClass() const
+{
+    if (performanceClass == "heavy_jet")
+        return PERFORMANCE_CLASS_HEAVY;
+    if (performanceClass == "tanker")
+        return PERFORMANCE_CLASS_JETS;
+    if (performanceClass == "jet_transport")
+        return PERFORMANCE_CLASS_JETS;
+    if (performanceClass == "turboprop_transport")
+        return PERFORMANCE_CLASS_TURBOPROPS;
+    if (performanceClass == "ww2_fighter")
+        return PERFORMANCE_CLASS_PROPS;
+    if (performanceClass == "light")
+        return PERFORMANCE_CLASS_PROPS;
+    if (performanceClass == PERFORMANCE_CLASS_HELOS)
+        return PERFORMANCE_CLASS_HELOS;
+    if (performanceClass == "jet_fighter")
+        return PERFORMANCE_CLASS_FIGHTERS;
+    if (performanceClass == PERFORMANCE_CLASS_BALLOON)
+        return PERFORMANCE_CLASS_BALLOON;
+    if (performanceClass == PERFORMANCE_CLASS_SEAPLANE)
+        return PERFORMANCE_CLASS_SEAPLANE;
+    if (performanceClass == PERFORMANCE_CLASS_GLIDER)
+        return PERFORMANCE_CLASS_GLIDER;
+    if (performanceClass == PERFORMANCE_CLASS_GROUNDVEHICLE)
+        return PERFORMANCE_CLASS_GROUNDVEHICLE;
+    if (performanceClass == PERFORMANCE_CLASS_SHIP)
+        return PERFORMANCE_CLASS_SHIP;
+    return PERFORMANCE_CLASS_JETS;
+}
+
 const std::string& FGAIAircraft::atGate()
 {
     if ((fp->getLeg() < 3) && trafficRef) {
@@ -1857,6 +1894,11 @@ void FGAIAircraft::dumpCSV(const std::unique_ptr<sg_ofstream>& o, int lineIndex)
     (*o) << (getATCController() ? getATCController()->getName() : "") << "\t";
     (*o) << (getATCController() ? getATCController()->getRecord(getID())->getState() : -1) << "\t";
     (*o) << std::endl;
+}
+
+void FGAIAircraft::setPerformanceClass(const std::string& perfClass)
+{
+    performanceClass = perfClass;
 }
 
 #if 0

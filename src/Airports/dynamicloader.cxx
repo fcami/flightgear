@@ -55,7 +55,8 @@ void FGGroundNetXMLLoader::endXML()
         NodeIndexMap::const_iterator j = _indexMap.find(it->second);
         if (j == _indexMap.end()) {
             _hasErrors = true;
-            SG_LOG(SG_NAVAID, SG_DEV_WARN, "bad groundnet " << _groundNetwork->airport()->getId() << " , no node for index:" << it->first.get()->getIndex());
+            SG_LOG(SG_NAVAID, SG_DEV_WARN, "bad groundnet " << _groundNetwork->airport()->getId() << " , no node for index : " << it->first.get()->getIndex() << " to " << it->second << " pushBackRoute while building pushback "
+                                                                                                                                                                                         " ");
             continue;
         }
 

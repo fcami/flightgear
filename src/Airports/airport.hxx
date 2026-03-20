@@ -88,8 +88,6 @@ public:
 
     void setMetar(bool value) { _has_metar = value; }
 
-    FGRunwayRef getActiveRunwayForUsage() const;
-
     FGAirportDynamicsRef getDynamics() const;
 
     FGGroundNetwork* groundNetwork() const;

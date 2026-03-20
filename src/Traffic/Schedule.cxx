@@ -335,6 +335,7 @@ bool FGAISchedule::createAIAircraft(FGScheduledFlight* flight, double speedKnots
     SG_LOG(SG_AI, SG_DEBUG, flight->getCallSign() << "|Traffic manager: Creating AIModel from:" << flightPlanName);
 
     aiAircraft = new FGAIAircraft(this);
+    aiAircraft->setPerformanceClass(m_class);
     aiAircraft->setPerformance(acType, m_class); //"jet_transport";
     aiAircraft->setCompany(airline);             //i->getAirline();
     aiAircraft->setAcType(acType);               //i->getAcType();

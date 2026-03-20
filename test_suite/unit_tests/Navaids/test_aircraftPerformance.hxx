@@ -1,21 +1,5 @@
-/*
- * Copyright (C) 2018 James Turner
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-FileCopyrightText: Copyright (C) 2018 James Turner <james@flightgear.org>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 
 #ifndef _FG_AIRCRAFT_PERFORMANCE_UNIT_TESTS_HXX
@@ -32,6 +16,9 @@ class AircraftPerformanceTests : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE(AircraftPerformanceTests);
     CPPUNIT_TEST(testBasic);
     CPPUNIT_TEST(testAltitudeGradient);
+    CPPUNIT_TEST(testLoadFromPropsNoTags);
+    CPPUNIT_TEST(testLoadFromPropsTurboprop);
+    CPPUNIT_TEST(testLoadFromPropsJet);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -44,6 +31,9 @@ public:
     // The tests.
     void testBasic();
     void testAltitudeGradient();
+    void testLoadFromPropsNoTags();
+    void testLoadFromPropsTurboprop();
+    void testLoadFromPropsJet();
 };
 
 #endif  // AircraftPerformanceTests

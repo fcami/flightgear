@@ -184,10 +184,10 @@ void fgJunitOutputter::writeJunit()
                                                                  << test_data.fileName << "\">" << endl;
                                             if (test_data.failure) {
                                                 localjunitReportFile << "<failure>" << endl;
-                                                localjunitReportFile << test_data.failureText << endl;
+                                                localjunitReportFile << fgJunitOutputter::xmlEscape(test_data.failureText) << endl;
                                                 localjunitReportFile << "</failure>" << endl;
                                                 localjunitReportFile << "<system-out>" << endl;
-                                                localjunitReportFile << test_data.sg_interleaved << endl;
+                                                localjunitReportFile << fgJunitOutputter::xmlEscape(test_data.sg_interleaved) << endl;
                                                 localjunitReportFile << "</system-out>" << endl;
                                             }
                                             localjunitReportFile << "</testcase>" << endl;
@@ -199,4 +199,20 @@ void fgJunitOutputter::writeJunit()
 
     junitReportFile << "</testsuites>";
     junitReportFile.close();
+}
+
+std::string fgJunitOutputter::xmlEscape(const std::string& input)
+{
+    std::string out;
+    for (std::string::const_iterator it = input.cbegin(); it != input.cend(); ++it) {
+        switch (*it) {
+        case '&': out += "&amp;"; break;
+        case '<': out += "&lt;"; break;
+        case '>': out += "&gt;"; break;
+        case '\"': out += "&quot;"; break;
+        case '\'': out += "&apos;"; break;
+        default: out += (*it); break;
+        }
+    }
+    return out;
 }

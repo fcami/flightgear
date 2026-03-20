@@ -143,6 +143,7 @@ void FGAIManager::init()
     _userAircraft = new FGAIAircraft;
     _userAircraft->setCallSign(fgGetString("/sim/multiplay/callsign"));
     _userAircraft->setGeodPos(globals->get_aircraft_position());
+    //TODO : set proper type/class
     _userAircraft->setPerformance("", "jet_transport");
     _userAircraft->setHeading(fgGetDouble("/orientation/heading-deg"));
     _userAircraft->setSpeed(_groundSpeedKts_node->getDoubleValue());
