@@ -1020,8 +1020,8 @@ bool FGAIFlightPlan::createDescent(FGAIAircraft* ac,
             const int startVal = SGMiscd::normalizePeriodic(0, 360, dHeading + rightAngle);
             const int endVal = SGMiscd::normalizePeriodic(0, 360, rwy->headingDeg() + rightAngle);
             // Turn into runway
-            createArc(ac, secondaryTarget, endVal, startVal, -firstTurnIncrement, initialTurnRadius,
-                      waypoints.size() > 0 ? waypoints.back()->getAltitude() : alt, altDiff / 8, vDescent, "s-turn%03d");
+            createArc(ac, secondaryTarget, startVal, endVal, -firstTurnIncrement, initialTurnRadius,
+                      waypoints.size() > 0 ? waypoints.back()->getAltitude() : alt, altDiff / 8, vDescent, "s-turn-%03d");
         }
     } else if (fabs(headingDiffRunway) >= 150) {
         // We are entering downwind
