@@ -76,6 +76,7 @@ pre-commit:
         echo "Clearing the 'ccache' cache"
         ccache --clear
       fi
+    - rm -f $CCACHE_STATSLOG
 
 # Optional clearing of the 'ccache' cache (PowerShell version)
 .ccache-pre_windows:
@@ -85,6 +86,10 @@ pre-commit:
         echo 'Clearing the ''ccache'' cache'
         ccache --clear
       }
+    - |
+      if (Test-Path $CCACHE_STATSLOG) {
+        Remove-Item -Path $CCACHE_STATSLOG
+      }
 
 .ccache-stats:
   after_script:
@@ -93,7 +98,7 @@ pre-commit:
     # Shows how much of the configurable cache size is used
     - ccache --show-stats
 
-linux-build-and-test:
+linux-build:
   extends: .ccache-variables
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
   stage: build
@@ -114,25 +119,14 @@ linux-build-and-test:
     - cmake --build $BUILD_DIR
     - cmake --build $BUILD_DIR --target fgfs_test_suite
     - cmake --build $BUILD_DIR --target install
-
-    # Now run the tests
-    - cd $BUILD_DIR
-    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CI_PROJECT_DIR/osg-dist/lib
-    - ./test_suite/fgfs_test_suite --fg-root $CI_PROJECT_DIR/testFGData --junit
   after_script:
     - !reference [.ccache-stats, after_script]
   artifacts:
-    # Note that the artifacts in artifacts:reports are _always_ uploaded,
-    # even for failed jobs (special rule).
     when: on_success
     paths:
       - $PREFIX_DIR
-      - $BUILD_DIR/FGData_tests_junit.xml
-      - $BUILD_DIR/Simgear_unit_tests_junit.xml
-      - $BUILD_DIR/System_tests_junit.xml
-      - $BUILD_DIR/Unit_tests_junit.xml
-    reports:
-      junit: $BUILD_DIR/*_junit.xml
+      # This is needed for the 'test' job.
+      - $BUILD_DIR/test_suite
   needs:
     - project: flightgear/simgear
       job: linux-build-and-test
@@ -141,10 +135,6 @@ linux-build-and-test:
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
-      artifacts: true
-    - project: flightgear/fgdata
-      job: create-test-data
-      ref: $BRANCH_REF
       artifacts: true
   cache:
     key: linux-amd64-$BRANCH_REF
@@ -270,7 +260,7 @@ windows-build:
   cache:
     key: windows-amd64-$BRANCH_REF
     paths:
-      - ccache-cache
+      - $CCACHE_DIR
 
 macos-build:
   stage: build
@@ -320,3 +310,32 @@ macos-build:
     key: macos-universal-$BRANCH_REF
     paths:
       - $CCACHE_DIR
+
+test:
+  image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
+  stage: test
+  script:
+    - cd $BUILD_DIR
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CI_PROJECT_DIR/osg-dist/lib
+    - ./test_suite/fgfs_test_suite --fg-root $CI_PROJECT_DIR/testFGData --junit
+  needs:
+    - job: linux-build
+      artifacts: true
+    - project: flightgear/fgdata
+      job: create-test-data
+      ref: $BRANCH_REF
+      artifacts: true
+    - project: flightgear/openscenegraph
+      job: linux-build
+      ref: $OSG_REF
+      artifacts: true
+  artifacts:
+    # Note that the artifacts in artifacts:reports are _always_ uploaded,
+    # even for failed jobs (special rule).
+    paths:
+      - $BUILD_DIR/FGData_tests_junit.xml
+      - $BUILD_DIR/Simgear_unit_tests_junit.xml
+      - $BUILD_DIR/System_tests_junit.xml
+      - $BUILD_DIR/Unit_tests_junit.xml
+    reports:
+      junit: $BUILD_DIR/*_junit.xml
