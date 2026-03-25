@@ -12,104 +12,71 @@
 #include <simgear/constants.h>
 #include <simgear/debug/logstream.hxx>
 
-#include <simgear/scene/sky/sky.hxx>
 #include <simgear/scene/model/particles.hxx>
+#include <simgear/scene/sky/sky.hxx>
 #include <simgear/structure/event_mgr.hxx>
 
-#include <Main/main.hxx>
 #include <Main/fg_props.hxx>
-#include <Viewer/renderer.hxx>
+#include <Main/main.hxx>
 #include <Viewer/ViewPropertyEvaluator.hxx>
+#include <Viewer/renderer.hxx>
 
 #include <FDM/flight.hxx>
 
+#include "Airports/airport.hxx"
+#include "climate.hxx"
 #include "environment.hxx"
-#include "environment_mgr.hxx"
 #include "environment_ctrl.hxx"
-#include "realwx_ctrl.hxx"
+#include "environment_mgr.hxx"
 #include "fgclouds.hxx"
+#include "gravity.hxx"
+#include "magvarmanager.hxx"
 #include "precipitation_mgr.hxx"
+#include "realwx_ctrl.hxx"
 #include "ridge_lift.hxx"
 #include "terrainsampler.hxx"
-#include "Airports/airport.hxx"
-#include "gravity.hxx"
-#include "climate.hxx"
-#include "magvarmanager.hxx"
 
 #include "AIModel/AINotifications.hxx"
 
-class FG3DCloudsListener : public SGPropertyChangeListener {
-public:
-  FG3DCloudsListener( FGClouds * fgClouds );
-  virtual ~FG3DCloudsListener();
-
-  virtual void valueChanged (SGPropertyNode * node);
-
-private:
-  FGClouds * _fgClouds;
-  SGPropertyNode_ptr _enableNode;
-};
-
-FG3DCloudsListener::FG3DCloudsListener( FGClouds * fgClouds ) :
-    _fgClouds( fgClouds )
+FGEnvironmentMgr::FGEnvironmentMgr() : _environment(new FGEnvironment()),
+                                       _multiplayerListener(nullptr),
+                                       _sky(globals->get_renderer()->getSky()),
+                                       nearestCarrier(nullptr),
+                                       nearestAirport(nullptr)
 {
-  _enableNode = fgGetNode( "/sim/rendering/clouds3d-enable", true );
-  _enableNode->addChangeListener( this );
+    fgClouds = new FGClouds;
+    _sky->getPreRoot()->addChild(fgClouds->getCloudUpdateNode());
+    set_subsystem("controller", Environment::LayerInterpolateController::createInstance(fgGetNode("/environment/config", true)));
 
-  valueChanged( _enableNode );
+    set_subsystem("climate", new FGClimate);
+    set_subsystem("precipitation", new FGPrecipitationMgr);
+    set_subsystem("realwx", Environment::RealWxController::createInstance(fgGetNode("/environment/realwx", true)), 1.0);
+    set_subsystem("terrainsampler", Environment::TerrainSampler::createInstance(fgGetNode("/environment/terrain", true)));
+    set_subsystem("ridgelift", new FGRidgeLift);
+
+    set_subsystem("magvar", new FGMagVarManager);
+    max_tower_height_feet = fgGetDouble("/sim/airport/max-tower-height-ft", 70);
+    min_tower_height_feet = fgGetDouble("/sim/airport/min-tower-height-ft", 6);
+    default_tower_height_feet = fgGetDouble("default-tower-height-ft", 30);
 }
 
-FG3DCloudsListener::~FG3DCloudsListener()
+FGEnvironmentMgr::~FGEnvironmentMgr()
 {
-  _enableNode->removeChangeListener( this );
-}
+    remove_subsystem("ridgelift");
+    remove_subsystem("terrainsampler");
+    remove_subsystem("precipitation");
+    remove_subsystem("realwx");
+    remove_subsystem("controller");
+    remove_subsystem("magvar");
 
-void FG3DCloudsListener::valueChanged( SGPropertyNode * node )
-{
-  _fgClouds->set_3dClouds( _enableNode->getBoolValue() );
-}
-
-FGEnvironmentMgr::FGEnvironmentMgr () :
-  _environment(new FGEnvironment()),
-  _multiplayerListener(nullptr),
-  _sky(globals->get_renderer()->getSky()),
-  nearestCarrier(nullptr),
-  nearestAirport(nullptr)
-{
-  fgClouds = new FGClouds;
-  _3dCloudsEnableListener = new FG3DCloudsListener(fgClouds);
-  set_subsystem("controller", Environment::LayerInterpolateController::createInstance( fgGetNode("/environment/config", true ) ));
-
-  set_subsystem("climate", new FGClimate);
-  set_subsystem("precipitation", new FGPrecipitationMgr);
-  set_subsystem("realwx", Environment::RealWxController::createInstance( fgGetNode("/environment/realwx", true ) ), 1.0 );
-  set_subsystem("terrainsampler", Environment::TerrainSampler::createInstance( fgGetNode("/environment/terrain", true ) ));
-  set_subsystem("ridgelift", new FGRidgeLift);
-
-  set_subsystem("magvar", new FGMagVarManager);
-  max_tower_height_feet = fgGetDouble("/sim/airport/max-tower-height-ft", 70);
-  min_tower_height_feet = fgGetDouble("/sim/airport/min-tower-height-ft", 6);
-  default_tower_height_feet = fgGetDouble("default-tower-height-ft", 30);
-}
-
-FGEnvironmentMgr::~FGEnvironmentMgr ()
-{
-  remove_subsystem( "ridgelift" );
-  remove_subsystem( "terrainsampler" );
-  remove_subsystem("precipitation");
-  remove_subsystem("realwx");
-  remove_subsystem("controller");
-  remove_subsystem("magvar");
-
-  delete fgClouds;
-  delete _3dCloudsEnableListener;
-  delete _environment;
+    delete fgClouds;
+    delete _3dCloudsEnableListener;
+    delete _environment;
 }
 
 struct FGEnvironmentMgrMultiplayerListener : SGPropertyChangeListener {
     FGEnvironmentMgrMultiplayerListener(FGEnvironmentMgr* environmentmgr)
-    :
-    _environmentmgr(environmentmgr)
+        : _environmentmgr(environmentmgr)
     {
         _node = fgGetNode("/sim/current-view/model-view", true /*create*/);
         _node->addChangeListener(this);
@@ -122,156 +89,127 @@ struct FGEnvironmentMgrMultiplayerListener : SGPropertyChangeListener {
     {
         _node->removeChangeListener(this);
     }
-    private:
-        FGEnvironmentMgr*   _environmentmgr;
-        SGPropertyNode_ptr  _node;
+
+private:
+    FGEnvironmentMgr* _environmentmgr;
+    SGPropertyNode_ptr _node;
 };
 
 SGSubsystem::InitStatus FGEnvironmentMgr::incrementalInit()
 {
+    InitStatus r = SGSubsystemGroup::incrementalInit();
+    if (r == INIT_DONE) {
+        fgClouds->Init();
+        _multiplayerListener = new FGEnvironmentMgrMultiplayerListener(this);
+        globals->get_event_mgr()->addTask("updateClosestAirport", [this]() { this->updateClosestAirport(); }, 10);
+    }
 
-  InitStatus r = SGSubsystemGroup::incrementalInit();
-  if (r == INIT_DONE) {
-    fgClouds->Init();
-    _multiplayerListener = new FGEnvironmentMgrMultiplayerListener(this);
-    globals->get_event_mgr()->addTask("updateClosestAirport",
-        [this](){ this->updateClosestAirport(); }, 10 );
-  }
-
-  return r;
+    return r;
 }
 
-void
-FGEnvironmentMgr::shutdown()
+void FGEnvironmentMgr::shutdown()
 {
-  globals->get_event_mgr()->removeTask("updateClosestAirport");
-  delete _multiplayerListener;
-  _multiplayerListener = nullptr;
-  SGSubsystemGroup::shutdown();
+    globals->get_event_mgr()->removeTask("updateClosestAirport");
+    delete _multiplayerListener;
+    _multiplayerListener = nullptr;
+    SGSubsystemGroup::shutdown();
 }
 
-void
-FGEnvironmentMgr::reinit ()
+void FGEnvironmentMgr::reinit()
 {
-  SG_LOG( SG_ENVIRONMENT, SG_INFO, "Reinitializing environment subsystem");
-  SGSubsystemGroup::reinit();
+    SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reinitializing environment subsystem");
+    SGSubsystemGroup::reinit();
 }
 
-void
-FGEnvironmentMgr::bind ()
+void FGEnvironmentMgr::bind()
 {
-  SGSubsystemGroup::bind();
-  _environment->Tie( fgGetNode("/environment", true ) );
+    SGSubsystemGroup::bind();
+    _environment->Tie(fgGetNode("/environment", true));
 
-  _tiedProperties.setRoot( fgGetNode( "/environment", true ) );
+    _tiedProperties.setRoot(fgGetNode("/environment", true));
 
-  _tiedProperties.Tie( "effective-visibility-m", _sky,
-          &SGSky::get_visibility );
+    _tiedProperties.Tie("effective-visibility-m", _sky,
+                        &SGSky::get_visibility);
 
-  _tiedProperties.Tie("rebuild-layers", fgClouds,
-          &FGClouds::get_update_event,
-          &FGClouds::set_update_event);
-//  _tiedProperties.Tie("turbulence/use-cloud-turbulence", &sgEnviro,
-//          &SGEnviro::get_turbulence_enable_state,
-//          &SGEnviro::set_turbulence_enable_state);
+    _tiedProperties.Tie("rebuild-layers", fgClouds,
+                        &FGClouds::get_update_event,
+                        &FGClouds::set_update_event);
+    //  _tiedProperties.Tie("turbulence/use-cloud-turbulence", &sgEnviro,
+    //          &SGEnviro::get_turbulence_enable_state,
+    //          &SGEnviro::set_turbulence_enable_state);
 
-  for (int i = 0; i < MAX_CLOUD_LAYERS; i++) {
-      SGPropertyNode_ptr layerNode = fgGetNode("/environment/clouds",true)->getChild("layer", i, true );
+    for (int i = 0; i < MAX_CLOUD_LAYERS; i++) {
+        SGPropertyNode_ptr layerNode = fgGetNode("/environment/clouds", true)->getChild("layer", i, true);
 
-      _tiedProperties.Tie( layerNode->getNode("span-m",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_span_m,
-              &FGEnvironmentMgr::set_cloud_layer_span_m);
+        _tiedProperties.Tie(layerNode->getNode("span-m", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_span_m,
+                            &FGEnvironmentMgr::set_cloud_layer_span_m);
 
-      _tiedProperties.Tie( layerNode->getNode("elevation-ft",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_elevation_ft,
-              &FGEnvironmentMgr::set_cloud_layer_elevation_ft);
+        _tiedProperties.Tie(layerNode->getNode("elevation-ft", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_elevation_ft,
+                            &FGEnvironmentMgr::set_cloud_layer_elevation_ft);
 
-      _tiedProperties.Tie( layerNode->getNode("thickness-ft",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_thickness_ft,
-              &FGEnvironmentMgr::set_cloud_layer_thickness_ft);
+        _tiedProperties.Tie(layerNode->getNode("thickness-ft", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_thickness_ft,
+                            &FGEnvironmentMgr::set_cloud_layer_thickness_ft);
 
-      _tiedProperties.Tie( layerNode->getNode("transition-ft",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_transition_ft,
-              &FGEnvironmentMgr::set_cloud_layer_transition_ft);
+        _tiedProperties.Tie(layerNode->getNode("transition-ft", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_transition_ft,
+                            &FGEnvironmentMgr::set_cloud_layer_transition_ft);
 
-      _tiedProperties.Tie( layerNode->getNode("coverage",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_coverage,
-              &FGEnvironmentMgr::set_cloud_layer_coverage);
+        _tiedProperties.Tie(layerNode->getNode("coverage", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_coverage,
+                            &FGEnvironmentMgr::set_cloud_layer_coverage);
 
-      _tiedProperties.Tie( layerNode->getNode("coverage-type",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_coverage_type,
-              &FGEnvironmentMgr::set_cloud_layer_coverage_type);
+        _tiedProperties.Tie(layerNode->getNode("coverage-type", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_coverage_type,
+                            &FGEnvironmentMgr::set_cloud_layer_coverage_type);
 
-      _tiedProperties.Tie( layerNode->getNode( "visibility-m",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_visibility_m,
-              &FGEnvironmentMgr::set_cloud_layer_visibility_m);
+        _tiedProperties.Tie(layerNode->getNode("visibility-m", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_visibility_m,
+                            &FGEnvironmentMgr::set_cloud_layer_visibility_m);
 
-      _tiedProperties.Tie( layerNode->getNode( "alpha",true), this, i,
-              &FGEnvironmentMgr::get_cloud_layer_maxalpha,
-              &FGEnvironmentMgr::set_cloud_layer_maxalpha);
-  }
+        _tiedProperties.Tie(layerNode->getNode("alpha", true), this, i,
+                            &FGEnvironmentMgr::get_cloud_layer_maxalpha,
+                            &FGEnvironmentMgr::set_cloud_layer_maxalpha);
+    }
 
-  _tiedProperties.setRoot( fgGetNode("/sim/rendering", true ) );
+    _tiedProperties.setRoot(fgGetNode("/sim/rendering", true));
 
-  _tiedProperties.Tie( "clouds3d-density", _sky,
-          &SGSky::get_3dCloudDensity,
-          &SGSky::set_3dCloudDensity);
-
-  _tiedProperties.Tie("clouds3d-vis-range", _sky,
-          &SGSky::get_3dCloudVisRange,
-          &SGSky::set_3dCloudVisRange);
-
-  _tiedProperties.Tie("clouds3d-impostor-range", _sky,
-          &SGSky::get_3dCloudImpostorDistance,
-          &SGSky::set_3dCloudImpostorDistance);
-
-  _tiedProperties.Tie("clouds3d-lod1-range", _sky,
-          &SGSky::get_3dCloudLoD1Range,
-          &SGSky::set_3dCloudLoD1Range);
-
-  _tiedProperties.Tie("clouds3d-lod2-range", _sky,
-          &SGSky::get_3dCloudLoD2Range,
-          &SGSky::set_3dCloudLoD2Range);
-
-  _tiedProperties.Tie("clouds3d-wrap", _sky,
-          &SGSky::get_3dCloudWrap,
-          &SGSky::set_3dCloudWrap);
-
-  _tiedProperties.Tie("clouds3d-use-impostors", _sky,
-          &SGSky::get_3dCloudUseImpostors,
-          &SGSky::set_3dCloudUseImpostors);
+    _tiedProperties.Tie("clouds3d-vis-range", _sky,
+                        &SGSky::get_3dCloudVisRange,
+                        &SGSky::set_3dCloudVisRange);
 }
 
-void
-FGEnvironmentMgr::unbind ()
+void FGEnvironmentMgr::unbind()
 {
-  _tiedProperties.Untie();
-  _environment->Untie();
-  SGSubsystemGroup::unbind();
+    _tiedProperties.Untie();
+    _environment->Untie();
+    SGSubsystemGroup::unbind();
 }
 
-void
-FGEnvironmentMgr::update (double dt)
+void FGEnvironmentMgr::update(double dt)
 {
-  SGGeod aircraftPos(globals->get_aircraft_position());
+    SGGeod aircraftPos(globals->get_aircraft_position());
 
-  SGSubsystemGroup::update(dt);
+    SGSubsystemGroup::update(dt);
 
-  _environment->set_elevation_ft( aircraftPos.getElevationFt() );
+    _environment->set_elevation_ft(aircraftPos.getElevationFt());
 
-  auto particlesManager = simgear::ParticlesGlobalManager::instance();
-  particlesManager->setWindFrom(_environment->get_wind_from_heading_deg(),
-                                _environment->get_wind_speed_kt());
-  particlesManager->update(dt, globals->get_aircraft_position());
+    auto particlesManager = simgear::ParticlesGlobalManager::instance();
+    particlesManager->setWindFrom(_environment->get_wind_from_heading_deg(),
+                                  _environment->get_wind_speed_kt());
+    particlesManager->update(dt, globals->get_aircraft_position());
 
-  if( _cloudLayersDirty ) {
-    _cloudLayersDirty = false;
-    fgClouds->set_update_event( fgClouds->get_update_event()+1 );
-  }
-  updateTowerPosition();
+    if (rebuildCloudLayers) {
+        rebuildCloudLayers = false;
+        fgClouds->set_update_event(fgClouds->get_update_event() + 1);
+    }
 
-  fgSetDouble( "/environment/gravitational-acceleration-mps2",
-    Environment::Gravity::instance()->getGravity(aircraftPos));
+    updateTowerPosition();
+
+    fgSetDouble("/environment/gravitational-acceleration-mps2",
+                Environment::Gravity::instance()->getGravity(aircraftPos));
 }
 
 void FGEnvironmentMgr::updateTowerPosition()
@@ -279,9 +217,9 @@ void FGEnvironmentMgr::updateTowerPosition()
     if (towerViewPositionLatDegNode != nullptr && towerViewPositionLonDegNode != nullptr && towerViewPositionAltFtNode != nullptr) {
         auto automaticTowerActive = fgGetBool("/sim/tower/auto-position", true);
 
-        fgSetDouble("/sim/airport/nearest-tower-latitude-deg",  towerViewPositionLatDegNode->getDoubleValue());
+        fgSetDouble("/sim/airport/nearest-tower-latitude-deg", towerViewPositionLatDegNode->getDoubleValue());
         fgSetDouble("/sim/airport/nearest-tower-longitude-deg", towerViewPositionLonDegNode->getDoubleValue());
-        fgSetDouble("/sim/airport/nearest-tower-altitude-ft",   towerViewPositionAltFtNode->getDoubleValue());
+        fgSetDouble("/sim/airport/nearest-tower-altitude-ft", towerViewPositionAltFtNode->getDoubleValue());
 
         if (automaticTowerActive) {
             fgSetDouble("/sim/tower/latitude-deg", towerViewPositionLatDegNode->getDoubleValue());
@@ -332,8 +270,7 @@ void FGEnvironmentMgr::updateClosestAirport()
         if (nearestAirport->hasTower()) {
             nearestTowerPosition = nearestAirport->getTowerLocation();
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "airport-id=" << nearestAirport->getId() << " tower_pos=" << nearestTowerPosition);
-        }
-        else {
+        } else {
             nearestTowerPosition = nearestAirport->geod();
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "no tower for airport-id=" << nearestAirport->getId());
         }
@@ -343,8 +280,7 @@ void FGEnvironmentMgr::updateClosestAirport()
         if (towerAirpotDistance < min_tower_height_feet) {
             nearestTowerPosition.setElevationFt(nearestTowerPosition.getElevationFt() + default_tower_height_feet);
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Tower altitude adjusted because it was at below minimum height above ground (" << min_tower_height_feet << "feet) for airport " << nearestAirport->getId());
-        }
-        else if (towerAirpotDistance > max_tower_height_feet) {
+        } else if (towerAirpotDistance > max_tower_height_feet) {
             nearestTowerPosition.setElevationFt(nearestTowerPosition.getElevationFt() + default_tower_height_feet);
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Tower altitude adjusted because it was taller than the permitted maximum of (" << max_tower_height_feet << "feet) for airport " << nearestAirport->getId());
         }
@@ -355,11 +291,10 @@ void FGEnvironmentMgr::updateClosestAirport()
         // when the tower doesn't move we can clear these.
         // if the carrier is nearer these variables will be set in that logic.
         towerViewPositionLatDegNode = towerViewPositionLonDegNode = towerViewPositionAltFtNode = nullptr;
-    }
-    else {
+    } else {
         SG_LOG(SG_ENVIRONMENT, SG_INFO, "FGEnvironmentMgr::update: No airport within 100NM range");
     }
-    auto nctn = SGSharedPtr< NearestCarrierToNotification> (new NearestCarrierToNotification(pos));
+    auto nctn = SGSharedPtr<NearestCarrierToNotification>(new NearestCarrierToNotification(pos));
     if (simgear::Emesary::ReceiptStatus::OK == simgear::Emesary::GlobalTransmitter::instance()->NotifyAll(nctn)) {
         if (nearestCarrier != nctn->GetCarrier()) {
             nearestCarrier = nctn->GetCarrier();
@@ -392,17 +327,15 @@ void FGEnvironmentMgr::updateClosestAirport()
         fgSetDouble("/sim/airport/nearest-carrier-deck-height", nctn->GetDeckheight());
     } else {
         if (nearestAirport != nullptr) {
-
             if (automaticTowerActive) {
-              std::string   path = ViewPropertyEvaluator::getStringValue("(/sim/view[(/sim/current-view/view-number-raw)]/config/root)/sim/tower/");
-              fgSetString(path + "airport-id", nearestAirport->getId());
+                std::string path = ViewPropertyEvaluator::getStringValue("(/sim/view[(/sim/current-view/view-number-raw)]/config/root)/sim/tower/");
+                fgSetString(path + "airport-id", nearestAirport->getId());
 
-              fgSetDouble(path + "latitude-deg", nearestTowerPosition.getLatitudeDeg());
-              fgSetDouble(path + "longitude-deg", nearestTowerPosition.getLongitudeDeg());
-              fgSetDouble(path + "altitude-ft", nearestTowerPosition.getElevationFt());
+                fgSetDouble(path + "latitude-deg", nearestTowerPosition.getLatitudeDeg());
+                fgSetDouble(path + "longitude-deg", nearestTowerPosition.getLongitudeDeg());
+                fgSetDouble(path + "altitude-ft", nearestTowerPosition.getElevationFt());
             }
-        }
-        else {
+        } else {
             SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "FGEnvironmentMgr::update: No airport or carrier within 100NM range of current multiplayer aircraft");
         }
     }
@@ -423,9 +356,9 @@ void FGEnvironmentMgr::updateClosestAirport()
 
 
 FGEnvironment
-FGEnvironmentMgr::getEnvironment () const
+FGEnvironmentMgr::getEnvironment() const
 {
-  return *_environment;
+    return *_environment;
 }
 
 const FGEnvironment* FGEnvironmentMgr::getAircraftEnvironment() const
@@ -436,136 +369,126 @@ const FGEnvironment* FGEnvironmentMgr::getAircraftEnvironment() const
 FGEnvironment
 FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos) const
 {
-  // Always returns the same environment
-  // for now; we'll make it interesting
-  // later.
-  FGEnvironment env = *_environment;
-  env.set_elevation_ft(aPos.getElevationFt());
-  return env;
-
+    // Always returns the same environment
+    // for now; we'll make it interesting
+    // later.
+    FGEnvironment env = *_environment;
+    env.set_elevation_ft(aPos.getElevationFt());
+    return env;
 }
 
 double
-FGEnvironmentMgr::get_cloud_layer_span_m (int index) const
+FGEnvironmentMgr::get_cloud_layer_span_m(int index) const
 {
-  return _sky->get_cloud_layer(index)->getSpan_m();
+    return _sky->get_cloud_layer(index)->getSpan_m();
 }
 
-void
-FGEnvironmentMgr::set_cloud_layer_span_m (int index, double span_m)
+void FGEnvironmentMgr::set_cloud_layer_span_m(int index, double span_m)
 {
-  _sky->get_cloud_layer(index)->setSpan_m(span_m);
-}
-
-double
-FGEnvironmentMgr::get_cloud_layer_elevation_ft (int index) const
-{
-  return _sky->get_cloud_layer(index)->getElevation_m() * SG_METER_TO_FEET;
-}
-
-void
-FGEnvironmentMgr::set_cloud_layer_elevation_ft (int index, double elevation_ft)
-{
-  FGEnvironment env = *_environment;
-  env.set_elevation_ft(elevation_ft);
-
-  _sky->get_cloud_layer(index)
-    ->setElevation_m(elevation_ft * SG_FEET_TO_METER);
-
-  _sky->get_cloud_layer(index)
-    ->setSpeed(env.get_wind_speed_kt() * 0.5151);	// 1 kt = 0.5151 m/s
-
-  _sky->get_cloud_layer(index)
-    ->setDirection(env.get_wind_from_heading_deg());
+    _sky->get_cloud_layer(index)->setSpan_m(span_m);
 }
 
 double
-FGEnvironmentMgr::get_cloud_layer_thickness_ft (int index) const
+FGEnvironmentMgr::get_cloud_layer_elevation_ft(int index) const
 {
-  return _sky->get_cloud_layer(index)->getThickness_m() * SG_METER_TO_FEET;
+    return _sky->get_cloud_layer(index)->getElevation_m() * SG_METER_TO_FEET;
 }
 
-void
-FGEnvironmentMgr::set_cloud_layer_thickness_ft (int index, double thickness_ft)
+void FGEnvironmentMgr::set_cloud_layer_elevation_ft(int index, double elevation_ft)
 {
-  _sky->get_cloud_layer(index)
-    ->setThickness_m(thickness_ft * SG_FEET_TO_METER);
-}
+    FGEnvironment env = *_environment;
+    env.set_elevation_ft(elevation_ft);
 
-double
-FGEnvironmentMgr::get_cloud_layer_transition_ft (int index) const
-{
-  return _sky->get_cloud_layer(index)->getTransition_m() * SG_METER_TO_FEET;
-}
+    _sky->get_cloud_layer(index)
+        ->setElevation_m(elevation_ft * SG_FEET_TO_METER);
 
-void
-FGEnvironmentMgr::set_cloud_layer_transition_ft (int index,
-						 double transition_ft)
-{
-  _sky->get_cloud_layer(index)
-    ->setTransition_m(transition_ft * SG_FEET_TO_METER);
-}
+    _sky->get_cloud_layer(index)
+        ->setSpeed(env.get_wind_speed_kt() * 0.5151); // 1 kt = 0.5151 m/s
 
-const char *
-FGEnvironmentMgr::get_cloud_layer_coverage (int index) const
-{
-  return _sky->get_cloud_layer(index)->getCoverageString().c_str();
-}
-
-void
-FGEnvironmentMgr::set_cloud_layer_coverage (int index,
-                                            const char * coverage_name)
-{
-  if( _sky->get_cloud_layer(index)->getCoverageString() == coverage_name )
-    return;
-
-  _sky->get_cloud_layer(index)->setCoverageString(coverage_name);
-  _cloudLayersDirty = true;
-}
-
-int
-FGEnvironmentMgr::get_cloud_layer_coverage_type (int index) const
-{
-  return _sky->get_cloud_layer(index)->getCoverage();
+    _sky->get_cloud_layer(index)
+        ->setDirection(env.get_wind_from_heading_deg());
 }
 
 double
-FGEnvironmentMgr::get_cloud_layer_visibility_m (int index) const
+FGEnvironmentMgr::get_cloud_layer_thickness_ft(int index) const
+{
+    return _sky->get_cloud_layer(index)->getThickness_m() * SG_METER_TO_FEET;
+}
+
+void FGEnvironmentMgr::set_cloud_layer_thickness_ft(int index, double thickness_ft)
+{
+    _sky->get_cloud_layer(index)
+        ->setThickness_m(thickness_ft * SG_FEET_TO_METER);
+}
+
+double
+FGEnvironmentMgr::get_cloud_layer_transition_ft(int index) const
+{
+    return _sky->get_cloud_layer(index)->getTransition_m() * SG_METER_TO_FEET;
+}
+
+void FGEnvironmentMgr::set_cloud_layer_transition_ft(int index,
+                                                     double transition_ft)
+{
+    _sky->get_cloud_layer(index)
+        ->setTransition_m(transition_ft * SG_FEET_TO_METER);
+}
+
+const char*
+FGEnvironmentMgr::get_cloud_layer_coverage(int index) const
+{
+    return _sky->get_cloud_layer(index)->getCoverageString().c_str();
+}
+
+void FGEnvironmentMgr::set_cloud_layer_coverage(int index,
+                                                const char* coverage_name)
+{
+    if (_sky->get_cloud_layer(index)->getCoverageString() == coverage_name)
+        return;
+
+    _sky->get_cloud_layer(index)->setCoverageString(coverage_name);
+    rebuildCloudLayers = true;
+}
+
+int FGEnvironmentMgr::get_cloud_layer_coverage_type(int index) const
+{
+    return _sky->get_cloud_layer(index)->getCoverage();
+}
+
+double
+FGEnvironmentMgr::get_cloud_layer_visibility_m(int index) const
 {
     return _sky->get_cloud_layer(index)->getVisibility_m();
 }
 
-void
-FGEnvironmentMgr::set_cloud_layer_visibility_m (int index, double visibility_m)
+void FGEnvironmentMgr::set_cloud_layer_visibility_m(int index, double visibility_m)
 {
     _sky->get_cloud_layer(index)->setVisibility_m(visibility_m);
 }
 
 double
-FGEnvironmentMgr::get_cloud_layer_maxalpha (int index ) const
+FGEnvironmentMgr::get_cloud_layer_maxalpha(int index) const
 {
     return _sky->get_cloud_layer(index)->getMaxAlpha();
 }
 
-void
-FGEnvironmentMgr::set_cloud_layer_maxalpha (int index, double maxalpha)
+void FGEnvironmentMgr::set_cloud_layer_maxalpha(int index, double maxalpha)
 {
     _sky->get_cloud_layer(index)->setMaxAlpha(maxalpha);
 }
 
-void
-FGEnvironmentMgr::set_cloud_layer_coverage_type (int index, int type )
+void FGEnvironmentMgr::set_cloud_layer_coverage_type(int index, int type)
 {
-  if( type < 0 || type >= SGCloudLayer::SG_MAX_CLOUD_COVERAGES ) {
-    SG_LOG(SG_ENVIRONMENT,SG_WARN,"Unknown cloud layer type " << type << " ignored" );
-    return;
-  }
+    if (type < 0 || type >= SGCloudLayer::SG_MAX_CLOUD_COVERAGES) {
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Unknown cloud layer type " << type << " ignored");
+        return;
+    }
 
-  if( static_cast<SGCloudLayer::Coverage>(type) == _sky->get_cloud_layer(index)->getCoverage() )
-    return;
+    if (static_cast<SGCloudLayer::Coverage>(type) == _sky->get_cloud_layer(index)->getCoverage())
+        return;
 
-  _sky->get_cloud_layer(index)->setCoverage(static_cast<SGCloudLayer::Coverage>(type));
-  _cloudLayersDirty = true;
+    _sky->get_cloud_layer(index)->setCoverage(static_cast<SGCloudLayer::Coverage>(type));
+    rebuildCloudLayers = true;
 }
 
 

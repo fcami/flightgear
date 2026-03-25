@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: James Turner <james@flightgear.org>
 function(setup_fgfs_libraries target)
     if(RTI_FOUND)
         set(HLA_LIBRARIES ${RTI_LDFLAGS})
@@ -25,7 +27,7 @@ function(setup_fgfs_libraries target)
         target_link_libraries(${target} PRIVATE osgXR)
     endif()
 
-    target_link_libraries(${target} PRIVATE fgsqlite3 fgvoicesynth fgembeddedresources)
+    target_link_libraries(${target} PRIVATE fgsqlite3 fgvoicesynth fgembeddedresources FGTHinksFMM)
 
     target_link_libraries(${target} PRIVATE
         SimGearCore
@@ -64,4 +66,3 @@ function(setup_fgfs_libraries target)
 
     target_link_libraries(${target} PRIVATE nlohmann_json::nlohmann_json)
 endfunction()
-

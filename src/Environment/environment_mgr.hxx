@@ -8,9 +8,9 @@
 #pragma once
 
 #include <simgear/compiler.h>
-#include <simgear/structure/subsystem_mgr.hxx>
-#include <simgear/props/tiedpropertylist.hxx>
 #include <simgear/math/SGMath.hxx>
+#include <simgear/props/tiedpropertylist.hxx>
+#include <simgear/structure/subsystem_mgr.hxx>
 
 #include <cmath>
 
@@ -31,8 +31,8 @@ public:
         MAX_CLOUD_LAYERS = 5
     };
 
-    FGEnvironmentMgr ();
-    virtual ~FGEnvironmentMgr ();
+    FGEnvironmentMgr();
+    virtual ~FGEnvironmentMgr();
 
     // Subsystem API.
     void bind() override;
@@ -48,7 +48,7 @@ public:
     /**
      * Get the environment information for the plane's current position.
      */
-    virtual FGEnvironment getEnvironment () const;
+    virtual FGEnvironment getEnvironment() const;
 
     const FGEnvironment* getAircraftEnvironment() const;
 
@@ -59,34 +59,34 @@ private:
     void updateClosestAirport();
     void updateTowerPosition();
 
-    double get_cloud_layer_span_m (int index) const;
-    void set_cloud_layer_span_m (int index, double span_m);
-    double get_cloud_layer_elevation_ft (int index) const;
-    void set_cloud_layer_elevation_ft (int index, double elevation_ft);
-    double get_cloud_layer_thickness_ft (int index) const;
-    void set_cloud_layer_thickness_ft (int index, double thickness_ft);
-    double get_cloud_layer_transition_ft (int index) const;
-    void set_cloud_layer_transition_ft (int index, double transition_ft);
-    const char * get_cloud_layer_coverage (int index) const;
-    void set_cloud_layer_coverage (int index, const char * coverage);
-    int get_cloud_layer_coverage_type (int index) const;
-    void set_cloud_layer_coverage_type (int index, int type );
-    double get_cloud_layer_visibility_m (int index) const;
-    void set_cloud_layer_visibility_m (int index, double visibility_m);
-    double get_cloud_layer_maxalpha (int index ) const;
-    void set_cloud_layer_maxalpha (int index, double maxalpha);
+    double get_cloud_layer_span_m(int index) const;
+    void set_cloud_layer_span_m(int index, double span_m);
+    double get_cloud_layer_elevation_ft(int index) const;
+    void set_cloud_layer_elevation_ft(int index, double elevation_ft);
+    double get_cloud_layer_thickness_ft(int index) const;
+    void set_cloud_layer_thickness_ft(int index, double thickness_ft);
+    double get_cloud_layer_transition_ft(int index) const;
+    void set_cloud_layer_transition_ft(int index, double transition_ft);
+    const char* get_cloud_layer_coverage(int index) const;
+    void set_cloud_layer_coverage(int index, const char* coverage);
+    int get_cloud_layer_coverage_type(int index) const;
+    void set_cloud_layer_coverage_type(int index, int type);
+    double get_cloud_layer_visibility_m(int index) const;
+    void set_cloud_layer_visibility_m(int index, double visibility_m);
+    double get_cloud_layer_maxalpha(int index) const;
+    void set_cloud_layer_maxalpha(int index, double maxalpha);
 
-    FGClimate * _climate = nullptr;
-    FGEnvironment * _environment = nullptr; // always the same, for now
-    FGClouds *fgClouds = nullptr;
-    bool _cloudLayersDirty = true;
+    FGClimate* _climate = nullptr;
+    FGEnvironment* _environment = nullptr; // always the same, for now
+    FGClouds* fgClouds = nullptr;
     int max_tower_height_feet;
     int min_tower_height_feet;
     int default_tower_height_feet;
+    bool rebuildCloudLayers;
 
     simgear::TiedPropertyList _tiedProperties;
-    SGPropertyChangeListener * _3dCloudsEnableListener;
-    FGEnvironmentMgrMultiplayerListener * _multiplayerListener;
+    SGPropertyChangeListener* _3dCloudsEnableListener;
+    FGEnvironmentMgrMultiplayerListener* _multiplayerListener;
     SGSky* _sky;
 
     SGPropertyNode_ptr towerViewPositionLatDegNode;

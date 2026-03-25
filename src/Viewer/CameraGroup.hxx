@@ -126,8 +126,10 @@ public:
     /** Create a camera group associated with an osgViewer::Viewer.
      * @param viewer the viewer
      */
-    CameraGroup(osgViewer::View* viewer);
-    virtual ~CameraGroup();
+    explicit CameraGroup(osgViewer::View* viewer);
+    CameraGroup(const CameraGroup&) = delete;
+    CameraGroup& operator=(const CameraGroup&) = delete;
+    ~CameraGroup() = default;
 
     /** Set the default CameraGroup, which is the only one that
      * matters at this time.
