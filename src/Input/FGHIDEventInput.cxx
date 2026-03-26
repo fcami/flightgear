@@ -294,6 +294,9 @@ bool FGHIDDevice::Open()
         FGAxisEvent* axisEvent = dynamic_cast<FGAxisEvent*>(event.get());
         if (axisEvent) {
             axisEvent->SetDefaultRange(reportItem.second->logicalMin, reportItem.second->logicalMax);
+            if (debugEvents) {
+                SG_LOG(SG_INPUT, SG_INFO, "\tset default axis range to: " << reportItem.second->logicalMin << ":" << reportItem.second->logicalMax);
+            }
         }
     }
 

@@ -149,6 +149,7 @@ protected:
     std::unique_ptr<SGInterpTable> interpolater;
     bool mirrorInterpolater = false;
 
+    bool _invert = false;
     OutputMode _outputMode = OutputMode::SignedNormalized;
 };
 

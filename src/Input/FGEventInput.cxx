@@ -165,6 +165,10 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
         }
     }
 
+    if (eventNode->hasChild("invert")) {
+        _invert = eventNode->getBoolValue("invert", false);
+    }
+
     switch (_outputMode) {
     case OutputMode::SignedNormalized:
         lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
@@ -231,8 +235,18 @@ double FGAxisEvent::computeValue(double rawValue) const
         }
 
         value = (2.0 * (rawValue - minRange) / range) - 1.0;
+        if (_invert) {
+            value = -value;
+        }
     } else if (_outputMode == OutputMode::UnsignedNormalized) {
         value = (rawValue - minRange) / range;
+        if (_invert) {
+            value = 1.0 - value;
+        }
+    } else if (_outputMode == OutputMode::Direct) {
+        if (_invert) {
+            value = maxRange - (rawValue - minRange);
+        }
     }
 
     // apply low/high threshold
