@@ -643,7 +643,7 @@ naRef initNasalCanvas(naRef globals, naContext c)
     .method("lineLength", &sc::Text::lineLength)
     .method("getNearestCursor", &sc::Text::getNearestCursor)
     .method("getCursorPos", &sc::Text::getCursorPos);
-  
+
   NasalRichText::init("canvas.RichText")
     .bases<NasalElement>()
     .method("text", &sc::RichText::text)
