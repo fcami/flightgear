@@ -14,6 +14,8 @@ variables:
   PREFIX_DIR: "$CI_PROJECT_DIR/dist"
   OSG_REF: next
   BRANCH_REF: next
+  # cache:key is not allowed to contain '/' characters
+  BRANCH_REF_SLUG: next
   # create a root dir *above* the Simgear checkout, otherwise CMake
   # complains about INTERFACE_INCLUDE_DIRECTORIES being the source dir
   WIN_FG_DIR: $CI_BUILDS_DIR\flightgear
@@ -137,7 +139,7 @@ linux-build:
       ref: $OSG_REF
       artifacts: true
   cache:
-    key: linux-amd64-$BRANCH_REF
+    key: linux-amd64-$BRANCH_REF_SLUG
     paths:
       - $CCACHE_DIR
 
@@ -172,7 +174,7 @@ linux-qt5-build:
       ref: $OSG_REF
       artifacts: true
   cache:
-    key: linux-amd64-qt5-$BRANCH_REF
+    key: linux-amd64-qt5-$BRANCH_REF_SLUG
     paths:
       - $CCACHE_DIR
 
@@ -258,7 +260,7 @@ windows-build:
     paths:
       - dist
   cache:
-    key: windows-amd64-$BRANCH_REF
+    key: windows-amd64-$BRANCH_REF_SLUG
     paths:
       - $CCACHE_DIR
 
@@ -307,7 +309,7 @@ macos-build:
     paths:
       - dist
   cache:
-    key: macos-universal-$BRANCH_REF
+    key: macos-universal-$BRANCH_REF_SLUG
     paths:
       - $CCACHE_DIR
 
