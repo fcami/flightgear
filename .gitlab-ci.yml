@@ -68,9 +68,9 @@ pre-commit:
     # This allows one to obtain ccache stats for a single job.
     CCACHE_STATSLOG: ${CI_PROJECT_DIR}/ccache-stats.log
 
-# Optional clearing of the 'ccache' cache (Bash version)
 .ccache-pre_non-windows:
   before_script:
+    # Optional clearing of the 'ccache' cache
     - |
       if $[[ inputs.clear-ccache-cache ]]; then
         echo "Clearing the 'ccache' cache"
@@ -78,9 +78,9 @@ pre-commit:
       fi
     - rm -f $CCACHE_STATSLOG
 
-# Optional clearing of the 'ccache' cache (PowerShell version)
 .ccache-pre_windows:
   before_script:
+    # Optional clearing of the 'ccache' cache
     - |
       if ('$[[ inputs.clear-ccache-cache ]]' -eq 'true') {
         echo 'Clearing the ''ccache'' cache'
@@ -129,7 +129,7 @@ linux-build:
       - $BUILD_DIR/test_suite
   needs:
     - project: flightgear/simgear
-      job: linux-build-and-test
+      job: linux-build
       artifacts: true
       ref: $BRANCH_REF
     - project: flightgear/openscenegraph
