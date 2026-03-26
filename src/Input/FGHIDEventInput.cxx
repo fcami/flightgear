@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // SPDX-FileCopyrightText: 2017 James Turner <james@flightgear.org>
 
+#include "Input/FGEventInput.hxx"
 #include "config.h"
 #include "simgear/debug/debug_types.h"
 
@@ -108,8 +109,8 @@ public:
         bool doSignExtend = false;
         int lastValue = 0;
         // int defaultValue = 0;
-        // range, units, etc not needed for now
         // hopefully this doesn't need to be a list
+        int logicalMin = 0, logicalMax = 0;
         FGInputEvent_ptr event;
     };
 
@@ -290,6 +291,13 @@ bool FGHIDDevice::Open()
         }
 
         reportItem.second->event = event;
+        FGAxisEvent* axisEvent = dynamic_cast<FGAxisEvent*>(event.get());
+        if (axisEvent) {
+            axisEvent->SetDefaultRange(reportItem.second->logicalMin, reportItem.second->logicalMax);
+            if (debugEvents) {
+                SG_LOG(SG_INPUT, SG_INFO, "\tset default axis range to: " << reportItem.second->logicalMin << ":" << reportItem.second->logicalMax);
+            }
+        }
     }
 
     return true;
@@ -297,14 +305,6 @@ bool FGHIDDevice::Open()
 
 bool FGHIDDevice::parseUSBHIDDescriptor()
 {
-#if defined(SG_WINDOWS)
-    if (_rawXMLDescriptor.empty()) {
-        SG_LOG(SG_INPUT, SG_ALERT, GetUniqueName() << ": on Windows, there is no way to extract the UDB-HID report descriptor. " << "\nPlease supply the report descriptor in the device XML configuration.");
-        SG_LOG(SG_INPUT, SG_ALERT, "See this page:<> for information on extracting the report descriptor on Windows");
-        return false;
-    }
-#endif
-
     if (_debugRaw) {
         SG_LOG(SG_INPUT, SG_INFO, "\nHID: descriptor for:" << GetUniqueName() << "\n\t" << encodeHex(_rawXMLDescriptor, ':'));
     }
@@ -435,6 +435,8 @@ void FGHIDDevice::parseItem(hid_item* item)
     Item* itemObject = new Item{name, bitOffset, item->report_size};
     itemObject->isRelative = hid_parse_is_relative(item);
     itemObject->doSignExtend = (item->logical_min < 0) || (item->logical_max < 0);
+    itemObject->logicalMin = item->logical_min;
+    itemObject->logicalMax = item->logical_max;
     report->items.push_back(itemObject);
 }
 
@@ -529,9 +531,7 @@ void FGHIDDevice::processInputReport(Report* report, unsigned char* data,
 {
     if (_debugRaw) {
         SG_LOG(SG_INPUT, SG_INFO, GetName() << " FGHIDDeivce received input report:" << (int)report->number << ", len=" << length);
-        {
-            SG_LOG(SG_INPUT, SG_INFO, "\tbytes: " << encodeHex(data, length, ':'));
-        }
+        SG_LOG(SG_INPUT, SG_INFO, "\tbytes: " << encodeHex(data, length, ':'));
     }
 
     for (auto item : report->items) {

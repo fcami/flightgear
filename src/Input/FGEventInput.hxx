@@ -99,7 +99,7 @@ class FGButtonEvent : public FGInputEvent
 {
 public:
     FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr node);
-    virtual void fire(FGEventData& eventData);
+    void fire(FGEventData& eventData) override;
 
     void update(double dt) override;
 
@@ -114,16 +114,29 @@ public:
     FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
     ~FGAxisEvent();
 
-    void SetMaxRange(double value) { maxRange = value; }
-    void SetMinRange(double value) { minRange = value; }
     void SetRange(double min, double max)
     {
         minRange = min;
         maxRange = max;
     }
 
+    /**
+     * @brief set the range based on system data (eg, HID descriptor logical range)
+     * only used if the config node didn't define range data
+     */
+    void SetDefaultRange(double min, double max);
+
+    enum class OutputMode {
+        SignedNormalized,   ///< output in range [-1.0, 1.0], with center at 0.0
+        UnsignedNormalized, ///< output in range [0.0, 1.0],
+        Direct
+    };
+
 protected:
-    virtual void fire(FGEventData& eventData);
+    void fire(FGEventData& eventData) override;
+
+    double computeValue(double rawValue) const;
+
     double tolerance;
     double minRange;
     double maxRange;
@@ -132,8 +145,12 @@ protected:
     double lowThreshold;
     double highThreshold;
     double lastValue;
+
     std::unique_ptr<SGInterpTable> interpolater;
     bool mirrorInterpolater = false;
+
+    bool _invert = false;
+    OutputMode _outputMode = OutputMode::SignedNormalized;
 };
 
 class FGRelAxisEvent : public FGAxisEvent

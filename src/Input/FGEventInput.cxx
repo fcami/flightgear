@@ -8,6 +8,7 @@
 #include "simgear/debug/debug_types.h"
 #include "simgear/misc/strutils.hxx"
 #include "simgear/nasal/nasal.h"
+#include "simgear/sg_inlines.h"
 #include "simgear/structure/exception.hxx"
 
 #include <config.h>
@@ -142,16 +143,57 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
     tolerance = eventNode->getDoubleValue("tolerance", 0.002);
     minRange = eventNode->getDoubleValue("min-range", 0.0);
     maxRange = eventNode->getDoubleValue("max-range", 0.0);
-    center = eventNode->getDoubleValue("center", 0.0);
-    deadband = eventNode->getDoubleValue("dead-band", 0.0);
-    lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
-    highThreshold = eventNode->getDoubleValue("high-threshold", 0.9);
-    lastValue = 9999999;
+    lastValue = std::numeric_limits<double>::quiet_NaN();
 
     // interpolation of values
     if (eventNode->hasChild("interpolater")) {
         interpolater.reset(new SGInterpTable{eventNode->getChild("interpolater")});
         mirrorInterpolater = eventNode->getBoolValue("interpolater/mirrored", false);
+    }
+
+    if (eventNode->hasChild("output-mode")) {
+        const auto s = eventNode->getStringValue("output-mode");
+        if (s == "signed-normalized") {
+            _outputMode = OutputMode::SignedNormalized;
+        } else if (s == "unsigned-normalized") {
+            _outputMode = OutputMode::UnsignedNormalized;
+        } else if (s == "direct") {
+            _outputMode = OutputMode::Direct;
+
+        } else {
+            throw sg_io_exception("Invalid output mode:" + s, sg_location(eventNode));
+        }
+    }
+
+    if (eventNode->hasChild("invert")) {
+        _invert = eventNode->getBoolValue("invert", false);
+    }
+
+    switch (_outputMode) {
+    case OutputMode::SignedNormalized:
+        lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
+        highThreshold = eventNode->getDoubleValue("high-threshold", 0.9);
+        center = eventNode->getDoubleValue("center", 0.0);
+        deadband = eventNode->getDoubleValue("dead-band", 0.0);
+        break;
+    case OutputMode::UnsignedNormalized:
+        lowThreshold = eventNode->getDoubleValue("low-threshold", 0.05);
+        highThreshold = eventNode->getDoubleValue("high-threshold", 0.95);
+        break;
+    case OutputMode::Direct:
+    default:
+        // DISCUSS:
+        // is this reasonable?
+        lowThreshold = eventNode->getDoubleValue("low-threshold", 0.05 * minRange);
+        highThreshold = eventNode->getDoubleValue("high-threshold", 0.95 * maxRange);
+    };
+}
+
+void FGAxisEvent::SetDefaultRange(double min, double max)
+{
+    if ((minRange == 0.0) && (maxRange == 0.0)) {
+        minRange = min;
+        maxRange = max;
     }
 }
 
@@ -165,12 +207,7 @@ void FGAxisEvent::fire(FGEventData& eventData)
 
     // We need a copy of the  FGEventData struct to set the new value and to avoid side effects
     FGEventData ed = eventData;
-
-    if (minRange != maxRange)
-        ed.value = 2.0 * (eventData.value - minRange) / (maxRange - minRange) - 1.0;
-
-    if (fabs(ed.value) < deadband)
-        ed.value = 0.0;
+    ed.value = computeValue(lastValue);
 
     if (interpolater) {
         if ((ed.value < 0.0) && mirrorInterpolater) {
@@ -182,6 +219,44 @@ void FGAxisEvent::fire(FGEventData& eventData)
     }
 
     FGInputEvent::fire(ed);
+}
+
+double FGAxisEvent::computeValue(double rawValue) const
+{
+    SG_CLAMP_RANGE(rawValue, minRange, maxRange);
+    const auto range = maxRange - minRange;
+
+    double value = rawValue;
+    // normalize to -1.0 ... 1.0
+    if (_outputMode == OutputMode::SignedNormalized) {
+        // apply deadband around center position
+        if (fabs(rawValue - center) < deadband) {
+            rawValue = center;
+        }
+
+        value = (2.0 * (rawValue - minRange) / range) - 1.0;
+        if (_invert) {
+            value = -value;
+        }
+    } else if (_outputMode == OutputMode::UnsignedNormalized) {
+        value = (rawValue - minRange) / range;
+        if (_invert) {
+            value = 1.0 - value;
+        }
+    } else if (_outputMode == OutputMode::Direct) {
+        if (_invert) {
+            value = maxRange - (rawValue - minRange);
+        }
+    }
+
+    // apply low/high threshold
+    // disabled because historically not enabled, and the default settings
+    // are rather wide (10% of the total range is lost)
+#if 0
+    SG_CLAMP_RANGE(value, lowThreshold, highThreshold);
+#endif
+
+    return value;
 }
 
 void FGAbsAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
