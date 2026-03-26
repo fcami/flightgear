@@ -221,6 +221,11 @@ option(CHECK_FOR_QT6        "Set to ON to attempt to look for Qt6" ON)
 # Test-suite options.
 option(ENABLE_AUTOTESTING "Set to ON to execute the test suite after building the test_suite target (default)" ON)
 
+option(ENABLE_CCACHE     "Build FlightGear with the ccache compiler cache." OFF)
+
+# Set up variables related to the 'ccache' compiler cache.
+include(CcacheSetup)
+
 include (DetectArch)
 
 # when building an OSG with commit 15ec7e2ae7a8b983ecc44e1ce7363a9a9fa7da95
