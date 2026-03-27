@@ -261,6 +261,9 @@ FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*)
         SetSerialNumber(simgear::strutils::convertWStringToUtf8(serial));
     }
 
+    SetVendorDeviceId(devInfo->vendor_id << 16 | devInfo->product_id);
+
+
     std::string _usage = HID::nameForUsage(devInfo->usage_page, devInfo->usage);
     SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " " << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " " << "release " << devInfo->release_number << " " << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") " << "ifn " << devInfo->interface_number << " " << GetName());
 }

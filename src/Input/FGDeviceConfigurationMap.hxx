@@ -28,13 +28,20 @@ public:
 
   bool hasConfiguration(const std::string& name) const;
 
-private:
+  /**
+   * @brief return a string encoding a vendor:device ID pair, as hex.
+   */
+  static std::string nameForVendorDeviceId(uint32_t vendorDeviceId);
+
+  private:
   void scan_dir(const SGPath & path);
 
   void readCachedData(const SGPath& path);
   void refreshCacheForFile(const SGPath& path);
 
   std::string computeSuffix(SGPropertyNode_ptr node);
+
+  void insertEntryIfNew(const std::string& name, const SGPath& path);
 
   typedef std::map<std::string, SGPropertyNode_ptr> NameNodeMap;
 // dictionary of over-ridden configurations, where the config data

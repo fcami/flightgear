@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // SPDX-FileCopyrightText: 2009 Torsten Dreyer
 
+#include "Input/FGDeviceConfigurationMap.hxx"
 #include "simgear/debug/debug_types.h"
 #include "simgear/misc/strutils.hxx"
 #include "simgear/nasal/nasal.h"
@@ -592,6 +593,16 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
             inputDevice->SetUniqueName(nameWithSerial);
         }
     }
+
+    if (inputDevice->GetVendorDeviceId() != 0) {
+        const auto name = FGDeviceConfigurationMap::nameForVendorDeviceId(inputDevice->GetVendorDeviceId());
+        if (configMap.hasConfiguration(name)) {
+            configNode = configMap.configurationForDeviceName(name);
+            SG_LOG(SG_INPUT, SG_INFO, "using vendor/device-specific configuration for device " << name << " : " << configNode->getStringValue("source"));
+            inputDevice->SetUniqueName(name);
+        }
+    }
+
     if (configNode == nullptr) {
         const auto nameWithIndex = computeDeviceIndexName(inputDevice);
         // try instanced (counted) name
