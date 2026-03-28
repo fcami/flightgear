@@ -56,7 +56,7 @@ private:
         // Field center for fgSet* calls at commit time
         SGVec3<double> centerCart;
         osg::Matrixf cloudPosMatrix;
-        float maxZ = 0.0f;
+        float cloudbaseM = 999999.0f;
     };
 
     // Output bundle produced by the background thread
@@ -65,6 +65,7 @@ private:
         osg::ref_ptr<osg::Image> roughVoxelData;
         osg::ref_ptr<osg::Image> voxelShadeData;
         float maxZ = 0.0f;
+        float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
     };
 

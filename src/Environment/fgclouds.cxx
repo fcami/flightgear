@@ -504,6 +504,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     snap.detailedFieldVoxelSize = cloudsProp->getIntValue("detailed-voxel-size-m", 200);
     snap.extinction = cloudsProp->getFloatValue("extinction-factor", 1.2);
     snap.fieldRepeating = _fieldRepeating;
+    snap.cloudbaseM = 99999.0f;
 
     // Write back for use by FGClouds outside of the snapshot.
     _detailedFieldWidth = snap.detailedFieldWidth;
@@ -577,6 +578,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
                 SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Adding detailed cloud at " << p.x() << " " << p.y() << " " << p.z() << " d: " << p.length());
                 auto localCloud = std::make_pair(c, p);
                 snap.detailedFieldList.push_back(localCloud);
+                snap.cloudbaseM = std::min(p.z(), snap.cloudbaseM);
             }
 
             // Only use the rough field map if we aren't using a repeating (detailed) field)
@@ -587,6 +589,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
                 SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Adding rough cloud at " << p.x() << " " << p.y() << " " << p.z() << " d: " << p.length());
                 auto localCloud = std::make_pair(c, p);
                 snap.roughFieldList.push_back(localCloud);
+                snap.cloudbaseM = std::min(p.z(), snap.cloudbaseM);
             }
         }
     }
@@ -598,6 +601,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 {
     RebuildResult result;
     result.fieldRepeating = snap.fieldRepeating;
+    result.cloudbaseM = snap.cloudbaseM;
 
     if ((snap.fieldRepeating && snap.detailedFieldList.empty()) ||
         (!snap.fieldRepeating && snap.roughFieldList.empty())) {
@@ -676,11 +680,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     // [2] .z - Density.  0.0 is no cloud density, 1.0 is fully opaque density.  Use this to determine if there is any cloud at this location.
     // [3] .a - Signed Distance Field in UV space.  The maximum radius sphere centered on this point that doesn't contain any cloud density.  Used for adaptive ray marching.
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Creating detailed field of " << snap.detailedFieldList.size() << " clouds");
+    const osg::Vec3f zOffset =  osg::Vec3f(0.0, 0.0, - snap.cloudbaseM);
 
     for (const auto& cl : snap.detailedFieldList) {
         const SGVoxelCloud* c = cl.first;
-        osg::Vec3f p = cl.second;
-
+        osg::Vec3f p = cl.second + zOffset;
         float z = (float)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
         result.maxZ = std::max(z, result.maxZ);
     }
@@ -692,9 +696,9 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         // Now generate the rough voxel space in a similar manner
         for (const auto& cl : snap.roughFieldList) {
             const SGVoxelCloud* c = cl.first;
-            osg::Vec3f p = cl.second;
-
-            c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            osg::Vec3f p = cl.second + zOffset;
+            float z = (float) c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            result.maxZ = std::max(z, result.maxZ);
         }
 
         // Generate an SDF
@@ -814,6 +818,8 @@ void FGClouds::commitResult(RebuildResult result)
     // These fgSet* calls must stay on the main thread
     fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm",
                result.maxZ / float(result.detailedVoxelData->r()));
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float) (_detailedFieldHeight * _detailedFieldVoxelSize));
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-m", result.cloudbaseM);
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
@@ -946,4 +952,8 @@ void FGClouds::updateFromOsgTraversal()
             fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
         }
     }
+
+    // Adjust the altitude of the cloud base
+    float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (_detailedFieldHeight * _detailedFieldVoxelSize));
 }
