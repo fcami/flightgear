@@ -820,6 +820,8 @@ void FGClouds::commitResult(RebuildResult result)
                result.maxZ / float(result.detailedVoxelData->r()));
     fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float) (_detailedFieldHeight * _detailedFieldVoxelSize));
     fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-m", result.cloudbaseM);
+    fgSetBool("/sim/rendering/hdr/clouds/mirror-u", false);
+    fgSetBool("/sim/rendering/hdr/clouds/mirror-v", false);
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
@@ -950,6 +952,18 @@ void FGClouds::updateFromOsgTraversal()
             fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
             fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
             fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
+
+            // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
+            // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
+            // the shader to mirror the coodinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
+            // in too large a rotation of the up vector.
+            if (std::abs(snapX) >= 1.0f) {
+                fgSetBool("/sim/rendering/hdr/clouds/mirror-u", ! fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
+            }
+
+            if (std::abs(snapY) >= 1.0f) {
+                fgSetBool("/sim/rendering/hdr/clouds/mirror-v", ! fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
+            }
         }
     }
 
