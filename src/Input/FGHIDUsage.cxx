@@ -12,6 +12,11 @@
 
 namespace HID {
 
+std::pair<UsagePage, uint32_t> usage(uint32_t u)
+{
+    return std::make_pair(static_cast<UsagePage>((u & 0xFFFF0000) >> 16), u & 0x0000FFFF);
+}
+
 std::string nameForUsage(uint32_t usagePage, uint32_t usage)
 {
     const auto enumUsage = static_cast<UsagePage>(usagePage);

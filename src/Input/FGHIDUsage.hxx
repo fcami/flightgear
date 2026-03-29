@@ -379,4 +379,6 @@ enum class ReportType
      */
 std::string nameForUsage(uint32_t usagePage, uint32_t usage);
 
+std::pair<UsagePage, uint32_t> usage(uint32_t);
+
 } // namespace HID
