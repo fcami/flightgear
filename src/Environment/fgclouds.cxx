@@ -686,7 +686,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     // [2] .z - Density.  0.0 is no cloud density, 1.0 is fully opaque density.  Use this to determine if there is any cloud at this location.
     // [3] .a - Signed Distance Field in UV space.  The maximum radius sphere centered on this point that doesn't contain any cloud density.  Used for adaptive ray marching.
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Creating detailed field of " << snap.detailedFieldList.size() << " clouds");
-    const osg::Vec3f zOffset =  osg::Vec3f(0.0, 0.0, - snap.cloudbaseM);
+    const osg::Vec3f zOffset = osg::Vec3f(0.0, 0.0, -snap.cloudbaseM);
 
     for (const auto& cl : snap.detailedFieldList) {
         const SGVoxelCloud* c = cl.first;
@@ -703,7 +703,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         for (const auto& cl : snap.roughFieldList) {
             const SGVoxelCloud* c = cl.first;
             osg::Vec3f p = cl.second + zOffset;
-            float z = (float) c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            float z = (float)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
             result.maxZ = std::max(z, result.maxZ);
         }
 
@@ -824,7 +824,7 @@ void FGClouds::commitResult(RebuildResult result)
     // These fgSet* calls must stay on the main thread
     fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm",
                result.maxZ / float(result.detailedVoxelData->r()));
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float) (_detailedFieldHeight * _detailedFieldVoxelSize));
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
     fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-m", result.cloudbaseM);
     fgSetBool("/sim/rendering/hdr/clouds/mirror-u", false);
     fgSetBool("/sim/rendering/hdr/clouds/mirror-v", false);
@@ -909,17 +909,17 @@ void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
 }
 
 // Update the wind column data, ready to be pushed to the Uniform during the updateFromOSGTraversal
-void FGClouds::updateWindColumn(double dt, FGEnvironment *env) 
+void FGClouds::updateWindColumn(double dt, FGEnvironment* env)
 {
-    if (! _windOffsetData) return; // Early return if no cloud data has been generated
+    if (!_windOffsetData) return; // Early return if no cloud data has been generated
 
     const std::size_t width = _windOffsetData->s();
-    const float fieldWidthM = (float) _detailedFieldVoxelSize * _detailedFieldWidth;
+    const float fieldWidthM = (float)_detailedFieldVoxelSize * _detailedFieldWidth;
     float* raw = reinterpret_cast<float*>(_windOffsetData->data());
     for (std::size_t i = 0; i < width; i++) {
-        // Work out the offset in normalized UV coordinates        
-        raw[i*4] += env->get_wind_from_north_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
-        raw[i*4 + 1] += env->get_wind_from_east_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+        // Work out the offset in normalized UV coordinates
+        raw[i * 4] += env->get_wind_from_north_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+        raw[i * 4 + 1] += env->get_wind_from_east_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
     }
 }
 
@@ -978,14 +978,14 @@ void FGClouds::updateFromOsgTraversal()
 
             // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
             // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
-            // the shader to mirror the coodinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
+            // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
             // in too large a rotation of the up vector.
             if (std::abs(snapX) >= 1.0f) {
-                fgSetBool("/sim/rendering/hdr/clouds/mirror-u", ! fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
+                fgSetBool("/sim/rendering/hdr/clouds/mirror-u", !fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
             }
 
             if (std::abs(snapY) >= 1.0f) {
-                fgSetBool("/sim/rendering/hdr/clouds/mirror-v", ! fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
+                fgSetBool("/sim/rendering/hdr/clouds/mirror-v", !fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
             }
         }
     }

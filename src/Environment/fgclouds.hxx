@@ -16,8 +16,8 @@
 #include <future>
 #include <mutex>
 
-#include <simgear/scene/util/SGReaderWriterOptions.hxx>
 #include <Environment/environment.hxx>
+#include <simgear/scene/util/SGReaderWriterOptions.hxx>
 
 using std::vector;
 
@@ -173,7 +173,7 @@ public:
     bool isCloudsRepeating(void) const { return _fieldRepeating; }
     void setCloudsRepeating(bool repeat) { _fieldRepeating = repeat; }
 
-    void updateWindColumn(double dt, FGEnvironment *env);
+    void updateWindColumn(double dt, FGEnvironment* env);
     void updateFromOsgTraversal();
     osg::ref_ptr<osg::Group> getCloudUpdateNode() { return _cloudUpdateNode; }
 };
