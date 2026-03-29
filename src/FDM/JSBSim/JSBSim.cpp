@@ -9,27 +9,27 @@
  ------------- Copyright (C) 1999  Jon S. Berndt (jon@jsbsim.org) -------------
 
  This program is free software; you can redistribute it and/or modify it under
- the terms of the GNU Lesser General Public License as published by the Free Software
- Foundation; either version 2 of the License, or (at your option) any later
- version.
+ the terms of the GNU Lesser General Public License as published by the Free
+ Software Foundation; either version 2 of the License, or (at your option) any
+ later version.
 
  This program is distributed in the hope that it will be useful, but WITHOUT
  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more
  details.
 
- You should have received a copy of the GNU Lesser General Public License along with
- this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- Place - Suite 330, Boston, MA  02111-1307, USA.
+ You should have received a copy of the GNU Lesser General Public License along
+ with this program; if not, write to the Free Software Foundation, Inc., 59
+ Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
- Further information about the GNU Lesser General Public License can also be found on
- the world wide web at http://www.gnu.org.
+ Further information about the GNU Lesser General Public License can also be
+ found on the world wide web at http://www.gnu.org.
 
 FUNCTIONAL DESCRIPTION
 --------------------------------------------------------------------------------
 
-This class implements the JSBSim standalone application. It is set up for compilation
-under gnu C++, MSVC++, or other compiler.
+This class implements the JSBSim standalone application. It is set up for
+compilation under gnu C++, MSVC++, or other compiler.
 
 HISTORY
 --------------------------------------------------------------------------------
@@ -40,8 +40,10 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "initialization/FGTrim.h"
+#include "initialization/FGInitialCondition.h"
 #include "FGFDMExec.h"
 #include "input_output/FGXMLFileRead.h"
+#include "input_output/string_utilities.h"
 
 #if !defined(__GNUC__) && !defined(sgi) && !defined(_MSC_VER)
 #  include <time>
@@ -52,6 +54,7 @@ INCLUDES
 #if defined(_MSC_VER)
 #  include <float.h>
 #elif defined(__GNUC__) && !defined(sgi)
+#  define __GNU_VISIBLE 1
 #  include <fenv.h>
 #endif
 
@@ -66,12 +69,15 @@ INCLUDES
 #  include <sys/time.h>
 #endif
 
+// The flag ENABLE_VIRTUAL_TERMINAL_PROCESSING is not defined for MinGW < 7.0.0
+#if defined(__MINGW64_VERSION_MAJOR) && __MINGW64_VERSION_MAJOR < 7
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x4
+#endif
+
 #include <iostream>
 #include <cstdlib>
 
 using namespace std;
-using namespace std::string_literals;
-
 using JSBSim::FGXMLFileRead;
 using JSBSim::Element;
 
@@ -83,6 +89,7 @@ SGPath RootDir;
 SGPath ScriptName;
 string AircraftName;
 SGPath ResetName;
+SGPath PlanetName;
 vector <string> LogOutputName;
 vector <SGPath> LogDirectiveName;
 vector <string> CommandLineProperties;
@@ -177,6 +184,44 @@ public:
   }
 };
 
+/** The Timer class measures the elapsed real time and can be paused and resumed.
+    It inherits from SGPropertyChangeListener to restart the timer whenever a
+    property change is detected. */
+class Timer : public SGPropertyChangeListener {
+public:
+  Timer() : SGPropertyChangeListener(), isPaused(false) { start(); }
+  void start(void) { initial_seconds = getcurrentseconds(); }
+
+  /// Restart the timer when the listened property is modified.
+  void valueChanged(SGPropertyNode* prop) override {
+    start();
+    if (isPaused) pause_start_seconds = initial_seconds;
+  }
+  /// Get the elapsed real time in seconds since the timer was started.
+  double getElapsedTime(void) { return getcurrentseconds() - initial_seconds; }
+
+  /** Pause the timer if the `paused` parameter is true and resume it if the
+      `paused` parameter is false. */
+  void pause(bool paused) {
+    if (paused) {
+      if (!isPaused) {
+        isPaused = true;
+        pause_start_seconds = getcurrentseconds();
+      }
+    } else {
+      if (isPaused) {
+        isPaused = false;
+        double pause_duration = getcurrentseconds() - pause_start_seconds;
+        initial_seconds += pause_duration; // Shift the initial time to account for the pause duration.
+      }
+    }
+  }
+private:
+  double initial_seconds = 0.0;
+  bool isPaused = false;
+  double pause_start_seconds = 0.0;
+};
+
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 CLASS DOCUMENTATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
@@ -193,16 +238,17 @@ CLASS DOCUMENTATION
  * versatile and powerful specification written in an XML format. The format is
  * formally known as JSBSim-ML (JSBSim Markup Language).
  *
- * JSBSim (www.jsbsim.org) was created initially for the open source FlightGear
- * flight simulator (www.flightgear.org). JSBSim maintains the ability to run
- * as a standalone executable in soft real-time, or batch mode. This is useful
- * for running tests or sets of tests automatically using the internal scripting
- * capability.
+ * JSBSim (<a href="https://www.jsbsim.org">www.jsbsim.org</a>) was created
+ * initially for the open source FlightGear flight simulator (<a
+ * href="https://www.flightgear.org">www.flightgear.org</a>). JSBSim maintains
+ * the ability to run as a standalone executable in soft real-time, or batch
+ * mode. This is useful for running tests or sets of tests automatically using
+ * the internal scripting capability.
  *
  * JSBSim does not model specific aircraft in program code. The aircraft itself
- * is defined in a file written in an XML-based format
- * where the aircraft mass and geometric properties are specified.  Additional
- * statements define such characteristics as:
+ * is defined in a file written in an XML-based format where the aircraft mass
+ * and geometric properties are specified.  Additional statements define such
+ * characteristics as:
  *
  * - Landing gear location and properties.
  * - Pilot eyepoint
@@ -218,18 +264,18 @@ CLASS DOCUMENTATION
  * basic theoretical aero knowledge.
  *
  * One of the more unique features of JSBSim is its method of modeling aircraft
- * systems such as a flight control system, autopilot, electrical, etc.
- * These are modeled by assembling strings of components that represent filters,
+ * systems such as a flight control system, autopilot, electrical, etc. These
+ * are modeled by assembling strings of components that represent filters,
  * switches, summers, gains, sensors, and so on.
  *
  * Another unique feature is displayed in the use of "properties".  Properties
  * essentially expose chosen variables as nodes in a tree, in a directory-like
- * hierarchy.  This approach facilitates plugging in different FDMs (Flight Dynamics
- * Model) into FlightGear, but it also is a fundamental tool in allowing a wide
- * range of aircraft to be modeled, each having its own unique control system,
- * aerosurfaces, and flight deck instrument panel.  The use of properties allows
- * all these items for a craft to be modeled and integrated without the need for
- * specific and unique program source code.
+ * hierarchy.  This approach facilitates plugging in different FDMs (Flight
+ * Dynamics Model) into FlightGear, but it also is a fundamental tool in
+ * allowing a wide range of aircraft to be modeled, each having its own unique
+ * control system, aerosurfaces, and flight deck instrument panel.  The use of
+ * properties allows all these items for a craft to be modeled and integrated
+ * without the need for specific and unique program source code.
  *
  * The equations of motion are modeled essentially as they are presented in
  * aerospace textbooks for the benefit of student users, but quaternions are
@@ -240,8 +286,9 @@ CLASS DOCUMENTATION
  * JSBSim can output (log) data in a configurable way.  Sets of data that are
  * logically related can be selected to be output at a chosen rate, and
  * individual properties can be selected for output.  The output can be streamed
- * to the console, and/or to a file (or files), and/or can be transmitted through a
- * socket or sockets, or any combination of the aforementioned methods.
+ * to the console, and/or to a file (or files), and/or can be transmitted
+ * through a socket or sockets, or any combination of the aforementioned
+ * methods.
  *
  * JSBSim has been used in a variety of ways:
  *
@@ -251,7 +298,7 @@ CLASS DOCUMENTATION
  * - As an FDM that drives motion base simulators for some
  *   commercial/entertainment simulators
  *
- * \section Supported Platforms:
+ * \section platforms Supported Platforms
  * JSBSim has been built on the following platforms:
  *
  *   - Linux (x86)
@@ -269,7 +316,8 @@ CLASS DOCUMENTATION
  *
  * \section website Website
  *
- * For more information, see the JSBSim web site: www.jsbsim.org.
+ * For more information, see the JSBSim web site: <a>
+ * href="https://www.jsbsim.org">www.jsbsim.org</a>.
  */
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -278,12 +326,12 @@ IMPLEMENTATION
 
 int main(int argc, char* argv[])
 {
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__)
   _clearfp();
   _controlfp(_controlfp(0, 0) & ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW),
            _MCW_EM);
 #elif defined(__GNUC__) && !defined(sgi) && !defined(__APPLE__)
-  feenableexcept(FE_DIVBYZERO | FE_INVALID);
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #endif
 
   try {
@@ -291,6 +339,14 @@ int main(int argc, char* argv[])
   } catch (string& msg) {
     std::cerr << "FATAL ERROR: JSBSim terminated with an exception."
               << std::endl << "The message was: " << msg << std::endl;
+    return 1;
+  } catch (const char* msg) {
+    std::cerr << "FATAL ERROR: JSBSim terminated with an exception."
+              << std::endl << "The message was: " << msg << std::endl;
+    return 1;
+  } catch (const JSBSim::BaseException& e) {
+    std::cerr << "FATAL ERROR: JSBSim terminated with an exception."
+              << std::endl << "The message was: " << e.what() << std::endl;
     return 1;
   } catch (...) {
     std::cerr << "FATAL ERROR: JSBSim terminated with an unknown exception."
@@ -307,19 +363,14 @@ int real_main(int argc, char* argv[])
   ScriptName = "";
   AircraftName = "";
   ResetName = "";
+  PlanetName = "";
   LogOutputName.clear();
   LogDirectiveName.clear();
   bool result = false, success;
-  bool was_paused = false;
-
   double frame_duration;
 
   double new_five_second_value = 0.0;
   double actual_elapsed_time = 0;
-  double initial_seconds = 0;
-  double current_seconds = 0.0;
-  double paused_seconds = 0.0;
-  double sim_lag_time = 0;
   double cycle_duration = 0.0;
   double override_sim_rate_value = 0.0;
   long sleep_nseconds = 0;
@@ -340,11 +391,27 @@ int real_main(int argc, char* argv[])
   // *** SET UP JSBSIM *** //
   FDMExec = new JSBSim::FGFDMExec();
   FDMExec->SetRootDir(RootDir);
-  FDMExec->SetAircraftPath(SGPath::fromUtf8("aircraft"));
-  FDMExec->SetEnginePath(SGPath::fromUtf8("engine"));
-  FDMExec->SetSystemsPath(SGPath::fromUtf8("systems"));
+  FDMExec->SetAircraftPath(SGPath(string("aircraft")));
+  FDMExec->SetEnginePath(SGPath(string("engine")));
+  FDMExec->SetSystemsPath(SGPath(string("systems")));
+  FDMExec->SetOutputPath(SGPath(string(".")));
   FDMExec->GetPropertyManager()->Tie("simulation/frame_start_time", &actual_elapsed_time);
   FDMExec->GetPropertyManager()->Tie("simulation/cycle_duration", &cycle_duration);
+
+  Timer timer;
+  SGPropertyNode_ptr reset_node = FDMExec->GetPropertyManager()->GetNode("simulation/reset");
+  reset_node->addChangeListener(&timer);
+
+  // Check whether to disable console highlighting output on Windows.
+  // Support was added to Windows for Virtual Terminal codes by a particular
+  // Windows 10 release.
+#ifdef _WIN32
+  HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwMode = 0;
+  GetConsoleMode(hStdOut, &dwMode);
+  if ((dwMode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) == 0)
+    nohighlight = true;
+#endif
 
   if (nohighlight) FDMExec->disableHighLighting();
 
@@ -366,6 +433,16 @@ int real_main(int argc, char* argv[])
     }
   }
 
+  if (!PlanetName.isNull()) {
+    result = FDMExec->LoadPlanet(PlanetName, false);
+
+    if (!result) {
+      cerr << "Planet file " << PlanetName << " was not successfully loaded" << endl;
+      delete FDMExec;
+      exit(-1);
+    }
+  }
+
   // *** OPTION A: LOAD A SCRIPT, WHICH LOADS EVERYTHING ELSE *** //
   if (!ScriptName.isNull()) {
 
@@ -382,14 +459,13 @@ int real_main(int argc, char* argv[])
 
     if (catalog) FDMExec->SetDebugLevel(0);
 
-    if (!FDMExec->LoadModel(SGPath::fromUtf8("aircraft"),
-                            SGPath::fromUtf8("engine"),
-                            SGPath::fromUtf8("systems"),
-                            AircraftName)) {
-        cerr << "  JSBSim could not be started" << endl
-             << endl;
-        delete FDMExec;
-        exit(-1);
+    if ( ! FDMExec->LoadModel(SGPath(string("aircraft")),
+                              SGPath(string("engine")),
+                              SGPath(string("systems")),
+                              AircraftName)) {
+      cerr << "  JSBSim could not be started" << endl << endl;
+      delete FDMExec;
+      exit(-1);
     }
 
     if (catalog) {
@@ -398,7 +474,7 @@ int real_main(int argc, char* argv[])
       return 0;
     }
 
-    JSBSim::FGInitialCondition *IC = FDMExec->GetIC();
+    auto IC = FDMExec->GetIC();
     if ( ! IC->Load(ResetName)) {
       delete FDMExec;
       cerr << "Initialization unsuccessful" << endl;
@@ -487,7 +563,13 @@ int real_main(int argc, char* argv[])
   char s[100];
   time_t tod;
   time(&tod);
-  strftime(s, 99, "%A %B %d %Y %X", localtime(&tod));
+  struct tm local;
+#if defined(_MSC_VER) || defined(__MINGW32__)
+  localtime_s(&local, &tod);
+#else
+  localtime_r(&tod, &local);
+#endif
+  strftime(s, 99, "%A %B %d %Y %X", &local);
   cout << "Start: " << s << " (HH:MM:SS)" << endl;
 
   frame_duration = FDMExec->GetDeltaT();
@@ -495,13 +577,10 @@ int real_main(int argc, char* argv[])
   else          sleep_nseconds = (sleep_period )*1e9;           // 0.01 seconds
 
   tzset();
-  current_seconds = initial_seconds = getcurrentseconds();
+  timer.start();
 
   // *** CYCLIC EXECUTION LOOP, AND MESSAGE READING *** //
   while (result && FDMExec->GetSimTime() <= end_time) {
-
-    FDMExec->ProcessMessage(); // Process messages, if any.
-
     // Check if increment then hold is on and take appropriate actions if it is
     // Iterate is not supported in realtime - only in batch and playnice modes
     FDMExec->CheckIncrementalHold();
@@ -518,20 +597,16 @@ int real_main(int argc, char* argv[])
         if (play_nice) sim_nsleep(sleep_nseconds);
 
       } else {                    // ------------ RUNNING IN REALTIME MODE
+        timer.pause(false);
+        actual_elapsed_time = timer.getElapsedTime();
 
-        // "was_paused" will be true if entering this "run" loop from a paused state.
-        if (was_paused) {
-          initial_seconds += paused_seconds;
-          was_paused = false;
-        }
-        current_seconds = getcurrentseconds();                      // Seconds since 1 Jan 1970
-        actual_elapsed_time = current_seconds - initial_seconds;    // Real world elapsed seconds since start
-        sim_lag_time = actual_elapsed_time - FDMExec->GetSimTime(); // How far behind sim-time is from actual
-                                                                    // elapsed time.
+        double sim_lag_time = actual_elapsed_time - FDMExec->GetSimTime(); // How far behind sim-time is from actual elapsed time.
+        double cycle_start = getcurrentseconds();
+
         for (int i=0; i<(int)(sim_lag_time/frame_duration); i++) {  // catch up sim time to actual elapsed time.
           result = FDMExec->Run();
-          cycle_duration = getcurrentseconds() - current_seconds;   // Calculate cycle duration
-          current_seconds = getcurrentseconds();                    // Get new current_seconds
+          cycle_duration = getcurrentseconds() - cycle_start;   // Calculate cycle duration
+          cycle_start = getcurrentseconds();                    // Get new current_seconds
           if (FDMExec->Holding()) break;
         }
 
@@ -543,8 +618,7 @@ int real_main(int argc, char* argv[])
         }
       }
     } else { // Suspended
-      was_paused = true;
-      paused_seconds = getcurrentseconds() - current_seconds;
+      timer.pause(true);
       sim_nsleep(sleep_nseconds);
       result = FDMExec->Run();
     }
@@ -553,7 +627,12 @@ int real_main(int argc, char* argv[])
 
   // PRINT ENDING CLOCK TIME
   time(&tod);
-  strftime(s, 99, "%A %B %d %Y %X", localtime(&tod));
+#if defined(_MSC_VER) || defined(__MINGW32__)
+  localtime_s(&local, &tod);
+#else
+  localtime_r(&tod, &local);
+#endif
+  strftime(s, 99, "%A %B %d %Y %X", &local);
   cout << "End: " << s << " (HH:MM:SS)" << endl;
 
   // CLEAN UP
@@ -603,7 +682,7 @@ bool options(int count, char **arg)
       play_nice = true;
       if (n != string::npos) {
         try {
-          sleep_period = atof( value.c_str() );
+          sleep_period = JSBSim::atof_locale_c( value.c_str() );
         } catch (...) {
           cerr << endl << "  Invalid sleep period given!" << endl << endl;
           result = false;
@@ -654,14 +733,26 @@ bool options(int count, char **arg)
         gripe;
         exit(1);
       }
-
+    } else if (keyword == "--planet") {
+      if (n != string::npos) {
+        PlanetName = SGPath::fromLocal8Bit(value.c_str());
+      } else {
+        gripe;
+        exit(1);
+      }
     } else if (keyword == "--property") {
       if (n != string::npos) {
-         string propName = value.substr(0,value.find("="));
-         string propValueString = value.substr(value.find("=")+1);
-         double propValue = atof(propValueString.c_str());
-         CommandLineProperties.push_back(propName);
-         CommandLinePropertyValues.push_back(propValue);
+        string propName = value.substr(0,value.find("="));
+        string propValueString = value.substr(value.find("=")+1);
+        double propValue;
+        try {
+          propValue = JSBSim::atof_locale_c(propValueString.c_str());
+        } catch (JSBSim::InvalidNumber&) {
+          gripe;
+          exit(1);
+        }
+        CommandLineProperties.push_back(propName);
+        CommandLinePropertyValues.push_back(propValue);
       } else {
         gripe;
         exit(1);
@@ -670,7 +761,7 @@ bool options(int count, char **arg)
     } else if (keyword.substr(0,5) == "--end") {
       if (n != string::npos) {
         try {
-        end_time = atof( value.c_str() );
+          end_time = JSBSim::atof_locale_c( value.c_str() );
         } catch (...) {
           cerr << endl << "  Invalid end time given!" << endl << endl;
           result = false;
@@ -683,7 +774,7 @@ bool options(int count, char **arg)
     } else if (keyword == "--simulation-rate") {
       if (n != string::npos) {
         try {
-          simulation_rate = atof( value.c_str() );
+          simulation_rate = JSBSim::atof_locale_c( value.c_str() );
           override_sim_rate = true;
         } catch (...) {
           cerr << endl << "  Invalid simulation rate given!" << endl << endl;
@@ -696,7 +787,7 @@ bool options(int count, char **arg)
 
     } else if (keyword == "--catalog") {
         catalog = true;
-        if (value.size() > 0) AircraftName=value;
+        if (!value.empty()) AircraftName=value;
     } else if (keyword.substr(0,2) != "--" && value.empty() ) {
       // See what kind of files we are specifying on the command line
 
@@ -705,11 +796,9 @@ bool options(int count, char **arg)
 
       if (xmlFile.IsScriptFile(path)) ScriptName = path;
       else if (xmlFile.IsLogDirectiveFile(path))  LogDirectiveName.push_back(path);
-      else if (xmlFile.IsAircraftFile(SGPath("aircraft"s) / keyword / keyword))
-          AircraftName = keyword;
+      else if (xmlFile.IsAircraftFile(SGPath(string("aircraft"))/keyword/keyword)) AircraftName = keyword;
       else if (xmlFile.IsInitFile(path)) ResetName = path;
-      else if (xmlFile.IsInitFile(SGPath("aircraft"s) / AircraftName / keyword))
-          ResetName = SGPath("aircraft"s) / AircraftName / keyword;
+      else if (xmlFile.IsInitFile(SGPath(string("aircraft"))/AircraftName/keyword)) ResetName = SGPath(string("aircraft"))/AircraftName/keyword;
       else {
         cerr << "The argument \"" << keyword << "\" cannot be interpreted as a file name or option." << endl;
         exit(1);
@@ -763,7 +852,8 @@ void PrintHelp(void)
     cout << "    --nice  specifies to run at lower CPU usage" << endl;
     cout << "    --nohighlight  specifies that console output should be pure text only (no color)" << endl;
     cout << "    --suspend  specifies to suspend the simulation after initialization" << endl;
-    cout << "    --initfile=<filename>  specifies an initilization file" << endl;
+    cout << "    --initfile=<filename>  specifies an initialization file" << endl;
+    cout << "    --planet=<filename>  specifies a planet definition file" << endl;
     cout << "    --catalog specifies that all properties for this aircraft model should be printed" << endl;
     cout << "              (catalog=aircraftname is an optional format)" << endl;
     cout << "    --property=<name=value> e.g. --property=simulation/integrator/rate/rotational=1" << endl;

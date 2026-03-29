@@ -35,8 +35,11 @@ SENTRY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
+#include <memory>
+
 #include "FGParameter.h"
 #include "input_output/FGPropertyManager.h"
+#include "input_output/FGXMLElement.h"
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FORWARD DECLARATIONS
@@ -56,21 +59,21 @@ CLASS DOCUMENTATION
 DECLARATION: FGPropertyValue
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGPropertyValue : public FGParameter
+class JSBSIM_API FGPropertyValue : public FGParameter
 {
 public:
 
-  explicit FGPropertyValue(FGPropertyNode* propNode)
+  explicit FGPropertyValue(SGPropertyNode* propNode)
     : PropertyManager(nullptr), PropertyNode(propNode), Sign(1.0) {}
   FGPropertyValue(const std::string& propName,
-                  FGPropertyManager* propertyManager);
+                  std::shared_ptr<FGPropertyManager> propertyManager, Element* el);
 
   double GetValue(void) const override;
   bool IsConstant(void) const override {
     return PropertyNode && (!PropertyNode->isTied()
                          && !PropertyNode->getAttribute(SGPropertyNode::WRITE));
   }
-  void SetNode(FGPropertyNode* node) {PropertyNode = node;}
+  void SetNode(SGPropertyNode* node) {PropertyNode = node;}
   void SetValue(double value);
   bool IsLateBound(void) const { return PropertyNode == nullptr; }
 
@@ -80,11 +83,12 @@ public:
   virtual std::string GetPrintableName(void) const;
 
 protected:
-  FGPropertyNode* GetNode(void) const;
+  SGPropertyNode* GetNode(void) const;
 
 private:
-  FGPropertyManager* PropertyManager; // Property root used to do late binding.
-  mutable FGPropertyNode_ptr PropertyNode;
+  std::shared_ptr<FGPropertyManager> PropertyManager; // Property root used to do late binding.
+  mutable SGPropertyNode_ptr PropertyNode;
+  mutable Element_ptr XML_def;
   std::string PropertyName;
   double Sign;
 };

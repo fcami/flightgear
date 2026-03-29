@@ -79,11 +79,12 @@ FGActuator::FGActuator(FGFCS* fcs, Element* element)
   // There can be a single rate limit specified, or increasing and
   // decreasing rate limits specified, and rate limits can be numeric, or
   // a property.
+  auto PropertyManager = fcs->GetPropertyManager();
   Element* ratelim_el = element->FindElement("rate_limit");
   while ( ratelim_el ) {
     string rate_limit_str = ratelim_el->GetDataLine();
     FGParameter* rate_limit = new FGParameterValue(rate_limit_str,
-                                                   PropertyManager);
+                                                   PropertyManager, ratelim_el);
 
     if (ratelim_el->HasAttribute("sense")) {
       string sense = ratelim_el->GetAttributeValue("sense");
@@ -106,11 +107,11 @@ FGActuator::FGActuator(FGFCS* fcs, Element* element)
   Element* lag_el = element->FindElement("lag");
   if ( lag_el ) {
     string lag_str = lag_el->GetDataLine();
-    lag = new FGParameterValue(lag_str, PropertyManager);
+    lag = new FGParameterValue(lag_str, PropertyManager, lag_el);
     InitializeLagCoefficients();
   }
 
-  bind(element);
+  bind(element, PropertyManager.get());
 
   Debug(0);
 }
@@ -280,11 +281,11 @@ void FGActuator::Deadband(void)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void FGActuator::bind(Element* el)
+void FGActuator::bind(Element* el, FGPropertyManager* PropertyManager)
 {
   string tmp = Name;
 
-  FGFCSComponent::bind(el);
+  FGFCSComponent::bind(el, PropertyManager);
 
   if (Name.find("/") == string::npos) {
     tmp = "fcs/" + PropertyManager->mkPropertyName(Name, true);
@@ -339,7 +340,7 @@ void FGActuator::Debug(int from)
 
       if (!OutputNodes.empty()) {
         for (auto node: OutputNodes)
-          cout << "      OUTPUT: " << node->GetName() << endl;
+          cout << "      OUTPUT: " << node->getNameString() << endl;
       }
       if (bias != 0.0) cout << "      Bias: " << bias << endl;
       if (rate_limit_incr != 0) {
@@ -348,7 +349,7 @@ void FGActuator::Debug(int from)
       if (rate_limit_decr != 0) {
         cout << "      Decreasing rate limit: " << rate_limit_decr->GetName() << endl;
       }
-      if (lag != 0) cout << "      Actuator lag: " << lag << endl;
+      if (lag != 0) cout << "      Actuator lag: " << lag->GetName() << endl;
       if (hysteresis_width != 0) cout << "      Hysteresis width: " << hysteresis_width << endl;
       if (deadband_width != 0) cout << "      Deadband width: " << deadband_width << endl;
     }

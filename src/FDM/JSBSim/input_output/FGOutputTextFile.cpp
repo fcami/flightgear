@@ -52,6 +52,7 @@ INCLUDES
 #include "models/FGFCS.h"
 #include "models/atmosphere/FGWinds.h"
 #include "input_output/FGXMLElement.h"
+#include "input_output/string_utilities.h"
 
 using namespace std;
 
@@ -230,7 +231,7 @@ bool FGOutputTextFile::OpenFile(void)
       outstream << delimeter << OutputParameters[i]->GetFullyQualifiedName();
   }
 
-  if (PreFunctions.size() > 0) {
+  if (!PreFunctions.empty()) {
     for (unsigned int i=0;i<PreFunctions.size();i++) {
       outstream << delimeter << PreFunctions[i]->GetName();
     }
@@ -319,6 +320,7 @@ void FGOutputTextFile::Print(void)
     outstream << Accelerations->GetMoments().Dump(delimeter);
   }
   if (SubSystems & ssAtmosphere) {
+    const auto Atmosphere = FDMExec->GetAtmosphere();
     outstream << delimeter;
     outstream << Atmosphere->GetDensity() << delimeter;
     outstream << Atmosphere->GetAbsoluteViscosity() << delimeter;

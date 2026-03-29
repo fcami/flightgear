@@ -62,7 +62,9 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGSwitch.h"
+#include "models/FGFCS.h"
 #include "math/FGCondition.h"
+#include "math/FGRealValue.h"
 
 using namespace std;
 
@@ -76,18 +78,21 @@ FGSwitch::FGSwitch(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
 {
   string value;
   Test *current_test;
+  auto PropertyManager = fcs->GetPropertyManager();
 
-  bind(element); // Bind() this component here in case it is used in its own
-                 // definition for a sample-and-hold
+  bind(element, PropertyManager.get()); // Bind() this component here in case it is used in its own
+                                        // definition for a sample-and-hold
   Element* test_element = element->FindElement("default");
   if (test_element) {
     current_test = new Test;
     value = test_element->GetAttributeValue("value");
-    current_test->setTestValue(value, Name, PropertyManager);
+    current_test->setTestValue(value, Name, PropertyManager, test_element);
     current_test->Default = true;
-    if (delay > 0 && is_number(value)) {        // If there is a delay, initialize the
-      for (unsigned int i=0; i<delay-1; i++) {  // delay buffer to the default value
-        output_array[i] = atof(value.c_str());  // for the switch if that value is a number.
+    auto output_value = current_test->OutputValue.ptr();
+    if (delay > 0 && dynamic_cast<FGRealValue*>(output_value)) { // If there is a delay
+      double v = output_value->GetValue();
+      for (unsigned int i=0; i<delay-1; i++) {  // Initialize the delay buffer to the default value
+        output_array[i] = v;                    // for the switch if that value is a number.
       }
     }
     tests.push_back(current_test);
@@ -98,7 +103,7 @@ FGSwitch::FGSwitch(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
     current_test = new Test;
     current_test->condition = new FGCondition(test_element, PropertyManager);
     value = test_element->GetAttributeValue("value");
-    current_test->setTestValue(value, Name, PropertyManager);
+    current_test->setTestValue(value, Name, PropertyManager, test_element);
     tests.push_back(current_test);
     test_element = element->FindNextElement("test");
   }
@@ -144,7 +149,7 @@ bool FGSwitch::Run(void )
       break;
     }
   }
-  
+
   if (!pass) Output = default_output;
 
   if (delay != 0) Delay();
@@ -224,4 +229,3 @@ void FGSwitch::Debug(int from)
 }
 
 } //namespace JSBSim
-

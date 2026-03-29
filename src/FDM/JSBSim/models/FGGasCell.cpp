@@ -64,7 +64,7 @@ FGGasCell::FGGasCell(FGFDMExec* exec, Element* el, unsigned int num,
   string token;
   Element* element;
 
-  FGPropertyManager* PropertyManager = exec->GetPropertyManager();
+  auto PropertyManager = exec->GetPropertyManager();
   MassBalance = exec->GetMassBalance();
 
   Buoyancy = MaxVolume = MaxOverpressure = Temperature = Pressure =
@@ -197,7 +197,7 @@ FGGasCell::FGGasCell(FGFDMExec* exec, Element* el, unsigned int num,
 
   property_name = base_property_name + "/max_volume-ft3";
   PropertyManager->Tie( property_name.c_str(), &MaxVolume);
-  PropertyManager->GetNode()->SetWritable( property_name, false );
+  PropertyManager->GetNode(property_name)->setAttribute( SGPropertyNode::WRITE, false );
   property_name = base_property_name + "/temp-R";
   PropertyManager->Tie( property_name.c_str(), &Temperature);
   property_name = base_property_name + "/pressure-psf";
@@ -275,7 +275,7 @@ void FGGasCell::Calculate(double dt)
 
   //-- Gas temperature --
 
-  if (HeatTransferCoeff.size() > 0) {
+  if (!HeatTransferCoeff.empty()) {
     // The model is based on the ideal gas law.
     // However, it does look a bit fishy. Please verify.
     //   dT/dt = dU / (Cv n R)
@@ -326,7 +326,7 @@ void FGGasCell::Calculate(double dt)
     const double VolumeValved =
       ValveOpen * ValveCoefficient * DeltaPressure * dt;
     Contents =
-      max(0.0, Contents - Pressure * VolumeValved / (R * Temperature));
+      max(1E-8, Contents - Pressure * VolumeValved / (R * Temperature));
   }
 
   //-- Update ballonets. --
@@ -503,7 +503,7 @@ FGBallonet::FGBallonet(FGFDMExec* exec, Element* el, unsigned int num,
   string token;
   Element* element;
 
-  FGPropertyManager* PropertyManager = exec->GetPropertyManager();
+  auto PropertyManager = exec->GetPropertyManager();
   MassBalance = exec->GetMassBalance();
 
   MaxVolume = MaxOverpressure = Temperature = Pressure =
@@ -627,7 +627,7 @@ FGBallonet::FGBallonet(FGFDMExec* exec, Element* el, unsigned int num,
 
   property_name = base_property_name + "/max_volume-ft3";
   PropertyManager->Tie( property_name, &MaxVolume);
-  PropertyManager->GetNode()->SetWritable( property_name, false );
+  PropertyManager->GetNode(property_name)->setAttribute( SGPropertyNode::WRITE, false );
 
   property_name = base_property_name + "/temp-R";
   PropertyManager->Tie( property_name, &Temperature);

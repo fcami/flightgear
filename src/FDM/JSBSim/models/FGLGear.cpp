@@ -42,6 +42,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGLGear.h"
+#include "FGFDMExec.h"
 #include "models/FGGroundReactions.h"
 #include "math/FGTable.h"
 #include "input_output/FGXMLElement.h"
@@ -69,7 +70,6 @@ CLASS IMPLEMENTATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 FGLGear::FGLGear(Element* el, FGFDMExec* fdmex, int number, const struct Inputs& inputs) :
-  FGSurface(fdmex, number),
   FGForce(fdmex),
   in(inputs),
   GearNumber(number),
@@ -103,7 +103,7 @@ FGLGear::FGLGear(Element* el, FGFDMExec* fdmex, int number, const struct Inputs&
     dynamicFCoeff = 1.0;
   }
 
-  PropertyManager = fdmex->GetPropertyManager();
+  auto PropertyManager = fdmex->GetPropertyManager();
 
   fStrutForce = 0;
   Element* strutForce = el->FindElement("strut_force");
@@ -163,7 +163,7 @@ FGLGear::FGLGear(Element* el, FGFDMExec* fdmex, int number, const struct Inputs&
   else
     eSteerType = stSteer;
 
-  GroundReactions = fdmex->GetGroundReactions();
+  GroundReactions = fdmex->GetGroundReactions().get();
 
   ForceY_Table = 0;
   Element* force_table = el->FindElement("table");
@@ -230,6 +230,8 @@ FGLGear::FGLGear(Element* el, FGFDMExec* fdmex, int number, const struct Inputs&
 
   ResetToIC();
 
+  bind(PropertyManager.get());
+
   Debug(0);
 }
 
@@ -276,37 +278,40 @@ void FGLGear::ResetToIC(void)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-const FGColumnVector3& FGLGear::GetBodyForces(FGSurface *surface)
+const FGColumnVector3& FGLGear::GetBodyForces(void)
 {
   double gearPos = 1.0;
 
   vFn.InitMatrix();
 
+  // Compute AGL
+  FGColumnVector3 normal, terrainVel, dummy;
+  FGLocation gearLoc, contact;
+  FGColumnVector3 vWhlBodyVec = Ts2b * (vXYZn - in.vXYZcg);
+
+  vLocalGear = in.Tb2l * vWhlBodyVec; // Get local frame wheel location
+  gearLoc = in.Location.LocalToLocation(vLocalGear);
+
+  // Compute the height of the theoretical location of the wheel (if strut is
+  // not compressed) with respect to the ground level (AGL)
+  double height = fdmex->GetInertial()->GetContactPoint(gearLoc, contact,
+    normal, terrainVel, dummy);
+
+  // Don't want strut compression when in contact with the ground to return 
+  // a negative AGL
+  AGL = max(height, 0.0);
+
   if (isRetractable) gearPos = GetGearUnitPos();
 
   if (gearPos > 0.99) { // Gear DOWN
-    FGColumnVector3 normal, terrainVel, dummy;
-    FGLocation gearLoc, contact;
-    FGColumnVector3 vWhlBodyVec = Ts2b * (vXYZn - in.vXYZcg);
 
-    vLocalGear = in.Tb2l * vWhlBodyVec; // Get local frame wheel location
-    gearLoc = in.Location.LocalToLocation(vLocalGear);
-
-    // Compute the height of the theoretical location of the wheel (if strut is
-    // not compressed) with respect to the ground level
-    double height = fdmex->GetInertial()->GetContactPoint(gearLoc, contact,
-                                                          normal, terrainVel,
-                                                          dummy);
-
-    // Does this surface contact point interact with another surface?
-    if (surface) {
-      if (!fdmex->GetTrimStatus())
-        height -= (*surface).GetBumpHeight();
-      staticFFactor = (*surface).GetStaticFFactor();
-      rollingFFactor = (*surface).GetRollingFFactor();
-      maximumForce = (*surface).GetMaximumForce();
-      isSolid =  (*surface).GetSolid();
-    }
+    if (!fdmex->GetTrimStatus())
+      height -= GroundReactions->GetBumpHeight();
+    staticFFactor = GroundReactions->GetStaticFFactor();
+    rollingFFactor = GroundReactions->GetRollingFFactor();
+    maximumForce = GroundReactions->GetMaximumForce();
+    bumpiness = GroundReactions->GetBumpiness();
+    isSolid = GroundReactions->GetSolid();
 
     FGColumnVector3 vWhlDisplVec;
     double LGearProj = 1.0;
@@ -542,9 +547,10 @@ void FGLGear::ReportTakeoffOrLanding(void)
 
   if (lastWOW != WOW)
   {
-    ostringstream buf;
-    buf << "GEAR_CONTACT: " << fdmex->GetSimTime() << " seconds: " << name;
-    PutMessage(buf.str(), WOW);
+    if (debug_lvl > 0) {
+      cout << "GEAR_CONTACT: " << fdmex->GetSimTime() << " seconds: " << name
+           << " " << WOW << endl;
+    }
   }
 }
 
@@ -558,9 +564,10 @@ void FGLGear::CrashDetect(void)
       GetMoments().Magnitude() > 5000000000.0 ||
       SinkRate > 1.4666*30 ) && !fdmex->IntegrationSuspended())
   {
-    ostringstream buf;
-    buf << "*CRASH DETECTED* " << fdmex->GetSimTime() << " seconds: " << name;
-    PutMessage(buf.str());
+    if (debug_lvl > 0) {
+      cout << "*CRASH DETECTED* " << fdmex->GetSimTime() << " seconds: " << name;
+    }
+
     // fdmex->SuspendIntegration();
   }
 }
@@ -767,25 +774,24 @@ void FGLGear::SetstaticFCoeff(double coeff)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void FGLGear::bind(void)
+void FGLGear::bind(FGPropertyManager* PropertyManager)
 {
   string property_name;
   string base_property_name;
 
   switch(eContactType) {
   case ctBOGEY:
-    eSurfaceType = FGSurface::ctBOGEY;
     base_property_name = CreateIndexedPropertyName("gear/unit", GearNumber);
     break;
   case ctSTRUCTURE:
-    eSurfaceType = FGSurface::ctSTRUCTURE;
     base_property_name = CreateIndexedPropertyName("contact/unit", GearNumber);
     break;
   default:
     return;
   }
-  FGSurface::bind();
 
+  property_name = base_property_name + "/AGL-ft";
+  PropertyManager->Tie(property_name.c_str(), &AGL);
   property_name = base_property_name + "/WOW";
   PropertyManager->Tie( property_name.c_str(), &WOW );
   property_name = base_property_name + "/x-position";
@@ -838,6 +844,17 @@ void FGLGear::bind(void)
     string tmp = CreateIndexedPropertyName("fcs/steer-pos-deg", GearNumber);
     PropertyManager->Tie(tmp.c_str(), this, &FGLGear::GetSteerAngleDeg, &FGLGear::SetSteerAngleDeg);
   }
+
+  property_name = base_property_name + "/solid";
+  PropertyManager->Tie( property_name.c_str(), &isSolid);
+  property_name = base_property_name + "/bumpiness";
+  PropertyManager->Tie( property_name.c_str(), &bumpiness);
+  property_name = base_property_name + "/maximum-force-lbs";
+  PropertyManager->Tie( property_name.c_str(), &maximumForce);
+  property_name = base_property_name + "/rolling_friction-factor";
+  PropertyManager->Tie( property_name.c_str(), &rollingFFactor);
+  property_name = base_property_name + "/static-friction-factor";
+  PropertyManager->Tie( property_name.c_str(), &staticFFactor);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

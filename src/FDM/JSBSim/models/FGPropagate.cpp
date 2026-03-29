@@ -72,7 +72,6 @@ INCLUDES
 #include "FGInertial.h"
 
 using namespace std;
-using namespace std::string_literals;
 
 namespace JSBSim {
 
@@ -141,7 +140,7 @@ bool FGPropagate::InitModel(void)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void FGPropagate::SetInitialState(const FGInitialCondition *FGIC)
+void FGPropagate::SetInitialState(const FGInitialCondition* FGIC)
 {
   // Initialize the State Vector elements and the transformation matrices
 
@@ -275,6 +274,9 @@ bool FGPropagate::Run(bool Holding)
   // Compute vehicle velocity wrt ECEF frame, expressed in Local horizontal
   // frame.
   vVel = Tb2l * VState.vUVW;
+
+  // Compute orbital parameters in the inertial frame
+  ComputeOrbitalParameters();
 
   Debug(2);
   return false;
@@ -494,6 +496,56 @@ void FGPropagate::UpdateBodyMatrices(void)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+void FGPropagate::ComputeOrbitalParameters(void)
+{
+  const FGColumnVector3 Z{0., 0., 1.};
+  FGColumnVector3 R = VState.vInertialPosition;
+  FGColumnVector3 angularMomentum = R * VState.vInertialVelocity;
+  h = angularMomentum.Magnitude();
+  Inclination = acos(angularMomentum(eZ)/h)*radtodeg;
+  FGColumnVector3 N;
+  if (abs(Inclination) > 1E-8) {
+    N = Z * angularMomentum;
+    RightAscension = atan2(N(eY), N(eX))*radtodeg;
+    N.Normalize();
+  }
+  else {
+    RightAscension = 0.0;
+    N = {1., 0., 0.};
+    PerigeeArgument = 0.0;
+  }
+  R.Normalize();
+  double vr = DotProduct(R, VState.vInertialVelocity);
+  FGColumnVector3 eVector = (VState.vInertialVelocity*angularMomentum/in.GM - R);
+  Eccentricity = eVector.Magnitude();
+  if (Eccentricity > 1E-8) {
+    eVector /= Eccentricity;
+    if (abs(Inclination) > 1E-8) {
+      PerigeeArgument = acos(DotProduct(N, eVector)) * radtodeg;
+      if (eVector(eZ) < 0) PerigeeArgument = 360. - PerigeeArgument;
+    }
+  }
+  else
+  {
+    eVector = {1., 0., 0.};
+    PerigeeArgument = 0.0;
+  }
+
+  TrueAnomaly = acos(Constrain(-1.0, DotProduct(eVector, R), 1.0)) * radtodeg;
+  if (vr < 0.0) TrueAnomaly = 360. - TrueAnomaly;
+  ApoapsisRadius = h*h / (in.GM * (1-Eccentricity));
+  PeriapsisRadius = h*h / (in.GM * (1+Eccentricity));
+
+  if (Eccentricity < 1.0) {
+    double semimajor = 0.5*(ApoapsisRadius + PeriapsisRadius);
+    OrbitalPeriod = 2.*M_PI*pow(semimajor, 1.5)/sqrt(in.GM);
+  }
+  else
+    OrbitalPeriod = 0.0;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 void FGPropagate::SetInertialOrientation(const FGQuaternion& Qi)
 {
   VState.qAttitudeECI = Qi;
@@ -691,7 +743,7 @@ void FGPropagate::WriteStateFile(int num)
 
   SGPath path = FDMExec->GetOutputPath();
 
-  if (path.isNull()) path = SGPath("initfile."s);
+  if (path.isNull()) path = SGPath(string("initfile."));
   else               path.append("initfile.");
 
   // Append sim time to the filename since there may be more than one created during a simulation run
@@ -765,80 +817,95 @@ void FGPropagate::WriteStateFile(int num)
 
 void FGPropagate::bind(void)
 {
-  typedef double (FGPropagate::*PMF)(int) const;
-  typedef int (FGPropagate::*iPMF)(void) const;
-
   PropertyManager->Tie("velocities/h-dot-fps", this, &FGPropagate::Gethdot);
 
-  PropertyManager->Tie("velocities/v-north-fps", this, eNorth, (PMF)&FGPropagate::GetVel);
-  PropertyManager->Tie("velocities/v-east-fps", this, eEast, (PMF)&FGPropagate::GetVel);
-  PropertyManager->Tie("velocities/v-down-fps", this, eDown, (PMF)&FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-north-fps", this, eNorth, &FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-east-fps", this, eEast, &FGPropagate::GetVel);
+  PropertyManager->Tie("velocities/v-down-fps", this, eDown, &FGPropagate::GetVel);
 
-  PropertyManager->Tie("velocities/u-fps", this, eU, (PMF)&FGPropagate::GetUVW);
-  PropertyManager->Tie("velocities/v-fps", this, eV, (PMF)&FGPropagate::GetUVW);
-  PropertyManager->Tie("velocities/w-fps", this, eW, (PMF)&FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/u-fps", this, eU, &FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/v-fps", this, eV, &FGPropagate::GetUVW);
+  PropertyManager->Tie("velocities/w-fps", this, eW, &FGPropagate::GetUVW);
 
-  PropertyManager->Tie("velocities/p-rad_sec", this, eP, (PMF)&FGPropagate::GetPQR);
-  PropertyManager->Tie("velocities/q-rad_sec", this, eQ, (PMF)&FGPropagate::GetPQR);
-  PropertyManager->Tie("velocities/r-rad_sec", this, eR, (PMF)&FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/p-rad_sec", this, eP, &FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/q-rad_sec", this, eQ, &FGPropagate::GetPQR);
+  PropertyManager->Tie("velocities/r-rad_sec", this, eR, &FGPropagate::GetPQR);
 
-  PropertyManager->Tie("velocities/pi-rad_sec", this, eP, (PMF)&FGPropagate::GetPQRi);
-  PropertyManager->Tie("velocities/qi-rad_sec", this, eQ, (PMF)&FGPropagate::GetPQRi);
-  PropertyManager->Tie("velocities/ri-rad_sec", this, eR, (PMF)&FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/pi-rad_sec", this, eP, &FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/qi-rad_sec", this, eQ, &FGPropagate::GetPQRi);
+  PropertyManager->Tie("velocities/ri-rad_sec", this, eR, &FGPropagate::GetPQRi);
 
-  PropertyManager->Tie("velocities/eci-x-fps", this, eX, (PMF)&FGPropagate::GetInertialVelocity);
-  PropertyManager->Tie("velocities/eci-y-fps", this, eY, (PMF)&FGPropagate::GetInertialVelocity);
-  PropertyManager->Tie("velocities/eci-z-fps", this, eZ, (PMF)&FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-x-fps", this, eX, &FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-y-fps", this, eY, &FGPropagate::GetInertialVelocity);
+  PropertyManager->Tie("velocities/eci-z-fps", this, eZ, &FGPropagate::GetInertialVelocity);
 
   PropertyManager->Tie("velocities/eci-velocity-mag-fps", this, &FGPropagate::GetInertialVelocityMagnitude);
   PropertyManager->Tie("velocities/ned-velocity-mag-fps", this, &FGPropagate::GetNEDVelocityMagnitude);
 
-  PropertyManager->Tie("position/h-sl-ft", this, &FGPropagate::GetAltitudeASL, &FGPropagate::SetAltitudeASL);
-  PropertyManager->Tie("position/h-sl-meters", this, &FGPropagate::GetAltitudeASLmeters, &FGPropagate::SetAltitudeASLmeters);
-  PropertyManager->Tie("position/lat-gc-rad", this, &FGPropagate::GetLatitude, &FGPropagate::SetLatitude);
-  PropertyManager->Tie("position/long-gc-rad", this, &FGPropagate::GetLongitude, &FGPropagate::SetLongitude);
-  PropertyManager->Tie("position/lat-gc-deg", this, &FGPropagate::GetLatitudeDeg, &FGPropagate::SetLatitudeDeg);
-  PropertyManager->Tie("position/long-gc-deg", this, &FGPropagate::GetLongitudeDeg, &FGPropagate::SetLongitudeDeg);
+  PropertyManager->Tie("position/h-sl-ft", this, &FGPropagate::GetAltitudeASL,
+                       &FGPropagate::SetAltitudeASL);
+  PropertyManager->Tie("position/h-sl-meters", this, &FGPropagate::GetAltitudeASLmeters,
+                       &FGPropagate::SetAltitudeASLmeters);
+  PropertyManager->Tie("position/lat-gc-rad", this, &FGPropagate::GetLatitude,
+                       &FGPropagate::SetLatitude);
+  PropertyManager->Tie("position/long-gc-rad", this, &FGPropagate::GetLongitude,
+                       &FGPropagate::SetLongitude);
+  PropertyManager->Tie("position/lat-gc-deg", this, &FGPropagate::GetLatitudeDeg,
+                       &FGPropagate::SetLatitudeDeg);
+  PropertyManager->Tie("position/long-gc-deg", this, &FGPropagate::GetLongitudeDeg,
+                       &FGPropagate::SetLongitudeDeg);
   PropertyManager->Tie("position/lat-geod-rad", this, &FGPropagate::GetGeodLatitudeRad);
   PropertyManager->Tie("position/lat-geod-deg", this, &FGPropagate::GetGeodLatitudeDeg);
   PropertyManager->Tie("position/geod-alt-ft", this, &FGPropagate::GetGeodeticAltitude);
-  PropertyManager->Tie("position/h-agl-ft", this,  &FGPropagate::GetDistanceAGL, &FGPropagate::SetDistanceAGL);
+  PropertyManager->Tie("position/h-agl-ft", this,  &FGPropagate::GetDistanceAGL,
+                       &FGPropagate::SetDistanceAGL);
   PropertyManager->Tie("position/geod-alt-km", this, &FGPropagate::GetGeodeticAltitudeKm);
-  PropertyManager->Tie("position/h-agl-km", this,  &FGPropagate::GetDistanceAGLKm, &FGPropagate::SetDistanceAGLKm);
+  PropertyManager->Tie("position/h-agl-km", this,  &FGPropagate::GetDistanceAGLKm,
+                       &FGPropagate::SetDistanceAGLKm);
   PropertyManager->Tie("position/radius-to-vehicle-ft", this, &FGPropagate::GetRadius);
-  PropertyManager->Tie("position/terrain-elevation-asl-ft", this,
-                          &FGPropagate::GetTerrainElevation,
-                          &FGPropagate::SetTerrainElevation);
+  PropertyManager->Tie("position/terrain-elevation-asl-ft", this, &FGPropagate::GetTerrainElevation,
+                       &FGPropagate::SetTerrainElevation);
 
-  PropertyManager->Tie("position/eci-x-ft", this, eX, (PMF)&FGPropagate::GetInertialPosition);
-  PropertyManager->Tie("position/eci-y-ft", this, eY, (PMF)&FGPropagate::GetInertialPosition);
-  PropertyManager->Tie("position/eci-z-ft", this, eZ, (PMF)&FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-x-ft", this, eX, &FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-y-ft", this, eY, &FGPropagate::GetInertialPosition);
+  PropertyManager->Tie("position/eci-z-ft", this, eZ, &FGPropagate::GetInertialPosition);
 
-  PropertyManager->Tie("position/ecef-x-ft", this, eX, (PMF)&FGPropagate::GetLocation);
-  PropertyManager->Tie("position/ecef-y-ft", this, eY, (PMF)&FGPropagate::GetLocation);
-  PropertyManager->Tie("position/ecef-z-ft", this, eZ, (PMF)&FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-x-ft", this, eX, &FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-y-ft", this, eY, &FGPropagate::GetLocation);
+  PropertyManager->Tie("position/ecef-z-ft", this, eZ, &FGPropagate::GetLocation);
 
   PropertyManager->Tie("position/epa-rad", this, &FGPropagate::GetEarthPositionAngle);
   PropertyManager->Tie("metrics/terrain-radius", this, &FGPropagate::GetLocalTerrainRadius);
 
-  PropertyManager->Tie("attitude/phi-rad", this, (int)ePhi, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/theta-rad", this, (int)eTht, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/psi-rad", this, (int)ePsi, (PMF)&FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/phi-rad", this, ePhi, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/theta-rad", this, eTht, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/psi-rad", this, ePsi, &FGPropagate::GetEuler);
 
-  PropertyManager->Tie("attitude/phi-deg", this, (int)ePhi, (PMF)&FGPropagate::GetEulerDeg);
-  PropertyManager->Tie("attitude/theta-deg", this, (int)eTht, (PMF)&FGPropagate::GetEulerDeg);
-  PropertyManager->Tie("attitude/psi-deg", this, (int)ePsi, (PMF)&FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/phi-deg", this, ePhi, &FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/theta-deg", this, eTht, &FGPropagate::GetEulerDeg);
+  PropertyManager->Tie("attitude/psi-deg", this, ePsi, &FGPropagate::GetEulerDeg);
 
-  PropertyManager->Tie("attitude/roll-rad", this, (int)ePhi, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/pitch-rad", this, (int)eTht, (PMF)&FGPropagate::GetEuler);
-  PropertyManager->Tie("attitude/heading-true-rad", this, (int)ePsi, (PMF)&FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/roll-rad", this, ePhi, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/pitch-rad", this, eTht, &FGPropagate::GetEuler);
+  PropertyManager->Tie("attitude/heading-true-rad", this, ePsi, &FGPropagate::GetEuler);
+
+  PropertyManager->Tie("orbital/specific-angular-momentum-ft2_sec", &h);
+  PropertyManager->Tie("orbital/inclination-deg", &Inclination);
+  PropertyManager->Tie("orbital/right-ascension-deg", &RightAscension);
+  PropertyManager->Tie("orbital/eccentricity", &Eccentricity);
+  PropertyManager->Tie("orbital/argument-of-perigee-deg", &PerigeeArgument);
+  PropertyManager->Tie("orbital/true-anomaly-deg", &TrueAnomaly);
+  PropertyManager->Tie("orbital/apoapsis-radius-ft", &ApoapsisRadius);
+  PropertyManager->Tie("orbital/periapsis-radius-ft", &PeriapsisRadius);
+  PropertyManager->Tie("orbital/period-sec", &OrbitalPeriod);
 
   PropertyManager->Tie("simulation/integrator/rate/rotational", (int*)&integrator_rotational_rate);
   PropertyManager->Tie("simulation/integrator/rate/translational", (int*)&integrator_translational_rate);
   PropertyManager->Tie("simulation/integrator/position/rotational", (int*)&integrator_rotational_position);
   PropertyManager->Tie("simulation/integrator/position/translational", (int*)&integrator_translational_position);
 
-  PropertyManager->Tie("simulation/write-state-file", this, (iPMF)0, &FGPropagate::WriteStateFile);
+  PropertyManager->Tie<FGPropagate, int>("simulation/write-state-file", this,
+                                         nullptr, &FGPropagate::WriteStateFile);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

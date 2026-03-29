@@ -38,6 +38,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGGain.h"
+#include "models/FGFCS.h"
 #include "math/FGParameterValue.h"
 #include "math/FGTable.h"
 
@@ -67,6 +68,7 @@ FGGain::FGGain(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
     }
   }
 
+  auto PropertyManager = fcs->GetPropertyManager();
   Element* gain_element = element->FindElement("gain");
   if (gain_element)
     Gain = new FGParameterValue(gain_element, PropertyManager);
@@ -117,7 +119,7 @@ FGGain::FGGain(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
     }
   }
 
-  bind(element);
+  bind(element, PropertyManager.get());
 
   Debug(0);
 }

@@ -38,6 +38,8 @@ SENTRY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
+#include <memory>
+
 #include "FGModel.h"
 #include "math/FGMatrix33.h"
 
@@ -119,7 +121,7 @@ CLASS DOCUMENTATION
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGMassBalance : public FGModel
+class JSBSIM_API FGMassBalance : public FGModel
 {
 
 public:
@@ -207,7 +209,7 @@ public:
   } in;
 
 private:
-  FGPropagate* Propagate;
+  std::shared_ptr<FGPropagate> Propagate;
   double Weight;
   double EmptyWeight;
   double Mass;

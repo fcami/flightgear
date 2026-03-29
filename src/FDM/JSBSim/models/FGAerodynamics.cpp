@@ -372,29 +372,18 @@ bool FGAerodynamics::Load(Element *document)
     axis = axis_element->GetAttributeValue("name");
     function_element = axis_element->FindElement("function");
     while (function_element) {
-      string current_func_name = function_element->GetAttributeValue("name");
-      bool apply_at_cg = false;
-      if (function_element->HasAttribute("apply_at_cg")) {
-        if (function_element->GetAttributeValue("apply_at_cg") == "true") apply_at_cg = true;
-      }
-      if (!apply_at_cg) {
       try {
-        ca.push_back( new FGFunction(FDMExec, function_element) );
-      } catch (const string& str) {
-        cerr << endl << axis_element->ReadFrom()
-             << endl << fgred << "Error loading aerodynamic function in "
-             << current_func_name << ":" << str << " Aborting." << reset << endl;
-        return false;
-      }
-      } else {
-        try {
-          ca_atCG.push_back( new FGFunction(FDMExec, function_element) );
-        } catch (const string& str) {
+        if (function_element->HasAttribute("apply_at_cg") &&
+            function_element->GetAttributeValue("apply_at_cg") == "true")
+          ca_atCG.push_back(new FGFunction(FDMExec, function_element));
+        else
+          ca.push_back(new FGFunction(FDMExec, function_element));
+      } catch (BaseException& e) {
+          string current_func_name = function_element->GetAttributeValue("name");
           cerr << endl << axis_element->ReadFrom()
                << endl << fgred << "Error loading aerodynamic function in "
-               << current_func_name << ":" << str << " Aborting." << reset << endl;
+               << current_func_name << ":" << e.what() << " Aborting." << reset << endl;
           return false;
-        }
       }
       function_element = axis_element->FindNextElement("function");
     }
@@ -420,6 +409,33 @@ bool FGAerodynamics::Load(Element *document)
 // Alternatively the axis name 'X|Y|Z or ROLL|PITCH|YAW' can be specified in
 // conjunction with a frame 'BODY|STABILITY|WIND', for example:
 // <axis name="X" frame="STABILITY"/>
+//
+// In summary, possible combinations:
+//
+// FORCES
+//    Body
+//       <axis name="AXIAL|SIDE|NORMAL" />
+//       <axis name="X|Y|Z" />
+//       <axis name="X|Y|Z" frame="BODY" />
+//
+//    Wind
+//       <axis name="DRAG|SIDE|LIFT" / >
+//       <axis name="X|Y|Z" frame="WIND" / >
+//
+//    Stability
+//       <axis name="X|Y|Z" frame="STABILITY" />
+//
+// MOMENTS
+//    Body
+//       <axis name="ROLL|PITCH|YAW" />
+//       <axis name="ROLL|PITCH|YAW" frame="BODY" / >
+//
+//    Wind
+//       <axis name="ROLL|PITCH|YAW" frame="WIND" />
+//
+//    Stability
+//       <axis name="ROLL|PITCH|YAW" frame="STABILITY" />
+//
 
 void FGAerodynamics::DetermineAxisSystem(Element* document)
 {
@@ -533,8 +549,8 @@ string FGAerodynamics::GetAeroFunctionStrings(const string& delimeter) const
 
   string FunctionStrings = FGModelFunctions::GetFunctionStrings(delimeter);
 
-  if (FunctionStrings.size() > 0) {
-    if (AeroFunctionStrings.size() > 0) {
+  if (!FunctionStrings.empty()) {
+    if (!AeroFunctionStrings.empty()) {
       AeroFunctionStrings += delimeter + FunctionStrings;
     } else {
       AeroFunctionStrings = FunctionStrings;
@@ -559,8 +575,8 @@ string FGAerodynamics::GetAeroFunctionValues(const string& delimeter) const
 
   string FunctionValues = FGModelFunctions::GetFunctionValues(delimeter);
 
-  if (FunctionValues.size() > 0) {
-    if (buf.str().size() > 0) {
+  if (!FunctionValues.empty()) {
+    if (!buf.str().empty()) {
       buf << delimeter << FunctionValues;
     } else {
       buf << FunctionValues;
@@ -574,26 +590,24 @@ string FGAerodynamics::GetAeroFunctionValues(const string& delimeter) const
 
 void FGAerodynamics::bind(void)
 {
-  typedef double (FGAerodynamics::*PMF)(int) const;
-
-  PropertyManager->Tie("forces/fbx-aero-lbs",  this, eX, (PMF)&FGAerodynamics::GetForces);
-  PropertyManager->Tie("forces/fby-aero-lbs",  this, eY, (PMF)&FGAerodynamics::GetForces);
-  PropertyManager->Tie("forces/fbz-aero-lbs",  this, eZ, (PMF)&FGAerodynamics::GetForces);
-  PropertyManager->Tie("moments/l-aero-lbsft", this, eL, (PMF)&FGAerodynamics::GetMoments);
-  PropertyManager->Tie("moments/m-aero-lbsft", this, eM, (PMF)&FGAerodynamics::GetMoments);
-  PropertyManager->Tie("moments/n-aero-lbsft", this, eN, (PMF)&FGAerodynamics::GetMoments);
-  PropertyManager->Tie("forces/fwx-aero-lbs",  this, eDrag, (PMF)&FGAerodynamics::GetvFw);
-  PropertyManager->Tie("forces/fwy-aero-lbs",  this, eSide, (PMF)&FGAerodynamics::GetvFw);
-  PropertyManager->Tie("forces/fwz-aero-lbs",  this, eLift, (PMF)&FGAerodynamics::GetvFw);
-  PropertyManager->Tie("forces/fsx-aero-lbs",  this, eX, (PMF)&FGAerodynamics::GetForcesInStabilityAxes);
-  PropertyManager->Tie("forces/fsy-aero-lbs",  this, eY, (PMF)&FGAerodynamics::GetForcesInStabilityAxes);
-  PropertyManager->Tie("forces/fsz-aero-lbs",  this, eZ, (PMF)&FGAerodynamics::GetForcesInStabilityAxes);
-  PropertyManager->Tie("moments/roll-stab-aero-lbsft", this, eRoll, (PMF)&FGAerodynamics::GetMomentsInStabilityAxes);
-  PropertyManager->Tie("moments/pitch-stab-aero-lbsft", this, ePitch, (PMF)&FGAerodynamics::GetMomentsInStabilityAxes);
-  PropertyManager->Tie("moments/yaw-stab-aero-lbsft", this, eYaw, (PMF)&FGAerodynamics::GetMomentsInStabilityAxes);
-  PropertyManager->Tie("moments/roll-wind-aero-lbsft", this, eRoll, (PMF)&FGAerodynamics::GetMomentsInWindAxes);
-  PropertyManager->Tie("moments/pitch-wind-aero-lbsft", this, ePitch, (PMF)&FGAerodynamics::GetMomentsInWindAxes);
-  PropertyManager->Tie("moments/yaw-wind-aero-lbsft", this, eYaw, (PMF)&FGAerodynamics::GetMomentsInWindAxes);
+  PropertyManager->Tie("forces/fbx-aero-lbs",  this, eX, &FGAerodynamics::GetForces);
+  PropertyManager->Tie("forces/fby-aero-lbs",  this, eY, &FGAerodynamics::GetForces);
+  PropertyManager->Tie("forces/fbz-aero-lbs",  this, eZ, &FGAerodynamics::GetForces);
+  PropertyManager->Tie("moments/l-aero-lbsft", this, eL, &FGAerodynamics::GetMoments);
+  PropertyManager->Tie("moments/m-aero-lbsft", this, eM, &FGAerodynamics::GetMoments);
+  PropertyManager->Tie("moments/n-aero-lbsft", this, eN, &FGAerodynamics::GetMoments);
+  PropertyManager->Tie("forces/fwx-aero-lbs",  this, eDrag, &FGAerodynamics::GetvFw);
+  PropertyManager->Tie("forces/fwy-aero-lbs",  this, eSide, &FGAerodynamics::GetvFw);
+  PropertyManager->Tie("forces/fwz-aero-lbs",  this, eLift, &FGAerodynamics::GetvFw);
+  PropertyManager->Tie("forces/fsx-aero-lbs",  this, eX, &FGAerodynamics::GetForcesInStabilityAxes);
+  PropertyManager->Tie("forces/fsy-aero-lbs",  this, eY, &FGAerodynamics::GetForcesInStabilityAxes);
+  PropertyManager->Tie("forces/fsz-aero-lbs",  this, eZ, &FGAerodynamics::GetForcesInStabilityAxes);
+  PropertyManager->Tie("moments/roll-stab-aero-lbsft", this, eRoll, &FGAerodynamics::GetMomentsInStabilityAxes);
+  PropertyManager->Tie("moments/pitch-stab-aero-lbsft", this, ePitch, &FGAerodynamics::GetMomentsInStabilityAxes);
+  PropertyManager->Tie("moments/yaw-stab-aero-lbsft", this, eYaw, &FGAerodynamics::GetMomentsInStabilityAxes);
+  PropertyManager->Tie("moments/roll-wind-aero-lbsft", this, eRoll, &FGAerodynamics::GetMomentsInWindAxes);
+  PropertyManager->Tie("moments/pitch-wind-aero-lbsft", this, ePitch, &FGAerodynamics::GetMomentsInWindAxes);
+  PropertyManager->Tie("moments/yaw-wind-aero-lbsft", this, eYaw, &FGAerodynamics::GetMomentsInWindAxes);
   PropertyManager->Tie("forces/lod-norm",      this, &FGAerodynamics::GetLoD);
   PropertyManager->Tie("aero/cl-squared",      this, &FGAerodynamics::GetClSquared);
   PropertyManager->Tie("aero/qbar-area", &qbar_area);

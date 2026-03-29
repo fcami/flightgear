@@ -50,9 +50,9 @@ INCLUDES
 #include "models/FGInput.h"
 #include "math/FGCondition.h"
 #include "math/FGFunctionValue.h"
+#include "input_output/string_utilities.h"
 
 using namespace std;
-using namespace std::string_literals;
 
 namespace JSBSim {
 
@@ -183,7 +183,7 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
     return false;
   }
 
-  FGInitialCondition *IC=FDMExec->GetIC();
+  auto IC = FDMExec->GetIC();
   if ( ! IC->Load( initialize )) {
     cerr << "Initialization unsuccessful" << endl;
     return false;
@@ -202,7 +202,7 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
   element = document->FindElement("output");
   SGPath scriptDir = SGPath(script.dir());
   if (scriptDir.isNull())
-    scriptDir = SGPath("."s);
+    scriptDir = SGPath(string("."));
 
   while (element) {
     if (!FDMExec->GetOutput()->Load(element, scriptDir))
@@ -214,7 +214,7 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
   // Read local property/value declarations
   int saved_debug_lvl = debug_lvl;
   debug_lvl = 0; // Disable messages
-  LocalProperties.Load(run_element, PropertyManager, true);
+  LocalProperties.Load(run_element, PropertyManager.get(), true);
   debug_lvl = saved_debug_lvl;
 
   // Read "events" from script
@@ -241,11 +241,12 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
 
     // Process the conditions
     Element* condition_element = event_element->FindElement("condition");
-    if (condition_element != 0) {
+    if (condition_element) {
       try {
         newCondition = new FGCondition(condition_element, PropertyManager);
-      } catch(string& str) {
-        cout << endl << fgred << str << reset << endl << endl;
+      } catch(BaseException& e) {
+        cerr << condition_element->ReadFrom()
+             << fgred << e.what() << reset << endl << endl;
         delete newEvent;
         return false;
       }
@@ -283,9 +284,10 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
 
         if (notify_property_element->HasAttribute("apply")) {
           string function_str = notify_property_element->GetAttributeValue("apply");
-          FGTemplateFunc* f = FDMExec->GetTemplateFunc(function_str);
+          auto f = FDMExec->GetTemplateFunc(function_str);
           if (f)
-            newEvent->NotifyProperties.push_back(new FGFunctionValue(notifyPropertyName, PropertyManager, f));
+            newEvent->NotifyProperties.push_back(new FGFunctionValue(notifyPropertyName, PropertyManager, f,
+                                                                     notify_property_element));
           else {
             cerr << notify_property_element->ReadFrom()
               << fgred << highint << "  No function by the name "
@@ -295,7 +297,8 @@ bool FGScript::LoadScript(const SGPath& script, double default_dT,
           }
         }
         else
-          newEvent->NotifyProperties.push_back(new FGPropertyValue(notifyPropertyName, PropertyManager));
+          newEvent->NotifyProperties.push_back(new FGPropertyValue(notifyPropertyName, PropertyManager,
+                                                                   notify_property_element));
 
         string caption_attribute = notify_property_element->GetAttributeValue("caption");
         if (caption_attribute.empty()) {
@@ -570,12 +573,16 @@ void FGScript::Debug(int from)
       cout << endl;
 
       for (auto node: LocalProperties) {
-        cout << "Local property: " << node->GetName()
+        cout << "Local property: " << node->getNameString()
              << " = " << node->getDoubleValue()
              << endl;
       }
 
       if (LocalProperties.empty()) cout << endl;
+
+      auto pm = FDMExec->GetPropertyManager();
+      const SGPropertyNode* root_node = pm->GetNode();
+      const string root_name = GetFullyQualifiedName(root_node) + "/";
 
       for (unsigned i=0; i<Events.size(); i++) {
         cout << "Event " << i;
@@ -610,7 +617,7 @@ void FGScript::Debug(int from)
               }
             } else {
               cout << endl << "      set "
-                   << Events[i].SetParam[j]->GetRelativeName("/fdm/jsbsim/")
+                   << GetRelativeName(Events[i].SetParam[j], root_name)
                    << " to function value";
             }
           } else {
@@ -627,7 +634,7 @@ void FGScript::Debug(int from)
               }
             } else {
               cout << endl << "      set "
-                   << Events[i].SetParam[j]->GetRelativeName("/fdm/jsbsim/")
+                   << GetRelativeName(Events[i].SetParam[j], root_name)
                    << " to " << Events[i].SetValue[j];
             }
           }
@@ -665,7 +672,7 @@ void FGScript::Debug(int from)
 
         // Print notifications
         if (Events[i].Notify) {
-          if (Events[i].NotifyProperties.size() > 0) {
+          if (!Events[i].NotifyProperties.empty()) {
             if (Events[i].NotifyKML) {
               cout << "  Notifications (KML Format):" << endl << "    {"
                    << endl;

@@ -38,6 +38,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGSensor.h"
+#include "models/FGFCS.h"
 #include "input_output/FGXMLElement.h"
 
 using namespace std;
@@ -49,7 +50,8 @@ CLASS IMPLEMENTATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 
-FGSensor::FGSensor(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
+FGSensor::FGSensor(FGFCS* fcs, Element* element)
+  : FGFCSComponent(fcs, element), generator(fcs->GetExec()->GetRandomGenerator())
 {
   // inputs are read from the base class constructor
 
@@ -115,7 +117,7 @@ FGSensor::FGSensor(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
     }
   }
 
-  bind(element);
+  bind(element, fcs->GetPropertyManager().get());
 
   Debug(0);
 }
@@ -181,11 +183,10 @@ void FGSensor::Noise(void)
 {
   double random_value=0.0;
 
-  if (DistributionType == eUniform) {
-    random_value = 2.0*(((double)rand()/(double)RAND_MAX) - 0.5);
-  } else {
-    random_value = GaussianRandomNumber();
-  }
+  if (DistributionType == eUniform)
+    random_value = generator->GetUniformRandomNumber();
+  else
+    random_value = generator->GetNormalRandomNumber();
 
   switch( NoiseType ) {
   case ePercent:
@@ -244,11 +245,11 @@ void FGSensor::Lag(void)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-void FGSensor::bind(Element* el)
+void FGSensor::bind(Element* el, FGPropertyManager* PropertyManager)
 {
   string tmp = Name;
 
-  FGFCSComponent::bind(el);
+  FGFCSComponent::bind(el, PropertyManager);
 
   if (Name.find("/") == string::npos) {
     tmp = "fcs/" + PropertyManager->mkPropertyName(Name, true);
@@ -256,15 +257,17 @@ void FGSensor::bind(Element* el)
   const string tmp_low = tmp + "/malfunction/fail_low";
   const string tmp_high = tmp + "/malfunction/fail_high";
   const string tmp_stuck = tmp + "/malfunction/fail_stuck";
+  const string tmp_randomseed = tmp + "/randomseed";
 
   PropertyManager->Tie( tmp_low, this, &FGSensor::GetFailLow, &FGSensor::SetFailLow);
   PropertyManager->Tie( tmp_high, this, &FGSensor::GetFailHigh, &FGSensor::SetFailHigh);
   PropertyManager->Tie( tmp_stuck, this, &FGSensor::GetFailStuck, &FGSensor::SetFailStuck);
-  
+  PropertyManager->Tie( tmp_randomseed, this, &FGSensor::GetNoiseRandomSeed, &FGSensor::SetNoiseRandomSeed);
+
   if (!quant_property.empty()) {
     if (quant_property.find("/") == string::npos) { // not found
       string qprop = "fcs/" + PropertyManager->mkPropertyName(quant_property, true);
-      FGPropertyNode* node = PropertyManager->GetNode(qprop, true);
+      SGPropertyNode* node = PropertyManager->GetNode(qprop, true);
       if (node->isTied()) {
         cerr << el->ReadFrom()
              << "Property " << tmp << " has already been successfully bound (late)." << endl;
@@ -274,7 +277,24 @@ void FGSensor::bind(Element* el)
         PropertyManager->Tie(qprop, this, &FGSensor::GetQuantized);
     }
   }
+}
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// User is supplying a random seed specifically for this sensor to override the
+// random seed used by FGFDMExec.
+
+void FGSensor::SetNoiseRandomSeed(int sr)
+{
+  RandomSeed = sr;
+  generator = std::make_shared<RandomNumberGenerator>(*RandomSeed);
+}
+
+int FGSensor::GetNoiseRandomSeed(void) const
+{
+  if (RandomSeed)
+    return *RandomSeed;
+  else
+    return fcs->GetExec()->SRand();
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

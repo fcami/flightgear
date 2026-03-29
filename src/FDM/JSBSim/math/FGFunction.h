@@ -34,6 +34,8 @@ SENTRY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
+#include <memory>
+
 #include "FGParameter.h"
 #include "input_output/FGPropertyManager.h"
 
@@ -86,6 +88,7 @@ A function definition consists of an operation, a value, a table, or a property
 - floor (takes 1 arg)
 - ceil (takes 1 arg)
 - fmod (takes 2 args)
+- roundmultiple (takes 2 args)
 - lt (less than, takes 2 args)
 - le (less equal, takes 2 args)
 - gt (greater than, takes 2 args)
@@ -119,7 +122,7 @@ An operation is defined in the configuration file as in the following example:
 A full function definition, such as is used in the aerodynamics section of a
 configuration file includes the function element, and other elements. It should
 be noted that there can be only one non-optional (non-documentation) element -
-that is, one operation element - in the top-level function definition.
+that is, one operation element or one table element - in the top-level function definition.
 Multiple value and/or property elements cannot be immediate child
 members of the function element. Almost always, the first operation within the
 function element will be a product or sum. For example:
@@ -287,7 +290,7 @@ refers to one or more instances of a property, value, or table.
 - @b log2, calculates the log base 2 value of the immediate child element:
     @code
     <log2>
-      {property, value, table, or other function element} 
+      {property, value, table, or other function element}
     </log2>
 
     Example:
@@ -299,7 +302,7 @@ refers to one or more instances of a property, value, or table.
     <ln>
       {property, value, table, or other function element}
     </ln>
-    
+
     Example: ln(128)
 
     <ln> <v> 200 </v> </ln>
@@ -414,7 +417,7 @@ refers to one or more instances of a property, value, or table.
     <min>
       {properties, values, tables, or other function elements}
     </min>
-    
+
     Example: returns the lesser of velocity and 2500
 
     <min>
@@ -427,7 +430,7 @@ refers to one or more instances of a property, value, or table.
     <max>
       {properties, values, tables, or other function elements}
     </max>
-    
+
     Example: returns the greater of velocity and 15000
 
     <max>
@@ -438,7 +441,7 @@ refers to one or more instances of a property, value, or table.
 - @b avg returns the average value of all the immediate child elements
     @code
     <avg>
-      {properties, values, tables, or other function elements} 
+      {properties, values, tables, or other function elements}
     </avg>
 
     Example: returns the average of the four numbers below, evaluates to 0.50.
@@ -509,6 +512,15 @@ refers to one or more instances of a property, value, or table.
     </fmod>
     @endcode
     Example: fmod(18.5, 4.2) evaluates to 1.7
+- @b roundmultiple returns the floating-point rounding of X to a multiple of M.
+                   round(X/M) * M
+    @code
+    <roundmultiple>
+      {property, value, table, or other function element}
+      {property, value, table, or other function element}
+    </roundmultiple>
+    @endcode
+    Example: roundmultiple(93.43, 5.0) evaluates to 95.0
 - @b lt returns a 1 if the value of the first immediate child element is less
         than the value of the second immediate child element, returns 0
         otherwise
@@ -574,7 +586,7 @@ refers to one or more instances of a property, value, or table.
       <v> 10000.0 </v>
     </ge>
     @endcode
-- @b eq returns a 1 if the value of the first immediate child element is 
+- @b eq returns a 1 if the value of the first immediate child element is
         equal to the second immediate child element, returns 0
         otherwise
     @code
@@ -640,7 +652,7 @@ refers to one or more instances of a property, value, or table.
           element (e.g., returns 1 if supplied a 0)
     @code
     <not>
-      {property, value, table, or other function element} 
+      {property, value, table, or other function element}
     </not>
 
     Example: returns 0 if the value of the supplied flag is 1
@@ -688,7 +700,7 @@ refers to one or more instances of a property, value, or table.
      </switch>
      @endcode
 - @b random Returns a normal distributed random number.
-            The function, without parameters, returns a normal distributed 
+            The function, without parameters, returns a normal distributed
             random value with a distribution defined by the parameters
             mean = 0.0 and standard deviation (stddev) = 1.0
             The Mean of the distribution (its expected value, μ).
@@ -697,15 +709,15 @@ refers to one or more instances of a property, value, or table.
             representing the dispersion of values from the distribution mean.
             This shall be a positive value (σ>0).
     @code
-    <random/> 
+    <random/>
     <random seed="1234"/>
     <random seed="time_now"/>
     <random seed="time_now" mean="0.0" stddev="1.0"/>
     @endcode
 - @b urandom Returns a uniformly distributed random number.
-             The function, without parameters, returns a random value 
+             The function, without parameters, returns a random value
              between the minimum value -1.0 and the maximum value of 1.0
-             The two maximum and minimum values can be modified using the 
+             The two maximum and minimum values can be modified using the
              lower and upper parameters.
     @code
     <urandom/>
@@ -754,12 +766,11 @@ class FGFunction : public FGParameter, public FGJSBBase
 public:
   /// Default constructor.
   FGFunction()
-    : cached(false), cachedValue(-HUGE_VAL), PropertyManager(nullptr),
-      pNode(nullptr), pCopyTo(nullptr) {}
+    : cached(false), cachedValue(-HUGE_VAL), pNode(nullptr), pCopyTo(nullptr) {}
 
-  explicit FGFunction(FGPropertyManager* pm)
+  explicit FGFunction(std::shared_ptr<FGPropertyManager> pm)
     : FGFunction()
-  { PropertyManager = pm; }
+    { PropertyManager = pm; }
 
   /** Constructor.
     When this constructor is called, the XML element pointed to in memory by the
@@ -817,8 +828,8 @@ protected:
   bool cached;
   double cachedValue;
   std::vector <FGParameter_ptr> Parameters;
-  FGPropertyManager* PropertyManager;
-  FGPropertyNode_ptr pNode;
+  std::shared_ptr<FGPropertyManager> PropertyManager;
+  SGPropertyNode_ptr pNode;
 
   void Load(Element* element, FGPropertyValue* var, FGFDMExec* fdmex,
             const std::string& prefix="");
@@ -830,7 +841,7 @@ protected:
 
 private:
   std::string Name;
-  FGPropertyNode_ptr pCopyTo; // Property node for CopyTo property string
+  SGPropertyNode_ptr pCopyTo; // Property node for CopyTo property string
 
   void Debug(int from);
 };

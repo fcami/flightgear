@@ -41,7 +41,6 @@ moments due to the difference between the point of application and the cg.
 
 #include "FGForce.h"
 #include "FGFDMExec.h"
-#include "models/FGMassBalance.h"
 #include "models/FGAuxiliary.h"
 
 using namespace std;
@@ -102,6 +101,8 @@ const FGMatrix33& FGForce::Transform(void) const
     return fdmex->GetAuxiliary()->GetTw2b();
   case tLocalBody:
     return fdmex->GetPropagate()->GetTl2b();
+  case tInertialBody:
+    return fdmex->GetPropagate()->GetTi2b();
   case tCustom:
   case tNone:
     return mT;

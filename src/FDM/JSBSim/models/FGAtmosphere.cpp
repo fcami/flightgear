@@ -45,25 +45,25 @@ INCLUDES
 #include "FGFDMExec.h"
 #include "FGAtmosphere.h"
 
+using namespace std;
+
 namespace JSBSim {
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 CLASS IMPLEMENTATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-// Atmosphere constants in British units converted from the SI values specified in the 
-// ISA document - https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539.pdf
-double FGAtmosphere::Reng = Rstar / Mair;
-
-const double FGAtmosphere::StdDaySLsoundspeed = sqrt(SHRatio*Reng*StdDaySLtemperature);
-
-FGAtmosphere::FGAtmosphere(FGFDMExec* fdmex) : FGModel(fdmex),
-                                               PressureAltitude(0.0),      // ft
-                                               DensityAltitude(0.0)       // ft
+FGAtmosphere::FGAtmosphere(FGFDMExec* fdmex)
+  : FGModel(fdmex),
+    StdDaySLsoundspeed(sqrt(SHRatio*Reng0*StdDaySLtemperature))
 {
   Name = "FGAtmosphere";
 
   bind();
+  SGPropertyNode* root = PropertyManager->GetNode();
+  atmosphere_node = root->getNode("atmosphere");
+
+  assert(atmosphere_node);
   Debug(0);
 }
 
@@ -80,11 +80,11 @@ bool FGAtmosphere::InitModel(void)
 {
   if (!FGModel::InitModel()) return false;
 
-  Calculate(0.0);
   SLtemperature = Temperature = StdDaySLtemperature;
   SLpressure = Pressure = StdDaySLpressure;
   SLdensity = Density = Pressure/(Reng*Temperature);
   SLsoundspeed = Soundspeed = StdDaySLsoundspeed;
+  Calculate(0.0);
 
   return true;
 }
@@ -103,24 +103,87 @@ bool FGAtmosphere::Run(bool Holding)
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// Using pressure in Outer Space between stars in the Milky Way.
+
+double FGAtmosphere::ValidatePressure(double p, const string& msg, bool quiet) const
+{
+  const double MinPressure = ConvertToPSF(1E-15, ePascals);
+  if (p < MinPressure) {
+    if (!quiet) {
+      cerr << msg << " " << p << " is too low." << endl
+           << msg << " is capped to " << MinPressure << endl;
+    }
+    return MinPressure;
+  }
+  return p;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  // Make sure that the ambient temperature never drops to zero.
+  // According to Wikipedia, 1K is the temperature at the coolest natural place
+  // currently (2023) known in the Universe: the Boomerang Nebula
+
+double FGAtmosphere::ValidateTemperature(double t, const string& msg, bool quiet) const
+{
+  // Minimum known temperature in the universe currently
+  constexpr double minUniverseTemperature = KelvinToRankine(1.0);
+
+  if (t < minUniverseTemperature) {
+    if (!quiet) {
+      cerr << msg << " " << t << " is too low." << endl
+           << msg << " is capped to " << minUniverseTemperature << endl;
+    }
+    return minUniverseTemperature;
+  }
+  return t;
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void FGAtmosphere::Calculate(double altitude)
 {
-  FGPropertyNode* node = PropertyManager->GetNode();
-  if (!PropertyManager->HasNode("atmosphere/override/temperature"))
-    Temperature = GetTemperature(altitude);
-  else
-    Temperature = node->GetDouble("atmosphere/override/temperature");
+  double t =0.0;
+  double p = 0.0;
 
-  if (!PropertyManager->HasNode("atmosphere/override/pressure"))
-    Pressure = GetPressure(altitude);
-  else
-    Pressure = node->GetDouble("atmosphere/override/pressure");
+  if (!override_node) override_node = atmosphere_node->getNode("override");
 
-  if (!PropertyManager->HasNode("atmosphere/override/density"))
-    Density = GetDensity(altitude);
+  // Temperature and pressure
+  if (override_node) {
+    if (!override_temperature_node)
+      override_temperature_node = override_node->getNode("temperature");
+
+    if (override_temperature_node)
+      t = override_temperature_node->getDoubleValue();
+    else
+      t = GetTemperature(altitude);
+
+    if (!override_pressure_node)
+      override_pressure_node = override_node->getNode("pressure");
+
+    if (override_pressure_node)
+      p = override_pressure_node->getDoubleValue();
+    else
+      p = GetPressure(altitude);
+  } else {
+    t = GetTemperature(altitude);
+    p = GetPressure(altitude);
+  }
+
+  Temperature = ValidateTemperature(t, "", true);
+  Pressure = ValidatePressure(p, "", true);
+
+  // Density
+  if (override_node) {
+    if (!override_density_node)
+      override_density_node = override_node->getNode("density");
+
+    if (override_density_node)
+      Density = override_density_node->getDoubleValue();
+    else
+      Density = Pressure/(Reng*Temperature);
+  }
   else
-    Density = node->GetDouble("atmosphere/override/density");
+    Density = Pressure/(Reng*Temperature);
 
   Soundspeed  = sqrt(SHRatio*Reng*Temperature);
   PressureAltitude = CalculatePressureAltitude(Pressure, altitude);
@@ -136,7 +199,8 @@ void FGAtmosphere::SetPressureSL(ePressure unit, double pressure)
 {
   double press = ConvertToPSF(pressure, unit);
 
-  SLpressure = press;
+  SLpressure = ValidatePressure(press, "Sea Level pressure");
+  SLdensity = GetDensity(0.0);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -161,7 +225,11 @@ double FGAtmosphere::GetSoundSpeed(double altitude) const
 
 void FGAtmosphere::SetTemperatureSL(double t, eTemperature unit)
 {
-  SLtemperature = ConvertToRankine(t, unit);
+  double temp = ConvertToRankine(t, unit);
+
+  SLtemperature = ValidateTemperature(temp, "Sea Level temperature");
+  SLdensity = GetDensity(0.0);
+  SLsoundspeed = GetSoundSpeed(0.0);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -184,7 +252,7 @@ double FGAtmosphere::ConvertToRankine(double t, eTemperature unit) const
     targetTemp = t*1.8;
     break;
   default:
-    break;
+    throw BaseException("Undefined temperature unit given");
   }
 
   return targetTemp;
@@ -210,7 +278,7 @@ double FGAtmosphere::ConvertFromRankine(double t, eTemperature unit) const
     targetTemp = t/1.8;
     break;
   default:
-    break;
+    throw BaseException("Undefined temperature unit given");
   }
 
   return targetTemp;
@@ -236,11 +304,13 @@ double FGAtmosphere::ConvertToPSF(double p, ePressure unit) const
     targetPressure = p*70.7180803;
     break;
   default:
-    throw("Undefined pressure unit given");
+    throw BaseException("Undefined pressure unit given");
   }
 
   return targetPressure;
 }
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 double FGAtmosphere::ConvertFromPSF(double p, ePressure unit) const
 {
@@ -260,7 +330,7 @@ double FGAtmosphere::ConvertFromPSF(double p, ePressure unit) const
     targetPressure = p/70.7180803;
     break;
   default:
-    throw("Undefined pressure unit given");
+    throw BaseException("Undefined pressure unit given");
   }
 
   return targetPressure;

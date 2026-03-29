@@ -1,6 +1,6 @@
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
- Module:       FGFCS.cpp 
+ Module:       FGFCS.cpp
  Author:       Jon Berndt
  Date started: 12/12/98
  Purpose:      Model the flight controls
@@ -38,6 +38,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include <iomanip>
+#include <array>
 
 #include "FGFCS.h"
 #include "input_output/FGModelLoader.h"
@@ -75,12 +76,11 @@ FGFCS::FGFCS(FGFDMExec* fdm) : FGModel(fdm), ChannelRate(1)
   Name = "FGFCS";
   systype = stFCS;
 
-  fdmex = fdm;
   DaCmd = DeCmd = DrCmd = DfCmd = DsbCmd = DspCmd = 0;
   PTrimCmd = YTrimCmd = RTrimCmd = 0.0;
   GearCmd = GearPos = 1; // default to gear down
   BrakePos.resize(FGLGear::bgNumBrakeGroups);
-  TailhookPos = WingFoldPos = 0.0; 
+  TailhookPos = WingFoldPos = 0.0;
 
   bind();
   for (i=0;i<NForms;i++) {
@@ -314,7 +314,7 @@ void FGFCS::SetDspPos( int form , double pos )
 
 void FGFCS::SetThrottleCmd(int engineNum, double setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)ThrottleCmd.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<ThrottleCmd.size(); ctr++)
         ThrottleCmd[ctr] = setting;
@@ -350,7 +350,7 @@ void FGFCS::SetThrottlePos(int engineNum, double setting)
 
 double FGFCS::GetThrottleCmd(int engineNum) const
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)ThrottleCmd.size()) {
     if (engineNum < 0) {
        cerr << "Cannot get throttle value for ALL engines" << endl;
     } else {
@@ -386,7 +386,7 @@ double FGFCS::GetThrottlePos(int engineNum) const
 
 void FGFCS::SetMixtureCmd(int engineNum, double setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)MixtureCmd.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<MixtureCmd.size(); ctr++)
         MixtureCmd[ctr] = setting;
@@ -400,7 +400,7 @@ void FGFCS::SetMixtureCmd(int engineNum, double setting)
 
 void FGFCS::SetMixturePos(int engineNum, double setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)MixturePos.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<MixtureCmd.size(); ctr++)
         MixturePos[ctr] = MixtureCmd[ctr];
@@ -414,7 +414,7 @@ void FGFCS::SetMixturePos(int engineNum, double setting)
 
 void FGFCS::SetPropAdvanceCmd(int engineNum, double setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)PropAdvanceCmd.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<PropAdvanceCmd.size(); ctr++)
         PropAdvanceCmd[ctr] = setting;
@@ -428,7 +428,7 @@ void FGFCS::SetPropAdvanceCmd(int engineNum, double setting)
 
 void FGFCS::SetPropAdvance(int engineNum, double setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)PropAdvance.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<PropAdvanceCmd.size(); ctr++)
         PropAdvance[ctr] = PropAdvanceCmd[ctr];
@@ -442,7 +442,7 @@ void FGFCS::SetPropAdvance(int engineNum, double setting)
 
 void FGFCS::SetFeatherCmd(int engineNum, bool setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)PropFeatherCmd.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<PropFeatherCmd.size(); ctr++)
         PropFeatherCmd[ctr] = setting;
@@ -456,7 +456,7 @@ void FGFCS::SetFeatherCmd(int engineNum, bool setting)
 
 void FGFCS::SetPropFeather(int engineNum, bool setting)
 {
-  if (engineNum < (int)ThrottlePos.size()) {
+  if (engineNum < (int)PropFeather.size()) {
     if (engineNum < 0) {
       for (unsigned int ctr=0; ctr<PropFeatherCmd.size(); ctr++)
         PropFeather[ctr] = PropFeatherCmd[ctr];
@@ -490,21 +490,21 @@ bool FGFCS::Load(Element* document)
   Debug(2);
 
   Element* channel_element = document->FindElement("channel");
-  
+
   while (channel_element) {
-  
+
     FGFCSChannel* newChannel = 0;
 
     string sOnOffProperty = channel_element->GetAttributeValue("execute");
     string sChannelName = channel_element->GetAttributeValue("name");
-    
+
     if (!channel_element->GetAttributeValue("execrate").empty())
       ChannelRate = channel_element->GetAttributeValueAsNumber("execrate");
     else
       ChannelRate = 1;
 
     if (sOnOffProperty.length() > 0) {
-      FGPropertyNode* OnOffPropertyNode = PropertyManager->GetNode(sOnOffProperty);
+      SGPropertyNode* OnOffPropertyNode = PropertyManager->GetNode(sOnOffProperty);
       if (OnOffPropertyNode == 0) {
         cerr << channel_element->ReadFrom() << highint << fgred
              << "The On/Off property, " << sOnOffProperty << " specified for channel "
@@ -520,9 +520,9 @@ bool FGFCS::Load(Element* document)
     SystemChannels.push_back(newChannel);
 
     if (debug_lvl > 0)
-      cout << endl << highint << fgblue << "    Channel " 
+      cout << endl << highint << fgblue << "    Channel "
          << normint << channel_element->GetAttributeValue("name") << reset << endl;
-  
+
     Element* component_element = channel_element->GetElement();
     while (component_element) {
       try {
@@ -613,8 +613,17 @@ SGPath FGFCS::FindFullPathName(const SGPath& path) const
   SGPath name = FGModel::FindFullPathName(path);
   if (systype != stSystem || !name.isNull()) return name;
 
-  name = CheckPathName(FDMExec->GetFullAircraftPath()/string("Systems"), path);
-  if (!name.isNull()) return name;
+#ifdef _WIN32
+  const array<string, 1> dir_names = {"Systems"};
+#else
+  // Check alternative capitalization for case sensitive OSes.
+  const array<string, 2> dir_names = {"Systems", "systems"};
+#endif
+
+  for(const string& dir_name: dir_names) {
+    name = CheckPathName(FDMExec->GetFullAircraftPath()/dir_name, path);
+    if (!name.isNull()) return name;
+  }
 
   return CheckPathName(FDMExec->GetSystemsPath(), path);
 }

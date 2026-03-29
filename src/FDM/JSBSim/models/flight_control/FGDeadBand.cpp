@@ -38,6 +38,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGDeadBand.h"
+#include "models/FGFCS.h"
 #include "math/FGParameterValue.h"
 
 using namespace std;
@@ -58,6 +59,7 @@ FGDeadBand::FGDeadBand(FGFCS* fcs, Element* element)
 
   CheckInputNodes(1, 1, element);
 
+  auto PropertyManager = fcs->GetPropertyManager();
   Element* width_element = element->FindElement("width");
   if (width_element)
     Width = new FGParameterValue(width_element, PropertyManager);
@@ -67,7 +69,7 @@ FGDeadBand::FGDeadBand(FGFCS* fcs, Element* element)
   if (element->FindElement("gain"))
     gain = element->FindElementValueAsNumber("gain");
 
-  bind(element);
+  bind(element, PropertyManager.get());
   Debug(0);
 }
 

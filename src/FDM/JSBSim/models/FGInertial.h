@@ -62,7 +62,7 @@ CLASS DOCUMENTATION
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGInertial : public FGModel {
+class JSBSIM_API FGInertial : public FGModel {
 
 public:
   explicit FGInertial(FGFDMExec*);
@@ -85,6 +85,7 @@ public:
   }
   double GetSemimajor(void) const {return a;}
   double GetSemiminor(void) const {return b;}
+  double GetGM(void) const {return GM;}
 
   /** @name Functions that rely on the ground callback
       The following functions allow to set and get the vehicle position above
@@ -132,7 +133,7 @@ public:
   }
 
   /** Set the simulation time.
-      The elapsed time can be used by the ground callbck to assess the planet
+      The elapsed time can be used by the ground callback to assess the planet
       rotation or the movement of objects.
       @param time elapsed time in seconds since the simulation started.
   */
@@ -208,7 +209,7 @@ private:
 
   FGColumnVector3 vOmegaPlanet;
   FGColumnVector3 vGravAccel;
-  double GM;
+  double GM;   // Gravitation parameter
   double J2;   // WGS84 value for J2
   double a;    // WGS84 semimajor axis length in feet 
   double b;    // WGS84 semiminor axis length in feet
