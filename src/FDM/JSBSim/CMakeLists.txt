@@ -211,15 +211,14 @@ set(SOURCES
 
 add_library(JSBSim STATIC ${SOURCES} ${HEADERS})
 set(VERSION_MESSAGE "compiled from FlightGear ${FLIGHTGEAR_VERSION}")
-add_definitions("-DJSBSIM_VERSION=\"${VERSION_MESSAGE}\"")
-
+target_compile_definitions(JSBSim PUBLIC JSBSIM_STATIC_LINK
+                                  PRIVATE JSBSIM_VERSION="${VERSION_MESSAGE}")
 target_link_libraries(JSBSim SimGearCore)
-target_include_directories(JSBSim PRIVATE ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
+target_include_directories(JSBSim PUBLIC ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
 
 add_executable(JSBsim_bin JSBSim.cpp )
 set_target_properties(JSBsim_bin PROPERTIES OUTPUT_NAME "JSBSim" )
 target_Link_libraries(JSBsim_bin JSBSim)
-target_include_directories(JSBsim_bin PRIVATE ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
 
 if (MSVC)
     set_target_properties(JSBsim_bin PROPERTIES DEBUG_POSTFIX d)
