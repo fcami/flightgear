@@ -17,6 +17,7 @@
 #include <mutex>
 
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
+#include <Environment/environment.hxx>
 
 using std::vector;
 
@@ -64,6 +65,7 @@ private:
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
         osg::ref_ptr<osg::Image> voxelShadeData;
+        osg::ref_ptr<osg::Image> windOffsetData;
         float maxZ = 0.0f;
         float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
@@ -123,6 +125,7 @@ private:
     osg::ref_ptr<osg::Image> _detailedVoxelData;
     osg::ref_ptr<osg::Image> _roughVoxelData;
     osg::ref_ptr<osg::Image> _voxelShadeData;
+    osg::ref_ptr<osg::Image> _windOffsetData;
 
     bool add3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
     bool delete3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
@@ -170,6 +173,7 @@ public:
     bool isCloudsRepeating(void) const { return _fieldRepeating; }
     void setCloudsRepeating(bool repeat) { _fieldRepeating = repeat; }
 
+    void updateWindColumn(double dt, FGEnvironment *env);
     void updateFromOsgTraversal();
     osg::ref_ptr<osg::Group> getCloudUpdateNode() { return _cloudUpdateNode; }
 };

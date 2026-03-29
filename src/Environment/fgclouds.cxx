@@ -26,6 +26,7 @@
 #include <simgear/structure/commands.hxx>
 
 #include <Airports/airport.hxx>
+#include <Environment/environment_ctrl.hxx>
 #include <Main/globals.hxx>
 #include <Main/util.hxx>
 #include <Time/light.hxx>
@@ -647,6 +648,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     result.voxelShadeData->setFileName("Voxel Shade Data");
     result.voxelShadeData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
 
+    result.windOffsetData = new osg::Image();
+    result.windOffsetData->setName("Wind Offset Data");
+    result.windOffsetData->setFileName("Wind Offset Data");
+    result.windOffsetData->allocateImage(snap.detailedFieldHeight, 1, 1, GL_RGBA, GL_FLOAT);
+
     // The alpha value is use for a Signed Distance Field, and indicates the maximum distance that can be travelled
     // before hitting something in UV coordinates.  We default to 1 pixel.
     const float roughSDFMin = 1.0f / (float)snap.roughFieldWidth;
@@ -827,9 +833,11 @@ void FGClouds::commitResult(RebuildResult result)
     _detailedVoxelData = result.detailedVoxelData;
     _roughVoxelData = result.roughVoxelData;
     _voxelShadeData = result.voxelShadeData;
+    _windOffsetData = result.windOffsetData;
 
     // Push them into the textures
     simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, _voxelShadeData, result.fieldRepeating);
+    simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
 }
 
 void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
@@ -897,6 +905,21 @@ void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
         // so we will simply log this.
         _FMMExceptionCount++;
         SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "Cloud Fast Marching Method to generate SDF threw exception'" << e.what() << "'. Ignoring.  Cloud ray-marching will be inefficient. Total exceptions: " << _FMMExceptionCount);
+    }
+}
+
+// Update the wind column data, ready to be pushed to the Uniform during the updateFromOSGTraversal
+void FGClouds::updateWindColumn(double dt, FGEnvironment *env) 
+{
+    if (! _windOffsetData) return; // Early return if no cloud data has been generated
+
+    const std::size_t width = _windOffsetData->s();
+    const float fieldWidthM = (float) _detailedFieldVoxelSize * _detailedFieldWidth;
+    float* raw = reinterpret_cast<float*>(_windOffsetData->data());
+    for (std::size_t i = 0; i < width; i++) {
+        // Work out the offset in normalized UV coordinates        
+        raw[i*4] += env->get_wind_from_north_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+        raw[i*4 + 1] += env->get_wind_from_east_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
     }
 }
 
@@ -970,4 +993,7 @@ void FGClouds::updateFromOsgTraversal()
     // Adjust the altitude of the cloud base
     float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
     fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (_detailedFieldHeight * _detailedFieldVoxelSize));
+
+    // Write the wind offset data to the Uniform
+    simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
 }

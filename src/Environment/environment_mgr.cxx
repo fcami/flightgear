@@ -208,6 +208,8 @@ void FGEnvironmentMgr::update(double dt)
 
     updateTowerPosition();
 
+    fgClouds->updateWindColumn(dt, _environment);
+
     fgSetDouble("/environment/gravitational-acceleration-mps2",
                 Environment::Gravity::instance()->getGravity(aircraftPos));
 }
