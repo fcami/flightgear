@@ -175,6 +175,7 @@ public:
 
     void updateWindColumn(double dt, FGEnvironment* env);
     void updateFromOsgTraversal();
+    void updateRepeatingField();
     osg::ref_ptr<osg::Group> getCloudUpdateNode() { return _cloudUpdateNode; }
 };
 

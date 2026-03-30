@@ -942,53 +942,7 @@ void FGClouds::updateFromOsgTraversal()
                                     &FGClouds::runRebuild, std::move(snap));
     }
 
-    if (_fieldRepeating) {
-        // Adjust the position and orientation of the voxel field to ensure that it is approximately
-        // tangent to the local surface if the camera has moved a significant distance.  To make this
-        // as seamless as possible, we move it by a whole UV space, taking advantage of the fact the
-        // field is repeating.
-        const float fieldWidthM = _detailedFieldWidth * _detailedFieldVoxelSize;
-        SGVec3<double> currentCart;
-
-        SGGeod currentGeod = globals->get_view_position();
-        currentGeod.setElevationM(0);
-        SGGeodesy::SGGeodToCart(currentGeod, currentCart);
-
-        osg::Matrixf currentPosMatrix = makeZUpFrameRelative(currentGeod);
-        osg::Vec3f localDrift = currentPosMatrix * (toOsg(currentCart) - toOsg(_centerCart));
-
-        // Snap drift to nearest field-width multiple in XY
-        float snapX = std::round(localDrift.x() / fieldWidthM);
-        float snapY = std::round(localDrift.y() / fieldWidthM);
-
-        if (std::abs(snapX) >= 1.0f || std::abs(snapY) >= 1.0f) {
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart before snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "localDrift: " << localDrift.x() << ", " << localDrift.y() << ", " << localDrift.z());
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "snapX: " << snapX << " snapY: " << snapY);
-
-            // Move centerCart by the snap in local space, converting via currentPosMatrix
-            osg::Vec3d snapLocal(snapX * fieldWidthM, snapY * fieldWidthM, 0.0);
-            osg::Vec3d snapECEF = osg::Matrix::inverse(currentPosMatrix) * snapLocal;
-            _centerCart = _centerCart + toSG(snapECEF);
-
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-            fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
-            fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
-            fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
-
-            // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
-            // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
-            // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
-            // in too large a rotation of the up vector.
-            if (std::abs(snapX) >= 1.0f) {
-                fgSetBool("/sim/rendering/hdr/clouds/mirror-u", !fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
-            }
-
-            if (std::abs(snapY) >= 1.0f) {
-                fgSetBool("/sim/rendering/hdr/clouds/mirror-v", !fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
-            }
-        }
-    }
+    if (_fieldRepeating) updateRepeatingField();
 
     // Adjust the altitude of the cloud base
     float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
@@ -996,4 +950,53 @@ void FGClouds::updateFromOsgTraversal()
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
+}
+
+void FGClouds::updateRepeatingField()
+{
+    // Adjust the position and orientation of the voxel field to ensure that it is approximately
+    // tangent to the local surface if the camera has moved a significant distance.  To make this
+    // as seamless as possible, we move it by a whole UV space, taking advantage of the fact the
+    // field is repeating.
+    const float fieldWidthM = _detailedFieldWidth * _detailedFieldVoxelSize;
+    SGVec3<double> currentCart;
+
+    SGGeod currentGeod = globals->get_view_position();
+    currentGeod.setElevationM(0);
+    SGGeodesy::SGGeodToCart(currentGeod, currentCart);
+
+    osg::Matrixf currentPosMatrix = makeZUpFrameRelative(currentGeod);
+    osg::Vec3f localDrift = currentPosMatrix * (toOsg(currentCart) - toOsg(_centerCart));
+
+    // Snap drift to nearest field-width multiple in XY
+    float snapX = std::round(localDrift.x() / fieldWidthM);
+    float snapY = std::round(localDrift.y() / fieldWidthM);
+
+    if (std::abs(snapX) >= 1.0f || std::abs(snapY) >= 1.0f) {
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart before snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "localDrift: " << localDrift.x() << ", " << localDrift.y() << ", " << localDrift.z());
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "snapX: " << snapX << " snapY: " << snapY);
+
+        // Move centerCart by the snap in local space, converting via currentPosMatrix
+        osg::Vec3d snapLocal(snapX * fieldWidthM, snapY * fieldWidthM, 0.0);
+        osg::Vec3d snapECEF = osg::Matrix::inverse(currentPosMatrix) * snapLocal;
+        _centerCart = _centerCart + toSG(snapECEF);
+
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
+
+        // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
+        // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
+        // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
+        // in too large a rotation of the up vector.
+        if (std::abs(snapX) >= 1.0f) {
+            fgSetBool("/sim/rendering/hdr/clouds/mirror-u", !fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
+        }
+
+        if (std::abs(snapY) >= 1.0f) {
+            fgSetBool("/sim/rendering/hdr/clouds/mirror-v", !fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
+        }
+    }
 }
