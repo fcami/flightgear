@@ -16,6 +16,7 @@
 #include <future>
 #include <mutex>
 
+#include <Environment/environment.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 
 using std::vector;
@@ -56,7 +57,7 @@ private:
         // Field center for fgSet* calls at commit time
         SGVec3<double> centerCart;
         osg::Matrixf cloudPosMatrix;
-        float maxZ = 0.0f;
+        float cloudbaseM = 999999.0f;
     };
 
     // Output bundle produced by the background thread
@@ -64,7 +65,9 @@ private:
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
         osg::ref_ptr<osg::Image> voxelShadeData;
+        osg::ref_ptr<osg::Image> windOffsetData;
         float maxZ = 0.0f;
+        float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
     };
 
@@ -122,6 +125,7 @@ private:
     osg::ref_ptr<osg::Image> _detailedVoxelData;
     osg::ref_ptr<osg::Image> _roughVoxelData;
     osg::ref_ptr<osg::Image> _voxelShadeData;
+    osg::ref_ptr<osg::Image> _windOffsetData;
 
     bool add3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
     bool delete3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
@@ -169,7 +173,9 @@ public:
     bool isCloudsRepeating(void) const { return _fieldRepeating; }
     void setCloudsRepeating(bool repeat) { _fieldRepeating = repeat; }
 
+    void updateWindColumn(double dt, FGEnvironment* env);
     void updateFromOsgTraversal();
+    void updateRepeatingField();
     osg::ref_ptr<osg::Group> getCloudUpdateNode() { return _cloudUpdateNode; }
 };
 

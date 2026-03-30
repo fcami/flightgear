@@ -26,6 +26,7 @@
 #include <simgear/structure/commands.hxx>
 
 #include <Airports/airport.hxx>
+#include <Environment/environment_ctrl.hxx>
 #include <Main/globals.hxx>
 #include <Main/util.hxx>
 #include <Time/light.hxx>
@@ -504,6 +505,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     snap.detailedFieldVoxelSize = cloudsProp->getIntValue("detailed-voxel-size-m", 200);
     snap.extinction = cloudsProp->getFloatValue("extinction-factor", 1.2);
     snap.fieldRepeating = _fieldRepeating;
+    snap.cloudbaseM = 99999.0f;
 
     // Write back for use by FGClouds outside of the snapshot.
     _detailedFieldWidth = snap.detailedFieldWidth;
@@ -577,6 +579,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
                 SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Adding detailed cloud at " << p.x() << " " << p.y() << " " << p.z() << " d: " << p.length());
                 auto localCloud = std::make_pair(c, p);
                 snap.detailedFieldList.push_back(localCloud);
+                snap.cloudbaseM = std::min(p.z(), snap.cloudbaseM);
             }
 
             // Only use the rough field map if we aren't using a repeating (detailed) field)
@@ -587,6 +590,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
                 SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Adding rough cloud at " << p.x() << " " << p.y() << " " << p.z() << " d: " << p.length());
                 auto localCloud = std::make_pair(c, p);
                 snap.roughFieldList.push_back(localCloud);
+                snap.cloudbaseM = std::min(p.z(), snap.cloudbaseM);
             }
         }
     }
@@ -598,6 +602,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 {
     RebuildResult result;
     result.fieldRepeating = snap.fieldRepeating;
+    result.cloudbaseM = snap.cloudbaseM;
 
     if ((snap.fieldRepeating && snap.detailedFieldList.empty()) ||
         (!snap.fieldRepeating && snap.roughFieldList.empty())) {
@@ -643,6 +648,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     result.voxelShadeData->setFileName("Voxel Shade Data");
     result.voxelShadeData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
 
+    result.windOffsetData = new osg::Image();
+    result.windOffsetData->setName("Wind Offset Data");
+    result.windOffsetData->setFileName("Wind Offset Data");
+    result.windOffsetData->allocateImage(snap.detailedFieldHeight, 1, 1, GL_RGBA, GL_FLOAT);
+
     // The alpha value is use for a Signed Distance Field, and indicates the maximum distance that can be travelled
     // before hitting something in UV coordinates.  We default to 1 pixel.
     const float roughSDFMin = 1.0f / (float)snap.roughFieldWidth;
@@ -676,11 +686,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     // [2] .z - Density.  0.0 is no cloud density, 1.0 is fully opaque density.  Use this to determine if there is any cloud at this location.
     // [3] .a - Signed Distance Field in UV space.  The maximum radius sphere centered on this point that doesn't contain any cloud density.  Used for adaptive ray marching.
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Creating detailed field of " << snap.detailedFieldList.size() << " clouds");
+    const osg::Vec3f zOffset = osg::Vec3f(0.0, 0.0, -snap.cloudbaseM);
 
     for (const auto& cl : snap.detailedFieldList) {
         const SGVoxelCloud* c = cl.first;
-        osg::Vec3f p = cl.second;
-
+        osg::Vec3f p = cl.second + zOffset;
         float z = (float)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
         result.maxZ = std::max(z, result.maxZ);
     }
@@ -692,9 +702,9 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         // Now generate the rough voxel space in a similar manner
         for (const auto& cl : snap.roughFieldList) {
             const SGVoxelCloud* c = cl.first;
-            osg::Vec3f p = cl.second;
-
-            c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            osg::Vec3f p = cl.second + zOffset;
+            float z = (float)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            result.maxZ = std::max(z, result.maxZ);
         }
 
         // Generate an SDF
@@ -814,14 +824,20 @@ void FGClouds::commitResult(RebuildResult result)
     // These fgSet* calls must stay on the main thread
     fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm",
                result.maxZ / float(result.detailedVoxelData->r()));
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-m", result.cloudbaseM);
+    fgSetBool("/sim/rendering/hdr/clouds/mirror-u", false);
+    fgSetBool("/sim/rendering/hdr/clouds/mirror-v", false);
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
     _roughVoxelData = result.roughVoxelData;
     _voxelShadeData = result.voxelShadeData;
+    _windOffsetData = result.windOffsetData;
 
     // Push them into the textures
     simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, _voxelShadeData, result.fieldRepeating);
+    simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
 }
 
 void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
@@ -892,6 +908,21 @@ void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
     }
 }
 
+// Update the wind column data, ready to be pushed to the Uniform during the updateFromOSGTraversal
+void FGClouds::updateWindColumn(double dt, FGEnvironment* env)
+{
+    if (!_windOffsetData) return; // Early return if no cloud data has been generated
+
+    const std::size_t width = _windOffsetData->s();
+    const float fieldWidthM = (float)_detailedFieldVoxelSize * _detailedFieldWidth;
+    float* raw = reinterpret_cast<float*>(_windOffsetData->data());
+    for (std::size_t i = 0; i < width; i++) {
+        // Work out the offset in normalized UV coordinates
+        raw[i * 4] += env->get_wind_from_north_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+        raw[i * 4 + 1] += env->get_wind_from_east_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+    }
+}
+
 void FGClouds::updateFromOsgTraversal()
 {
     // Poll for a completed background rebuild first
@@ -909,5 +940,63 @@ void FGClouds::updateFromOsgTraversal()
         RebuildSnapshot snap = captureSnapshot();
         _rebuildFuture = std::async(std::launch::async,
                                     &FGClouds::runRebuild, std::move(snap));
+    }
+
+    if (_fieldRepeating) updateRepeatingField();
+
+    // Adjust the altitude of the cloud base
+    float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (_detailedFieldHeight * _detailedFieldVoxelSize));
+
+    // Write the wind offset data to the Uniform
+    simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
+}
+
+void FGClouds::updateRepeatingField()
+{
+    // Adjust the position and orientation of the voxel field to ensure that it is approximately
+    // tangent to the local surface if the camera has moved a significant distance.  To make this
+    // as seamless as possible, we move it by a whole UV space, taking advantage of the fact the
+    // field is repeating.
+    const float fieldWidthM = _detailedFieldWidth * _detailedFieldVoxelSize;
+    SGVec3<double> currentCart;
+
+    SGGeod currentGeod = globals->get_view_position();
+    currentGeod.setElevationM(0);
+    SGGeodesy::SGGeodToCart(currentGeod, currentCart);
+
+    osg::Matrixf currentPosMatrix = makeZUpFrameRelative(currentGeod);
+    osg::Vec3f localDrift = currentPosMatrix * (toOsg(currentCart) - toOsg(_centerCart));
+
+    // Snap drift to nearest field-width multiple in XY
+    float snapX = std::round(localDrift.x() / fieldWidthM);
+    float snapY = std::round(localDrift.y() / fieldWidthM);
+
+    if (std::abs(snapX) >= 1.0f || std::abs(snapY) >= 1.0f) {
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart before snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "localDrift: " << localDrift.x() << ", " << localDrift.y() << ", " << localDrift.z());
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "snapX: " << snapX << " snapY: " << snapY);
+
+        // Move centerCart by the snap in local space, converting via currentPosMatrix
+        osg::Vec3d snapLocal(snapX * fieldWidthM, snapY * fieldWidthM, 0.0);
+        osg::Vec3d snapECEF = osg::Matrix::inverse(currentPosMatrix) * snapLocal;
+        _centerCart = _centerCart + toSG(snapECEF);
+
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
+        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
+
+        // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
+        // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
+        // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
+        // in too large a rotation of the up vector.
+        if (std::abs(snapX) >= 1.0f) {
+            fgSetBool("/sim/rendering/hdr/clouds/mirror-u", !fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
+        }
+
+        if (std::abs(snapY) >= 1.0f) {
+            fgSetBool("/sim/rendering/hdr/clouds/mirror-v", !fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
+        }
     }
 }
