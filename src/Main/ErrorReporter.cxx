@@ -6,6 +6,7 @@
  */
 
 #include "config.h"
+#include "simgear/debug/debug_types.h"
 
 #include "ErrorReporter.hxx"
 
@@ -122,17 +123,23 @@ string_list static_categoryIds = {
 class RecentLogCallback : public simgear::LogCallback
 {
 public:
-    RecentLogCallback() : simgear::LogCallback(SG_ALL, SG_INFO)
+    RecentLogCallback() : simgear::LogCallback("errors-recent-log")
     {
+        simgear::LogLevels l;
+        l.set(SG_ALL, SG_INFO);
+        setLogLevels(l);
     }
 
     bool doProcessEntry(const simgear::LogEntry& e) override
     {
+        if (!shouldLog(e.debugClass, e.debugPriority)) {
+            return false;
+        }
+
         std::ostringstream os;
         if (e.file != nullptr) {
             os << e.file << ":" << e.line << ":\t";
         }
-
 
         os << e.message;
 

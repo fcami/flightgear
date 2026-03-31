@@ -137,32 +137,29 @@ FGJSBsim::FGJSBsim( double dt )
     // FIXME: this will not respond to
     // runtime changes
 
-    if ((sglog().get_log_classes() & SG_FLIGHT) != 0) {
+    const auto fdmLogPriority = sglog().get_log_priority(SG_FLIGHT) ;
 
-                                // do a rough-and-ready mapping to
-                                // the levels documented in FGFDMExec.h
-        switch (sglog().get_log_priority()) {
-        case SG_BULK:
-            FGJSBBase::debug_lvl = 0x1f;
-            break;
-        case SG_DEBUG:
-            FGJSBBase::debug_lvl = 0x1f;
-        case SG_INFO:
-        case SG_WARN:
-        case SG_ALERT:
-        case SG_POPUP:
-            FGJSBBase::debug_lvl = 0x00;
-            break;
+                              // do a rough-and-ready mapping to
+                              // the levels documented in FGFDMExec.h
+    switch (fdmLogPriority) {
+    case SG_BULK:
+        FGJSBBase::debug_lvl = 0x1f;
+        break;
+    case SG_DEBUG:
+        FGJSBBase::debug_lvl = 0x1f;
+    case SG_INFO:
+    case SG_WARN:
+    case SG_ALERT:
+    case SG_POPUP:
+        FGJSBBase::debug_lvl = 0x00;
+        break;
 
-        default:
-            // silence warning about unhandled cases
-            FGJSBBase::debug_lvl = 0x00;
-            break;
-        }
-    } else {
-                                // if flight is excluded, don't bother
-            FGJSBBase::debug_lvl = 0x00;
+    default:
+        // silence warning about unhandled cases
+        FGJSBBase::debug_lvl = 0x00;
+        break;
     }
+
 
     PropertyManager = new FGPropertyManager( (FGPropertyNode*)globals->get_props() );
     fdmex = new FGFDMExec( PropertyManager );

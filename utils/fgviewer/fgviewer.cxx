@@ -40,9 +40,6 @@ main(int argc, char** argv)
     /// Read arguments and environment variables.
     ArgumentParser arguments(argc, argv);
 
-    sglog().set_log_classes(SG_ALL);
-    sglog().set_log_priority(SG_ALERT);
-
     SGPath fg_root;
     std::string r;
     if (arguments.read("--fg-root", r)) {

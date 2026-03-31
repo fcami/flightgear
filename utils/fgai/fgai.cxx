@@ -1,22 +1,7 @@
-// Copyright (C) 2009 - 2012  Mathias Froehlich
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2009-2012 Mathias Froehlich <mathias.froehlich@web.de>
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <cstdio>
 
@@ -264,7 +249,7 @@ public:
     /// The total mass of the bird in kg. No fluel is burned.
     /// Some sensible inertia values are derived from the mass.
     // double _mass;
-    /// The thrust to mass ratio which tells us someting about
+    /// The thrust to mass ratio which tells us something about
     /// the possible accelerations.
     // double _thrustMassRatio;
 
@@ -298,7 +283,7 @@ public:
     /// an other idea:
     /// define a bird of some weight class. That means mass given.
     /// Then derive
-    ///  i* ??? must be mass^2 accodring to the thoughts above
+    ///  i* ??? must be mass^2 according to the thoughts above
     /// Then do Cl, Cd, Cs.
     ///  according to approach speed at sea level with 5 deg aoa and 2,5 deg glideslope and 25 % thrust.
     ///  according to cruise altitude and cruise speed at 75% thrust compute this at altitude
@@ -550,8 +535,7 @@ main(int argc, char* argv[])
             manager->setFederationObjectModel(optarg);
             break;
         case 'p':
-            sglog().set_log_classes(SG_ALL);
-            sglog().set_log_priority(sgDebugPriority(atoi(optarg)));
+            sglog().setLogLevels(SG_ALL, sgDebugPriority(atoi(optarg)));
             break;
         case 'R':
             manager->setTimeRegulating(true);

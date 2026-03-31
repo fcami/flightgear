@@ -92,8 +92,7 @@ FGFlarm::FGFlarm() :
 
 #ifdef FLARM_DEBUGGING
     // show I/O debug messages
-    sglog().set_log_classes(SG_IO);
-    sglog().set_log_priority(SG_DEBUG);
+    sglog().setLogLevels(SG_IO, SG_DEBUG);
 #endif
 
     // some default configuration data, to please XCSoar and other apps
@@ -115,7 +114,7 @@ FGFlarm::FGFlarm() :
     setDefaultConfigValue("PILOT",      "Curt"); // :-)))
     setDefaultConfigValue("PRIV",       zero);
     setDefaultConfigValue("RANGE",      25500);
-    setDefaultConfigValue("THRE",       2);
+    setDefaultConfigValue("THRE", 2); // codespell:ignore thre
     setDefaultConfigValue("UI",         zero);
 }
 
@@ -160,7 +159,7 @@ bool FGFlarm::gen_message()
 
     // obtain own position
     double latd = mFdm.get_Latitude() * SGD_RADIANS_TO_DEGREES;
-    double lond = mFdm.get_Longitude() * SGD_RADIANS_TO_DEGREES;
+    double lond = mFdm.get_Longitude() * SGD_RADIANS_TO_DEGREES; // codespell:ignore lond
 
     // PFLAA (Flarm proprietary)
     if (mFlarmMessages & FLARM::PFLAA)
@@ -196,7 +195,7 @@ bool FGFlarm::gen_message()
                     double RelNorthAngleDeg = targetLatd - latd;
                     double RelNorth = ((2*SG_PI*SG_POLAR_RADIUS_M) / 360.0) * RelNorthAngleDeg;
 
-                    double RelEastAngleDeg  = targetLond - lond;
+                    double RelEastAngleDeg = targetLond - lond; // codespell:ignore lond
                     double RelEast  = ((2*SG_PI*SG_EQUATORIAL_RADIUS_M) / 360.0) *
                                         abs(cos(latd*SGD_DEGREES_TO_RADIANS)) * RelEastAngleDeg;
 
@@ -263,7 +262,7 @@ bool FGFlarm::gen_message()
         {
             // calculate the bearing and range of the closest target
             double az2, bearing, distanceM;
-            geo_inverse_wgs_84(latd, lond, ClosestLatd, ClosestLond, &bearing, &az2, &distanceM);
+            geo_inverse_wgs_84(latd, lond, ClosestLatd, ClosestLond, &bearing, &az2, &distanceM); // codespell:ignore lond
 
             // calculate relative bearing
             double heading = mFdm.get_Psi_deg();

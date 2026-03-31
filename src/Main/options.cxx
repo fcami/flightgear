@@ -9,10 +9,11 @@
 
 #include <ostream>
 #include <simgear/compiler.h>
-#include <simgear/structure/exception.hxx>
+#include <simgear/debug/LogCallback.hxx>
 #include <simgear/debug/logstream.hxx>
-#include <simgear/timing/sg_time.hxx>
 #include <simgear/misc/sg_dir.hxx>
+#include <simgear/structure/exception.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <nlohmann/json.hpp>
 
@@ -1162,8 +1163,8 @@ fgOptLogDir(const char* arg)
         }
     }
 
-    sglog().logToFile(logFile, sglog().get_log_classes(), sglog().get_log_priority());
-
+    auto cb = sglog().logToFile("file", logFile);
+    cb->setLogLevels(sglog().consoleLogLevels());
     return FG_OPTIONS_OK;
 }
 

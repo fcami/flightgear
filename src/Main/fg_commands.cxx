@@ -42,15 +42,16 @@
 #include <GUI/gui.h>
 #include <Main/sentryIntegration.hxx>
 
+#include "fg_commands.hxx"
 #include "fg_init.hxx"
 #include "fg_io.hxx"
 #include "fg_os.hxx"
-#include "fg_commands.hxx"
 #include "fg_props.hxx"
 #include "globals.hxx"
 #include "logger.hxx"
 #include "main.hxx"
 #include "positioninit.hxx"
+#include "simgear/debug/debug_types.h"
 
 #if FG_HAVE_GPERFTOOLS
 # include <google/profiler.h>
@@ -867,10 +868,36 @@ do_data_logging_commit (const SGPropertyNode * arg, SGPropertyNode * root)
 static bool
 do_log_level (const SGPropertyNode * arg, SGPropertyNode * root)
 {
-   sglog().setLogLevels( SG_ALL, (sgDebugPriority)arg->getIntValue() );
+    // default to 'console' but allow other values
+    std::string tag = arg->getStringValue("tag", "console");
+
+    // legacy behaviour, adjust log level for ALL category
+    if (arg->nChildren() == 0) {
+        sglog().setLogLevels(SG_ALL, (sgDebugPriority)arg->getIntValue(), tag);
+        return true;
+    }
+
+    for (auto c : simgear::logCategoryNames()) {
+        if (!arg->hasValue(c)) {
+            continue;
+        }
+
+        const auto val = arg->getStringValue();
+        const auto lc = simgear::debugClassFromString(c);
+
+        try {
+            sgDebugPriority pri = simgear::priorityFromString(val);
+            sglog().setLogLevels(lc, pri, tag);
+        } catch (const std::exception&) {
+            // failed to parse as a priority string, try as an int
+            sgDebugPriority pri = (sgDebugPriority)arg->getIntValue(c);
+            sglog().setLogLevels(lc, pri, tag);
+        }
+    } // of category iteration
 
    return true;
 }
+
 
 /**
  * An fgcommand to allow loading of xml files via nasal,

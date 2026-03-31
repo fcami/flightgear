@@ -18,8 +18,9 @@
 
 #include <GUI/gui.h>
 
-#include "globals.hxx"
 #include "fg_props.hxx"
+#include "globals.hxx"
+#include "simgear/debug/debug_types.h"
 
 using std::string;
 ////////////////////////////////////////////////////////////////////////
@@ -49,7 +50,12 @@ getLoggingClasses ()
 void
 setLoggingClasses (const char * c)
 {
-    sglog().parseLogClasses(c);
+    const auto levels = simgear::parseLogSpecFromString(c);
+    if (levels) {
+        sglog().setLogLevels(levels.value(), "console");
+    } else {
+        SG_LOG(SG_GENERAL, SG_ALERT, "Error parsing logging specification '" << c << "'");
+    }
 }
 
 /**
@@ -58,25 +64,8 @@ setLoggingClasses (const char * c)
 static const char *
 getLoggingPriority ()
 {
-  switch (sglog().get_log_priority()) {
-  case SG_BULK:
-    return "bulk";
-  case SG_DEBUG:
-    return "debug";
-  case SG_INFO:
-    return "info";
-  case SG_WARN:
-    return "warn";
-  case SG_ALERT:
-  case SG_POPUP:
-    return "alert";
-  default:
-    SG_LOG(SG_GENERAL, SG_WARN, "Internal: Unknown logging priority number: "
-	   << sglog().get_log_priority());
-    return "unknown";
-  }
+    return debugPriorityToString(sglog().get_all_log_priority()).c_str();
 }
-
 
 /**
  * Set the logging priority.
@@ -87,18 +76,12 @@ setLoggingPriority (const char * p)
   if (p == 0)
       return;
 
-  string priority = p;
-  if (priority.empty()) {
-      sglog().set_log_priority(SG_INFO);
-  } else {
-      try {
-          sglog().set_log_priority(logstream::priorityFromString(priority));
-      } catch (std::exception& e) {
-          SG_LOG(SG_GENERAL, SG_WARN, "Unknown logging priority: " << priority);
-      }
+  const string ps = p;
+  try {
+      sglog().set_log_priority(simgear::priorityFromString(ps));
+  } catch (std::exception& e) {
+      SG_LOG(SG_GENERAL, SG_WARN, "Unknown logging priority: " << ps);
   }
-
-  SG_LOG(SG_GENERAL, SG_DEBUG, "Logging priority is " << getLoggingPriority());
 }
 
 

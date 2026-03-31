@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2004 Curtis L. Olson
 
 #include "config.h"
+#include "simgear/debug/debug_types.h"
 
 #ifdef HAVE_WINDOWS_H
 #include <windows.h>
@@ -277,7 +278,10 @@ FGNasalSys::FGNasalSys() : d(new NasalSysPrivate)
     d->_string = naNil();
     d->_wrappedNodeFunc = naNil();
 
-    d->_log.reset(new simgear::BufferedLogCallback(SG_NASAL, SG_INFO));
+    d->_log.reset(new simgear::BufferedLogCallback("nasal-log"));
+    simgear::LogLevels l;
+    l.set(SG_NASAL, SG_INFO);
+    d->_log->setLogLevels(l);
     d->_log->truncateAt(255);
     sglog().addCallback(d->_log.get());
 
