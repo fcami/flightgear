@@ -666,14 +666,6 @@ void FGInterface::_set_Euler_Angles(double phi,
                                     double theta,
                                     double psi)
 {
-    set_Euler_Angles(phi, theta, psi);
-}
-
-// Euler angles
-void FGInterface::set_Euler_Angles(double phi,
-                                   double theta,
-                                   double psi)
-{
     if (std::isnan(phi) || std::isnan(theta) || std::isnan(psi)) {
         throw sg_range_exception("FGInterface::set_Euler_Angles: passed NaNs");
     }
@@ -681,6 +673,14 @@ void FGInterface::set_Euler_Angles(double phi,
     _state.euler_angles_v[0] = phi;
     _state.euler_angles_v[1] = theta;
     _state.euler_angles_v[2] = psi;
+}
+
+// Euler angles
+void FGInterface::set_Euler_Angles(double phi,
+                                   double theta,
+                                   double psi)
+{
+    _set_Euler_Angles(phi, theta, psi);
 }
 
 // Flight Path

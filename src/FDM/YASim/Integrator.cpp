@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "Math.hpp"
 #include "Integrator.hpp"
 namespace yasim {
@@ -23,9 +26,9 @@ void Integrator::extrapolatePosition(double* pos, float* v, float dt,
     l2gVector(o2, cg, cg);    // cg = l2gNEW(cg) ("cg1")
     Math::sub3(tmp, cg, tmp); // tmp = cg0 + deltaCG - cg1
 
-    pos[0] += tmp[0];         // p1 = p0 + (cg0+deltaCG-cg1) 
+    pos[0] += tmp[0];         // p1 = p0 + (cg0+deltaCG-cg1)
     pos[1] += tmp[1];         //  (positions are doubles, so we
-    pos[2] += tmp[2];         //   can't use Math::add3)    
+    pos[2] += tmp[2];         //   can't use Math::add3)
 }
 
 #if 0
@@ -42,7 +45,7 @@ void Integrator::calcNewInterval()
     for(i=0; i<4; i++) {
 	_body->reset();
 	_env->calcForces(&s);
-	
+
 	_body->getAccel(s.acc);
  	l2gVector(_s.orient, s.acc, s.acc);
 
@@ -52,12 +55,12 @@ void Integrator::calcNewInterval()
 	float rotmat[9];
 	rotMatrix(s.rot, dt, rotmat);
 	Math::mmul33(_s.orient, rotmat, s.orient);
-	
+
 	extrapolatePosition(s.pos, s.v, dt, _s.orient, s.orient);
-	
+
 	Math::mul3(dt, s.acc, tmp);
 	Math::add3(tmp, s.v, s.v);
-	
+
 	Math::mul3(dt, s.racc, tmp);
 	Math::add3(tmp, s.rot, s.rot);
 
@@ -84,7 +87,7 @@ void Integrator::calcNewInterval()
     float *currAcc = _s.acc;
     float *currRot = _s.rot;
     float *currRac = _s.racc;
-    
+
     // First off, sanify the initial orientation
     orthonormalize(_s.orient);
 
@@ -109,20 +112,20 @@ void Integrator::calcNewInterval()
         extrapolatePosition(pos[i], currVel, dt, _s.orient, ori[i]);
 
 	// add acceleration to (original!) velocity
-	Math::set3(currAcc, tmp); 
-	Math::mul3(dt, tmp, tmp);
-	Math::add3(_s.v, tmp, vel[i]);
+        Math::set3(currAcc, tmp);
+        Math::mul3(dt, tmp, tmp);
+        Math::add3(_s.v, tmp, vel[i]);
 
-	// add rotational acceleration to rotation
-	Math::set3(currRac, tmp); 
-	Math::mul3(dt, tmp, tmp);
-	Math::add3(_s.rot, tmp, rot[i]);
+        // add rotational acceleration to rotation
+        Math::set3(currRac, tmp);
+        Math::mul3(dt, tmp, tmp);
+        Math::add3(_s.rot, tmp, rot[i]);
 
-	//
-	// Tell the environment to generate new forces on the body,
-	// extract the accelerations, and convert to vectors in the
-	// global frame.
-	//
+        //
+        // Tell the environment to generate new forces on the body,
+        // extract the accelerations, and convert to vectors in the
+        // global frame.
+        //
         _body->reset();
 
         // FIXME.  Copying into a state object is clumsy!  The
@@ -146,14 +149,16 @@ void Integrator::calcNewInterval()
 
 	//
 	// Save the resulting derivatives for the next iteration
-	// 
-	currVel = vel[i]; currAcc = acc[i];
-	currRot = rot[i]; currRac = rac[i];
+    //
+    currVel = vel[i];
+    currAcc = acc[i];
+    currRot = rot[i];
+    currRac = rac[i];
     }
 
     // Average the resulting derivatives together according to their
     // weights.  Yes, we're "averaging" rotations, which isn't
-    // stricly correct -- rotations live in a non-cartesian space.
+    // strictly correct -- rotations live in a non-cartesian space.
     // But the space is "locally" cartesian.
     State derivs;
     float tot = 0;
@@ -193,12 +198,12 @@ void Integrator::calcNewInterval()
 
     Math::mul3(_dt, derivs.racc, tmp);
     Math::add3(_s.rot, tmp, _s.rot);
-    
+
     for(i=0; i<3; i++) {
 	_s.acc[i] = derivs.acc[i];
 	_s.racc[i] = derivs.racc[i];
     }
-    
+
     // Tell the environment about our decision
     _env->newState(&_s);
 }
@@ -209,7 +214,7 @@ void Integrator::calcNewInterval()
 // Implementation shamelessly cribbed from the OpenGL specification.
 //
 // NOTE: we're actually returning the _transpose_ of the rotation
-// matrix!  This is becuase we store orientations as global-to-local
+// matrix!  This is because we store orientations as global-to-local
 // transformations.  Thus, we want to rotate the ROWS of the old
 // matrix to get the new one.
 void Integrator::rotMatrix(float* r, float dt, float* out)
@@ -226,9 +231,15 @@ void Integrator::rotMatrix(float* r, float dt, float* out)
     // coriolis rotation.  And it's still preserves half the floating
     // point precision of a radian-per-iteration rotation.
     if(angle < 1e-06) {
-        out[0] = 1; out[1] = 0; out[2] = 0; 
-        out[3] = 0; out[4] = 1; out[5] = 0; 
-        out[6] = 0; out[7] = 0; out[8] = 1; 
+        out[0] = 1;
+        out[1] = 0;
+        out[2] = 0;
+        out[3] = 0;
+        out[4] = 1;
+        out[5] = 0;
+        out[6] = 0;
+        out[7] = 0;
+        out[8] = 1;
         return;
     }
 

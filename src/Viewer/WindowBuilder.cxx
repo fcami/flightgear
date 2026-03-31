@@ -1,18 +1,5 @@
-// Copyright (C) 2008  Tim Moore
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2008 Tim Moore
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "config.h"
 
@@ -118,7 +105,7 @@ void WindowBuilder::makeDefaultTraits()
     unsigned screenheight = 0;
     // this is a deprecated method, should be screen-aware.
     wsi->getScreenResolution(*traits, screenwidth, screenheight);
-    
+
     // handle fullscreen manually
     traits->windowDecoration = !wantFullscreen;
     if (!traits->windowDecoration) {
@@ -150,7 +137,7 @@ void WindowBuilder::setFullscreenTraits(const SGPropertyNode* winNode, GraphicsC
     traits->overrideRedirect = overrideRedirect;
 
     traits->windowDecoration = false;
-    
+
     unsigned int width = 0;
     unsigned int height = 0;
     auto wsi = osg::GraphicsContext::getWindowingSystemInterface();
@@ -179,17 +166,17 @@ bool WindowBuilder::setWindowedTraits(const SGPropertyNode* winNode, GraphicsCon
         traits->supportsResize = true;
         customTraits = true;
     }
-    
+
     return customTraits;
 }
-    
+
 void WindowBuilder::setMacPoseAsStandaloneApp(GraphicsContext::Traits* traits) const
 {
 #if defined(SG_MAC)
-    // this logic is unecessary if using a Qt window, since everything
+    // this logic is unnecessary if using a Qt window, since everything
     // plays together nicely
     int flags = osgViewer::GraphicsWindowCocoa::WindowData::CheckForEvents;
-    
+
     // avoid both QApplication and OSG::CocoaViewer doing single-application
     // init (Apple menu, making front process, etc)
     if (poseAsStandaloneApp) {
@@ -198,7 +185,7 @@ void WindowBuilder::setMacPoseAsStandaloneApp(GraphicsContext::Traits* traits) c
     traits->inheritedWindowData = new osgViewer::GraphicsWindowCocoa::WindowData(flags);
 #endif
 }
-    
+
 GraphicsWindow* WindowBuilder::buildWindow(const SGPropertyNode* winNode)
 {
     WindowSystemAdapter* wsa = WindowSystemAdapter::getWSA();

@@ -1,20 +1,23 @@
+/* SPDX-FileCopyrightText: 1995 Bruce Jackson
+   SPDX-License-Identifier: GPL-2.0-or-later */
+
 /***************************************************************************
 
         TITLE:                ls_matrix.c
-        
+
 ----------------------------------------------------------------------------
 
         FUNCTION:        general real matrix routines; includes
                                 gaussj() for matrix inversion using
                                 Gauss-Jordan method with full pivoting.
-                                
+
         The routines in this module have come more or less from ref [1].
-        Note that, probably due to the heritage of ref [1] (which has a 
+        Note that, probably due to the heritage of ref [1] (which has a
         FORTRAN version that was probably written first), the use of 1 as
         the first element of an array (or vector) is used. This is accomplished
         in memory by allocating, but not using, the 0 elements in each dimension.
         While this wastes some memory, it allows the routines to be ported more
-        easily from FORTRAN (I suspect) as well as adhering to conventional 
+        easily from FORTRAN (I suspect) as well as adhering to conventional
         matrix notation.  As a result, however, traditional ANSI C convention
         (0-base indexing) is not followed; as the authors of ref [1] point out,
         there is some question of the portability of the resulting routines
@@ -31,24 +34,24 @@
 ----------------------------------------------------------------------------
 
         DESIGNED BY:        from Numerical Recipes in C, by Press, et. al.
-        
+
         CODED BY:        Bruce Jackson
-        
-        MAINTAINED BY:        
+
+        MAINTAINED BY:
 
 ----------------------------------------------------------------------------
 
         MODIFICATION HISTORY:
-        
+
         DATE        PURPOSE                                                BY
-        
+
         CURRENT RCS HEADER:
 
 $Header$
 $Log$
 Revision 1.2  2004/04/01 15:27:55  curt
 Clean up various compiler warnings that have crept into the code.  This
-by no means get's them all, but it's a start.
+by no means gets them all, but it's a start.
 
 Revision 1.1.1.1  2002/09/10 01:14:02  curt
 Initial revision of FlightGear-0.9.0
@@ -68,7 +71,7 @@ Initial revision.
 
 ----------------------------------------------------------------------------
 
-        REFERENCES:        [1] Press, William H., et. al, Numerical Recipes in 
+        REFERENCES:        [1] Press, William H., et. al, Numerical Recipes in
                             C, 2nd edition, Cambridge University Press, 1992
 
 ----------------------------------------------------------------------------
@@ -139,11 +142,10 @@ double **nr_matrix(long nrl, long nrh, long ncl, long nch)
 
     /* allocate rows and set pointers to them */
     m[nrl] = (double *) malloc((size_t)((nrow*ncol+NR_END)*sizeof(double)));
-    if (!m[nrl]) 
-        {
-            fprintf(stderr, "Memory failure in routine 'matrix'\n");
-            exit(1);
-        }
+    if (!m[nrl]) {
+        fprintf(stderr, "Memory failure in routine 'matrix'\n");
+        exit(1);
+    }
 
     m[nrl] += NR_END;
     m[nrl] -= ncl;
@@ -173,11 +175,12 @@ int nr_gaussj(double **a, int n, double **b, int m)
 
 /* Linear equation solution by Gauss-Jordan elimination. a[1..n][1..n] is */
 /* the input matrix. b[1..n][1..m] is input containing the m right-hand   */
-/* side vectors. On output, a is replaced by its matrix invers, and b is  */
+/* side vectors. On output, a is replaced by its matrix inverse, and b is  */
 /* replaced by the corresponding set of solution vectors.                 */
 
 /* Note: this routine modified by EBJ to make b optional, if m == 0 */
 
+/* codespell:ignore-begin (for the 'dum' variable name) */
 {
     int                *indxc, *indxr, *ipiv;
     int         i, icol = 0, irow = 0, j, k, l, ll;
@@ -188,7 +191,7 @@ int nr_gaussj(double **a, int n, double **b, int m)
     indxc = nr_ivector(1,n);        /* The integer arrays ipiv, indxr, and  */
     indxr = nr_ivector(1,n);        /* indxc are used for pivot bookkeeping */
     ipiv  = nr_ivector(1,n);
-    
+
     for (j=1;j<=n;j++) ipiv[j] = 0;
 
     for (i=1;i<=n;i++)                /* This is the main loop over columns        */
@@ -217,14 +220,18 @@ int nr_gaussj(double **a, int n, double **b, int m)
                         }
             ++(ipiv[icol]);
 
-/*    We now have the pivot element, so we interchange rows, if needed,  */
+            /* clang-format off */
+
+/* We now have the pivot element, so we interchange rows, if needed,     */
 /* to put the pivot element on the diagonal.  The columns are not        */
 /* physically interchanged, only relabeled: indxc[i], the column of the  */
 /* ith pivot element, is the ith column that is reduced, while indxr[i]  */
-/* is the row in which that pivot element was orignally located. If      */
+/* is the row in which that pivot element was originally located. If     */
 /* indxr[i] != indxc[i] there is an implied column interchange.  With    */
 /* this form of bookkeeping, the solution b's will end up in the correct */
 /* order, and the inverse matrix will be scrambed by columns.            */
+
+            /* clang-format on */
 
             if (irow != icol)
                 {
@@ -253,34 +260,34 @@ int nr_gaussj(double **a, int n, double **b, int m)
                     }
         }
 
-/* This is the end of the mail loop over columns of the reduction. It
-       only remains to unscrambled the solution in view of the column
-       interchanges. We do this by interchanging pairs of columns in
-       the reverse order that the permutation was built up. */
-                        
-    for (l=n;l>=1;l--)
-        {
+        /* This is the end of the mail loop over columns of the reduction. It
+           only remains to unscrambled the solution in view of the column
+           interchanges. We do this by interchanging pairs of columns in the
+           reverse order that the permutation was built up. */
+
+        for (l = n; l >= 1; l--) {
             if (indxr[l] != indxc[l])
                 for (k=1;k<=n;k++)
                     SWAP(a[k][indxr[l]],a[k][indxc[l]])
         }
 
 /* and we are done */
-    
+
     nr_free_ivector(ipiv,1 /*,n*/ );
     nr_free_ivector(indxr,1 /*,n*/ );
     nr_free_ivector(indxc,1 /*,n*/ );
 
     return 0;        /* indicate success */
 }
+/* codespell:ignore-end */
 
 void nr_copymat(double **orig, int n, double **copy)
 /* overwrites matrix 'copy' with copy of matrix 'orig' */
 {
         long i, j;
-        
+
         if ((orig==0)||(copy==0)||(n==0)) return;
-        
+
         for (i=1;i<=n;i++)
                 for (j=1;j<=n;j++)
                         copy[i][j] = orig[i][j];
@@ -289,9 +296,9 @@ void nr_copymat(double **orig, int n, double **copy)
 void nr_multmat(double **m1, int n, double **m2, double **prod)
 {
         long i, j, k;
-        
+
         if ((m1==0)||(m2==0)||(prod==0)||(n==0)) return;
-        
+
         for (i=1;i<=n;i++)
                 for (j=1;j<=n;j++)
                         {
@@ -299,22 +306,19 @@ void nr_multmat(double **m1, int n, double **m2, double **prod)
                                 for(k=1;k<=n;k++) prod[i][j] += m1[i][k]*m2[k][j];
                         }
 }
-                        
 
 
 void nr_printmat(double **a, int n)
 {
     int i,j;
-    
+
     printf("\n");
-    for(i=1;i<=n;i++) 
-      {
-          for(j=1;j<=n;j++)
-              printf("% 9.4f ", a[i][j]);
-          printf("\n");
-      }
+    for (i = 1; i <= n; i++) {
+        for (j = 1; j <= n; j++)
+            printf("% 9.4f ", a[i][j]);
+        printf("\n");
+    }
     printf("\n");
-    
 }
 
 
@@ -337,23 +341,23 @@ void testmat( void ) /* main() for test purposes */
         {
               if (loop != 0)
                       for(i=1;i<=n;i++)
-                    for(j=1;j<=n;j++) 
-                        mat1[i][j] = 2.0 - 4.0*invmaxlong*(double) rand();
+                          for (j = 1; j <= n; j++)
+                              mat1[i][j] = 2.0 - 4.0 * invmaxlong * (double)rand();
 
                 printf("Original matrix:\n");
             nr_printmat( mat1, n );
-            
+
             nr_copymat( mat1, n, mat2 );
-        
+
             i = nr_gaussj( mat2, n, 0, 0 );
-        
+
             if (i) printf("Singular matrix.\n");
-        
+
                 printf("Inverted matrix:\n");
             nr_printmat( mat2, n );
-            
+
             nr_multmat( mat1, n, mat2, mat3 );
-            
+
             printf("Original multiplied by inverse:\n");
             nr_printmat( mat3, n );
 

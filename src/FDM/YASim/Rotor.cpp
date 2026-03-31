@@ -1,25 +1,22 @@
+// SPDX-FileCopyrightText: 2003 Maik Justus
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
+
+#include <cstdio>
+#include <cstring>
+#include <iomanip>
+#include <iostream>
 
 #include <simgear/debug/logstream.hxx>
 
-#include "Math.hpp"
 #include <Main/fg_props.hxx>
-#include "Rotorpart.hpp"
+
 #include "Glue.hpp"
 #include "Ground.hpp"
+#include "Math.hpp"
 #include "Rotor.hpp"
-
-#include <iostream>
-#include <iomanip>
-
-
-#include <stdio.h>
-#include <string.h>
-#include <iostream>
-#include <sstream>
+#include "Rotorpart.hpp"
 
 using std::setprecision;
 using std::endl;
@@ -102,7 +99,7 @@ Rotor::Rotor()
     _liftcoef=0.1;
     _dragcoef0=0.1;
     _dragcoef1=0.1;
-    _twist=0; 
+    _twist = 0;
     _number_of_segments=1;
     _number_of_parts=4;
     _rel_len_where_incidence_is_measured=0.7;
@@ -177,7 +174,7 @@ void Rotor::inititeration(float dt,float omegarel,float ddt_omegarel,float *rot)
     _stall_sum=0;
     _stall_v2sum=0;
     _omegarel=omegarel;
-    _omega=_omegan*_omegarel; 
+    _omega = _omegan * _omegarel;
     _ddt_omega=_omegan*ddt_omegarel;
     int i;
     float drot[3];
@@ -193,7 +190,7 @@ void Rotor::inititeration(float dt,float omegarel,float ddt_omegarel,float *rot)
         r->setCyclic(_cyclicail*c+_cyclicele*s);
     }
 
-    //calculate the normal of the rotor disc, for calcualtion of the downwash
+    //calculate the normal of the rotor disc, for calculation of the downwash
     float side[3],help[3];
     Math::cross3(_normal,_forward,side);
     Math::mul3(Math::cos(_yaw)*Math::cos(_roll),_normal,_normal_with_yaw_roll);
@@ -233,8 +230,8 @@ float Rotor::calcStall(float incidence,float speed)
 float Rotor::getLiftCoef(float incidence,float speed)
 {
     float stall=calcStall(incidence,speed);
-    /* the next shold look like this, but this is the inner loop of
-           the rotor simulation. For small angles (and we hav only small
+    /* the next should look like this, but this is the inner loop of
+           the rotor simulation. For small angles (and we have only small
            angles) the first order approximation works well
     float c1=  Math::sin(incidence-_airfoil_incidence_no_lift)*_liftcoef;
     for c2 we would need higher order, because in stall the angle can be large
@@ -244,7 +241,7 @@ float Rotor::getLiftCoef(float incidence,float speed)
         i2 = incidence-pi;
     else if (incidence <-(pi/2))
         i2 = (incidence+pi);
-    else 
+    else
         i2 = incidence;
     float c1=  (i2-_airfoil_incidence_no_lift)*_liftcoef;
     if (stall > 0)
@@ -270,7 +267,7 @@ int Rotor::getValueforFGSet(int j,char *text,float *f)
 {
     if (_name[0]==0) return 0;
     if (4>numRotorparts()) return 0; //compile first!
-    
+
     if (j==0)
     {
         snprintf(text, 300, "/rotors/%s/cone-deg", _name);
@@ -333,9 +330,8 @@ int Rotor::getValueforFGSet(int j,char *text,float *f)
     }
     else
     {
-        int b=(j-10)/3; 
-        if (b>=_number_of_blades) 
-        {
+        int b = (j - 10) / 3;
+        if (b >= _number_of_blades) {
             return 0;
         }
         int w=j%3;
@@ -453,8 +449,7 @@ void Rotor::setNormal(float* normal)
         invsum=1/Math::sqrt(sqrsum);
     else
         invsum=1;
-    for(i=0; i<3; i++) 
-    {
+    for (i = 0; i < 3; i++) {
         _normal_with_yaw_roll[i]=_normal[i] = normal[i]*invsum;
     }
 }
@@ -473,27 +468,27 @@ void Rotor::setForward(float* forward)
 
 void Rotor::setForceAtPitchA(float force)
 {
-    _force_at_pitch_a=force; 
+    _force_at_pitch_a = force;
 }
 
 void Rotor::setPowerAtPitch0(float value)
 {
-    _power_at_pitch_0=value; 
+    _power_at_pitch_0 = value;
 }
 
 void Rotor::setPowerAtPitchB(float value)
 {
-    _power_at_pitch_b=value; 
+    _power_at_pitch_b = value;
 }
 
 void Rotor::setPitchA(float value)
 {
-    _pitch_a=value/180*pi; 
+    _pitch_a = value / 180 * pi;
 }
 
 void Rotor::setPitchB(float value)
 {
-    _pitch_b=value/180*pi; 
+    _pitch_b = value / 180 * pi;
 }
 
 void Rotor::setBase(float* base)
@@ -668,7 +663,7 @@ void Rotor::setName(const char *text)
 }
 
 void Rotor::setCcw(int ccw)
-{	
+{
     _ccw=ccw;
 }
 
@@ -698,6 +693,7 @@ void Rotor::setGlobalGround(double *global_ground, float* global_vel)
     for(i=0; i<4; i++) _global_ground[i] = global_ground[i];
 }
 
+// clang-format off
 void Rotor::setParameter(const char *parametername, float value)
 {
 #define p(a,b) if (strcmp(parametername,#a)==0) _##a = (value * (b)); else
@@ -730,10 +726,11 @@ void Rotor::setParameter(const char *parametername, float value)
         p(cyclic_factor,1)
         p(rotor_correction_factor,1)
         SG_LOG(SG_INPUT, SG_ALERT,
-            "internal error in parameter set up for rotor: '" << 
+            "internal error in parameter set up for rotor: '" <<
                parametername <<"'" << std::endl);
 #undef p
 }
+// clang-format on
 
 float Rotor::getLiftFactor()
 {
@@ -852,7 +849,7 @@ void Rotor::testForRotorGroundContact(Ground * ground_cb,State *s)
         float global_vel[3];
         unsigned int body;
         ground_cb->getGroundPlane(pt, global_ground, global_vel, body);
-        // find h, the distance to the ground 
+        // find h, the distance to the ground
         // The ground plane transformed to the local frame.
         float ground[4];
         s->planeGlobalToLocal(global_ground, ground);
@@ -884,14 +881,14 @@ float Rotor::findGroundEffectAltitude(Ground * ground_cb,State *s,
     p[4]=pos4;
     Math::add3(p[0],p[2],p[4]);
     Math::mul3(0.5,p[4],p[4]);//the center
-    
+
     float mina=100*_diameter;
     float suma=0;
     for (int i=0;i<5;i++)
     {
-        if (a[i]==-1)//in the first iteration,(iteration==0) no height is
-                     //passed to this function, these missing values are 
-                     //marked by ==-1
+        if (a[i] == -1) //in the first iteration,(iteration==0) no height is
+                        //passed to this function, these missing values are
+                        //marked by ==-1
         {
             double pt[3];
             s->posLocalToGlobal(p[i], pt);
@@ -901,7 +898,7 @@ float Rotor::findGroundEffectAltitude(Ground * ground_cb,State *s,
             float global_vel[3];
             unsigned int body;
             ground_cb->getGroundPlane(pt, global_ground, global_vel, body);
-            // find h, the distance to the ground 
+            // find h, the distance to the ground
             // The ground plane transformed to the local frame.
             float ground[4];
             s->planeGlobalToLocal(global_ground, ground);
@@ -915,20 +912,20 @@ float Rotor::findGroundEffectAltitude(Ground * ground_cb,State *s,
     }
     if (mina>=10*_diameter)
         return mina; //the ground effect will be zero
-    
-    //check if further recursion is neccessary
-    //if the height does not differ more than 20%, than 
+
+    //check if further recursion is necessary
+    //if the height does not differ more than 20%, than
     //we can return then mean height, if not split
-    //zhe square to four parts and calcualte the height
+    //zhe square to four parts and calculate the height
     //for each part
-    //suma * 0.2 is the mean 
+    //suma * 0.2 is the mean
     //0.15 is the maximum allowed difference from the mean
     //to the height at the center
     if ((iteration>2)
        ||(Math::abs(suma*0.2-a[4])<(0.15*0.2*suma*(1<<iteration))))
         return suma*0.2;
     suma=0;
-    float pc[4][3],ac[4]; //pc[i]=center of pos[i] and pos[(i+1)&3] 
+    float pc[4][3], ac[4]; //pc[i]=center of pos[i] and pos[(i+1)&3]
     for (int i=0;i<4;i++)
     {
         Math::add3(p[i],p[(i+1)&3],pc[i]);
@@ -941,7 +938,7 @@ float Rotor::findGroundEffectAltitude(Ground * ground_cb,State *s,
         float global_vel[3];
         unsigned int body;
         ground_cb->getGroundPlane(pt, global_ground, global_vel, body);
-        // find h, the distance to the ground 
+        // find h, the distance to the ground
         // The ground plane transformed to the local frame.
         float ground[4];
         s->planeGlobalToLocal(global_ground, ground);
@@ -967,9 +964,8 @@ void Rotor::getDownWash(const float *pos, const float *v_heli, float *downwash)
     Math::sub3(_base,pos,pos2rotor);
     float dist=Math::dot3(pos2rotor,_normal_with_yaw_roll);
     //calculate incidence at 0.7r;
-    float inc = _collective+_twist *0.7 
-                - _twist*_rel_len_where_incidence_is_measured;
-    if (inc < 0) 
+    float inc = _collective + _twist * 0.7 - _twist * _rel_len_where_incidence_is_measured;
+    if (inc < 0)
         dist *=-1;
     if (dist<0) // we are not in the downwash region
     {
@@ -978,8 +974,8 @@ void Rotor::getDownWash(const float *pos, const float *v_heli, float *downwash)
     }
 
     //calculate the mean downwash speed directly beneath the rotor disk
-    float v1bar = Math::sin(inc) *_omega * 0.35 * _diameter * 0.8; 
-    //0.35 * d = 0.7 *r, a good position to calcualte the mean downwashd
+    float v1bar = Math::sin(inc) * _omega * 0.35 * _diameter * 0.8;
+    //0.35 * d = 0.7 *r, a good position to calculate the mean downwashd
     //0.8 the slip of the rotor.
 
     //calculate the time the wind needed from thr rotor to here
@@ -992,10 +988,10 @@ void Rotor::getDownWash(const float *pos, const float *v_heli, float *downwash)
 
     //and again calculate dist
     dist=Math::dot3(pos2rotor,_normal_with_yaw_roll);
-    //missing the normal is offen not pointing to the normal of the rotor 
+    //missing the normal is often not pointing to the normal of the rotor
     //disk. Rotate the normal by yaw and tilt angle
 
-    if (inc < 0) 
+    if (inc < 0)
         dist *=-1;
     if (dist<0) // we are not in the downwash region
     {
@@ -1003,34 +999,32 @@ void Rotor::getDownWash(const float *pos, const float *v_heli, float *downwash)
         return;
     }
     //of course this could be done in a runge kutta integrator, but it's such
-    //a approximation that I beleave, it would'nt be more realistic
+    //a approximation that I believe, it wouldn't be more realistic
 
     //calculate the dist to the rotor-axis
     Math::cross3(pos2rotor,_normal_with_yaw_roll,tmp);
     float r= Math::mag3(tmp);
     //calculate incidence at r;
     float rel_r = r *2 /_diameter;
-    float inc_r = _collective+_twist * r /_diameter * 2 
-        - _twist*_rel_len_where_incidence_is_measured;
+    float inc_r = _collective + _twist * r / _diameter * 2 - _twist * _rel_len_where_incidence_is_measured;
 
     //calculate the downwash speed directly beneath the rotor disk
     float v1=0;
     if (rel_r<1)
-        v1 = Math::sin(inc_r) *_omega * r * 0.8; 
+        v1 = Math::sin(inc_r) * _omega * r * 0.8;
 
-    //calcualte the downwash speed in a distance "dist" to the rotor disc,
-    //for large dist. The speed is assumed do follow a gausian distribution 
+    //calculate the downwash speed in a distance "dist" to the rotor disc,
+    //for large dist. The speed is assumed do follow a gaussian distribution
     //with sigma increasing with dist^2:
     //sigma is assumed to be half of the rotor diameter directly beneath the
     //disc and is assumed to the rotor diameter at dist = (diameter * sqrt(2))
 
     float sigma=_diameter/2 + dist * dist / _diameter /4.;
-    float v2 = v1bar*_diameter/ (Math::sqrt(2 * pi) * sigma) 
-        * Math::pow(2.7183,-.5*r*r/(sigma*sigma))*_diameter/2/sigma;
+    float v2 = v1bar * _diameter / (Math::sqrt(2 * pi) * sigma) * Math::pow(2.7183, -.5 * r * r / (sigma * sigma)) * _diameter / 2 / sigma;
 
     //calculate the weight of the two downwash velocities.
     //Directly beneath the disc it is v1, far away it is v2
-    float g = Math::pow(2.7183,-2*dist/_diameter); 
+    float g = Math::pow(2.7183, -2 * dist / _diameter);
     //at dist = rotor radius it is assumed to be 1/e * v1 + (1-1/e)* v2
 
     float v = g * v1 + (1-g) * v2;
@@ -1074,7 +1068,7 @@ void Rotor::updateDirectionsAndPositions(float *rot)
 #define _forward forward
 #define _normal normal
     float directions[5][3];
-    //pointing forward, right, ... the 5th is ony for calculation
+    //pointing forward, right, ... the 5th is only for calculation
     directions[0][0]=_forward[0];
     directions[0][1]=_forward[1];
     directions[0][2]=_forward[2];
@@ -1088,7 +1082,7 @@ void Rotor::updateDirectionsAndPositions(float *rot)
     }
     Math::set3(directions[4],directions[0]);
     // now directions[0] is perpendicular to the _normal.and has a length
-    // of 1. if _forward is already normalized and perpendicular to the 
+    // of 1. if _forward is already normalized and perpendicular to the
     // normal, directions[0] will be the same
     //_num_ground_contact_pos=(_number_of_parts<16)?_number_of_parts:16;
     for (i=0;i<_num_ground_contact_pos;i++)
@@ -1120,7 +1114,7 @@ void Rotor::updateDirectionsAndPositions(float *rot)
         float lentocenter=_diameter*_rel_blade_center*0.5;
         float lentoforceattac=_diameter*_rel_len_hinge*0.5;
         float zentforce=rotorpartmass*speed*speed/lentocenter;
-    
+
         Math::mul3(c ,directions[0],help);
         Math::mul3(s ,directions[1],direction);
         Math::add3(help,direction,direction);
@@ -1128,7 +1122,7 @@ void Rotor::updateDirectionsAndPositions(float *rot)
         Math::mul3(c ,directions[1],help);
         Math::mul3(s ,directions[2],direction90deg);
         Math::add3(help,direction90deg,direction90deg);
-        
+
         Math::mul3(cp ,directions[1],help);
         Math::mul3(sp ,directions[2],nextdirection);
         Math::add3(help,nextdirection,nextdirection);
@@ -1161,17 +1155,17 @@ void Rotor::compile()
     if(! _rotorparts.empty()) return;
 
     //rotor is divided into _number_of_parts parts
-    //each part is calcualted at _number_of_segments points
+    //each part is calculated at _number_of_segments points
 
     //clamp to 4..256
     //and make it a factor of 4
     _number_of_parts=(int(Math::clamp(_number_of_parts,4,256))>>2)<<2;
 
-    _dynamic=_dynamic*(1/                          //inverse of the time
-        ( (60/_rotor_rpm)/4         //for rotating 90 deg
-        +(60/_rotor_rpm)/(2*_number_of_blades) //+ meantime a rotorblade 
-                                               //will pass a given point 
-        ));
+    _dynamic = _dynamic * (1 /                                            //inverse of the time
+                           ((60 / _rotor_rpm) / 4                         //for rotating 90 deg
+                            + (60 / _rotor_rpm) / (2 * _number_of_blades) //+ meantime a rotorblade
+                                                                          //will pass a given point
+                            ));
     //normalize the directions
     Math::unit3(_forward,_forward);
     Math::unit3(_normal,_normal);
@@ -1179,14 +1173,13 @@ void Rotor::compile()
     float rotorpartmass = _weight_per_blade*_number_of_blades/_number_of_parts*.453;
     //was pounds -> now kg
 
-    _torque_of_inertia = 1/12. * ( _number_of_parts * rotorpartmass) * _diameter 
-        * _diameter * _rel_blade_center * _rel_blade_center /(0.5*0.5);
+    _torque_of_inertia = 1 / 12. * (_number_of_parts * rotorpartmass) * _diameter * _diameter * _rel_blade_center * _rel_blade_center / (0.5 * 0.5);
     float speed=_rotor_rpm/60*_diameter*_rel_blade_center*pi;
     float lentocenter=_diameter*_rel_blade_center*0.5;
     // float lentoforceattac=_diameter*_rel_len_hinge*0.5;
     float zentforce=rotorpartmass*speed*speed/lentocenter;
     float pitchaforce=_force_at_pitch_a/_number_of_parts*.453*9.81;
-    // was pounds of force, now N, devided by _number_of_parts
+    // was pounds of force, now N, divided by _number_of_parts
     //(so its now per rotorpart)
 
     float torque0=0,torquemax=0,torqueb=0;
@@ -1204,7 +1197,7 @@ void Rotor::compile()
     _phi-=Math::atan(_delta3);
     if (!_no_torque)
     {
-        torque0=_power_at_pitch_0/_number_of_parts*1000/omega;  
+        torque0 = _power_at_pitch_0 / _number_of_parts * 1000 / omega;
         // f*r=p/w ; p=f*s/t;  r=s/t/w ; r*w*t = s
         torqueb=_power_at_pitch_b/_number_of_parts*1000/omega;
         torquemax=_power_at_pitch_b/_number_of_parts*1000/omega/_pitch_b*_max_pitch;
@@ -1261,7 +1254,7 @@ void Rotor::compile()
         _liftcoef = pitchaforce/lift[0];
         _dragcoef0=1;
         _dragcoef1=0;
-        rps[0]->calculateAlpha(v_wind,rho_null,0,0,0,&(torque[0]),&(lift[0])); 
+        rps[0]->calculateAlpha(v_wind, rho_null, 0, 0, 0, &(torque[0]), &(lift[0]));
         //0 degree, c0
 
         _dragcoef0=0;
@@ -1271,12 +1264,12 @@ void Rotor::compile()
 
         _dragcoef0=1;
         _dragcoef1=0;
-        rps[0]->calculateAlpha(v_wind,rho_null,_pitch_b,0,0,&(torque[2]),&(lift[2])); 
+        rps[0]->calculateAlpha(v_wind, rho_null, _pitch_b, 0, 0, &(torque[2]), &(lift[2]));
         //picth b, c0
 
         _dragcoef0=0;
         _dragcoef1=1;
-        rps[0]->calculateAlpha(v_wind,rho_null,_pitch_b,0,0,&(torque[3]),&(lift[3])); 
+        rps[0]->calculateAlpha(v_wind, rho_null, _pitch_b, 0, 0, &(torque[3]), &(lift[3]));
         //picth b, c1
 
         if (torque[0]==0)
@@ -1306,23 +1299,24 @@ void Rotor::compile()
     rps[0]->calculateAlpha(v_wind,rho_null,0,0,0,
         &(torque[3]),&(lift[3])); //pitch 0
     SG_LOG(SG_FLIGHT, SG_INFO,
-        "Rotor: coefficients for airfoil:" << endl << setprecision(6)
-        << " drag0: " << _dragcoef0*_number_of_parts/_number_of_blades/_c2
-        << " drag1: " << _dragcoef1*_number_of_parts/_number_of_blades/_c2
-        << " lift: " << _liftcoef*_number_of_parts/_number_of_blades
-        << endl
-        << "at 10 deg:" << endl
-        << "drag: " << (Math::sin(10./180*pi)*_dragcoef1+_dragcoef0)
-            *_number_of_parts/_number_of_blades/_c2
-        << " lift: " << Math::sin(10./180*pi)*_liftcoef*_number_of_parts/_number_of_blades
-        << endl
-        << "Some results (Pitch [degree], Power [kW], Lift [N])" << endl
-        << 0.0f << "deg " << Math::abs(torque[3]*_number_of_parts*_omegan/1000) << "kW "
-            << lift[3]*_number_of_parts << endl
-        << _pitch_a*180/pi << "deg " << Math::abs(torque[0]*_number_of_parts*_omegan/1000) 
-            << "kW " << lift[0]*_number_of_parts << endl
-        << _pitch_b*180/pi << "deg " << Math::abs(torque[1]*_number_of_parts*_omegan/1000) 
-            << "kW " << lift[1]*_number_of_parts << endl << endl );
+           "Rotor: coefficients for airfoil:"
+               << '\n'
+               << std::setprecision(6)
+               << " drag0: " << _dragcoef0 * _number_of_parts / _number_of_blades / _c2
+               << " drag1: " << _dragcoef1 * _number_of_parts / _number_of_blades / _c2
+               << " lift: " << _liftcoef * _number_of_parts / _number_of_blades
+               << '\n'
+               << "at 10 deg:" << '\n'
+               << "drag: " << (Math::sin(10. / 180 * pi) * _dragcoef1 + _dragcoef0) * _number_of_parts / _number_of_blades / _c2
+               << " lift: " << Math::sin(10. / 180 * pi) * _liftcoef * _number_of_parts / _number_of_blades
+               << '\n'
+               << "Some results (Pitch [degree], Power [kW], Lift [N])" << '\n'
+               << 0.0f << "deg " << Math::abs(torque[3] * _number_of_parts * _omegan / 1000) << "kW "
+               << lift[3] * _number_of_parts << '\n'
+               << _pitch_a * 180 / pi << "deg " << Math::abs(torque[0] * _number_of_parts * _omegan / 1000)
+               << "kW " << lift[0] * _number_of_parts << '\n'
+               << _pitch_b * 180 / pi << "deg " << Math::abs(torque[1] * _number_of_parts * _omegan / 1000)
+               << "kW " << lift[1] * _number_of_parts << '\n');
 
     //first calculation of relamp is wrong
     //it used pitchaforce, but this was unknown and
@@ -1349,11 +1343,13 @@ void Rotor::compile()
     _properties_tied=1;
     */
 }
+
+// clang-format off
 std::ostream &  operator<<(std::ostream & out, Rotor& r)
 {
 #define i(x) << #x << ":" << r.x << endl
 #define iv(x) << #x << ":" << r.x[0] << ";" << r.x[1] << ";" <<r.x[2] << ";" << endl
-    out << "Writing Info on Rotor " 
+    out << "Writing Info on Rotor "
     i(_name)
     i(_torque)
     i(_omega) i(_omegan) i(_omegarel) i(_ddt_omega) i(_omegarelneu)
@@ -1442,6 +1438,8 @@ std::ostream &  operator<<(std::ostream & out, Rotor& r)
 #undef iv
     return out;
 }
+// clang-format on
+
 void Rotor:: writeInfo()
 {
 #ifdef TEST_DEBUG
@@ -1456,6 +1454,7 @@ void Rotor:: writeInfo()
     }
 #endif
 }
+
 Rotorpart* Rotor::newRotorpart(float zentforce,float maxpitchforce,
     float delta3,float mass,float translift,float rellenhinge,float len)
 {
@@ -1510,8 +1509,8 @@ void Rotorgear::calcForces(float* torqueOut)
 {
     int i,j;
     torqueOut[0]=torqueOut[1]=torqueOut[2]=0;
-    // check,<if the engine can handle the torque of the rotors. 
-    // If not reduce the torque to the fueselage and change rotational 
+    // check,<if the engine can handle the torque of the rotors.
+    // If not reduce the torque to the fueselage and change rotational
     // speed of the rotors instead
     if (! _rotors.empty())
     {
@@ -1560,41 +1559,40 @@ void Rotorgear::calcForces(float* torqueOut)
         float rotor_brake_torque;
         rotor_brake_torque=_rotorbrake*_max_power_rotor_brake+_rotorgear_friction;
         //clamp it to the value you need to stop the rotor
-        //to avod accelerate the rotor to neagtive rpm:
+        //to avoid accelerate the rotor to negative rpm:
         rotor_brake_torque=Math::clamp(rotor_brake_torque,0,
             total_torque_of_inertia/dt*omegarel);
         max_torque_of_engine-=rotor_brake_torque;
 
-        //change the rotation of the rotors 
+        //change the rotation of the rotors
         if ((max_torque_of_engine<total_torque) //decreasing rotation
             ||((max_torque_of_engine>total_torque)&&(omegarel<_target_rel_rpm))
             //increasing rotation due to engine
             ||(total_torque<0) ) //increasing rotation due to autorotation
         {
             _ddt_omegarel=(max_torque_of_engine-total_torque)/total_torque_of_inertia;
-            if(max_torque_of_engine>total_torque) 
-            {
+            if (max_torque_of_engine > total_torque) {
                 //check if the acceleration is due to the engine. If yes,
                 //the engine self limits the accel.
-                float lim1=-total_torque/total_torque_of_inertia; 
+                float lim1 = -total_torque / total_torque_of_inertia;
                 //accel. by autorotation
-                
-                if (lim1<_engine_accel_limit) lim1=_engine_accel_limit; 
+
+                if (lim1 < _engine_accel_limit) lim1 = _engine_accel_limit;
                 //if the accel by autorotation greater than the max. engine
                 //accel, then this is the limit, if not: the engine is the limit
                 if (_ddt_omegarel>lim1) _ddt_omegarel=lim1;
             }
-            if (_ddt_omegarel>5.5)_ddt_omegarel=5.5; 
+            if (_ddt_omegarel > 5.5) _ddt_omegarel = 5.5;
             //clamp it to avoid overflow. Should never be reached
             if (_ddt_omegarel<-5.5)_ddt_omegarel=-5.5;
 
             if (_max_power_engine<0.001) {omegarel=1;_ddt_omegarel=0;}
-            //for debug: negative or no maxpower will result 
+            //for debug: negative or no maxpower will result
             //in permanet 100% rotation
 
             omegarel+=dt*_ddt_omegarel;
 
-            if (omegarel>2.5) omegarel=2.5; 
+            if (omegarel > 2.5) omegarel = 2.5;
             //clamp it to avoid overflow. Should never be reached
             if (omegarel<-.5) omegarel=-.5;
 

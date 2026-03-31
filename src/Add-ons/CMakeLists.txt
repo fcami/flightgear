@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2017 Florent Rougon
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 include(FlightGearComponent)
 
 set(SOURCES Addon.cxx

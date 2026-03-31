@@ -1,6 +1,10 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "Atmosphere.hpp"
 #include "Math.hpp"
 #include "PistonEngine.hpp"
+
 namespace yasim {
 
 const static float HP2W = 745.7f;
@@ -14,7 +18,7 @@ PistonEngine::PistonEngine(float power, float speed)
     _fuel = true;
     _boostPressure = 0;
     _hasSuper = false;
-    
+
     _oilTemp = Atmosphere::getStdTemperature(0);
     _oilTempTarget = _oilTemp;
     _dOilTempdt = 0;
@@ -114,7 +118,7 @@ void PistonEngine::stabilize()
     _charge = _chargeTarget;
 }
 
-void PistonEngine::integrate(float dt) 
+void PistonEngine::integrate(float dt)
 {
     _oilTemp += (_dOilTempdt * dt);
 
@@ -166,7 +170,7 @@ void PistonEngine::calc(float pressure, float temp, float speed)
     float max = _wastegate * _maxMP;
     if(max < _mp/_charge) max = _mp/_charge;
     if(_mp > max) _mp = max;
-    
+
 
     // The "boost" is the delta above ambient
     _boostPressure = _mp - pressure;
@@ -263,9 +267,9 @@ void PistonEngine::calc(float pressure, float temp, float speed)
     // at full power.  No attempt to correct for airflow over the
     // engine is made.  Make the time constant to attain target steady-
     // state oil temp greater at engine off than on to reflect no
-    // circulation.  Nothing fancy, but populates the guage with a
+    // circulation.  Nothing fancy, but populates the gauge with a
     // plausible value.
-    float tau;	// secs 
+    float tau; // secs
     if(_running) {
 	_oilTempTarget = 363.0f + (30.0f * (power/_power0));
 	tau = 600;
@@ -273,7 +277,7 @@ void PistonEngine::calc(float pressure, float temp, float speed)
 	tau -= (power/_power0) * 300.0f;
     } else {
 	_oilTempTarget = temp;
-	tau = 1500;		
+    tau = 1500;
     }
     _dOilTempdt = (_oilTempTarget - _oilTemp) / tau;
 }

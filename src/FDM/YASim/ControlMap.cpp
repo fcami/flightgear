@@ -1,8 +1,7 @@
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <cstring>
+#include "config.h"
 
 #include "Jet.hpp"
 #include "Thruster.hpp"
@@ -26,10 +25,10 @@ static const std::vector<std::string> ControlNames = {
     "THROTTLE",
     "MIXTURE",
     "CONDLEVER",
-    "STARTER", 
+    "STARTER",
     "MAGNETOS",
-    "ADVANCE", 
-    "REHEAT", 
+    "ADVANCE",
+    "REHEAT",
     "PROP",
     "BRAKE",
     "STEER",
@@ -49,15 +48,15 @@ static const std::vector<std::string> ControlNames = {
     "CASTERING",
     "PROPPITCH",
     "PROPFEATHER",
-    "COLLECTIVE", 
-    "CYCLICAIL", 
-    "CYCLICELE", 
+    "COLLECTIVE",
+    "CYCLICAIL",
+    "CYCLICELE",
     "ROTORGEARENGINEON",
-    "TILTYAW", 
-    "TILTPITCH", 
+    "TILTYAW",
+    "TILTPITCH",
     "TILTROLL",
-    "ROTORBRAKE", 
-    "ROTORENGINEMAXRELTORQUE", 
+    "ROTORBRAKE",
+    "ROTORENGINEMAXRELTORQUE",
     "ROTORRELTARGET",
     "ROTORBALANCE",
     "REVERSE_THRUST",
@@ -65,8 +64,7 @@ static const std::vector<std::string> ControlNames = {
     "WINCHRELSPEED",
     "HITCHOPEN",
     "PLACEWINCH",
-    "FINDAITOW"
-}; //! keep this list in sync with the enum ControlType in ControlMap.hpp !
+    "FINDAITOW"}; //! keep this list in sync with the enum ControlType in ControlMap.hpp !
 
 ControlMap::~ControlMap()
 {
@@ -79,11 +77,11 @@ ControlMap::~ControlMap()
 
     for(int i=0; i<_outputs.size(); i++)
         delete (OutRec*)_outputs.get(i);
-   
+
     for(int i=0; i<_properties.size(); i++) {
         PropHandle* p = (PropHandle*)_properties.get(i);
         delete p;
-    }  
+    }
 }
 
 /**
@@ -91,12 +89,12 @@ inputProp: name of input property
 control: identifier (see enum OutputType)
 id: object to which this input belongs to
 options: bits OPT_INVERT, OPT_SPLIT, OPT_SQUARE
-src,dst: input will be clamped to src range and mapped to dst range 
+src,dst: input will be clamped to src range and mapped to dst range
 */
 void ControlMap::addMapping(const char* inputProp, ControlType control, ObjectID id, int options, float src0, float src1, float dst0, float dst1)
 {
     OutRec* out = getOutRec(id, control);
-    
+
     // Make a new input record
     MapRec* map = new MapRec();
     map->opt = options;
@@ -106,7 +104,7 @@ void ControlMap::addMapping(const char* inputProp, ControlType control, ObjectID
     map->src1 = map->dst1 = rangeMax(control);
     map->src0 = map->dst0 = rangeMin(control);
 
-    // And add it to the approproate vectors.
+    // And add it to the appropriate vectors.
     Vector* maps = (Vector*)_inputs.get(getInputPropertyHandle(inputProp));
     maps->add(map);
 
@@ -121,13 +119,11 @@ ControlMap::OutRec* ControlMap::getOutRec(ObjectID id, ControlType control)
     OutRec* out {nullptr};
     for(int i = 0; i < _outputs.size(); i++) {
         OutRec* o = (OutRec*)_outputs.get(i);
-        if(o->oid.object == id.object && o->oid.subObj == id.subObj 
-            && o->control == control) 
-        {
+        if (o->oid.object == id.object && o->oid.subObj == id.subObj && o->control == control) {
             out = o;
             break;
         }
-    }    
+    }
 
     // Create one if it doesn't
     if(out == nullptr) {
@@ -186,10 +182,9 @@ float ControlMap::getOutputR(int handle)
 
 void ControlMap::applyControls(float dt)
 {
-    for(int outrec=0; outrec<_outputs.size(); outrec++) 
-    {
+    for (int outrec = 0; outrec < _outputs.size(); outrec++) {
         OutRec* o = (OutRec*)_outputs.get(outrec);
-    
+
         // Generate a summed value.  Note the check for "split"
         // control axes like ailerons.
         float lval = 0, rval = 0;
@@ -211,7 +206,7 @@ void ControlMap::applyControls(float dt)
             float dr = rval - o->oldValueRight;
             float adl = Math::abs(dl);
             float adr = Math::abs(dr);
-        
+
             float maxDelta = (dt/o->transitionTime) * (rangeMax(o->control) - rangeMin(o->control));
             if(adl > maxDelta) {
                 dl = dl*maxDelta/adl;
@@ -289,48 +284,48 @@ void ControlMap::applyControls(float dt)
                 ((Wing*)obj)->setFlapEffectiveness(WING_FLAP0,lval);
                 break;
             case FLAP1:
-                ((Wing*)obj)->setFlapPos(WING_FLAP1,lval, rval);         
+                ((Wing*)obj)->setFlapPos(WING_FLAP1, lval, rval);
                 break;
             case FLAP1EFFECTIVENESS:
                 ((Wing*)obj)->setFlapEffectiveness(WING_FLAP1,lval);
                 break;
             case SPOILER:
-                ((Wing*)obj)->setFlapPos(WING_SPOILER, lval, rval);       
+                ((Wing*)obj)->setFlapPos(WING_SPOILER, lval, rval);
                 break;
             case COLLECTIVE:
-                ((Rotor*)obj)->setCollective(lval);     
+                ((Rotor*)obj)->setCollective(lval);
                 break;
             case CYCLICAIL:
-                ((Rotor*)obj)->setCyclicail(lval,rval); 
+                ((Rotor*)obj)->setCyclicail(lval, rval);
                 break;
             case CYCLICELE:
-                ((Rotor*)obj)->setCyclicele(lval,rval); 
+                ((Rotor*)obj)->setCyclicele(lval, rval);
                 break;
             case TILTPITCH:
-                ((Rotor*)obj)->setTiltPitch(lval);      
+                ((Rotor*)obj)->setTiltPitch(lval);
                 break;
             case TILTYAW:
-                ((Rotor*)obj)->setTiltYaw(lval);        
+                ((Rotor*)obj)->setTiltYaw(lval);
                 break;
             case TILTROLL:
-                ((Rotor*)obj)->setTiltRoll(lval);       
+                ((Rotor*)obj)->setTiltRoll(lval);
                 break;
             case ROTORBALANCE:
-                ((Rotor*)obj)->setRotorBalance(lval);   
+                ((Rotor*)obj)->setRotorBalance(lval);
                 break;
-            case ROTORBRAKE:   
-                ((Rotorgear*)obj)->setRotorBrake(lval); 
+            case ROTORBRAKE:
+                ((Rotorgear*)obj)->setRotorBrake(lval);
                 break;
-            case ROTORGEARENGINEON: 
-                ((Rotorgear*)obj)->setEngineOn((int)lval); 
+            case ROTORGEARENGINEON:
+                ((Rotorgear*)obj)->setEngineOn((int)lval);
                 break;
-            case ROTORENGINEMAXRELTORQUE: 
-                ((Rotorgear*)obj)->setRotorEngineMaxRelTorque(lval); 
+            case ROTORENGINEMAXRELTORQUE:
+                ((Rotorgear*)obj)->setRotorEngineMaxRelTorque(lval);
                 break;
             case ROTORRELTARGET:
                 ((Rotorgear*)obj)->setRotorRelTarget(lval);
                 break;
-            case REVERSE_THRUST: 
+            case REVERSE_THRUST:
                 ((Jet*)obj)->setReverse(lval != 0);
                 break;
             case BOOST:
@@ -340,7 +335,7 @@ void ControlMap::applyControls(float dt)
                 ((PistonEngine*)((Thruster*)obj)->getEngine())->setWastegate(lval);
                 break;
             case WINCHRELSPEED:
-                ((Hitch*)obj)->setWinchRelSpeed(lval); 
+                ((Hitch*)obj)->setWinchRelSpeed(lval);
                 break;
             case HITCHOPEN:
                 ((Hitch*)obj)->setOpen(lval!=0);
@@ -408,7 +403,7 @@ int ControlMap::getInputPropertyHandle(const char* name)
     PropHandle* p = new PropHandle();
     p->name = name;
 
-    fgGetNode(p->name, true); 
+    fgGetNode(p->name, true);
 
     Vector* v = new Vector();
     p->handle = _inputs.add(v);
@@ -421,8 +416,7 @@ ControlMap::ControlType ControlMap::getControlByName(const std::string& name)
 {
     auto it = std::find(ControlNames.begin(), ControlNames.end(), name);
     if (it == ControlNames.end()) {
-        SG_LOG(SG_FLIGHT,SG_ALERT,"Unrecognized control type '" << name 
-            << "' in YASim aircraft description.");
+        SG_LOG(SG_FLIGHT, SG_ALERT, "Unrecognized control type '" << name << "' in YASim aircraft description.");
         exit(1);
     }
     return static_cast<ControlType>(std::distance(ControlNames.begin(), it));

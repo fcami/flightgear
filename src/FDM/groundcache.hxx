@@ -1,27 +1,12 @@
-// groundcache.hxx -- carries a small subset of the scenegraph near the vehicle
-//
-// Written by Mathias Froehlich, started Nov 2004.
-//
-// Copyright (C) 2004  Mathias Froehlich - Mathias.Froehlich@web.de
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+// SPDX-FileCopyrightText: 2004 Mathias Fröhlich
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifndef _GROUNDCACHE_HXX
-#define _GROUNDCACHE_HXX
+/**
+ * @file
+ * @brief Carries a small subset of the scenegraph near the vehicle
+ */
+
+#pragma once
 
 #include <simgear/compiler.h>
 #include <simgear/constants.h>
@@ -80,7 +65,7 @@ public:
     // pt in wgs84 coordinates.
     double get_cat(double t, const SGVec3d& pt,
                    SGVec3d end[2], SGVec3d vel[2]);
-  
+
 
     // Return the altitude above ground below the wgs84 point pt
     // Search for highest triangle not higher than pt + max_altoff.
@@ -103,7 +88,7 @@ public:
     // If the wire is caught, the cache will trace this wires endpoints until
     // the FDM calls release_wire().
     bool caught_wire(double t, const SGVec3d pt[4]);
-  
+
     // Return the location and speed of the wire endpoints.
     bool get_wire_ends(double t, SGVec3d end[2], SGVec3d vel[2]);
 
@@ -121,7 +106,7 @@ private:
     // Approximate ground radius.
     // In case the aircraft is too high above ground.
     double _altitude;
-    // the simgear material reference, contains friction coeficients ...
+    // the simgear material reference, contains friction coefficients ...
     const simgear::BVHMaterial* _material;
     // The time reference for later call to intersection test routines.
     // Is required since we will have moving triangles in carriers.
@@ -149,5 +134,3 @@ private:
     osg::ref_ptr<osg::Group> _group;
 #endif
 };
-
-#endif

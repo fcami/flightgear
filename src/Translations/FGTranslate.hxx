@@ -19,7 +19,7 @@
 /**
  * @brief Class for retrieving translated strings
  *
- * The defaut domain is “core”; it corresponds to translations defined in
+ * The default domain is “core”; it corresponds to translations defined in
  * FGData. Other domains are “current-aircraft” and “addons/⟨addonId⟩”.
  *
  * If the translatable string specified by the (domain, resource, basicId,
@@ -29,7 +29,7 @@
  * strings. On the other hand, if a translatable string is defined with
  * has-plural="true" in the default translation, it has plural forms.
  * Member functions getPlural() and getPluralWithDefault() are suitable for
- * such strings: they require an additional parmeter (“cardinal number”)
+ * such strings: they require an additional parameter (“cardinal number”)
  * which is necessary to choose the correct plural form.
  *
  * If your code doesn't know in advance whether the string has plural
@@ -145,7 +145,7 @@ public:
     /**
      * @brief Same as get(), but for a string that has plural forms.
      *
-     * @param cardinalNumber  an integer correponding to a number of
+     * @param cardinalNumber  an integer corresponding to a number of
      *                        “things” (concrete or abstract)
      * @param resource        same as for get()
      * @param basicId         same as for get()
@@ -173,7 +173,7 @@ public:
     /**
      * @brief Same as getWithDefault(), but for a string that has plural forms.
      *
-     * @param cardinalNumber  an integer correponding to a number of
+     * @param cardinalNumber  an integer corresponding to a number of
      *                        “things” (concrete or abstract)
      * @param resource        same as for getWithDefault()
      * @param basicId         same as for getWithDefault()

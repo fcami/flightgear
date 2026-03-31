@@ -187,11 +187,6 @@ CameraGroup::CameraGroup(osgViewer::View* view) :
 {
 }
 
-CameraGroup::~CameraGroup()
-{
-
-}
-
 void CameraGroup::update(const osg::Vec3d& position,
                          const osg::Quat& orientation)
 {

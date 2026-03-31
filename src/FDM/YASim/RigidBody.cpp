@@ -1,4 +1,8 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include <Main/fg_props.hxx>
+
 #include "RigidBody.hpp"
 
 namespace yasim {
@@ -42,11 +46,11 @@ int RigidBody::addMass(float mass, const float* pos, bool isStatic)
 /// handle: returned by addMass
 void RigidBody::setMass(int handle, float mass)
 {
-    if (_masses[handle].m  == mass) 
-      return;
+    if (_masses[handle].m == mass)
+        return;
     _masses[handle].m = mass;
     // if static mass is changed, reset pre-calculated mass
-    // may apply to weights like cargo, pax, that usually do not change with FDM rate 
+    // may apply to weights like cargo, pax, that usually do not change with FDM rate
     if (_masses[handle].isStatic)
       _staticMass.m = 0;
     if (_bodyN != 0)
@@ -63,7 +67,7 @@ void RigidBody::setMass(int handle, float mass, const float* pos, bool isStatic)
       n->getNode("isStatic", true)->setValue(isStatic);
       n->getNode("pos-x", true)->setFloatValue(pos[0]);
       n->getNode("pos-y", true)->setFloatValue(pos[1]);
-      n->getNode("pos-z", true)->setFloatValue(pos[2]);	
+      n->getNode("pos-z", true)->setFloatValue(pos[2]);
     }
 }
 
@@ -72,7 +76,7 @@ void RigidBody::getMassPosition(int handle, float* out) const
     Math::set3(_masses[handle].p, out);
 }
 
-// Calcualtes the rotational velocity of a particular point.  All
+// Calculates the rotational velocity of a particular point.  All
 // coordinates are local!
 void RigidBody::pointVelocity(const float* pos, const float* rot, float* out)
 {
@@ -103,7 +107,7 @@ void RigidBody::_recalcStatic()
         _bodyN->getNode("aggregated-count", true)->setIntValue(s);
         _bodyN->getNode("aggregated-pos-x", true)->setFloatValue(_staticMass.p[0]);
         _bodyN->getNode("aggregated-pos-y", true)->setFloatValue(_staticMass.p[1]);
-        _bodyN->getNode("aggregated-pos-z", true)->setFloatValue(_staticMass.p[2]);	
+        _bodyN->getNode("aggregated-pos-z", true)->setFloatValue(_staticMass.p[2]);
     }
     // Now the inertia tensor:
     for(i=0; i<9; i++)
@@ -151,7 +155,7 @@ void RigidBody::recalc()
     int i;
     for(i=0; i<_nMasses; i++) {
         // only masses we did not aggregate
-        if (!_masses[i].isStatic) { 
+        if (!_masses[i].isStatic) {
             float mass = _masses[i].m;
             _totalMass += mass;
             float momentum[3];
@@ -175,7 +179,7 @@ void RigidBody::recalc()
             float mx = m*x;
             float my = m*y;
             float mz = m*z;
-            
+
             float xy = mx*y; float yz = my*z; float zx = mz*x;
             float x2 = mx*x; float y2 = my*y; float z2 = mz*z;
 
@@ -184,7 +188,7 @@ void RigidBody::recalc()
                                                 _tI[8] += x2+y2;
         }
     }
-    // copy symmetric elements 
+    // copy symmetric elements
     _tI[3] = _tI[1];
     _tI[6] = _tI[2];
     _tI[7] = _tI[5];
@@ -202,7 +206,7 @@ void RigidBody::reset()
 void RigidBody::addForce(const float* pos, const float* force)
 {
     addForce(force);
-    
+
     // For a force F at position X, the torque about the c.g C is:
     // torque = F cross (C - X)
     float v[3], t[3];
@@ -222,7 +226,7 @@ void RigidBody::getAccel(const float* pos, float* accelOut) const
     Math::set3(_spin, a);
     if (rate !=0 )
         Math::mul3(1/rate, a, a);
-    //an else branch is not neccesary. a, which is a=(0,0,0) in the else case, is only used in a dot product
+    //an else branch is not necessary. a, which is a=(0,0,0) in the else case, is only used in a dot product
     float v[3];
     Math::sub3(_cg, pos, v);             // v = cg - pos
     Math::mul3(Math::dot3(v, a), a, a);  // a = a * (v dot a)

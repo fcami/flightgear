@@ -1,16 +1,5 @@
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2019 Julian Smith
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ViewPropertyEvaluator.hxx"
 
@@ -22,43 +11,42 @@
 
 namespace ViewPropertyEvaluator {
 
-    /* We represent a spec as graph, using alternating Sequence and Node
-    objects so that different specs share common information; e.g. this ensures
-    that we don't install more than one listener for the same SGPropertyNode.
-    
-    Evaluating top-level nodes:
+/* We represent a spec as graph, using alternating Sequence and Node
+   objects so that different specs share common information; e.g. this ensures
+   that we don't install more than one listener for the same SGPropertyNode.
 
-        Currently ViewPropertyEvaluator::getDoubleValue() will always
-        reevaluate the top-level SGPropertyNode by calling its getDoubleValue()
-        member. This usually gives the desired behaviour because most
-        final property nodes that we are used with don't appear to make
-        valueChanged() callbacks, and it's anyway probably more efficient to
-        not use such callbacks for rapidly-changing values.
+   Evaluating top-level nodes:
 
-        However it would be good to be clearer about this, e.g. maybe we could
-        have a second bracket notation to indicate that we should evaluate and
-        cache the SGPropertyNode but not its string/double value. E.g.:
+     Currently ViewPropertyEvaluator::getDoubleValue() will always
+     reevaluate the top-level SGPropertyNode by calling its getDoubleValue()
+     member. This usually gives the desired behaviour because most
+     final property nodes that we are used with don't appear to make
+     valueChanged() callbacks, and it's anyway probably more efficient to
+     not use such callbacks for rapidly-changing values.
 
-            ViewPropertyEvaluator::getDoubleValue(
-                    "{(/sim/view[0]/config/root)/position/altitude-ft}"
-                    );
+     However it would be good to be clearer about this, e.g. maybe we could
+     have a second bracket notation to indicate that we should evaluate and
+     cache the SGPropertyNode but not its string/double value. For instance,
 
-        - would not attempt to install a valueChanged() callback for the
-        top-level SGPropertyNode.
+         ViewPropertyEvaluator::getDoubleValue(
+                 "{(/sim/view[0]/config/root)/position/altitude-ft}"
+                 );
+
+     would not attempt to install a valueChanged() callback for the
+     top-level SGPropertyNode.
 */
-    
-    struct Sequence;
-    struct Node;
-    
-    struct Sequence
-    {
-        Sequence();
 
-        std::vector<std::shared_ptr<Node>>  _nodes;
-        std::vector<Node*>                  _parents;
-        bool                                _rescan;
-        std::string                         _value;
-    };
+struct Sequence;
+struct Node;
+
+struct Sequence {
+    Sequence();
+
+    std::vector<std::shared_ptr<Node>> _nodes;
+    std::vector<Node*> _parents;
+    bool _rescan;
+    std::string _value;
+};
 
     struct Node : SGPropertyChangeListener
     {
@@ -66,7 +54,7 @@ namespace ViewPropertyEvaluator {
 
         /* SGPropertyChangeListener callback. */
         void valueChanged(SGPropertyNode* node);
-        
+
         const char*                 _begin;
         const char*                 _end;
         bool                        _rescan;
@@ -86,28 +74,28 @@ namespace ViewPropertyEvaluator {
     struct SequenceDump
     {
         SequenceDump(const Sequence& sequence, const std::string& indent="", bool deep=false);
-        
+
         const Sequence&     _sequence;
         const std::string&  _indent;
         bool                _deep;
-        
+
         friend std::ostream& operator << (std::ostream& out, const SequenceDump& self);
     };
-    
+
     /* Helper for dumping a Node to an ostream. Prefixes all lines with
     <indent>. If <deep> is true, recursively shows all child sequences and
     nodes. */
     struct NodeDump
     {
         NodeDump(const Node& node, const std::string& indent="", bool deep=false);
-        
+
         const Node&         _node;
         const std::string&  _indent;
         bool                _deep;
-        
+
         friend std::ostream& operator << (std::ostream& out, const NodeDump& self);
     };
-    
+
     /* Support for debug statistics. */
     struct Debug
     {
@@ -117,7 +105,7 @@ namespace ViewPropertyEvaluator {
             Stat() : n(0) {}
             int n;
         };
-    
+
         /* Increments counter for <name>. Periodically outputs stats with
         SG_LOG(SG_VIEW, SG_DEBUG, ...) and detailed information about Sequences
         and Nodes with SG_LOG(SG_VIEW, SG_BULK, ...). */
@@ -125,18 +113,18 @@ namespace ViewPropertyEvaluator {
         void    statsReset();
         struct StatsShow {};
         friend std::ostream& operator << (std::ostream& out, const StatsShow&);
-        
+
         /* Track how many listeners we have. */
         void listensAdd(SGPropertyNode_ptr node);
         void listensRemove(SGPropertyNode_ptr node);
-        
+
         time_t  statsT0 = 0;
         std::map<std::string, std::shared_ptr<Stat>>    stats;
         std::vector<SGPropertyNode_ptr> listens;
     };
-    
+
     Debug   debug;
-    
+
     /* Forces this node and all of its sequence and node parents to be
     re-read the next time they are evaluated - e.g. the next call of
     getNodeStringValue() will call getSequenceStringValue() on _child and
@@ -251,13 +239,13 @@ namespace ViewPropertyEvaluator {
                 );
         rescanNode(*this);
     }
-    
+
     Sequence::Sequence()
     :
     _rescan(true)
     {
     }
-    
+
     void rescanNode(Node& node)
     {
         node._rescan = true;
@@ -283,15 +271,15 @@ namespace ViewPropertyEvaluator {
     std::map<const char*, std::shared_ptr<Sequence>>    spec_to_sequence;
 
     /* These are only used when parsing new specs and creating new nodes and
-    sequencies, so are not speed-critical. */
+    sequences, so are not speed-critical. */
     std::map<std::string, std::shared_ptr<Sequence>>    string_to_sequence;
     std::map<std::string, std::shared_ptr<Node>>        string_to_node;
 
-    
+
     /* Finds or creates new Sequence for (possibly initial) portion of <spec>.
     */
     std::shared_ptr<Sequence>   getSequenceInternal(const char* spec, Node* parent);
-    
+
     /* Finds or creates new Node for (possibly initial) portion of <spec>.
     */
     std::shared_ptr<Node>       getNodeInternal(const char* spec, Sequence* parent);
@@ -333,7 +321,7 @@ namespace ViewPropertyEvaluator {
         }
         return sequence;
     }
-    
+
     std::shared_ptr<Node>   getNodeInternal(const char* spec, Sequence* parent)
     {
         if (spec[0] == 0 || spec[0] == ')') {
@@ -432,7 +420,7 @@ namespace ViewPropertyEvaluator {
         }
         return node._sgnode;
     }
-    
+
     const std::string& getNodeStringValue(Node& node)
     {
         if (node._rescan) {
@@ -586,11 +574,11 @@ namespace ViewPropertyEvaluator {
         }
         return out;
     }
-    
+
     DumpOne::DumpOne(const char* spec)
     : _spec(spec)
     {}
-    
+
     std::ostream& operator << (std::ostream& out, const DumpOne& dumpone)
     {
         out << "ViewPropertyEvaluator\n";
@@ -601,38 +589,38 @@ namespace ViewPropertyEvaluator {
         }
         return out;
     }
-    
+
     void clear()
     {
         spec_to_sequence.clear();
         string_to_sequence.clear();
         string_to_node.clear();
-        
+
         debug = Debug();
     }
-    
+
     /* === Everything below here is for diagnostics and/or debugging. */
-    
+
     SequenceDump::SequenceDump(const Sequence& sequence, const std::string& indent, bool deep)
     :
     _sequence(sequence),
     _indent(indent),
     _deep(deep)
     {}
-    
+
     NodeDump::NodeDump(const Node& node, const std::string& indent, bool deep)
     :
     _node(node),
     _indent(indent),
     _deep(deep)
     {}
-    
-    
+
+
     void Debug::listensAdd(SGPropertyNode_ptr node)
     {
         debug.listens.push_back(node);
     }
-    
+
     void Debug::listensRemove(SGPropertyNode_ptr node)
     {
         auto it = std::find(debug.listens.begin(), debug.listens.end(), node);
@@ -643,7 +631,7 @@ namespace ViewPropertyEvaluator {
             debug.listens.erase(it);
         }
     }
-    
+
     std::ostream& operator << (std::ostream& out, const Debug::StatsShow&)
     {
         time_t t = time(NULL);
@@ -657,14 +645,14 @@ namespace ViewPropertyEvaluator {
         }
         return out;
     }
-    
+
     void    Debug::statsReset() {
         for (auto it: debug.stats) {
             it.second->n = 0;
         }
         debug.statsT0 = time(NULL);
     }
-    
+
     void    Debug::statsAdd(const char* name) {
         if (debug.statsT0 == 0)  debug.statsT0 = time(NULL);
         std::shared_ptr<Debug::Stat>&   stat = debug.stats[name];
@@ -672,7 +660,7 @@ namespace ViewPropertyEvaluator {
             stat.reset(new(Debug::Stat));
         }
         stat->n += 1;
-        
+
         if (1) {
             static time_t  t0 = time(NULL);
             time_t  t = time(NULL);
@@ -680,13 +668,13 @@ namespace ViewPropertyEvaluator {
                 t0 = t;
                 SG_LOG(SG_VIEW, SG_DEBUG, StatsShow());
                 statsReset();
-                
+
                 /* Output all specs with SG_BULK. */
                 SG_LOG(SG_VIEW, SG_BULK, Dump());
             }
         }
     }
-    
+
     std::ostream& operator << (std::ostream& out, const SequenceDump& self)
     {
         std::string spec;
@@ -709,7 +697,7 @@ namespace ViewPropertyEvaluator {
         }
         return out;
     }
-    
+
     std::ostream& operator << (std::ostream& out, const NodeDump& self)
     {
         out << self._indent
@@ -736,7 +724,7 @@ namespace ViewPropertyEvaluator {
         }
         return out;
     }
-    
+
     void dump()
     {
         std::cerr << Dump() << "\n";

@@ -1,31 +1,8 @@
-//////////////////////////////////////////////////////////////////////
-//
-// multiplaymgr.cxx
-//
-// Written by Duncan McCreanor, started February 2003.
-// duncan.mccreanor@airservicesaustralia.com
-//
-// Copyright (C) 2003  Airservices Australia
-// Copyright (C) 2005  Oliver Schroeder
-// Copyright (C) 2006  Mathias Froehlich
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
-//
-//////////////////////////////////////////////////////////////////////
+// SPDX-FileCopyrightText: 2003 Airservices Australia
+// SPDX-FileCopyrightText: 2005 Oliver Schroeder
+// SPDX-FileCopyrightText: 2006 Mathias Fröhlich
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileComment: Started by Duncan McCreanor <duncan.mccreanor@airservicesaustralia.com>, February 2003.
 
 #include <config.h>
 
@@ -219,6 +196,8 @@ static xdr_data_t *decode_received_launchbar_state(const IdPropertyList *propDef
     p->type = simgear::props::STRING;
     return xdr;
 }
+
+// clang-format off
 
 // A static map of protocol property id values to property paths,
 // This should be extendable dynamically for every specific aircraft ...
@@ -551,7 +530,7 @@ static const IdPropertyList sIdPropertyList[] = {
     { BOOLARRAY_BASE_2 + 8, "sim/multiplay/generic/bool[39]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_2 + 9, "sim/multiplay/generic/bool[40]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_2 + 10, "sim/multiplay/generic/bool[41]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
-        // out of sequence between the block and the buffer becuase of a typo. repurpose the first as that way [72] will work
+        // out of sequence between the block and the buffer because of a typo. repurpose the first as that way [72] will work
         // correctly on older versions.
     { BOOLARRAY_BASE_2 + 11, "sim/multiplay/generic/bool[91]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_2 + 12, "sim/multiplay/generic/bool[42]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
@@ -585,7 +564,7 @@ static const IdPropertyList sIdPropertyList[] = {
     { BOOLARRAY_BASE_3 + 8, "sim/multiplay/generic/bool[69]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_3 + 9, "sim/multiplay/generic/bool[70]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_3 + 10, "sim/multiplay/generic/bool[71]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
-        // out of sequence between the block and the buffer becuase of a typo. repurpose the first as that way [72] will work
+        // out of sequence between the block and the buffer because of a typo. repurpose the first as that way [72] will work
         // correctly on older versions.
     { BOOLARRAY_BASE_3 + 11, "sim/multiplay/generic/bool[92]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
     { BOOLARRAY_BASE_3 + 12, "sim/multiplay/generic/bool[72]", simgear::props::BOOL, TT_BOOLARRAY,  V1_1_2_PROP_ID, NULL, NULL },
@@ -681,6 +660,9 @@ static const IdPropertyList sIdPropertyList[] = {
     // Add new MP properties here
     { V2020_4_BASE, "instrumentation/transponder/mach-number", simgear::props::FLOAT, TT_SHORT_FLOAT_4, V1_1_2_PROP_ID, NULL, NULL },
 };
+
+// clang-format on
+
 /*
  * For the 2017.x version 2 protocol the properties are sent in two partitions,
  * the first of these is a V1 protocol packet (which should be fine with all clients), and a V2 partition
@@ -1181,7 +1163,7 @@ FGMultiplayMgr::init (void)
   fgSetBool("/sim/multiplay/online", true);
   mInitialised = true;
 
-  
+
   SG_LOG(SG_NETWORK, SG_MANDATORY_INFO, "Multiplayer mode active");
   flightgear::addSentryTag("mp", "active");
 
@@ -1206,7 +1188,7 @@ FGMultiplayMgr::init (void)
 //////////////////////////////////////////////////////////////////////
 //
 //  Closes and deletes the local player object. Closes
-//  and deletes the tx socket. Resets the object state to unitialised.
+//  and deletes the tx socket. Resets the object state to uninitialised.
 //
 //////////////////////////////////////////////////////////////////////
 void
@@ -1509,7 +1491,7 @@ FGMultiplayMgr::SendMyPosition(const FGExternalMotionData& motionInfo)
               }
               /*
                * 2017.2 partitions the buffer sent into protocol versions. Originally this was intended to allow
-               * compatability with older clients; however this will only work in the future or with support from fgms
+               * compatibility with older clients; however this will only work in the future or with support from fgms
                * - so if a future version adds more properties to the protocol these can be transmitted in a third partition
                *   that will be ignored by older clients (such as 2017.2).
                */
@@ -1853,7 +1835,7 @@ FGMultiplayMgr::SendTextMessage(const string &MsgText)
 
 
 // If a message is available from mSocket, copies into <msgBuf>, converts
-// endiness of the T_MsgHdr, and returns length.
+// endianness of the T_MsgHdr, and returns length.
 //
 // Otherwise returns 0.
 //
@@ -1900,7 +1882,7 @@ int FGMultiplayMgr::GetMsgNetwork(MsgBuf& msgBuf, simgear::IPAddress& SenderAddr
     #endif
             return 0;
         }
-        
+
         T_MsgHdr* MsgHdr = msgBuf.msgHdr();
         MsgHdr->Magic       = XDR_decode_uint32 (MsgHdr->Magic);
         MsgHdr->Version     = XDR_decode_uint32 (MsgHdr->Version);
@@ -1908,7 +1890,7 @@ int FGMultiplayMgr::GetMsgNetwork(MsgBuf& msgBuf, simgear::IPAddress& SenderAddr
         MsgHdr->MsgLen      = XDR_decode_uint32 (MsgHdr->MsgLen);
         MsgHdr->ReplyPort   = XDR_decode_uint32 (MsgHdr->ReplyPort);
         MsgHdr->Callsign[MAX_CALLSIGN_LEN -1] = '\0';
-        
+
         return RecvStatus;
 }
 
@@ -1923,8 +1905,7 @@ int FGMultiplayMgr::GetMsg(MsgBuf& msgBuf, simgear::IPAddress& SenderAddress)
         // We are replaying, so return non-chat multiplayer messages from
         // mReplayMessageQueue and live chat messages from mSocket.
         //
-        for(;;) {
-        
+        for (;;) {
             if (mReplayMessageQueue.empty()) {
                 // No recorded messages available, so look for live messages
                 // from <mSocket>.
@@ -1934,13 +1915,13 @@ int FGMultiplayMgr::GetMsg(MsgBuf& msgBuf, simgear::IPAddress& SenderAddress)
                     // No recorded messages, and no live messages, so return 0.
                     return 0;
                 }
-                
+
                 // Always record all messages.
                 //
                 std::shared_ptr<std::vector<char>> data( new std::vector<char>(RecvStatus));
                 memcpy( &data->front(), msgBuf.Msg, RecvStatus);
                 mRecordMessageQueue.push_back(data);
-                
+
                 if (msgBuf.Header.MsgId == CHAT_MSG_ID) {
                     return RecvStatus;
                 }
@@ -1969,7 +1950,7 @@ int FGMultiplayMgr::GetMsg(MsgBuf& msgBuf, simgear::IPAddress& SenderAddress)
     }
     else {
         int length = GetMsgNetwork(msgBuf, SenderAddress);
-        
+
         // Make raw incoming packet available to recording code.
         if (length) {
             std::shared_ptr<std::vector<char>> data( new std::vector<char>(length));
@@ -2029,7 +2010,7 @@ FGMultiplayMgr::update(double dt)
               << "received message with insufficient data" );
       break;
     }
-    
+
     //////////////////////////////////////////////////
     //  Read header
     //////////////////////////////////////////////////
@@ -2133,7 +2114,7 @@ void FGMultiplayMgr::Send(double mpTime)
     double lat = ifce.get_Latitude();
     // first the aprioriate structure for the geodetic one
     SGGeod geod = SGGeod::fromRadFt(lon, lat, ifce.get_Altitude());
-    // Convert to cartesion coordinate
+    // Convert to cartesian coordinate
     motionInfo.position = SGVec3d::fromGeod(geod);
 
     // The quaternion rotating from the earth centered frame to the
@@ -2519,7 +2500,7 @@ FGMultiplayMgr::ProcessPosMsg(const FGMultiplayMgr::MsgBuf& Msg,
   if (!mp)
     mp = addMultiplayer(MsgHdr->Callsign, PosMsg->Model, fallback_model_index);
   mp->addMotionInfo(motionInfo, stamp);
-  
+
   // Optionally gather information about the raw speed of a selected
   // multiplayer aircraft. This is for scripts/python/recordreplay.py
   // --test-motion-mp.
@@ -2674,86 +2655,87 @@ FGMultiplayMgr::addMultiplayer(const std::string& callsign,
     for (unsigned i = 0; i < numProperties; ++i)
       mp->addPropertyId(sIdPropertyList[i].id, sIdPropertyList[i].name);
   }
-  
+
   /* Try to find a -set.xml for <modelName>, so that we can use its view
   parameters. If found, we install it into a 'set' property node.
-  
+
   If we are reusing an old entry in /ai/models/multiplayer[], there
   might be an old set/ node, so remove it.
-  
+
   todo: maybe we should cache the -set.xml nodes in memory and/or share them in
   properties?
   */
   mp->_getProps()->removeChildren("set");
-  
+
   SGPropertyNode_ptr    set;
-  
-  if (simgear::strutils::ends_with(modelName, ".xml")
-      && simgear::strutils::starts_with(modelName, "Aircraft/")) {
-  
-    std::string tail = modelName.substr(strlen("Aircraft/"));
-    
-    PathList    dirs(globals->get_aircraft_paths());
-    
-    /* Need to append <fgdata>/Aircraft, otherwise we won't be able to find
+
+  if (simgear::strutils::ends_with(modelName, ".xml") && simgear::strutils::starts_with(modelName, "Aircraft/")) {
+      std::string tail = modelName.substr(strlen("Aircraft/"));
+
+      PathList dirs(globals->get_aircraft_paths());
+
+      /* Need to append <fgdata>/Aircraft, otherwise we won't be able to find
     c172p. */
-    SGPath  fgdata_aircraft = globals->get_fg_root();
-    fgdata_aircraft.append("Aircraft");
-    dirs.push_back(fgdata_aircraft);
-    
-    SGPath model_file;
-    PathList::const_iterator it = std::find_if(dirs.begin(), dirs.end(),
-        [&](SGPath dir) {
-            model_file = dir;
-            model_file.append(tail);
-            return model_file.exists();
-        });
-    
+      SGPath fgdata_aircraft = globals->get_fg_root();
+      fgdata_aircraft.append("Aircraft");
+      dirs.push_back(fgdata_aircraft);
+
+      SGPath model_file;
+      PathList::const_iterator it = std::find_if(dirs.begin(), dirs.end(),
+                                                 [&](SGPath dir) {
+                                                     model_file = dir;
+                                                     model_file.append(tail);
+                                                     return model_file.exists();
+                                                 });
+
+      // clang-format off
     if (it != dirs.end()) {
-      /* We've found the model file.
-      
-      Now try each -set.xml file in <modelName> aircraft directory. In theory
-      an aircraft could have a -set.xml in an unrelated directory so we should
-      scan all directories in globals->get_aircraft_paths(), but in practice
-      most -set.xml files and models are in the same aircraft directory. */
-      std::string model_file_head = it->str() + '/';
-      std::string model_file_tail = model_file.str().substr(model_file_head.size());
-      ssize_t p = model_file_tail.find('/');
-      std::string aircraft_dir = model_file_head + model_file_tail.substr(0, p);
-      simgear::Dir  dir(aircraft_dir);
-      std::vector<SGPath>   dir_contents = dir.children(0 /*types*/, "-set.xml");
-      /* simgear::Dir::children() claims that second param is glob, but
-      actually it's just a suffix. */
-      
-      for (auto path: dir_contents) {
-        /* Load into a local SGPropertyNode.
-        
-        As of 2020-03-08 we don't load directly into the global property tree
-        because that appears to result in runtime-specific multiplayer values
-        being written to autosave*.xml and reloaded next time fgfs is run,
-        which results in lots of bogus properties within /ai/multiplayer. So
-        instead we load into a local SGPropertyNode, then copy selected values
-        into the global tree below. */
-        set = new SGPropertyNode;
-        bool    ok = true;
-        try {
-          readProperties(path, set);
-        }
-        catch ( const std::exception & ) {
-          ok = false;
-        }
-        if (ok) {
-          SGPropertyNode* sim_model_path = set->getNode("sim/model/path");
-          if (sim_model_path && sim_model_path->getStringValue() == modelName) {
-            /* We've found (and loaded) a matching -set.xml. */
-            break;
+     /* We've found the model file.
+
+        Now try each -set.xml file in <modelName> aircraft directory. In theory
+        an aircraft could have a -set.xml in an unrelated directory so we should
+        scan all directories in globals->get_aircraft_paths(), but in practice
+        most -set.xml files and models are in the same aircraft directory. */
+        std::string model_file_head = it->str() + '/';
+        std::string model_file_tail = model_file.str().substr(model_file_head.size());
+        ssize_t p = model_file_tail.find('/');
+        std::string aircraft_dir = model_file_head + model_file_tail.substr(0, p);
+        simgear::Dir dir(aircraft_dir);
+        std::vector<SGPath> dir_contents = dir.children(0 /*types*/, "-set.xml");
+        /* simgear::Dir::children() claims that second param is glob, but
+           actually it's just a suffix. */
+
+        for (auto path : dir_contents) {
+         /* Load into a local SGPropertyNode.
+
+            As of 2020-03-08 we don't load directly into the global property
+            tree because that appears to result in runtime-specific
+            multiplayer values being written to autosave*.xml and reloaded
+            next time fgfs is run, which results in lots of bogus properties
+            within /ai/multiplayer. So instead we load into a local
+            SGPropertyNode, then copy selected values into the global tree
+            below. */
+              // clang-format on
+              set = new SGPropertyNode;
+              bool ok = true;
+              try {
+                  readProperties(path, set);
+              } catch (const std::exception&) {
+                  ok = false;
+              }
+              if (ok) {
+                  SGPropertyNode* sim_model_path = set->getNode("sim/model/path");
+                  if (sim_model_path &&
+                      sim_model_path->getStringValue() == modelName) {
+                      /* We've found (and loaded) a matching -set.xml. */
+                      break;
+                  }
+              }
+              set.reset();
           }
-        }
-        set.reset();
       }
-    }
   }
-  
+
   // Copy values from our local <set>/sim/view[]/config/* into global
   // /ai/models/multiplayer/set/sim/view[]/config/ so that we have view offsets
   // available for this multiplayer aircraft.
@@ -2779,7 +2761,7 @@ FGMultiplayMgr::addMultiplayer(const std::string& callsign,
       }
       SG_LOG(SG_VIEW, SG_DEBUG, "setting to " << sim_chase_distance_m << ": " << global_sim->getPath());
       global_sim->setDoubleValue("chase-distance-m", sim_chase_distance_m);
-      
+
       simgear::PropertyList   views = sim->getChildren("view");
       for (auto view: views) {
         int view_index = view->getIndex();
@@ -2797,7 +2779,7 @@ FGMultiplayMgr::addMultiplayer(const std::string& callsign,
       }
     }
   }
-    
+
   /* For views that are similar to Helicopter View, copy across Helicopter View
   target offsets if not specified. E.g. this allows Tower View AGL to work on
   aircraft that don't know about it but need non-zero target-*-offset-m values
@@ -2823,15 +2805,15 @@ FGMultiplayMgr::addMultiplayer(const std::string& callsign,
     copy_default(view_1, "config/target-y-offset-m", v);
     copy_default(view_1, "config/target-z-offset-m", v);
   }
-  
+
   /* Create a node /ai/models/callsigns/<callsign> containing the index of the
   callsign's aircraft's entry in /ai/models/multiplayer[]. This isn't strictly
-  necessary, but simpifies debugging a lot and seems pretty lightweight. Note
+  necessary, but simplifies debugging a lot and seems pretty lightweight. Note
   that we need to avoid special characters in the node name, otherwise the
   property system forces a fatal error. */
   std::string   path = "/ai/models/callsigns/" + makeStringPropertyNameSafe(callsign);
   globals->get_props()->setIntValue(path, mp->_getProps()->getIndex());
-  
+
   return mp;
 }
 

@@ -90,7 +90,7 @@ public:
     std::string getTranslation() const;
     /**
      * @brief Get the target text of a translation unit that has plural forms
-     * @param cardinalNumber  an integer correponding to a number of
+     * @param cardinalNumber  an integer corresponding to a number of
      *                        “things” (concrete or abstract)
      * @return The requested translation (in the selected language)
      *

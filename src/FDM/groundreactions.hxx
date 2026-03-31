@@ -1,6 +1,6 @@
 /*
  * groundreactions.hxx
- * caclulate ground reactions based on ground properties and weather scenarios
+ * calculate ground reactions based on ground properties and weather scenarios
  *
  * SPDX-FileCopyrightText: (C) 2023 Erik Hofman <erik@ehof,am.com>
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -64,7 +64,6 @@ private:
     bool snow = false;		// is it snowed over?
     bool solid = true;		// is it solid ground or water?
     bool water_body = false;	// if water, can it ge frozen over?
-    bool frozen = false;	// is it actuall frozen?
+    bool frozen = false;        // is it actually frozen?
     bool mud = false;		// is it mud?
 };
-

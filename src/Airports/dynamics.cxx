@@ -1042,6 +1042,6 @@ FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
         }
     }
 
-    // Zugriff auf die Runway-Auswahl über das zugehörige FGAirport-Objekt
+    // Find the runway using the associated FGAirport object
     return _ap->findBestRunwayForHeading(hdg);
 }

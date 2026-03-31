@@ -2,30 +2,31 @@
 # SPDX-FileCopyrightText: 2025 James Turner <james@flightgear.org>
 
 exclude: ^3rdparty/|^src/FDM/JSBSim/
+exclude: ^src/Main/README$
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.2
     hooks:
       - id: codespell
   - repo: https://github.com/google/yamlfmt
-    rev: v0.14.0
+    rev: v0.21.0
     hooks:
       - id: yamlfmt
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.18.1
+    rev: v0.22.0
     hooks:
       - id: markdownlint-cli2
 
   # check SPDX compliance
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v5.0.2
+    rev: v6.2.0
     hooks:
       - id: reuse-lint-file
         exclude_types: [binary, json, markdown]

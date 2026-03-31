@@ -1,11 +1,8 @@
-// Based on original patch from Ian Dall <ian@beware.dropbear.id.au>
-// Date:   Wed Jan 11 22:35:24 2012 +1030
-// #595 Support for electric motors in YASim (patch provided)
-// Improved by ThunderFly s.r.o. <info@thunderfly.cz>
-////////////////////////////////////////////////////////
+// SPDX-FileCopyrightText: 2012 Ian Dall <ian@beware.dropbear.id.au>
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileComment: Improved by ThunderFly s.r.o. <info@thunderfly.cz>
 
-#ifndef _ELECTRICENGINE_HPP
-#define _ELECTRICENGINE_HPP
+#pragma once
 
 #include "Engine.hpp"
 
@@ -33,7 +30,7 @@ private:
     float _omega0 {0};		// Reference engine speed
     float _minThrottle {0.05f};		// minimum throttle [0:1]
     float _K {0};			// _K = Eb/omega = tau/Ia
-    float _Rm {1};    // engine windig resistence
+    float _Rm{1};           // engine windig resistance
 
     // Runtime state/output:
     float _torque {0};  // actual torque of the motor
@@ -41,4 +38,3 @@ private:
 };
 
 }; // namespace yasim
-#endif // _ELECTRICENGINE_HPP

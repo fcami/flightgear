@@ -1,5 +1,7 @@
-#ifndef _MATH_HPP
-#define _MATH_HPP
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
 
 #include <cmath>
 #include <vector>
@@ -29,7 +31,7 @@ public:
         }
         return result;
     }
-    
+
     // Simple wrappers around library routines
     static inline float abs(float f)  { return (float)::fabs(f); }
     static inline float sqrt(float f) { return (float)::sqrt(f); }
@@ -202,7 +204,7 @@ public:
         // A, B ... I are the cofactors of a b c
         //                                 d e f
         //                                 g h i
-        // symetric: d=b, g=c, h=f
+        // symmetric: d=b, g=c, h=f
         float a=m[0], b=m[1], c=m[2];
         float         e=m[4], f=m[5];
         float                 i=m[8];
@@ -262,4 +264,3 @@ public:
 };
 
 }; // namespace yasim
-#endif // _MATH_HPP

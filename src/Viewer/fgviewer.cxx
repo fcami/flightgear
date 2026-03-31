@@ -1,6 +1,7 @@
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+// SPDX-FileCopyrightText: 2012 Thorsten Brehm
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "config.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -147,7 +148,7 @@ fgviewerMain(int argc, char** argv)
                                                new osgGA::TerrainManipulator);
     viewer->setCameraManipulator(keyswitchManipulator);
 
-    // Usefull stats
+    // Useful stats
     viewer->addEventHandler(new osgViewer::HelpHandler);
     viewer->addEventHandler(new osgViewer::StatsHandler);
     viewer->addEventHandler( new osgGA::StateSetManipulator(viewer->getCamera()->getOrCreateStateSet()) );

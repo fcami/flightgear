@@ -1,9 +1,10 @@
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <stdio.h>
-#include <stdlib.h>
+#include "config.h"
+
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include <simgear/debug/logstream.hxx>
@@ -541,8 +542,10 @@ void FGFDM::setOutputProperties(float dt)
                 tp._boost_gauge_inhg->setFloatValue(
                         pe->getBoost() * (1/INHG2PA));
             } else if(p->getEngine()->isTurbineEngine()) {
+                // codespell:ignore-begin (for 'te')
                 TurbineEngine* te = p->getEngine()->isTurbineEngine();
                 tp._n2->setFloatValue(te->getN2());
+                // codespell:ignore-end
             }
         }
 
@@ -640,8 +643,8 @@ void FGFDM::parseWing(const XMLAttributes* a, const char* type, Airplane* airpla
 
     float dragFactor = attrf(a, "pdrag", 1);
     if (a->hasAttribute("effectiveness")) {
-/* FIXME:
- * check if all attibutes have "good" names and update parser AND documentation together
+        /* FIXME:
+ * check if all attributes have "good" names and update parser AND documentation together
  * only after that issue warnings
         SG_LOG(SG_FLIGHT, SG_ALERT, "Warning: " <<
                "deprecated attribute 'effectiveness' in YASim configuration file.  " <<
@@ -1041,7 +1044,7 @@ void FGFDM::parseGear(const XMLAttributes* a)
     float v[3];
     Gear* g = new Gear();
     _currObj = g;
-    
+
     /* Override (x, y, z) with wheel-* if specified. */
     if (a->hasAttribute("wheel-x")) {
         v[0] = attrf(a, "wheel-x");
@@ -1052,7 +1055,7 @@ void FGFDM::parseGear(const XMLAttributes* a)
         attrf_xyz(a, v);
     }
     g->setPosition(v);
-    
+
     float nrm = Math::mag3(v);
     if (_vehicle_radius < nrm)
         _vehicle_radius = nrm;
@@ -1069,7 +1072,7 @@ void FGFDM::parseGear(const XMLAttributes* a)
     for(int i=0; i<3; i++)
         v[i] *= attrf(a, "compression", 1);
     g->setCompression(v);
-    
+
     if (a->hasAttribute("wheel-axle-x")) {
         v[0] = attrf(a, "wheel-axle-x");
         v[1] = attrf(a, "wheel-axle-y");
@@ -1081,10 +1084,10 @@ void FGFDM::parseGear(const XMLAttributes* a)
         v[2] = 0;
     }
     g->setWheelAxle( v);
-    
+
     g->setWheelRadius( attrf(a, "wheel-radius", 0));
     g->setTyreRadius( attrf(a, "tyre-radius", 0));
-    
+
     g->setBrake(attrf(a, "skid", 0));
     g->setInitialLoad(attrf(a, "initial-load", 0));
     g->setStaticFriction(attrf(a, "sfric", 0.8));
@@ -1280,7 +1283,7 @@ void FGFDM::parseControlIn(const XMLAttributes* a)
         dst1 = attrf(a, "dst1");
     }
     _airplane.addControlInput(a->getValue("axis"), control, _currObj, _wingSection, opt, src0, src1, dst0, dst1);
-    
+
     // Detect new associations between properties.
     std::string control_name = a->getValue("control");
     std::string in = a->getValue("axis");
@@ -1307,7 +1310,7 @@ void FGFDM::parseControlOut(const XMLAttributes* a)
     p->min = attrf(a, "min", cm->rangeMin(control));
     p->max = attrf(a, "max", cm->rangeMax(control));
     _controlOutputs.add(p);
-    
+
     // Detect new associations between properties.
     std::string control_name = a->getValue("control");
     std::string out = a->getValue("prop");

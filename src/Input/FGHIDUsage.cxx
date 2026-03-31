@@ -245,7 +245,7 @@ std::string nameForUsage(uint32_t usagePage, uint32_t usage)
         default:
             SG_LOG(SG_INPUT, SG_WARN, "Unhandled HID alphanumeric usage:" << usage);
         }
-    } else if (enumUsage == UsagePage::AlphanumericDisplay) {
+    } else if (enumUsage == UsagePage::VR) {
         switch (usage) {
         case VR_Undefined: return "undefined-vr";
         case VR_Belt: return "belt-vr";

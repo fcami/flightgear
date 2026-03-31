@@ -1,24 +1,10 @@
-// AISim.cxx -- interface to the AI Sim
-//
-// Written by Erik Hofman, started November 2016
-//
-// Copyright (C) 2016-2020 by Erik Hofman <erik@ehofman.com>
-//
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2016 Erik Hofman <erik@ehofman.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/**
+ * @file
+ * @brief Interface to the AI Sim
+ */
 
 #include "AISim.hpp"
 
@@ -673,7 +659,7 @@ FGAISim::jsonParse(std::istream& in)
     for (const auto& i : json.items()) {
         const auto& v = i.value();
         if (v.is_number()) {
-            // simple case, top level sacalar numerical value
+            // simple case, top level scalar numerical value
             rv.emplace(i.key(), v.template get<float>());
         } else if (v.is_array()) {
             int index = 0;
@@ -681,7 +667,7 @@ FGAISim::jsonParse(std::istream& in)
                 std::string k = i.key() + "[" + std::to_string(index++) + "]";
                 if (child.is_object()) {
                     // child is an object, we will iterate its children and add them below
-                    // a path seperator to the result map
+                    // a path separator to the result map
                     for (const auto& subchild : child.items()) {
                         const auto subChildK = k + "/" + subchild.key();
                         if (subchild.value().is_array()) {

@@ -97,7 +97,7 @@ FGExternalPipe::~FGExternalPipe() {
     delete [] buf;
 
     SG_LOG( SG_IO, SG_INFO, "Closing up the ExternalPipe." );
-    
+
 #ifdef HAVE_MKFIFO
     // close
     int result;
@@ -365,7 +365,7 @@ void FGExternalPipe::update_binary( double dt ) {
 
     int length;
     int result;
-    
+
     if ( is_suspended() ) {
         return;
     }
@@ -475,7 +475,7 @@ void FGExternalPipe::update_property( double dt ) {
     // cout << "update_property()" << endl;
 
 #ifdef HAVE_MKFIFO
-    // SG_LOG( SG_IO, SG_INFO, "Start FGExternalPipe::udpate()" );
+    // SG_LOG( SG_IO, SG_INFO, "Start FGExternalPipe::update()" );
 
     int result;
     char cmd[256];
@@ -530,7 +530,7 @@ void FGExternalPipe::update_property( double dt ) {
 
         // cout << cmd << endl;
         string_list tokens = simgear::strutils::split( cmd, " " );
-    
+
         if ( tokens[0] == "request" ) {
             // save the long form name
             property_names.push_back( tokens[1] );
