@@ -284,7 +284,7 @@ void FGTileMgr::reinit()
 
     if (scenerySuffixes.empty()) {
         // if preferences didn't load, use some default
-        scenerySuffixes = {"Objects", "Terrain"}; // default values
+        scenerySuffixes = {"Objects", "Terrain", "vpb"}; // default values
     }
 
     #ifdef SG_TORRENT

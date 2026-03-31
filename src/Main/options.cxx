@@ -3117,7 +3117,7 @@ OptionResult Options::processOptions()
     // TerraSync directory fixup
     SGPath terrasyncDir = SGPath::fromUtf8(valueForOption("terrasync-dir"));
     if (terrasyncDir.isNull()) {
-      terrasyncDir = downloadDir / "TerraSync";
+      terrasyncDir = downloadDir / "TerraSync_WS3";
       // No “default” qualifier here, because 'downloadDir' may be non-default
       SG_LOG(SG_GENERAL, SG_INFO,
              "Using TerraSync dir: " << terrasyncDir);
