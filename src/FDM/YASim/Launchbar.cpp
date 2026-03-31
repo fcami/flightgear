@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2005 Erik Hofman <erik@ehofman.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "Math.hpp"
 #include "BodyEnvironment.hpp"
 #include "Ground.hpp"
@@ -8,7 +11,7 @@ namespace yasim {
 
   static const float YASIM_PI2 = 3.14159265358979323846f/2;
 
-#if 0 // unused, supressing compiler warning
+#if 0 // unused, suppressing compiler warning
   static const float RAD2DEG = 180/YASIM_PI;
   static const float YASIM_PI = 3.14159265358979323846f;
 #endif
@@ -165,9 +168,9 @@ float Launchbar::getExtension(void)
     case Completed:
       return "Completed";
     default:
-      return "Disengaged"; 
+        return "Disengaged";
     }
-  }   
+  }
 
   bool Launchbar::getStrop(void)
 {
@@ -198,7 +201,7 @@ void Launchbar::getTipPosition(float* out)
     float pos_tip[3];
     getTipPosition(pos_tip);
     return pos_tip[i];
-  }    
+  }
 
   void Launchbar::getHoldbackTipPosition(float* out)
   {
@@ -233,7 +236,7 @@ float Launchbar::getPercentPosOnCat(float* lpos, float off, float lends[2][3])
     float ltopos[3];
     Math::sub3(lpos, lends[0], ltopos);
     float fwlen = Math::mag3(lforward);
-    
+
     return (Math::dot3(ltopos, lforward)/fwlen + off)/fwlen;
 }
 
@@ -250,7 +253,7 @@ void Launchbar::getPosOnCat(float perc, float* lpos, float* lvel,
     Math::sub3(lends[1], lends[0], lforward);
     Math::mul3(perc, lforward, lpos);
     Math::add3(lends[0], lpos, lpos);
-    
+
     float tmp[3];
     Math::mul3(perc, lendvels[0], lvel);
     Math::mul3(1.0f-perc, lendvels[1], tmp);
@@ -305,15 +308,14 @@ void Launchbar::calcForce(Ground *g_cb, RigidBody* body, State* s, float* lv, fl
         mountdist_xz = -mountdist*nrm_yz/ground[2];
       }
 
-      if (mountdist_xz < _length) { 
-        // the launchbar points forward, so we need to change the signs here
-        float ang = -Math::asin(mountdist_xz/_length)
-          + Math::atan2(ground[2], ground[0]) + YASIM_PI2;
-        ang = -ang;
-            _frac = (ang - _up_ang)/(_down_ang - _up_ang);
+      if (mountdist_xz < _length) {
+          // the launchbar points forward, so we need to change the signs here
+          float ang = -Math::asin(mountdist_xz / _length) + Math::atan2(ground[2], ground[0]) + YASIM_PI2;
+          ang = -ang;
+          _frac = (ang - _up_ang) / (_down_ang - _up_ang);
       } else {
-            _frac = _extension;
-    }
+          _frac = _extension;
+      }
     }
 
     // Now do it again for the holdback
@@ -370,9 +372,9 @@ void Launchbar::calcForce(Ground *g_cb, RigidBody* body, State* s, float* lv, fl
     float lend[2][3];
     s->posGlobalToLocal(end[0], lend[0]);
     s->posGlobalToLocal(end[1], lend[1]);
-    
+
     // Transform the velocities of the endpoints to the
-    // local coordinate sytem.
+    // local coordinate system.
     float lvel[2][3];
     s->globalToLocal(vel[0], lvel[0]);
     s->globalToLocal(vel[1], lvel[1]);
@@ -438,7 +440,7 @@ void Launchbar::calcForce(Ground *g_cb, RigidBody* body, State* s, float* lv, fl
     Math::sub3(lhldbk_cmount, _holdback_mount, lhldbkdir);
     float hldbklen = Math::mag3(lhldbkdir);
     Math::mul3(1/hldbklen, lhldbkdir, lhldbkdir);
-    
+
     if (_state == Arrested) {
         // Now apply a constant tension from the catapult over the launchbar.
       Math::mul3(2.0, llbdir, _launchbar_force);
@@ -481,7 +483,7 @@ void Launchbar::calcForce(Ground *g_cb, RigidBody* body, State* s, float* lv, fl
 
     if (_state == Launch) {
         // Now apply a constant tension from the catapult over the launchbar.
-        // We modify the max accleration 100 m/s^2 by the normalised input
+        // We modify the max acceleration 100 m/s^2 by the normalised input
         //SG_LOG(SG_FLIGHT, SG_ALERT, "acceleration " << 100 * _acceleration );
         Math::mul3(100 * _acceleration, llbdir, _launchbar_force);
 
@@ -507,4 +509,3 @@ void Launchbar::calcForce(Ground *g_cb, RigidBody* body, State* s, float* lv, fl
 }
 
 }; // namespace yasim
-

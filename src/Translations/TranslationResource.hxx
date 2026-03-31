@@ -111,7 +111,7 @@ public:
     /**
      * @brief Same as get(), but for a string that has plural forms.
      *
-     * @param cardinalNumber  an integer correponding to a number of
+     * @param cardinalNumber  an integer corresponding to a number of
      *                        “things” (concrete or abstract)
      * @param basicId         same as for get()
      * @param index           same as for get()
@@ -136,7 +136,7 @@ public:
     /**
      * @brief Same as getWithDefault(), but for a string that has plural forms.
      *
-     * @param cardinalNumber  an integer correponding to a number of
+     * @param cardinalNumber  an integer corresponding to a number of
      *                        “things” (concrete or abstract)
      * @param basicId         same as for getWithDefault()
      * @param defaultValue    same as for getWithDefault()

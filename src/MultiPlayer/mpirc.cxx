@@ -1,27 +1,6 @@
-//////////////////////////////////////////////////////////////////////
-//
-// mpirc.cxx
-//
-// started November 2020
-// Authors: Michael Filhol, Henning Stahlke
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
-//
-//////////////////////////////////////////////////////////////////////
+// SPDX-FileCopyrightText: 2020 Michael Filhol
+// SPDX-FileCopyrightText: 2020 Henning Stahlke
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "mpirc.hxx"
 #include <Main/fg_props.hxx>
@@ -54,7 +33,7 @@ void IRCConnection::setupProperties(std::string path)
 
     if (!_pMessageCountIn) _pMessageCountIn = fgGetNode(path + "msg-count-in", true);
     if (!_pMessageCountOut) _pMessageCountOut = fgGetNode(path + "msg-count-out", true);
-    if (!_pIRCReturnCode) _pIRCReturnCode = fgGetNode(path + "last-return-code", true);    
+    if (!_pIRCReturnCode) _pIRCReturnCode = fgGetNode(path + "last-return-code", true);
 }
 
 
@@ -68,7 +47,7 @@ bool IRCConnection::login(const std::string &nickname)
     } else {
         SG_LOG(SG_NETWORK, SG_WARN, "IRC login requires nickname argument.");
         return false;
-    } 
+    }
 
     std::string lines("NICK ");
     lines += _nickname;
@@ -98,7 +77,7 @@ void IRCConnection::quit()
 bool IRCConnection::sendPrivmsg(const std::string &recipient, const std::string &textline)
 {
     if (!_logged_in) {
-        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'privmsg' command unvailable. Login first!");
+        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'privmsg' command unavailable. Login first!");
         return false;
     }
     std::string line("PRIVMSG ");
@@ -120,7 +99,7 @@ bool IRCConnection::sendPrivmsg(const std::string &recipient, const std::string 
 bool IRCConnection::join(const std::string &channel)
 {
     if (!_logged_in) {
-        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'join' command unvailable. Login first!");
+        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'join' command unavailable. Login first!");
         return false;
     }
     std::string lines("JOIN ");
@@ -133,7 +112,7 @@ bool IRCConnection::join(const std::string &channel)
 bool IRCConnection::part(const std::string &channel)
 {
     if (!_logged_in) {
-        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'part' command unvailable. Login first!");
+        SG_LOG(SG_NETWORK, SG_WARN, "IRC 'part' command unavailable. Login first!");
         return false;
     }
     std::string lines("PART ");
@@ -145,8 +124,8 @@ bool IRCConnection::part(const std::string &channel)
 /*
     Call update() regularly to maintain connection (ping/pong) and process messages.
     For information only:
-    The ping timeout appears to depend on the server settings and can be in the order 
-    of minutes. However, for smooth message processing the update frequency should be 
+    The ping timeout appears to depend on the server settings and can be in the order
+    of minutes. However, for smooth message processing the update frequency should be
     at least a few times per second and calling this at frame rate should not hurt.
 */
 void IRCConnection::update()
@@ -287,18 +266,13 @@ bool IRCConnection::parseReceivedLine(std::string line)
 
         //joining channel might help while development, maybe removed later
         //join(IRC_TEST_CHANNEL);
-    } 
-    else if (command == IRC_RPL_MOTD) {
-    } 
-    else if (command == IRC_RPL_MOTDSTART) {
-    } 
-    else if (command == IRC_RPL_ENDOFMOTD) {
-    }
-    else if (command == IRC_ERR_NOSUCHNICK) {
+    } else if (command == IRC_RPL_MOTD) {
+    } else if (command == IRC_RPL_MOTDSTART) {
+    } else if (command == IRC_RPL_ENDOFMOTD) {
+    } else if (command == IRC_ERR_NOSUCHNICK) {
         // server return code if we send to invalid nickname
         if (_pIRCReturnCode) _pIRCReturnCode->setStringValue(IRC_ERR_NOSUCHNICK);
-    } 
-    else if (command == "ERROR") {
+    } else if (command == "ERROR") {
         if (_pIRCReturnCode) _pIRCReturnCode->setStringValue(params);
         disconnect();
     }

@@ -1,5 +1,7 @@
-#ifndef _BODYENVIRONMENT_HPP
-#define _BODYENVIRONMENT_HPP
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
 
 #include "Math.hpp"
 
@@ -31,18 +33,18 @@ struct State {
         gpos[1] = tmp[1] + pos[1];
         gpos[2] = tmp[2] + pos[2];
     }
-    
+
     void posGlobalToLocal(const double* gpos, float *lpos) const {
         lpos[0] = (float)(gpos[0] - pos[0]);
         lpos[1] = (float)(gpos[1] - pos[1]);
         lpos[2] = (float)(gpos[2] - pos[2]);
         Math::vmul33(orient, lpos, lpos);
     }
-    
+
     void localToGlobal(const float* local, float *global) const {
         Math::tmul33(orient, local, global);
     }
-    
+
     void globalToLocal(const float* global, float *local) const {
         Math::vmul33(orient, global, local);
     }
@@ -58,9 +60,9 @@ struct State {
       lplane[3] = (float)(pos[0]*gplane[0] + pos[1]*gplane[1]
                           + pos[2]*gplane[2] - gplane[3]);
     }
-    
+
     // used by Airplane::runCruise, runApproach, solveHelicopter and in yasim-test
-    void setupOrientationFromAoa(float aoa) 
+    void setupOrientationFromAoa(float aoa)
     {
       float cosAoA = Math::cos(aoa);
       float sinAoA = Math::sin(aoa);
@@ -68,19 +70,18 @@ struct State {
       orient[3] =       0; orient[4] = 1; orient[5] =      0;
       orient[6] = -sinAoA; orient[7] = 0; orient[8] = cosAoA;
     }
-    
-    void setupSpeedAndPosition(float speed, float gla) 
+
+    void setupSpeedAndPosition(float speed, float gla)
     {
-      
-      // FIXME check axis, guess sin should go to 2 instead of 1?
-      v[0] = speed*Math::cos(gla); 
-      v[1] = -speed*Math::sin(gla); 
-      v[2] = 0;
-      for(int i=0; i<3; i++) {
-        pos[i] = rot[i] = acc[i] = racc[i] = 0;
-      }
-      
-      pos[2] = 1;
+        // FIXME check axis, guess sin should go to 2 instead of 1?
+        v[0] = speed * Math::cos(gla);
+        v[1] = -speed * Math::sin(gla);
+        v[2] = 0;
+        for (int i = 0; i < 3; i++) {
+            pos[i] = rot[i] = acc[i] = racc[i] = 0;
+        }
+
+        pos[2] = 1;
     }
 
     void setupState(float aoa, float speed, float gla) {
@@ -104,7 +105,7 @@ public:
     // multiple times ("trials") as part of a Runge-Kutta integration,
     // this is NOT the place to make decisions about anything but the
     // forces on the object.  Note that the acc and racc fields of the
-    // passed-in State object are undefined! (They are calculed BY
+    // passed-in State object are undefined! (They are calculated BY
     // this method).
     virtual void calcForces(State* state) = 0;
 
@@ -118,4 +119,3 @@ public:
 };
 
 }; // namespace yasim
-#endif // _BODYENVIRONMENT_HPP

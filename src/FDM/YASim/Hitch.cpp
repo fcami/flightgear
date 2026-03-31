@@ -1,15 +1,16 @@
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+// SPDX-FileCopyrightText: 2007 Maik Justus
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "Math.hpp"
-#include "BodyEnvironment.hpp"
-#include "RigidBody.hpp"
-#include <string.h>
+#include "config.h"
+
+#include <cstring>
 #include <sstream>
+
 #include <simgear/constants.h>
 
-
+#include "BodyEnvironment.hpp"
+#include "Math.hpp"
+#include "RigidBody.hpp"
 
 #include "Hitch.hpp"
 
@@ -142,13 +143,13 @@ void Hitch::setOpen(bool isOpen)
    //test if we already processed this before
     //without this test a binded property could
     //try to close the Hitch every run
-    //it will close, if we are near the end 
-    //e.g. if we are flying over the parked 
-    //tow-aircraft....
-    if (isOpen==_last_wish) 
-        return;
-    _last_wish=isOpen;
-    _open=isOpen;
+   //it will close, if we are near the end
+   //e.g. if we are flying over the parked
+   //tow-aircraft....
+   if (isOpen == _last_wish)
+       return;
+   _last_wish = isOpen;
+   _open = isOpen;
 }
 
 void Hitch::setTowElasticConstant(float sc)
@@ -290,7 +291,7 @@ void Hitch::findBestAIObject(bool doit,bool running_as_autoconnect)
         {
             myCallsign = cs->getStringValue();
         }
-        //reset tow length for search radius. Lentgh will be later copied from master 
+        //reset tow length for search radius. Length will be later copied from master
         _towLength=_winchInitialTowLength;
     }
     bool found=false;
@@ -348,7 +349,7 @@ void Hitch::findBestAIObject(bool doit,bool running_as_autoconnect)
         }
         if (running_as_autoconnect)
             _isSlave=true;
-        //set the dist value to some value below the tow lentgh (if not, the hitch
+        //set the dist value to some value below the tow length (if not, the hitch
         //would open in the next calc force run
         _dist=_towLength*0.5;
         _mp_open_last_state=true;
@@ -459,7 +460,7 @@ void Hitch::calcForce(Ground *g_cb, RigidBody* body, State* s)
     // The ground plane transformed to the local frame.
     float ground[4];
     s->planeGlobalToLocal(_global_ground, ground);
-        
+
     // The velocity of the contact patch transformed to local coordinates.
     //float glvel[3];
     //s->velGlobalToLocal(_global_vel, glvel);
@@ -479,18 +480,18 @@ void Hitch::calcForce(Ground *g_cb, RigidBody* body, State* s)
         float fa[3],fb[3],fg[3];
         //the grav force an the hitch position:
         Math::mul3(-grav_frac*grav_force,ground,fg);
-        //the total force on hitch postion:
+        //the total force on hitch position:
         Math::add3(fg,_force,fa);
         //the grav force an the tow end position:
         Math::mul3(-(1-grav_frac)*grav_force,ground,fg);
-        //the total force on tow end postion:
-        //note: sub: _force on tow-end is negative of force on hitch postion
-        Math::sub3(fg,_force,fb); 
+        //the total force on tow end position:
+        //note: sub: _force on tow-end is negative of force on hitch position
+        Math::sub3(fg, _force, fb);
         float fa_=Math::mag3(fa);
         float fb_=Math::mag3(fb);
         float stretchedTowLen;
         stretchedTowLen=_towLength*(1.+(fa_+fb_)/(2*_towElasticConstant));
-        //the relative position of the lowest postion of the tow:
+        //the relative position of the lowest position of the tow:
         if ((fa_+fb_)>1e-3)
             _loPosFrac=fa_/(fa_+fb_);
         else
@@ -537,8 +538,6 @@ void Hitch::calcForce(Ground *g_cb, RigidBody* body, State* s)
         _force[0]=_force[1]=_force[2]=0;
         _towEndForce[0]=_towEndForce[1]=_towEndForce[2]=0;
     }
-    
-
 }
 
 // Computed values: total force
@@ -670,7 +669,7 @@ void Hitch::integrate (float dt)
                 }
                 else
                 {
-                    //check if other has opened hitch, but is neccessary, that it was closed before
+                    //check if other has opened hitch, but is necessary, that it was closed before
                     bool mp_open=_towEndNode->getBoolValue("sim/hitches/aerotow/open",_mp_open_last_state);
                     if (mp_open != _mp_open_last_state) //state has changed
                     {

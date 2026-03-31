@@ -1,13 +1,16 @@
-#ifndef _AIRPLANE_HPP
-#define _AIRPLANE_HPP
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
+
+#include <simgear/props/props.hxx>
 
 #include "ControlMap.hpp"
 #include "Model.hpp"
-#include "Wing.hpp"
 #include "Rotor.hpp"
 #include "Vector.hpp"
 #include "Version.hpp"
-#include <simgear/props/props.hxx>
+#include "Wing.hpp"
 
 namespace yasim {
 
@@ -31,7 +34,7 @@ public:
         TAKEOFF,  // for testing
         TEST,     // for testing
     };
-    
+
     void iterate(float dt);
     void calcFuelWeights();
 
@@ -47,7 +50,7 @@ public:
 
     Wing* getWing();
     bool  hasWing() const { return (_wing != nullptr); }
-    Wing* getTail(); 
+    Wing* getTail();
     void  addVStab(Wing* vstab) { _vstabs.add(vstab); }
 
     void addFuselage(const float* front, const float* back, float width,
@@ -64,9 +67,9 @@ public:
     int  addWeight(const float* pos, float size);
     void setWeight(int handle, float mass);
 
-    void setConfig(Configuration cfg, float speed, float altitude, float fuel, 
+    void setConfig(Configuration cfg, float speed, float altitude, float fuel,
                    float gla = 0, float aoa = 0);
-    
+
     /// add (fixed) control setting to approach/cruise config (for solver)
     void addControlSetting(Configuration cfg, const char* prop, float val);
     /// add a control input mapping for runtime
@@ -84,7 +87,7 @@ public:
     int numThrusters() const { return _thrusters.size(); }
     Thruster* getThruster(int n) {
         return ((ThrustRec*)_thrusters.get(n))->thruster; }
-    
+
     int numTanks() const { return _tanks.size(); }
     void setFuelFraction(float frac); // 0-1, total amount of fuel
     /// get fuel in kg
@@ -108,11 +111,11 @@ public:
     float getApproachElevator() const;
     const char* getFailureMsg() const { return _failureMsg; }
     float getMass() const { return _model.getMass(); };
-    
+
     // next two are used only in yasim CLI tool
     void setApproachControls() { setControlValues(_config[APPROACH].controls); }
     void setCruiseControls() { setControlValues(_config[CRUISE].controls); }
-    
+
     float getCGHardLimitXMin() const { return _cgMin; } // get min x-coordinate for c.g (from main gear)
     float getCGHardLimitXMax() const { return _cgMax; } // get max x-coordinate for c.g (from nose gear)
     float getCGMAC(); // return c.g. x as fraction of MAC
@@ -138,41 +141,41 @@ public:
     void  setSolverThreshold(float threshold) { _solverThreshold = threshold; };
     void  setSolverMaxIterations(int i) { _solverMaxIterations = i; };
     void  setSolverMode(int i) { _solverMode = i; };
-    
+
 private:
-    struct Tank { 
-      float pos[3] {0,0,0};
-      float cap {0}, fill {0}, density {0};
-      int handle {-1};
+    struct Tank {
+        float pos[3]{0, 0, 0};
+        float cap{0}, fill{0}, density{0};
+        int handle{-1};
     };
-    struct Fuselage { 
-      float  front[3] {0,0,0}, back[3] {0,0,0};
-      float  width, taper, mid, _cx, _cy, _cz, _idrag;
-      Vector surfs;      
+    struct Fuselage {
+        float front[3]{0, 0, 0}, back[3]{0, 0, 0};
+        float width, taper, mid, _cx, _cy, _cz, _idrag;
+        Vector surfs;
     };
-    struct GearRec { 
-      Gear* gear;
-      Surface* surf;
-      float wgt {0};
+    struct GearRec {
+        Gear* gear;
+        Surface* surf;
+        float wgt{0};
     };
-    struct ThrustRec { 
-      int handle {-1};
-      Thruster* thruster {nullptr};
-      float cg[3] {0,0,0};
-      float mass {0};
+    struct ThrustRec {
+        int handle{-1};
+        Thruster* thruster{nullptr};
+        float cg[3]{0, 0, 0};
+        float mass{0};
     };
-    struct ControlSetting { 
-      int propHandle {-1};
-      float val {0};
+    struct ControlSetting {
+        int propHandle{-1};
+        float val{0};
     };
-    struct WeightRec { 
-      int handle {-1};
-      Surface* surf {nullptr};
+    struct WeightRec {
+        int handle{-1};
+        Surface* surf{nullptr};
     };
-    struct SolveWeight { 
-      int id {-1};
-      Configuration cfg {APPROACH};
-      float wgt {0};
+    struct SolveWeight {
+        int id{-1};
+        Configuration cfg{APPROACH};
+        float wgt{0};
     };
     struct ContactRec {
       Gear* gear {nullptr};
@@ -221,13 +224,13 @@ private:
     ControlSetting* _addControlSetting(Configuration cfg, const char* prop, float val);
      ///set name of property controlling the elevator
     void setElevatorControl(const char* propName);
-    /// set property name controling tail trim (incidence)
+    /// set property name controlling tail trim (incidence)
     void setHstabTrimControl(const char* propName);
-    
+
     int   _solverMode {1};
     float _solverDelta {0.3226f};
-    // How close to the solution are we trying get?  
-    // Trying too hard can result in oscillations (no convergence). 
+    // How close to the solution are we trying get?
+    // Trying too hard can result in oscillations (no convergence).
     float _solverThreshold {1};
     int   _solverMaxIterations {10000};
     Model _model;
@@ -260,22 +263,21 @@ private:
     float _liftRatio {1};
     ControlSetting* _tailIncidence {nullptr}; // added to approach config so solver can change it
     // Copy of _tailIncidence added to cruise config. See setHstabTrimControl() for explanation.
-    ControlSetting* _tailIncidenceCopy {nullptr}; 
+    ControlSetting* _tailIncidenceCopy{nullptr};
     ControlSetting* _approachElevator {nullptr};
     const char* _failureMsg {0};
     /// hard limits for cg from gear position
-    float _cgMax {-1e6};         
+    float _cgMax{-1e6};
     /// hard limits for cg from gear position
-    float _cgMin {1e6};          
+    float _cgMin{1e6};
     /// desired cg max in %MAC from config
-    float _cgDesiredMax {0.3f};  
+    float _cgDesiredMax{0.3f};
     /// desired cg min in %MAC from config
-    float _cgDesiredMin {0.25f}; 
+    float _cgDesiredMin{0.25f};
     /// calculated desired cg x max
-    float _cgDesiredFront {0};   
-    /// calculated desired cg x min 
-    float _cgDesiredAft {0};     
+    float _cgDesiredFront{0};
+    /// calculated desired cg x min
+    float _cgDesiredAft{0};
 };
 
 }; // namespace yasim
-#endif // _AIRPLANE_HPP

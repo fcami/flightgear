@@ -1,5 +1,8 @@
-#ifndef _RIGIDBODY_HPP
-#define _RIGIDBODY_HPP
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
+
 #include <simgear/props/props.hxx>
 #include "Math.hpp"
 
@@ -57,7 +60,7 @@ public:
     // When masses are moved or changed, this object needs to
     // regenerate its internal tables.  This step is expensive, so
     // it's exposed to the client who can amortize the call across
-    // multiple changes. see also _recalcStatic() 
+    // multiple changes. see also _recalcStatic()
     /// calculate the total mass, centre of gravity and inertia tensor
     void recalc();
 
@@ -66,10 +69,10 @@ public:
 
     /// Applies a force at the center of gravity.
     void addForce(const float* force) { Math::add3(_force, force, _force); }
-    
+
     /// Applies a force at the specified position.
-    void addForce(const float* pos, const float* force); 
-    
+    void addForce(const float* pos, const float* force);
+
     /// Adds a torque with the specified axis and magnitude
     void addTorque(const float* torque) { Math::add3(_torque, torque, _torque); }
     void setTorque(const float* torque) { Math::set3(torque, _torque); }
@@ -99,12 +102,12 @@ public:
     // Returns the instantaneous rate of change of the angular
     // velocity, as a vector in local coordinates.
     void getAngularAccel(float* accelOut) const;
-    
-    // Returns the intertia tensor in a float[9] allocated by caller.
+
+    // Returns the inertia tensor in a float[9] allocated by caller.
     void getInertiaMatrix(float* inertiaOut) const;
 
 private:
-    /** 
+    /**
     Most of the mass points do not change after compilation of the aircraft so
     they can be replaced by one aggregated mass at the c.g. of the static masses.
     The isStatic flag is used to mark those masses.
@@ -132,4 +135,3 @@ private:
 };
 
 }; // namespace yasim
-#endif // _RIGIDBODY_HPP

@@ -1,25 +1,12 @@
-// ADA.hxx -- interface to the "External"-ly driven ADA flight model
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+// SPDX-FileCopyrightText: 2000 Cdr. VS Renganthan <vsranga@ada.ernet.in>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+/**
+ * @file
+ * @brief Interface to the "External"-ly driven ADA flight model
+ */
 
-#ifndef _ADA_HXX
-#define _ADA_HXX
-
+#pragma once
 
 class SGSocket;
 
@@ -31,37 +18,37 @@ class FGADA : public FGInterface
 private:
     SGSocket *fdmsock;
 #if 0
-    // Auxilliary Flight Model parameters, basically for HUD
-    double        aux1;           // auxilliary flag
-    double        aux2;           // auxilliary flag
-    double        aux3;           // auxilliary flag
-    double        aux4;           // auxilliary flag
-    double        aux5;           // auxilliary flag
-    double        aux6;           // auxilliary flag
-    double        aux7;           // auxilliary flag
-    double        aux8;           // auxilliary flag
-    float        aux9;            // auxilliary flag
-    float        aux10;           // auxilliary flag
-    float        aux11;           // auxilliary flag
-    float        aux12;           // auxilliary flag
-    float        aux13;           // auxilliary flag
-    float        aux14;           // auxilliary flag
-    float        aux15;           // auxilliary flag
-    float        aux16;           // auxilliary flag
-    float        aux17;           // auxilliary flag
-    float        aux18;           // auxilliary flag
-    int          iaux1;           // auxilliary flag
-    int          iaux2;           // auxilliary flag
-    int          iaux3;           // auxilliary flag
-    int          iaux4;           // auxilliary flag
-    int          iaux5;           // auxilliary flag
-    int          iaux6;           // auxilliary flag
-    int          iaux7;           // auxilliary flag
-    int          iaux8;           // auxilliary flag
-    int          iaux9;           // auxilliary flag
-    int         iaux10;           // auxilliary flag
-    int         iaux11;           // auxilliary flag
-    int         iaux12;           // auxilliary flag
+    // Auxiliary Flight Model parameters, basically for HUD
+    double        aux1;           // auxiliary flag
+    double        aux2;           // auxiliary flag
+    double        aux3;           // auxiliary flag
+    double        aux4;           // auxiliary flag
+    double        aux5;           // auxiliary flag
+    double        aux6;           // auxiliary flag
+    double        aux7;           // auxiliary flag
+    double        aux8;           // auxiliary flag
+    float        aux9;            // auxiliary flag
+    float        aux10;           // auxiliary flag
+    float        aux11;           // auxiliary flag
+    float        aux12;           // auxiliary flag
+    float        aux13;           // auxiliary flag
+    float        aux14;           // auxiliary flag
+    float        aux15;           // auxiliary flag
+    float        aux16;           // auxiliary flag
+    float        aux17;           // auxiliary flag
+    float        aux18;           // auxiliary flag
+    int          iaux1;           // auxiliary flag
+    int          iaux2;           // auxiliary flag
+    int          iaux3;           // auxiliary flag
+    int          iaux4;           // auxiliary flag
+    int          iaux5;           // auxiliary flag
+    int          iaux6;           // auxiliary flag
+    int          iaux7;           // auxiliary flag
+    int          iaux8;           // auxiliary flag
+    int          iaux9;           // auxiliary flag
+    int         iaux10;           // auxiliary flag
+    int         iaux11;           // auxiliary flag
+    int         iaux12;           // auxiliary flag
 #endif
     // copy FDM state to FGADA structures
     bool copy_to_FGADA();
@@ -80,5 +67,3 @@ public:
     // Subsystem identification.
     static const char* staticSubsystemClassId() { return "ada"; }
 };
-
-#endif // _ADA_HXX

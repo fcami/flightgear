@@ -1,50 +1,32 @@
-// mpmessages.hxx -- Message definitions for multiplayer communications
-// within a multiplayer Flightgear
-//
-// Written by Duncan McCreanor, started February 2003.
-// duncan.mccreanor@airservicesaustralia.com
-//
-// Copyright (C) 2003  Airservices Australia
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2003 Airservices Australia
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileComment: Started by Duncan McCreanor <duncan.mccreanor@airservicesaustralia.com>, February 2003.
 
-#ifndef MPMESSAGES_H
-#define MPMESSAGES_H
+/**
+ * @file
+ * @brief Message definitions for multiplayer communications
+ * @brief within a multiplayer Flightgear
+ *
+ * Each message used for multiplayer communications consists of a header and
+ * optionally a block of data. The combined header and data is sent as one IP
+ * packet.
+ */
+
+#pragma once
 
 #define MPMESSAGES_HID "$Id$"
-
-/****************************************************************
-* @version $Id$
-*
-* Description: Each message used for multiplayer communications
-* consists of a header and optionally a block of data. The combined
-* header and data is sent as one IP packet.
-*
-******************************************************************/
 
 #include <vector>
 
 #include <simgear/compiler.h>
 #include <simgear/props/props.hxx>
 #include <simgear/math/SGMath.hxx>
+
 #include "tiny_xdr.hxx"
 
 // magic value for messages
 const uint32_t MSG_MAGIC = 0x46474653;  // "FGFS"
-// protocoll version
+// protocol version
 const uint32_t PROTO_VER = 0x00010001;  // 1.1
 
 // Message identifiers
@@ -58,25 +40,25 @@ const uint32_t PROTO_VER = 0x00010001;  // 1.1
 #define MP_2017_DATA_ID         8
 
 // XDR demands 4 byte alignment, but some compilers use8 byte alignment
-// so it's safe to let the overall size of a network message be a 
+// so it's safe to let the overall size of a network message be a
 // multiple of 8!
 #define MAX_CALLSIGN_LEN        8
 #define MAX_CHAT_MSG_LEN        256
 #define MAX_MODEL_NAME_LEN      96
 #define MAX_PROPERTY_LEN        52
 
-// Header for use with all messages sent 
+// Header for use with all messages sent
 struct T_MsgHdr {
     xdr_data_t  Magic;                  // Magic Value
-    xdr_data_t  Version;                // Protocoll version
-    xdr_data_t  MsgId;                  // Message identifier 
+    xdr_data_t Version;                 // Protocol version
+    xdr_data_t MsgId;                   // Message identifier
     xdr_data_t  MsgLen;                 // absolute length of message
 	xdr_data_t  RequestedRangeNm;       // obsolete field (ReplyAddress) reused to request a range to fgms
     xdr_data_t  ReplyPort;              // player's receiver port
     char Callsign[MAX_CALLSIGN_LEN];    // Callsign used by the player
 };
 
-// Chat message 
+// Chat message
 struct T_ChatMsg {
     char Text[MAX_CHAT_MSG_LEN];       // Text of chat message
 };
@@ -118,14 +100,14 @@ struct T_PositionMsg {
 
 struct FGPropertyData {
   unsigned id;
-  
+
   // While the type isn't transmitted, it is needed for the destructor
   simgear::props::Type type;
-  union { 
-    int int_value;
-    float float_value;
-    char* string_value;
-  }; 
+  union {
+      int int_value;
+      float float_value;
+      char* string_value;
+  };
   FGPropertyData() : string_value(nullptr) {}
   ~FGPropertyData() {
     if ((type == simgear::props::STRING) || (type == simgear::props::UNSPECIFIED))
@@ -145,26 +127,26 @@ struct FGExternalMotionData {
   // simulation time to arrival time difference
   // FIXME: should be some 'per model' instead of 'per packet' property
   double lag;
-  
+
   // position wrt the earth centered frame
   SGVec3d position;
   // orientation wrt the earth centered frame
   SGQuatf orientation;
-  
+
   // linear velocity wrt the earth centered frame measured in
   // the earth centered frame
   SGVec3f linearVel;
   // angular velocity wrt the earth centered frame measured in
   // the earth centered frame
   SGVec3f angularVel;
-  
+
   // linear acceleration wrt the earth centered frame measured in
   // the earth centered frame
   SGVec3f linearAccel;
   // angular acceleration wrt the earth centered frame measured in
   // the earth centered frame
   SGVec3f angularAccel;
-  
+
   // The set of properties received for this timeslot
   std::vector<FGPropertyData*> properties;
 
@@ -182,5 +164,3 @@ struct FGExternalMotionData {
       }
   }
 };
-
-#endif

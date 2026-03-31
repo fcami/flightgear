@@ -1,22 +1,10 @@
-// ADA.cxx -- interface to the "External"-ly driven ADA flight model
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
+// SPDX-FileCopyrightText: 2000 Cdr. VS Renganthan <vsranga@ada.ernet.in>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-// Modified by Cdr. VS Renganthan <vsranga@ada.ernet.in>, 12 Oct 2K
+/**
+ * @file
+ * @brief Interface to the "External"-ly driven ADA flight model
+ */
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -180,7 +168,7 @@ void FGADA::init() {
 
     //do init common to all FDM"s
     common_init();
-    
+
     //now do ADA-specific init.
 
     // cout << "FGADA::init()" << endl;
@@ -257,14 +245,14 @@ bool FGADA::copy_from_FGADA() {
 
 	_set_Geocentric_Rates( Latitude_dot, Longitude_dot, Radius_dot );
     _set_Earth_position_angle( Earth_position_angle );
-    
-	// Velocities and accelerations for the pitch ladder and velocity vector
+
+    // Velocities and accelerations for the pitch ladder and velocity vector
     _set_Accels_Local( U_dot_local, V_dot_local, W_dot_local );
     _set_Velocities_Ground( U_local, V_local, W_local );//same as V_NED in mps
     _set_Velocities_Local( V_north, V_east, V_down ); //same as UVW_local in fps
 
     //Positions and attitude for ship
-    
+
     fgSetDouble("/fdm-ada/ship-lat", sixdof_to_visuals.aux1);
     fgSetDouble("/fdm-ada/ship-lon", sixdof_to_visuals.aux2);
     fgSetDouble("/fdm-ada/ship-alt", sixdof_to_visuals.aux3);
@@ -280,7 +268,7 @@ bool FGADA::copy_from_FGADA() {
     globals->get_controls()->set_aileron(rstick);
     globals->get_controls()->set_rudder(rpedal);
 
-    // auxilliary parameters for HUD
+    // auxiliary parameters for HUD
     _set_V_calibrated_kts( V_calibrated_kts );
     _set_Alpha( Alpha );
     _set_Beta( Beta );
@@ -313,22 +301,22 @@ bool FGADA::copy_from_FGADA() {
     fgSetDouble("/fdm-ada/aux17", sixdof_to_visuals.aux17);
     fgSetDouble("/fdm-ada/aux18", sixdof_to_visuals.aux18);
 
-    // Angular rates 
+    // Angular rates
     _set_Omega_Body( P_body, Q_body, R_body );
 
     // Miscellaneous quantities
     _set_Gamma_vert_rad( Gamma_vert_rad );
     _set_Runway_altitude( Runway_altitude );
 
-    //    SG_LOG( SG_FLIGHT, SG_DEBUG, "lon = " << Longitude 
-    //	    << " lat_geoc = " << Lat_geocentric << " lat_geod = " << Latitude 
-    //	    << " alt = " << Altitude << " sl_radius = " << Sea_level_radius 
+    //    SG_LOG( SG_FLIGHT, SG_DEBUG, "lon = " << Longitude
+    //	    << " lat_geoc = " << Lat_geocentric << " lat_geod = " << Latitude
+    //	    << " alt = " << Altitude << " sl_radius = " << Sea_level_radius
     //	    << " radius_to_vehicle = " << Radius_to_vehicle );
-	    
+
 
     //    printf("sr=%f\n",Sea_level_radius);
-    //    printf("psi = %f %f\n",Psi,Psi*SGD_RADIANS_TO_DEGREES);    
-    
+    //    printf("psi = %f %f\n",Psi,Psi*SGD_RADIANS_TO_DEGREES);
+
     return true;
 }
 

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -89,7 +91,7 @@ Gear::Gear()
 
     Math::zero3(_ground_trans);
     Math::identity33(_ground_rot);
-    
+
     _wheelAxle.set(0, 1, 0);
     _wheelRadius = 0;
     _tyreRadius = 0;
@@ -269,14 +271,14 @@ bool gearCompression(
     So:
         compression_distance = -a / (compression . G)
     */
-    
+
     float ground_unit[3];
     magnitudeUnit( ground, ground_unit);
-    
+
     /* Find S, the lowest point on wheel. */
     float S[3];
     Math::set3( wheel_pos, S);
-    
+
     if (wheel_radius) {
         /* Find radial wheel vector pointing closest to ground using two
         cross-products: wheel_axle_unit x ground_unit x wheel_axle_unit */
@@ -288,11 +290,11 @@ bool gearCompression(
         use it to find S. */
         Math::unit3( R, R);
         Math::mul3( wheel_radius, R, R);
-        
+
         /* Add R to S to get lowest point on wheel. */
         Math::add3( S, R, S);
     }
-    
+
     /* Calculate <a>, distance of S below ground. */
     float a = Math::dot3( ground, S) - ( ground[3] - tyre_radius);
     float bump_altitude = 0;
@@ -302,20 +304,20 @@ bool gearCompression(
     }
 
     bool ret = true;
-    
+
     if ( a < 0) {
         /* S is above ground so we are not on ground, so set ret=false.
-        
+
         We force a=0 to pretend fully-extended gear is just on the ground, so
         that o_contact will be set to the fully extended gear position. This
         will be used by our caller to find /position/gear-agl-ft. */
         ret = false;
         a = 0;
     }
-    
+
     /* Lowest part of wheel is below ground. */
     o_compression_distance_vertical = a;
-    
+
     /* Find compression_norm. First we need to find compression_distance, the
     distance to compress the gear so that S (which is below ground+tyre_radius)
     would move to just touch ground+tyre_radius. We need to move gear further
@@ -336,7 +338,7 @@ bool gearCompression(
     if (o_compression_norm > 1) {
         o_compression_norm = 1;
     }
-    
+
     /* Contact point on ground-plus-tyre-radius is S plus compression
     vector. */
     float delta[3];
@@ -368,7 +370,7 @@ bool gearCompression(
         Math::mul3( tyre_radius, ground_unit, delta);
         Math::add3( o_contact, delta, o_contact);
     }
-    
+
     if (ret)
     {
         /* Verify that <o_contact> is on ground; this can fail e.g. when resetting so for now we
@@ -386,7 +388,7 @@ bool gearCompression(
                     );
         }
     }
-    
+
     return ret;
 }
 
@@ -409,7 +411,7 @@ bool gearCompressionOld(
         BumpAltitude = bump_fn();
         a+=BumpAltitude;
     }
-    
+
     if(a > 0) {
         o_compression_distance_vertical = 0;
         o_compression_norm = 0;
@@ -417,7 +419,7 @@ bool gearCompressionOld(
     }
 
     o_compression_distance_vertical = -a;
-    
+
     // Now a is the distance from the tip to ground, so make b the
     // distance from the base to ground.  We can get the fraction
     // (0-1) of compression from a/(a-b). Note the minus sign -- stuff
@@ -488,10 +490,10 @@ void Gear::calcForce(Ground *g_cb, RigidBody* body, State *s, float* v, float* r
     // The velocity of the contact patch transformed to local coordinates.
     float glvel[3];
     s->globalToLocal(_global_vel, glvel);
-    
+
     // Turn _cmpr into a unit vector and a magnitude
     const float (&cmpr)[3] = _cmpr.unit;
-    const float &clen = _cmpr.magnitude;
+    const float& clen = _cmpr.magnitude; // codespell:ignore clen
 
     // Now get the velocity of the point of contact
     float cv[3];
@@ -503,7 +505,7 @@ void Gear::calcForce(Ground *g_cb, RigidBody* body, State *s, float* v, float* r
     // compression.   (note the clamping of _frac to 1):
     _frac = (_frac > 1) ? 1 : _frac;
 
-    // Add the initial load to frac, but with continous transistion around 0
+    // Add the initial load to frac, but with continuous transition around 0
     float frac_with_initial_load;
     if (_frac>0.2 || _initialLoad==0.0)
         frac_with_initial_load = _frac+_initialLoad;
@@ -511,11 +513,9 @@ void Gear::calcForce(Ground *g_cb, RigidBody* body, State *s, float* v, float* r
         frac_with_initial_load = (_frac+_initialLoad)
             *_frac*_frac*3*25-_frac*_frac*_frac*2*125;
 
-    float fmag = clen * _spring *
-            (
-            frac_with_initial_load
-            + _spring2 * pow( frac_with_initial_load, 2)
-            );
+    float fmag = clen * _spring * // codespell:ignore clen
+                 (
+                     frac_with_initial_load + _spring2 * pow(frac_with_initial_load, 2));
     if (_speed_planing>0)
     {
         float v = Math::mag3(cv);
@@ -933,4 +933,3 @@ void Gear::updateStuckPoint(State* s)
 
 
 }; // namespace yasim
-

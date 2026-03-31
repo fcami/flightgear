@@ -40,8 +40,8 @@ set_aircraft_texture( const char * name,
 /**
  * Replace an opengl texture name inside a given branch of the scene graph.
  * This is to replace a static texture by a dynamic one. The replacement
- * is base on certain filtering criteria which have to be stored in string
- * value childs of the placement node. Recognized nodes are:
+ * is based on certain filtering criteria which have to be stored in string
+ * value children of the placement node. Recognized nodes are:
  *   - texture  Match the PBR texture name
  *   - node     Match the name of the object
  *   - parent   Match any of the object parents names (all the tree upwards)

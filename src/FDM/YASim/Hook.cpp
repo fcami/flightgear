@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2005 Erik Hofman
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "Math.hpp"
 #include "BodyEnvironment.hpp"
 #include "Ground.hpp"
@@ -145,7 +148,7 @@ void Hook::calcForce(Ground* g_cb, RigidBody* body, State* s, float* lv, float* 
 
 
     // Correct the extension value for no intersection.
-    
+
     // Check if the tip will intersect the ground or not. That is, compute
     // the distance of the tip to the ground plane.
     float tipdist = ground[3] - Math::dot3(ltip, ground);
@@ -259,16 +262,16 @@ void Hook::calcForce(Ground* g_cb, RigidBody* body, State* s, float* lv, float* 
 
     // The trick is to multiply with the current mass of the aircraft.
     // That way we control the acceleration and not the force. This is
-    // the implicit calibration of the wires for aircrafts of
+    // the implicit calibration of the wires for aircraft of
     // different mass.
     float mass = body->getTotalMass();
-  
+
     // The local force is the vector sum of the force on each wire.
     // The force is computed with some constant tension on the wires
     // (80000N) plus a velocity dependent component.
     Math::add3(f[0], f[1], _force);
     Math::mul3(-mass*( 1.0 + ((mf0+mf1)/70) + 0.2*v ), _force, _force);
-  
+
     // Now in the body coordinate system, eliminate the Y coord part
     // of the hook force. Physically this means that the wire will just
     // slip through the hook instead of applying a side force.
@@ -276,4 +279,3 @@ void Hook::calcForce(Ground* g_cb, RigidBody* body, State* s, float* lv, float* 
 }
 
 }; // namespace yasim
-

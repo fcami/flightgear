@@ -170,7 +170,7 @@ MPServerResolver::run ()
           SG_LOG(SG_NETWORK, SG_INFO, "MPServerResolver: TXT record attributes empty");
         }
 
-        // procede with the net node
+        // proceed with the net node
         ++_priv->_serverNodes_it;
         _priv->_state = MPServerResolver_priv::LOAD_NEXT_TXT_RECORD;
         break;
@@ -183,7 +183,6 @@ MPServerResolver::run ()
         return;
   }
 
-  // Relinguish control, call me back on the next frame
+  // Relinquish control, call me back on the next frame
   globals->get_event_mgr ()->addEvent ("MPServerResolver_update", [this](){ this->run(); }, .0);
 }
-

@@ -6,4 +6,8 @@ skip = utils/fgcom/utils/fgcom.conf,utils/fgcom/utils/gen_phonebook.pl
 ; datas needed for replay-internal.cxx
 ; 'sav' needed for use as a file extension
 ; localY needed by NasalCanvas.cxx
-ignore-words-list = vor,ned,NED,LOD,datas,sav,localY
+ignore-words-list = vor,ned,NED,LOD,datas,sav,localY,globalY
+; The following regexp allows one to include optional text after the begin
+; and end separators, provided that such text is preceded by a space. This
+; relies on the fact that (?-s:...) turns off re.DOTALL inside the group.
+ignore-multiline-regex = (#|//|/\*) codespell:ignore-begin(?-s: .*)?\n.*(#|//|/\*) codespell:ignore-end(?-s: .*)?\n

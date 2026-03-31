@@ -1,8 +1,10 @@
-#include <stdio.h>
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Atmosphere.hpp"
 #include "Math.hpp"
 #include "Propeller.hpp"
+
 namespace yasim {
 
 Propeller::Propeller(float radius, float v, float omega,
@@ -43,7 +45,7 @@ void Propeller::setStops(float fine_stop, float coarse_stop)
     _fine_stop = fine_stop;
     _coarse_stop = coarse_stop;
 }
-    
+
 void Propeller::modPitch(float mod)
 {
     _j0 *= mod;
@@ -75,9 +77,9 @@ void Propeller::calc(float density, float v, float omega,
     // 0.25 and 4.  A prop pitch of 0.5 results in no change from the
     // base value.
     // TODO: integrate with _fine_stop and _coarse_stop variables
-    if (_manual) 
+    if (_manual)
         _j0 = _baseJ0 * Math::pow(2, 2 - 4*_proppitch);
-    
+
     float tipspd = _r*omega;
     float V2 = v*v + tipspd*tipspd;
 
@@ -108,13 +110,13 @@ void Propeller::calc(float density, float v, float omega,
         // torque coefficient that crosses the axis at a preset
         // windmilling speed.  The tau0 value is an analytically
         // calculated (i.e. don't mess with it) value for a torque
-        // coefficient at lamda==1.
+        // coefficient at lambda==1.
         float tau0 = (0.25f * _j0) / (_etaC * _beta * (1 - _lambdaPeak));
         float lambdaWM = 1.2f; // lambda of zero torque (windmilling)
         torque = tau0 - tau0 * (lambda - 1) / (lambdaWM - 1);
         torque *= 0.5f * density * V2 * _f0;
     }
-    
+
     if (_propfeather) {
         thrust = 0;
     }

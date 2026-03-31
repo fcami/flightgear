@@ -1,6 +1,6 @@
 /*
  * groundreactions.hxx
- * caclulate ground reactions based on ground properties and weather scenarios
+ * calculate ground reactions based on ground properties and weather scenarios
  *
  * SPDX-FileCopyrightText: (C) 2023 Erik Hofman <erik@ehof,am.com>
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -115,4 +115,3 @@ GroundReactions::getGroundDisplacement()
 //  pc_init(x+y);
     return pc_map_rand(x, y, 1) * bumpiness*maxGroundBumpAmplitude;
 }
-

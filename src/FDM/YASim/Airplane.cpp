@@ -1,6 +1,7 @@
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "config.h"
 
 #include "Atmosphere.hpp"
 #include "ControlMap.hpp"
@@ -39,7 +40,7 @@ Airplane::~Airplane()
         delete g;
     }
     for(i=0; i<_surfs.size(); i++)
-	delete (Surface*)_surfs.get(i);    
+        delete (Surface*)_surfs.get(i);
     for(i=0; i<_contacts.size(); i++) {
         ContactRec* c = (ContactRec*)_contacts.get(i);
         delete c->gear;
@@ -49,7 +50,7 @@ Airplane::~Airplane()
         delete (SolveWeight*)_solveWeights.get(i);
     for(i=0; i<_config[CRUISE].controls.size(); i++) {
         ControlSetting* c = (ControlSetting*)_config[CRUISE].controls.get(i);
-        delete c;        
+        delete c;
     }
     for(i=0; i<_config[APPROACH].controls.size(); i++) {
         ControlSetting* c = (ControlSetting*)_config[APPROACH].controls.get(i);
@@ -78,7 +79,7 @@ void Airplane::calcFuelWeights()
     }
 }
 
-void Airplane::getPilotAccel(float* out) 
+void Airplane::getPilotAccel(float* out)
 {
     State* s = _model.getState();
 
@@ -133,15 +134,15 @@ void Airplane::setConfig(Configuration cfg, float speed, float altitude, float f
     _config[cfg].id = cfg;
     _config[cfg].speed = speed;
     _config[cfg].altitude = altitude;
-    // solver assumes fixed (given) AoA for approach, so setup once; 
+    // solver assumes fixed (given) AoA for approach, so setup once;
     // solver will change this for cruise config
-    _config[cfg].state.setupOrientationFromAoa(aoa); 
+    _config[cfg].state.setupOrientationFromAoa(aoa);
     _config[cfg].aoa = aoa; // not strictly needed, see runConfig()
     _config[cfg].fuel = fuel;
     _config[cfg].glideAngle = gla;
 }
 
-/// set property name for elevator  
+/// set property name for elevator
 void Airplane::setElevatorControl(const char* propName)
 {
     _approachElevator = _addControlSetting(APPROACH, propName, 0);
@@ -150,7 +151,7 @@ void Airplane::setElevatorControl(const char* propName)
 /// set property name for hstab trim
 void Airplane::setHstabTrimControl(const char* propName)
 {
-    // there must be only one value for tail incidence but we need it in each 
+    // there must be only one value for tail incidence but we need it in each
     // config, so we have a 2nd variable
     _tailIncidence = _addControlSetting(APPROACH, propName, 0);
     _tailIncidenceCopy = _addControlSetting(CRUISE, propName, 0);
@@ -176,7 +177,7 @@ Airplane::ControlSetting* Airplane::_addControlSetting(Configuration cfg, const 
  */
 void Airplane::addControlInput(const char* propName, ControlMap::ControlType type, void* obj, int subobj, int opt, float src0, float src1, float dst0, float dst1)
 {
-    ControlMap::ObjectID oid = ControlMap::getObjectID(obj, subobj);    
+    ControlMap::ObjectID oid = ControlMap::getObjectID(obj, subobj);
     _controlMap.addMapping(propName, type, oid, opt, src0, src1, dst0, dst1);
     // tail incidence is needed by solver so capture the prop name if used in XML
     if (type == ControlMap::INCIDENCE && obj == _tail) {
@@ -194,7 +195,7 @@ void Airplane::addSolutionWeight(Configuration cfg, int idx, float wgt)
 }
 
 void Airplane::addFuselage(const float* front, const float* back, float width,
-                           float taper, float mid, 
+                           float taper, float mid,
                            float cx, float cy, float cz, float idrag)
 {
     Fuselage* f = new Fuselage();
@@ -288,9 +289,9 @@ void Airplane::setFuelFraction(float frac)
 }
 
 /**
- * @brief add contact point for crash detection 
+ * @brief add contact point for crash detection
  * used to add wingtips and fuselage nose and tail
- * 
+ *
  * @param pos ...
  */
 
@@ -457,8 +458,8 @@ void Airplane::compileGear(GearRec* gr)
 
 /**
  * @brief add "fake gear" per contact point
- * 
- * 
+ *
+ *
  * @return void
  */
 
@@ -481,7 +482,7 @@ void Airplane::compileContactPoints()
         Gear* g = new Gear();
         c->gear = g;
         g->setPosition(c->p);
-        
+
         g->setCompression(comp);
         g->setSpring(spring);
         g->setDamping(damp);
@@ -515,7 +516,7 @@ void Airplane::compile(bool verbose)
             _wing->setPropertyNode(_wingsN);
         }
         aeroWgt += compileWing(_wing);
-        
+
         // convert % to absolute x coordinates
         _cgDesiredFront = _wing->getMACx() - _wing->getMACLength()*_cgDesiredMin;
         _cgDesiredAft = _wing->getMACx() - _wing->getMACLength()*_cgDesiredMax;
@@ -575,15 +576,15 @@ void Airplane::compile(bool verbose)
 
     // Add the tanks, empty for now.
     float totalFuel = 0;
-    for(int i=0; i<_tanks.size(); i++) { 
-        Tank* t = (Tank*)_tanks.get(i); 
+    for (int i = 0; i < _tanks.size(); i++) {
+        Tank* t = (Tank*)_tanks.get(i);
         t->handle = body->addMass(0, t->pos);
         totalFuel += t->cap;
     }
     _config[CRUISE].weight = _emptyWeight + totalFuel*_config[CRUISE].fuel;
     _config[APPROACH].weight = _emptyWeight + totalFuel*_config[APPROACH].fuel;
 
-    
+
     body->recalc();
 
     // Add surfaces for the landing gear.
@@ -595,10 +596,10 @@ void Airplane::compile(bool verbose)
         ThrustRec* tr = (ThrustRec*)_thrusters.get(i);
         tr->handle = _model.addThruster(tr->thruster);
     }
-    
+
     if(_wing) {
         // Ground effect
-        // If a double tapered wing is modelled with wing and mstab, wing must 
+        // If a double tapered wing is modelled with wing and mstab, wing must
         // be outboard to get correct wingspan.
         float pos[3];
         float gespan = 0;
@@ -616,19 +617,19 @@ void Airplane::compile(bool verbose)
         // where does the hard coded factor 0.15 come from?
         _model.setGroundEffect(pos, gespan, 0.15f);
     }
-    
+
     // solve function below resets failure message
     // so check if we have any problems and abort here
     if (_failureMsg) return;
 
     solveGear();
     calculateCGHardLimits();
-    
+
     if(_wing && _tail) solveAirplane(verbose);
     else
     {
        // The rotor(s) mass:
-       compileRotorgear(); 
+       compileRotorgear();
        solveHelicopter(verbose);
     }
 
@@ -666,7 +667,7 @@ void Airplane::solveGear()
     // Renormalize so they sum to 1
     for(i=0; i<_gears.size(); i++)
         ((GearRec*)_gears.get(i))->wgt /= total;
-    
+
     // The force at max compression should be sufficient to stop a
     // plane moving downwards at 2x the approach descent rate.  Assume
     // a 3 degree approach.
@@ -744,13 +745,13 @@ void Airplane::setControlValues(const Vector& controls)
         if (c->propHandle >= 0)
             _controlMap.setInput(c->propHandle, c->val);
     }
-    _controlMap.applyControls(); 
+    _controlMap.applyControls();
 }
 
 void Airplane::runConfig(Config &cfg)
 {
-    // aoa is consider to be given for approach so we calculate orientation 
-    // for approach only once in setConfig() but everytime for cruise here.
+    // aoa is consider to be given for approach so we calculate orientation
+    // for approach only once in setConfig() but every time for cruise here.
     if (!(cfg.id == APPROACH)) {
         cfg.state.setupOrientationFromAoa(cfg.aoa);
     }
@@ -758,15 +759,15 @@ void Airplane::runConfig(Config &cfg)
     _model.setState(&cfg.state);
     _model.setStandardAtmosphere(cfg.altitude);
     setControlValues(cfg.controls);
-  
+
     // The local wind
     float wind[3];
     Math::mul3(-1, cfg.state.v, wind);
     cfg.state.globalToLocal(wind, wind);
-    
+
     setFuelFraction(cfg.fuel);
     setupWeights(cfg.id);
-    
+
     // Set up the thruster parameters and iterate until the thrust
     // stabilizes.
     for(int i=0; i<_thrusters.size(); i++) {
@@ -774,10 +775,10 @@ void Airplane::runConfig(Config &cfg)
         t->setWind(wind);
         t->setStandardAtmosphere(cfg.altitude);
     }
-    
+
     stabilizeThrust();
     updateGearState();
-    
+
     // Precompute thrust in the model, and calculate aerodynamic forces
     _model.getBody()->recalc();
     _model.getBody()->reset();
@@ -887,7 +888,7 @@ float Airplane::_getDragForce(Config &cfg)
 float Airplane::_checkConvergence(float prev, float current)
 {
     static int damping {0};
-    //different sign and almost same value -> oscilation; 
+    //different sign and almost same value -> oscilation;
     if ((prev*current) < 0 && (abs(current + prev) < 0.01f)) {
         if (!damping) fprintf(stderr,"YASim warning: possible convergence problem.\n");
         damping++;
@@ -910,7 +911,7 @@ void Airplane::solveAirplane(bool verbose)
     }
 
     if (_tailIncidence == nullptr) {
-        // no control mapping from XML parser, so we just create "local" 
+        // no control mapping from XML parser, so we just create "local"
         // variables for solver instead of full mapping / property
         _tailIncidence = new ControlSetting;
         _tailIncidenceCopy = new ControlSetting;
@@ -922,16 +923,16 @@ void Airplane::solveAirplane(bool verbose)
 
     float prevTailDelta {0};
     while(1) {
-        if(_solutionIterations++ > _solverMaxIterations) { 
+        if (_solutionIterations++ > _solverMaxIterations) {
             _failureMsg = "Solution failed to converge!";
             return;
         }
         // Run an iteration at cruise, and extract the needed numbers:
         runConfig(_config[CRUISE]);
-        
+
         _model.getThrust(tmp);
         float thrust = tmp[0] + _config[CRUISE].weight * Math::sin(_config[CRUISE].glideAngle) * 9.81;
-        
+
         float cDragForce = _getDragForce(_config[CRUISE]);
         float clift0 = _getLiftForce(_config[CRUISE]);
         float cpitch0 = _getPitch(_config[CRUISE]);
@@ -946,7 +947,7 @@ void Airplane::solveAirplane(bool verbose)
         _config[CRUISE].aoa += ARCMIN;
         runConfig(_config[CRUISE]);
         _config[CRUISE].aoa = savedAoa;
-            
+
         float clift1 = _getLiftForce(_config[CRUISE]);
 
         // Do the same with the tail incidence
@@ -1008,7 +1009,7 @@ void Airplane::solveAirplane(bool verbose)
         float aoaDelta = -clift0 * (ARCMIN/(clift1-clift0));
         float tailDelta = -cpitch0 * (ARCMIN/(cpitch1-cpitch0));
         // following is a hack against oszilation variables,
-        // needs more research to get a fully understood - it works 
+        // needs more research to get a fully understood - it works
         if (_solverMode > 0) {
             tailDelta = _checkConvergence(prevTailDelta, tailDelta);
             prevTailDelta = tailDelta;
@@ -1018,7 +1019,7 @@ void Airplane::solveAirplane(bool verbose)
         }
         _config[CRUISE].aoa += _solverDelta*aoaDelta;
         _tailIncidence->val += _solverDelta*tailDelta;
-        
+
         _config[CRUISE].aoa = Math::clamp(_config[CRUISE].aoa, -0.175f, 0.175f);
         _tailIncidence->val = Math::clamp(_tailIncidence->val, -0.175f, 0.175f);
 
@@ -1031,7 +1032,7 @@ void Airplane::solveAirplane(bool verbose)
             if (verbose) {
                 fprintf(stdout,"%4d dElev %f, ap0 %f,ap1 %f \n", _solutionIterations, elevDelta, apitch0, apitch1);
             }
-            // If this finaly value is OK, then we're all done
+            // If this final value is OK, then we're all done
             if(abs(elevDelta) < _solverThreshold*0.0001)
                 break;
 
@@ -1076,9 +1077,8 @@ void Airplane::solveHelicopter(bool verbose)
             1/_solverDelta));
         applyLiftRatio(Math::pow(rg->getYasimLiftFactor(),
             1/_solverDelta));
-    }
-    else
-    //huh, no wing and no rotor? (_rotorgear is constructed, 
+    } else
+    //huh, no wing and no rotor? (_rotorgear is constructed,
     //if a rotor is defined
     {
         applyDragFactor(Math::pow(15.7/1000, 1/_solverDelta));
@@ -1089,11 +1089,11 @@ void Airplane::solveHelicopter(bool verbose)
     setupWeights(APPROACH);
     _controlMap.reset();
     _model.getBody()->reset();
-    _model.setStandardAtmosphere(_config[CRUISE].altitude);    
+    _model.setStandardAtmosphere(_config[CRUISE].altitude);
 }
 
 float Airplane::getCGMAC()
-{ 
+{
     if (_wing) {
       float cg[3];
       _model.getBody()->getCG(cg);
@@ -1147,24 +1147,24 @@ float Airplane::getMaxThrust()
         t->stabilize();
         t->getThrust(thrust);
         Math::add3(thrust, sum, sum);
-    }    
+    }
     return sum[0];
 }
 
-float Airplane::getTailIncidence() const 
+float Airplane::getTailIncidence() const
 {
-    if (_tailIncidence != nullptr) { 
-        return _tailIncidence->val;        
-    }
-    else return 0;
+    if (_tailIncidence != nullptr) {
+        return _tailIncidence->val;
+    } else
+        return 0;
 }
 
-float Airplane::getApproachElevator() const 
+float Airplane::getApproachElevator() const
 {
-    if (_approachElevator != nullptr) { 
-        return _approachElevator->val;        
-    }
-    else return 0;
+    if (_approachElevator != nullptr) {
+        return _approachElevator->val;
+    } else
+        return 0;
 }
 
 }; // namespace yasim

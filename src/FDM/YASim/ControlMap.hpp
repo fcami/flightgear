@@ -1,5 +1,7 @@
-#ifndef _CONTROL_MAP_HPP
-#define _CONTROL_MAP_HPP
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#pragma once
 
 #include <string>
 
@@ -8,22 +10,19 @@
 
 namespace yasim {
 
-
-
-    
 class ControlMap {
 public:
     ~ControlMap();
-    
+
     //! keep this enum in sync with the static vector ControlNames in ControlMap.cpp !
-    enum ControlType { 
-        THROTTLE, 
-        MIXTURE, 
-        CONDLEVER, 
-        STARTER, 
+    enum ControlType {
+        THROTTLE,
+        MIXTURE,
+        CONDLEVER,
+        STARTER,
         MAGNETOS,
-        ADVANCE, 
-        REHEAT, 
+        ADVANCE,
+        REHEAT,
         PROP,
         BRAKE,
         STEER,
@@ -43,15 +42,15 @@ public:
         CASTERING,
         PROPPITCH,
         PROPFEATHER,
-        COLLECTIVE, 
-        CYCLICAIL, 
-        CYCLICELE, 
+        COLLECTIVE,
+        CYCLICAIL,
+        CYCLICELE,
         ROTORGEARENGINEON,
-        TILTYAW, 
-        TILTPITCH, 
+        TILTYAW,
+        TILTPITCH,
         TILTROLL,
-        ROTORBRAKE, 
-        ROTORENGINEMAXRELTORQUE, 
+        ROTORBRAKE,
+        ROTORENGINEMAXRELTORQUE,
         ROTORRELTARGET,
         ROTORBALANCE,
         REVERSE_THRUST,
@@ -62,9 +61,9 @@ public:
         FINDAITOW,
     }; //! keep this enum in sync with the static vector ControlNames in ControlMap.cpp !
 
-        
-    enum { 
-        OPT_SPLIT  = 0x01,
+
+    enum {
+        OPT_SPLIT = 0x01,
         OPT_INVERT = 0x02,
         OPT_SQUARE = 0x04
     };
@@ -73,19 +72,19 @@ public:
         std::string name;
         int handle {0};
     };
-    // to identify controls per wing section we need wing object + section id 
+    // to identify controls per wing section we need wing object + section id
     struct ObjectID {
         void* object {nullptr};
         int subObj {0};
     };
-    
+
     // map control name to int (enum)
     static ControlType parseControl(const char* name);
     static ControlType getControlByName(const std::string& name);
     static std::string getControlName(ControlType c);
     // create ID from object and optional sub index (e.g. for wing section)
     static ObjectID getObjectID(void* object, int subObj = 0);
-    
+
     // add input property for a control to an object
 
     // same with limits. Input values are clamped to [src0:src1] and then mapped to
@@ -93,14 +92,14 @@ public:
     void addMapping(const char* inputProp, ControlType control, ObjectID id, int options, float src0, float src1, float dst0, float dst1);
 
     // Resets our accumulated input values.  Call before any
-    // setInput() invokations.
+    // setInput() invocations.
     void reset();
 
     // Sets the specified input (as returned by getPropertyHandle()) to the
     // specified value.
     void setInput(int propHandle, float value);
 
-    /// Calculates and applies the settings received since the last reset(). 
+    /// Calculates and applies the settings received since the last reset().
     /// dt defaults to a large value used at solve time.
     void applyControls(float dt=1e6);
 
@@ -113,7 +112,7 @@ public:
     // Each output record is identified by both an object/type tuple
     // and a numeric handle.
     int getOutputHandle(ObjectID id, ControlType control);
-    
+
     // Sets the transition time for the control output to swing
     // through its full range.
     void setTransitionTime(int handle, float time);
@@ -140,13 +139,13 @@ private:
         float oldValueLeft {0};
         float oldValueRight {0};
     };
-    struct MapRec  { 
+    struct MapRec {
         int id {0};
         int opt {0};
         float val {0};
-        float src0 {0}; 
-        float src1 {0}; 
-        float dst0 {0}; 
+        float src0{0};
+        float src1{0};
+        float dst0{0};
         float dst1 {0};
     };
 
@@ -156,11 +155,10 @@ private:
 
     // An unordered list of output settings.
     Vector _outputs;
-    
+
     Vector _properties; // list of PropHandle*
 
     OutRec* getOutRec(ObjectID id, ControlType control);
 };
 
 }; // namespace yasim
-#endif // _CONTROL_MAP_HPP

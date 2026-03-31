@@ -1,28 +1,12 @@
-// AISim.cxx -- interface to the AI Sim
-//
-// Written by Erik Hofman, started November 2016
-//
-// Copyright (C) 2016-2020 by Erik Hofman <erik@ehofman.com>
-//
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2016 Erik Hofman <erik@ehofman.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+/**
+ * @file
+ * @brief Interface to the AI Sim
+ */
 
-#ifndef _FGAISim_HXX
-#define _FGAISim_HXX
+#pragma once
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -253,7 +237,7 @@ private:
     float span = 0.0f;               /* wing span                       */
 
     /* static coefficients, *_n is for normalized surface deflection    */
-    float contact_spring[AISIM_MAX]; /* contact spring coeffients       */
+    float contact_spring[AISIM_MAX]; /* contact spring coefficients       */
     float contact_damp[AISIM_MAX];   /* contact damping coefficients    */
     float CLmin, CLa, CLadot, CLq, CLdf_n;
     float CDmin, CDa, CDb, CDi, CDdf_n;
@@ -270,6 +254,3 @@ private:
     float qbar = 0.0f;
     float sigma = 0.0f;
 };
-
-#endif // _FGAISim_HXX
-

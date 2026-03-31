@@ -1,20 +1,17 @@
-//////////////////////////////////////////////////////////////////////
-//
-//	Tiny XDR implementation for flightgear
-//	written by Oliver Schroeder
-//	released to the public domain
-//
-//	This implementation is not complete, but implements
-//	everything we need.
-//
-//	For further reading on XDR read RFC 1832.
-//
-//  NEW
-//
-//////////////////////////////////////////////////////////////////////
+// SPDX-FileCopyrightText: 2005 Oliver Schroeder
+// SPDX-License-Identifier: CC0-1.0
 
-#ifndef TINY_XDR_HEADER
-#define TINY_XDR_HEADER
+/**
+ * @file
+ * @brief Tiny XDR implementation for flightgear
+ *
+ * This implementation is not complete, but implements
+ * everything we need.
+ *
+ * For further reading on XDR, read RFC 1832.
+ */
+
+#pragma once
 
 #if defined HAVE_CONFIG_H
 #   include <config.h>
@@ -59,14 +56,14 @@ void            XDR_decode_shortints32(const xdr_data_t & n_Val, int &v1, int &v
 
 //////////////////////////////////////////////////
 //
-//  FIXME: #1 these funtions must be fixed for
-//         none IEEE-encoding architecturs
+//  FIXME: #1 these functions must be fixed for
+//         none IEEE-encoding architectures
 //         (eg. vax, big suns etc)
 //  FIXME: #2 some compilers return 'double'
 //         regardless of return-type 'float'
 //         this must be fixed, too
 //  FIXME: #3 some machines may need to use a
-//         different endianess for floats!
+//         different endianness for floats!
 //
 //////////////////////////////////////////////////
 /* float */
@@ -75,6 +72,4 @@ float           XDR_decode_float    ( const xdr_data_t & f_Val );
 
 /* double */
 xdr_data2_t     XDR_encode_double   ( const double & d_Val );
-double          XDR_decode_double   ( const xdr_data2_t & d_Val );
-
-#endif
+double XDR_decode_double(const xdr_data2_t& d_Val);

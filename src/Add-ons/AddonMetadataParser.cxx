@@ -1,10 +1,10 @@
-/*
- * SPDX-FileName: AddonMetadataParser.cxx
- * SPDX-FileComment: Parser for FlightGear add-on metadata files
- * SPDX-FileCopyrightText: Copyright (C) 2018  Florent Rougon
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
+// SPDX-FileCopyrightText: 2018 Florent Rougon
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+/**
+ * @file
+ * @brief Parser for FlightGear add-on metadata files
+ */
 
 #include <regex>
 #include <string>
