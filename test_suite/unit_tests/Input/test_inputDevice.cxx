@@ -77,6 +77,10 @@ void InputDeviceTests::setUp()
     cmds->addCommand("test-button-release-cmd", &_buttonReleaseCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-axis-cmd", &_axisCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-rel-cmd", &_relCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-low-btn-cmd", &_lowBtnCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-low-btn-release-cmd", &_lowBtnReleaseCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-high-btn-cmd", &_highBtnCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-high-btn-release-cmd", &_highBtnReleaseCmd, &TestCommandHandler::handle);
 }
 
 void InputDeviceTests::tearDown()
@@ -87,6 +91,10 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-button-release-cmd");
     cmds->removeCommand("test-axis-cmd");
     cmds->removeCommand("test-rel-cmd");
+    cmds->removeCommand("test-low-btn-cmd");
+    cmds->removeCommand("test-low-btn-release-cmd");
+    cmds->removeCommand("test-high-btn-cmd");
+    cmds->removeCommand("test-high-btn-release-cmd");
 
     FGTestApi::tearDown::shutdownTestGlobals();
 }
@@ -296,4 +304,98 @@ void InputDeviceTests::testRelAxisEvent()
     device->HandleEvent(ed2);
     CPPUNIT_ASSERT_EQUAL(2, _relCmd.callCount);
     CPPUNIT_ASSERT_DOUBLES_EQUAL(-3.0, _relCmd.lastOffset, 1e-9);
+}
+
+// ---------------------------------------------------------------------------
+// testHighLowThreshold
+//
+// An abs-axis event with <low> and <high> child nodes creates virtual button
+// events that fire when the normalised axis value crosses the threshold.
+//
+// Config: range [-1000, 1000] (signed-normalized), thresholds at -0.8 / 0.8.
+// The low button fires (press) when normalised value < -0.8, and releases
+// when it returns above -0.8.  The high button fires when > 0.8 and releases
+// when it drops back below 0.8.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testHighLowThreshold()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <event>
+            <name>abs-y-axis</name>
+            <min-range type="double">-1000.0</min-range>
+            <max-range type="double">1000.0</max-range>
+            <tolerance type="double">0.0</tolerance>
+            <low-threshold type="double">-0.8</low-threshold>
+            <high-threshold type="double">0.8</high-threshold>
+            <low>
+              <name>button-low</name>
+              <binding>
+                <command>test-low-btn-cmd</command>
+              </binding>
+              <mod-up>
+                <binding>
+                  <command>test-low-btn-release-cmd</command>
+                </binding>
+              </mod-up>
+            </low>
+            <high>
+              <name>button-high</name>
+              <binding>
+                <command>test-high-btn-cmd</command>
+              </binding>
+              <mod-up>
+                <binding>
+                  <command>test-high-btn-release-cmd</command>
+                </binding>
+              </mod-up>
+            </high>
+            <binding>
+              <command>test-axis-cmd</command>
+            </binding>
+          </event>
+        </PropertyList>
+    )");
+
+    device->setEventName("abs-y-axis");
+
+    // --- 1. Centered value: neither threshold crossed ---
+    FGEventData center{0.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(center);
+    CPPUNIT_ASSERT_EQUAL(0, _lowBtnCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _highBtnCmd.callCount);
+
+    // --- 2. Move above high threshold (raw 900 → normalised 0.9 > 0.8) ---
+    FGEventData high{900.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(high);
+    CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _highBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(0, _highBtnReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _lowBtnCmd.callCount);
+
+    // --- 3. Return to center: high button should release ---
+    FGEventData backCenter{0.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(backCenter);
+    CPPUNIT_ASSERT_EQUAL(1, _highBtnReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _highBtnReleaseCmd.lastValue);
+    // High press count unchanged
+    CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
+
+    // --- 4. Move below low threshold (raw -900 → normalised -0.9 < -0.8) ---
+    FGEventData low{-900.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(low);
+    CPPUNIT_ASSERT_EQUAL(1, _lowBtnCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _lowBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(0, _lowBtnReleaseCmd.callCount);
+
+    // --- 5. Return to center: low button should release ---
+    FGEventData backCenter2{0.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(backCenter2);
+    CPPUNIT_ASSERT_EQUAL(1, _lowBtnReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _lowBtnReleaseCmd.lastValue);
+
+    // --- 6. Cross high threshold again: should fire a second press ---
+    FGEventData high2{950.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(high2);
+    CPPUNIT_ASSERT_EQUAL(2, _highBtnCmd.callCount);
 }

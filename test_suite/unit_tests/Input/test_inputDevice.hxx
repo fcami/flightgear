@@ -47,6 +47,7 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testButtonPressRelease);
     CPPUNIT_TEST(testAbsAxisEvent);
     CPPUNIT_TEST(testRelAxisEvent);
+    CPPUNIT_TEST(testHighLowThreshold);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -58,6 +59,7 @@ public:
     void testButtonPressRelease();
     void testAbsAxisEvent();
     void testRelAxisEvent();
+    void testHighLowThreshold();
 
 private:
     TestCommandHandler _simpleCmd;
@@ -65,4 +67,8 @@ private:
     TestCommandHandler _buttonReleaseCmd;
     TestCommandHandler _axisCmd;
     TestCommandHandler _relCmd;
+    TestCommandHandler _lowBtnCmd;
+    TestCommandHandler _lowBtnReleaseCmd;
+    TestCommandHandler _highBtnCmd;
+    TestCommandHandler _highBtnReleaseCmd;
 };
