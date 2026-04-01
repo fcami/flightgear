@@ -115,6 +115,7 @@ linux-build:
       -D CMAKE_BUILD_TYPE=RelWithDebInfo
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
       -D ENABLE_FGQCANVAS=ON
+      -D ENABLE_VR=OFF
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/simgear-dist;$CI_PROJECT_DIR/osg-dist"
       -D ENABLE_CCACHE=ON
 
