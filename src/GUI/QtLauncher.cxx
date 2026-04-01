@@ -154,7 +154,7 @@ bool initNavCache()
                 didComplete = true;
                 return;
             }
-            
+
             auto it = std::find_if(progressStrings.begin(), progressStrings.end(), [phase]
                                    (const ProgressLabel& l) { return l.phase == phase; });
             if (it == progressStrings.end()) {
@@ -259,58 +259,6 @@ private:
     bool m_abandoned = false;
 };
 
-enum class OpenGLStatus
-{
-    OpenGL21,
-    Unknown,
-    GDIGeneric,
-    Intel14
-};
-
-OpenGLStatus checkForWorkingOpenGL()
-{
-    // request an OpenGL comptability profile, version 2.1
-    // anything lower and we'll crash
-    QSurfaceFormat fmt;
-    fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
-    fmt.setMajorVersion(2);
-    fmt.setMinorVersion(1);
-
-    QOpenGLContext ctx;
-    ctx.setFormat(fmt);
-    if (!ctx.create()) {
-        return OpenGLStatus::Unknown;
-    }
-
-    // from here on, we need to ensure orderly cleanup or some drivers
-    // crash. So we can't early return.
-
-    OpenGLStatus result = OpenGLStatus::Unknown;
-    QOffscreenSurface offSurface;
-    offSurface.setFormat(ctx.format()); // ensure it's compatible
-    offSurface.create();
-
-    if (ctx.makeCurrent(&offSurface)) {
-        result = OpenGLStatus::OpenGL21;
-        std::string renderer = (char*)glGetString(GL_RENDERER);
-        if (renderer == "GDI Generic") {
-            flightgear::addSentryBreadcrumb("Detected GDI generic renderer", "info");
-            result = OpenGLStatus::GDIGeneric;
-        } else if (simgear::strutils::starts_with(renderer, "Intel")) {
-            if (ctx.format().majorVersion() < 2) {
-                flightgear::addSentryBreadcrumb("Detected Intel < 2.1 renderer", "info");
-                result = OpenGLStatus::Intel14;
-            }
-        }
-
-        // ensure the context is no longer current on the offscreen
-        ctx.doneCurrent();
-    }
-
-    offSurface.destroy();
-    return result;
-}
-
 } // of anonymous namespace
 
 static void initQtResources()
@@ -356,6 +304,64 @@ namespace flightgear
 
 static std::unique_ptr<QApplication> static_qApp;
 
+enum class OpenGLStatus
+{
+    OpenGL21,
+    Unknown,
+    GDIGeneric,
+    Intel14
+};
+
+OpenGLStatus checkForWorkingOpenGL()
+{
+    // offscreen context creation isn't supported
+    // until very recent Qt versions, so the check below fails
+    // https://gitlab.com/flightgear/flightgear/-/work_items/3386
+    if (static_qApp->platformName() == "wayland") {
+        return OpenGLStatus::OpenGL21; // assume it's working
+    }
+
+    // request an OpenGL comptability profile, version 2.1
+    // anything lower and we'll crash
+    QSurfaceFormat fmt;
+    fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+    fmt.setMajorVersion(2);
+    fmt.setMinorVersion(1);
+
+    QOpenGLContext ctx;
+    ctx.setFormat(fmt);
+    if (!ctx.create()) {
+        return OpenGLStatus::Unknown;
+    }
+
+    // from here on, we need to ensure orderly cleanup or some drivers
+    // crash. So we can't early return.
+
+    OpenGLStatus result = OpenGLStatus::Unknown;
+    QOffscreenSurface offSurface;
+    offSurface.setFormat(ctx.format()); // ensure it's compatible
+    offSurface.create();
+
+    if (ctx.makeCurrent(&offSurface)) {
+        result = OpenGLStatus::OpenGL21;
+        std::string renderer = (char*)glGetString(GL_RENDERER);
+        if (renderer == "GDI Generic") {
+            flightgear::addSentryBreadcrumb("Detected GDI generic renderer", "info");
+            result = OpenGLStatus::GDIGeneric;
+        } else if (simgear::strutils::starts_with(renderer, "Intel")) {
+            if (ctx.format().majorVersion() < 2) {
+                flightgear::addSentryBreadcrumb("Detected Intel < 2.1 renderer", "info");
+                result = OpenGLStatus::Intel14;
+            }
+        }
+
+        // ensure the context is no longer current on the offscreen
+        ctx.doneCurrent();
+    }
+
+    offSurface.destroy();
+    return result;
+}
 
 // becuase QTranslator::load (find_translation, internally) doesn't handle the
 // sciprt part of a language code like: zh-Hans-CN, use this code borrowed from
@@ -739,7 +745,7 @@ bool runLauncherDialog()
     if (appResult <= 0) {
         return false; // quit
     }
-    
+
     return true;
 }
 
