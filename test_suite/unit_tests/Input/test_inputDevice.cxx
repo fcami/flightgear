@@ -81,6 +81,7 @@ void InputDeviceTests::setUp()
     cmds->addCommand("test-low-btn-release-cmd", &_lowBtnReleaseCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-high-btn-cmd", &_highBtnCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-high-btn-release-cmd", &_highBtnReleaseCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-switch-cmd", &_switchCmd, &TestCommandHandler::handle);
 }
 
 void InputDeviceTests::tearDown()
@@ -95,6 +96,7 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-low-btn-release-cmd");
     cmds->removeCommand("test-high-btn-cmd");
     cmds->removeCommand("test-high-btn-release-cmd");
+    cmds->removeCommand("test-switch-cmd");
 
     FGTestApi::tearDown::shutdownTestGlobals();
 }
@@ -649,4 +651,60 @@ void InputDeviceTests::testAxesOutputMode()
         device->HandleEvent(edQuarter);
         CPPUNIT_ASSERT_DOUBLES_EQUAL(0.75, _axisCmd.lastSetting, 1e-9);
     }
+}
+
+// ---------------------------------------------------------------------------
+// testButtonSwitchMode
+//
+// In switch output-mode the same (non-mod-up) binding fires for every press
+// AND every release:
+//   - press  (value > 0) → binding called with value=true  (setting 1.0)
+//   - release (value == 0) → binding called with value=false (setting 0.0)
+//
+// Unlike the default button mode, mod-up is never consulted, and there is no
+// "already pressed" guard — each transition fires independently.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testButtonSwitchMode()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <event>
+            <name>button-toggle</name>
+            <output-mode>switch</output-mode>
+            <binding>
+              <command>test-switch-cmd</command>
+            </binding>
+          </event>
+        </PropertyList>
+    )");
+
+    device->setEventName("button-toggle");
+
+    // --- 1. Press: binding should fire with value=true ---
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+
+    // --- 2. Release: same binding fires with value=false (not a mod-up binding) ---
+    FGEventData release{0.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+
+    // --- 3. Second press: fires again with value=true ---
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(3, _switchCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+
+    // --- 4. Second release: fires again with value=false ---
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(4, _switchCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+
+    // --- 5. Non-zero values > 1 are still treated as press ---
+    FGEventData pressHigh{255.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(pressHigh);
+    CPPUNIT_ASSERT_EQUAL(5, _switchCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
 }
