@@ -464,7 +464,7 @@ void FGAIFlightPlan::setLeadDistance(double speed,
         double lead_distance_m = fabs(2 * speed) * SG_FEET_TO_METER;
         setLeadDistance(lead_distance_m * SG_METER_TO_FEET);
         if (lead_distance_ft > 1000) {
-            SG_LOG(SG_AI, SG_BULK, "Excessive leaddistance leadin 0 " << lead_distance_ft << " leadInAngle " << leadInAngle << " inbound " << inbound << " outbound " << outbound);
+            SG_LOG(SG_AI, SG_BULK, "Excessive leaddistance lead in 0 " << lead_distance_ft << " leadInAngle " << leadInAngle << " inbound " << inbound << " outbound " << outbound);
         }
     } else {
         double lead_distance_m = turn_radius_m * tan((leadInAngle * SG_DEGREES_TO_RADIANS) / 2);
