@@ -65,7 +65,7 @@ public:
 
     void getGroundElev(double dt); // TODO: these 3 really need to be public?
     void doGroundAltitude();
-    bool loadNextLeg(double dist = 0);
+    bool loadNextLeg(const double dist = 0);
     void resetPositionFromFlightPlan();
     double getBearing(double crse);
 

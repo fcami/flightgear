@@ -92,7 +92,7 @@ void FGStartupController::announcePosition(int id,
     } else {
         bool moved = airportGroundRadar->move(SGRect<double>(lat, lon), *i);
         if (!moved) {
-            SG_LOG(SG_ATC, SG_ALERT,
+            SG_LOG(SG_ATC, SG_DEV_WARN,
                    "Not moved " << (*i)->getCallsign() << "");
         }
         (*i)->setRunway(intendedRoute->getRunway());
@@ -109,7 +109,7 @@ void FGStartupController::updateAircraftInformation(int id, SGGeod geod, double 
     TrafficVectorIterator current;
 
     if (i == activeTraffic.end() || (activeTraffic.size() == 0)) {
-        SG_LOG(SG_ATC, SG_ALERT,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "AI error: updating aircraft without traffic record at " << SG_ORIGIN);
         return;
     } else {
@@ -123,7 +123,7 @@ void FGStartupController::updateAircraftInformation(int id, SGGeod geod, double 
     // Sentry FLIGHTGEAR-2Q : don't crash on null TrafficRef
     // Sentry FLIGHTGEAR-129: don't crash on null aircraft
     if (!(*i)->getAircraft() || !(*i)->getAircraft()->getTrafficRef()) {
-        SG_LOG(SG_ATC, SG_ALERT, "AI traffic: updating aircraft without traffic ref");
+        SG_LOG(SG_ATC, SG_DEV_WARN, "AI traffic: updating aircraft without traffic ref");
         return;
     }
 

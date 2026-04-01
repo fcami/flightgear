@@ -85,7 +85,7 @@ void FGGroundController::announcePosition(int id,
                                           FGAIAircraft* aircraft)
 {
     if (!aircraft || !aircraft->getPerformance()) {
-        SG_LOG(SG_ATC, SG_ALERT, "announcePosition: missing aircraft performance");
+        SG_LOG(SG_ATC, SG_DEV_WARN, "announcePosition: missing aircraft performance");
         return;
     }
 
@@ -124,7 +124,7 @@ void FGGroundController::announcePosition(int id,
     } else {
         bool moved = airportGroundRadar->move(SGRect<double>(lat, lon), *i);
         if (!moved) {
-            SG_LOG(SG_ATC, SG_ALERT,
+            SG_LOG(SG_ATC, SG_DEV_WARN,
                    "Not moved " << (*i)->getCallsign() << "(" << (*i)->getId() << ")");
         }
         (*i)->setPositionAndIntentions(currentPosition, intendedRoute);
@@ -260,7 +260,7 @@ void FGGroundController::checkSpeedAdjustment(int id, double lat,
         return;
     }
     if (i == activeTraffic.end() || (activeTraffic.size() == 0)) {
-        SG_LOG(SG_ATC, SG_ALERT,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "AI error: Trying to access non-existing aircraft in FGGroundNetwork::checkSpeedAdjustment (" << id << ")");
     }
     current = i;
@@ -348,7 +348,7 @@ void FGGroundController::checkHoldPosition(int id, double lat,
         available = true;
     }
     if (i == activeTraffic.end() || (activeTraffic.size() == 0)) {
-        SG_LOG(SG_ATC, SG_ALERT,
+        SG_LOG(SG_ATC, SG_DEV_WARN,
                "AI error: Trying to access non-existing aircraft in FGGroundNetwork::checkHoldPosition at ");
     }
     current = i;

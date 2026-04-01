@@ -43,7 +43,7 @@ bool AirportGroundRadar::add(FGTrafficRef aiObject)
         //index.printPath(aiObject);
     } else {
         double distM = SGGeodesy::distanceM(aiObject->getPos(), airport->geod());
-        SG_LOG(SG_ATC, SG_ALERT, "Couldn't add Aircraft " << aiObject->getCallsign() << "(" << aiObject->getId() << ") to " << airport->getId() << " Dist " << distM << "m Leg " << aiObject->getLeg());
+        SG_LOG(SG_ATC, SG_DEV_WARN, "Couldn't add Aircraft " << aiObject->getCallsign() << "(" << aiObject->getId() << ") to " << airport->getId() << " Dist " << distM << "m Leg " << aiObject->getLeg());
     }
     return ret;
 }
@@ -60,13 +60,13 @@ bool AirportGroundRadar::move(const SGRectd& newPos, FGTrafficRef aiObject)
 bool AirportGroundRadar::remove(FGTrafficRef aiObject)
 {
     if (!aiObject) {
-        SG_LOG(SG_ATC, SG_ALERT, "Couldn't remove aiObject null");
+        SG_LOG(SG_ATC, SG_DEV_WARN, "Couldn't remove aiObject null");
         return false;
     }
 
     bool ret = index.remove(aiObject);
     if (!ret) {
-        SG_LOG(SG_ATC, SG_DEV_ALERT, "Couldn't remove " << aiObject->getCallsign() << "(" << aiObject->getId() << ")");
+        SG_LOG(SG_ATC, SG_DEV_WARN, "Couldn't remove " << aiObject->getCallsign() << "(" << aiObject->getId() << ")");
     } else {
         SG_LOG(SG_ATC, SG_DEBUG, "Removed Aircraft " << aiObject->getCallsign() << "(" << aiObject->getId() << ")");
     }
@@ -155,7 +155,7 @@ bool AirportGroundRadar::isBlocked(FGTrafficRef aiObject)
             }
         } else {
             if (distM > 10) {
-                SG_LOG(SG_ATC, SG_ALERT, aiObject->getCallsign() << "(" << aiObject->getId() << ") is not near it's shadow in index " << other->getId() << " Dist " << distM);
+                SG_LOG(SG_ATC, SG_DEV_WARN, aiObject->getCallsign() << "(" << aiObject->getId() << ") is not near it's shadow in index " << other->getId() << " Dist " << distM);
             }
         }
     }
@@ -220,10 +220,8 @@ const FGTrafficRef AirportGroundRadar::getBlockedBy(FGTrafficRef aiObject)
                 const double headingDiff = SGMiscd::normalizePeriodic(-180, 180, aiObject->getHeading() - courseTowardOther);
                 const double otherHeadingDiff = SGMiscd::normalizePeriodic(-180, 180, other->getHeading() - courseTowardOther);
                 // We can't have aircraft < 10m of each other
-                SG_LOG(SG_ATC, SG_ALERT, aiObject->getCallsign() << "(" << aiObject->getId() << ") running into " << other->getCallsign() << "(" << other->getId() << ") Dist " << distM << " Heading " << aiObject->getHeading() << " Other Heading " << other->getHeading() << " Headingdiff " << headingDiff << " Other heading diff " << otherHeadingDiff << " courseTowardOther " << courseTowardOther << " Speeds : " << aiObject->getSpeed() << "/" << other->getSpeed() << " Turning: " << aiObject->getHeadingDiff() << " Legs: " << aiObject->getLeg() << "/" << other->getLeg() << " Threshold : " << threshold << " = " << getSize(aiObject) << " + " << getSize(other));
                 if (aiObject->getAircraft() != nullptr && other->getAircraft() != nullptr) {
-                    SG_LOG(SG_ATC, SG_ALERT, "Offending type " << aiObject->getAircraft()->getAcType() << " " << aiObject->getAircraft()->getCompany() << " " << aiObject->getAircraft()->getPerformance()->decelerationOnGround());
-                    SG_LOG(SG_ATC, SG_ALERT, "Speeds " << aiObject->getSpeed() << " " << other->getAircraft()->getSpeed());
+                    SG_LOG(SG_ATC, SG_DEBUG, aiObject->getCallsign() << "(" << aiObject->getId() << ") running into " << other->getCallsign() << "(" << other->getId() << ") Dist " << distM << " Heading " << aiObject->getHeading() << " Other Heading " << other->getHeading() << " Headingdiff " << headingDiff << " Other heading diff " << otherHeadingDiff << " courseTowardOther " << courseTowardOther << " Speeds : " << aiObject->getSpeed() << "/" << other->getSpeed() << " Turning: " << aiObject->getHeadingDiff() << " Legs: " << aiObject->getLeg() << "/" << other->getLeg() << " Threshold : " << threshold << " = " << getSize(aiObject) << " + " << getSize(other) << "Offending type " << aiObject->getAircraft()->getAcType() << " " << aiObject->getAircraft()->getCompany() << " " << aiObject->getAircraft()->getPerformance()->decelerationOnGround() << " Speeds " << aiObject->getSpeed() << " " << other->getAircraft()->getSpeed());
                 }
             }
             if (distM < threshold && distM < nearestDist) {
@@ -234,7 +232,7 @@ const FGTrafficRef AirportGroundRadar::getBlockedBy(FGTrafficRef aiObject)
             }
         } else {
             if (distM > 10) {
-                SG_LOG(SG_ATC, SG_ALERT, aiObject->getCallsign() << "(" << aiObject->getId() << ") is not near it's shadow in index Leg : " << aiObject->getLeg() << "/" << other->getLeg() << " Dist " << distM);
+                SG_LOG(SG_ATC, SG_DEV_WARN, aiObject->getCallsign() << "(" << aiObject->getId() << ") is not near it's shadow in index Leg : " << aiObject->getLeg() << "/" << other->getLeg() << " Dist " << distM);
             }
         }
     }

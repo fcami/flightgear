@@ -267,7 +267,7 @@ void FGAIAircraft::TurnTo(double heading)
     const double headingDiff = SGMiscd::normalizePeriodic(-180, 180, heading - tgt_heading);
 
     if (fabs(heading) < 0.1 && fabs(headingDiff) > 1) {
-        SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ")Heading reset to zero " << tgt_heading << " " << headingDiff << " at " << getGeodPos());
+        SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") Heading reset to zero " << tgt_heading << " " << headingDiff << " at " << getGeodPos());
     }
     tgt_heading = heading;
     // SG_LOG(SG_AI, SG_BULK, "Turn tgt_heading to " << tgt_heading);
@@ -325,7 +325,7 @@ void FGAIAircraft::ProcessFlightPlan(double dt, time_t now)
         if (!fp->empty()) {
             handleFirstWaypoint();
         } else {
-            SG_LOG(SG_AI, SG_WARN, getCallSign() << " didn't have a valid flightplan and was killed");
+            SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << " didn't have a valid flightplan and was killed");
             setDie(true);
         }
         return;
@@ -356,10 +356,10 @@ void FGAIAircraft::ProcessFlightPlan(double dt, time_t now)
     }
     if (!curr) {
         if (!next) {
-            SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") No more WPs");
+            SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") No more WPs");
             setDie(true);
         } else {
-            SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") No current WP" << next->getName());
+            SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") No current WP" << next->getName());
         }
         return;
     }
@@ -396,15 +396,15 @@ void FGAIAircraft::ProcessFlightPlan(double dt, time_t now)
 
         prev = fp->getPreviousWaypoint();
         if (prev) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Previous WP \t" << prev->getName() << "\t" << prev->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Previous WP \t" << prev->getName() << "\t" << prev->getPos());
         }
         curr = fp->getCurrentWaypoint();
         if (curr) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Current WP \t" << curr->getName() << "\t" << curr->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Current WP \t" << curr->getName() << "\t" << curr->getPos());
         }
         next = fp->getNextWaypoint();
         if (next) {
-            SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") Next WP \t" << next->getName() << "\t" << next->getPos());
+            SG_LOG(SG_AI, SG_DEBUG, getCallSign() << "(" << getID() << ") Next WP \t" << next->getName() << "\t" << next->getPos());
         }
 
         // Now that we have incremented the waypoints, execute some traffic manager specific code
@@ -570,7 +570,7 @@ const char* FGAIAircraft::_getTransponderCode() const
 // NOTE: Check whether the new (delayed leg increment code has any effect on this code.
 // Probably not, because it should only be executed after we have already passed the leg incrementing waypoint.
 
-bool FGAIAircraft::loadNextLeg(double distance)
+bool FGAIAircraft::loadNextLeg(const double distance)
 {
     const int leg = fp->getLeg();
     if (leg == AILeg::PARKING) {
@@ -747,7 +747,7 @@ void FGAIAircraft::announcePositionToController()
         if (trafficRef->getArrivalAirport()->getDynamics()->getGroundController()->exists()) {
             controller = trafficRef->getArrivalAirport()->getDynamics()->getGroundController();
         } else {
-            SG_LOG(SG_ATC, SG_ALERT, trafficRef->getArrivalAirport()->getId() << " doesn't have a groundcontroller");
+            SG_LOG(SG_ATC, SG_DEV_WARN, trafficRef->getArrivalAirport()->getId() << " doesn't have a groundcontroller");
         }
         break;
     case AILeg::PARKING: // Parked
@@ -760,7 +760,7 @@ void FGAIAircraft::announcePositionToController()
         controller = nullptr;
         break;
     default:
-        SG_LOG(SG_AI, SG_ALERT, "AILeg " << leg << " not covered by a controller type");
+        SG_LOG(SG_AI, SG_DEV_WARN, "AILeg " << leg << " not covered by a controller type");
         if (prevController) {
             SG_LOG(SG_AI, SG_BULK, "Will be signing off from " << prevController->getName());
         }
@@ -788,7 +788,7 @@ void FGAIAircraft::announcePositionToController()
     } else {
         if (fp->getLeg() < AILeg::PARKING) {
             // No controller when parked
-            SG_LOG(SG_AI, SG_ALERT, "Can't announcePosition " << this->getCallSign() << " no controller on Leg " << fp->getLeg());
+            SG_LOG(SG_AI, SG_DEV_WARN, "Can't announcePosition " << this->getCallSign() << " no controller on Leg " << fp->getLeg());
         }
     }
 }
@@ -1032,12 +1032,12 @@ bool FGAIAircraft::leadPointReached(FGAIWaypoint* curr, FGAIWaypoint* next, int 
         if (abs(headingDiffCurrent) > 80 && speed > 0) {
             if (trafficRef != nullptr) {
                 if (fp->getLeg() <= AILeg::CLIMB) {
-                    SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") possible missed WP at " << trafficRef->getDepartureAirport()->getId() << " " << curr->getName());
+                    SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") possible missed WP at " << trafficRef->getDepartureAirport()->getId() << " " << curr->getName());
                 } else {
-                    SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") possible missed WP at " << trafficRef->getArrivalAirport()->getId() << " " << curr->getName() << " Leg " << fp->getLeg() << " Speed " << getSpeed());
+                    SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") possible missed WP at " << trafficRef->getArrivalAirport()->getId() << " " << curr->getName() << " Leg " << fp->getLeg() << " Speed " << getSpeed());
                 }
             } else {
-                SG_LOG(SG_AI, SG_WARN, getCallSign() << "(" << getID() << ") possible missed WP " << curr->getName());
+                SG_LOG(SG_AI, SG_DEV_WARN, getCallSign() << "(" << getID() << ") possible missed WP " << curr->getName());
             }
             SG_LOG(SG_AI, SG_BULK, getCallSign() << "(" << getID() << ") headingDiffCurrent " << headingDiffCurrent << " headingDiffNext " << headingDiffNext);
         }
@@ -1590,7 +1590,7 @@ bool FGAIAircraft::reachedEndOfCruise(double& distance)
 {
     FGAIWaypoint* curr = fp->getCurrentWaypoint();
     if (!curr) {
-        SG_LOG(SG_AI, SG_WARN, "FGAIAircraft::reachedEndOfCruise: no current waypoint");
+        SG_LOG(SG_AI, SG_DEV_WARN, "FGAIAircraft::reachedEndOfCruise: no current waypoint");
 
         // return true (=done) here, so we don't just get stuck on this forever
         return true;
