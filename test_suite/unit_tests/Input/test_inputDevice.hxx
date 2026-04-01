@@ -48,6 +48,7 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testAbsAxisEvent);
     CPPUNIT_TEST(testRelAxisEvent);
     CPPUNIT_TEST(testHighLowThreshold);
+    CPPUNIT_TEST(testAxesOutputMode);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -60,6 +61,7 @@ public:
     void testAbsAxisEvent();
     void testRelAxisEvent();
     void testHighLowThreshold();
+    void testAxesOutputMode();
 
 private:
     TestCommandHandler _simpleCmd;

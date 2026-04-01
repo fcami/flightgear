@@ -399,3 +399,254 @@ void InputDeviceTests::testHighLowThreshold()
     device->HandleEvent(high2);
     CPPUNIT_ASSERT_EQUAL(2, _highBtnCmd.callCount);
 }
+
+// ---------------------------------------------------------------------------
+// testAxesOutputMode
+//
+// Verify the signed-normalized and direct output modes produce values in the
+// expected ranges, and that the invert option reverses the output correctly.
+//
+// Range for all configs: [-1000, 1000].
+//   signed-normalized: output = (2*(raw - min) / range) - 1  →  [-1, 1]
+//     invert negates the result.
+//   direct: output = raw (clamped to range)
+//     invert mirrors: maxRange - (raw - minRange)
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testAxesOutputMode()
+{
+    // ---- signed-normalized (default mode) ----
+    {
+        auto device = makeDevice("test-sn", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        // Center (raw 0) → 0.0
+        _axisCmd.reset();
+        FGEventData ed0{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed0);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        // Full positive (raw 1000) → 1.0
+        FGEventData ed1{1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed1);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, _axisCmd.lastSetting, 1e-9);
+
+        // Full negative (raw -1000) → -1.0
+        FGEventData ed2{-1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed2);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(-1.0, _axisCmd.lastSetting, 1e-9);
+
+        // Quarter (raw 500) → 0.5
+        FGEventData ed3{500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed3);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.5, _axisCmd.lastSetting, 1e-9);
+    }
+
+    // ---- signed-normalized + invert ----
+    {
+        auto device = makeDevice("test-sn-inv", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <invert type="bool">true</invert>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        // Center (raw 0) → -0.0 (negated 0.0)
+        _axisCmd.reset();
+        FGEventData ed0{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed0);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        // Full positive (raw 1000) → inverted = -1.0
+        FGEventData ed1{1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed1);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(-1.0, _axisCmd.lastSetting, 1e-9);
+
+        // Full negative (raw -1000) → inverted = 1.0
+        FGEventData ed2{-1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed2);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, _axisCmd.lastSetting, 1e-9);
+
+        // Quarter (raw 500) → inverted = -0.5
+        FGEventData ed3{500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed3);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(-0.5, _axisCmd.lastSetting, 1e-9);
+    }
+
+    // ---- direct mode ----
+    {
+        auto device = makeDevice("test-direct", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <output-mode>direct</output-mode>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        // Raw value passes through unchanged
+        _axisCmd.reset();
+        FGEventData ed0{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed0);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData ed1{750.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed1);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(750.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData ed2{-500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed2);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(-500.0, _axisCmd.lastSetting, 1e-9);
+
+        // Values are clamped to range
+        FGEventData ed3{2000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed3);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(1000.0, _axisCmd.lastSetting, 1e-9);
+    }
+
+    // ---- direct mode + invert ----
+    // invert formula: maxRange - (raw - minRange)
+    //   raw 0    → 1000 - (0 - (-1000))    = 1000 - 1000 = 0
+    //   raw 750  → 1000 - (750 - (-1000))   = 1000 - 1750 = -750
+    //   raw -500 → 1000 - (-500 - (-1000))  = 1000 - 500  = 500
+    {
+        auto device = makeDevice("test-direct-inv", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <output-mode>direct</output-mode>
+                <invert type="bool">true</invert>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        _axisCmd.reset();
+        FGEventData ed0{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed0);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData ed1{750.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed1);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(-750.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData ed2{-500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(ed2);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(500.0, _axisCmd.lastSetting, 1e-9);
+    }
+
+    // ---- unsigned-normalized mode ----
+    // formula: (raw - min) / range  →  output in [0.0, 1.0]
+    //   raw -1000 → (−1000 − (−1000)) / 2000 = 0.0
+    //   raw     0 → (0     − (−1000)) / 2000 = 0.5
+    //   raw  1000 → (1000  − (−1000)) / 2000 = 1.0
+    {
+        auto device = makeDevice("test-unsigned", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <output-mode>unsigned-normalized</output-mode>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        _axisCmd.reset();
+        FGEventData edMin{-1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edMin);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edCenter{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edCenter);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.5, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edMax{1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edMax);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edQuarter{-500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edQuarter);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.25, _axisCmd.lastSetting, 1e-9);
+    }
+
+    // ---- unsigned-normalized + invert ----
+    // invert formula: 1.0 - value
+    //   raw -1000 → 1.0 - 0.0 = 1.0
+    //   raw     0 → 1.0 - 0.5 = 0.5
+    //   raw  1000 → 1.0 - 1.0 = 0.0
+    //   raw  -500 → 1.0 - 0.25 = 0.75
+    {
+        auto device = makeDevice("test-unsigned-inv", R"(
+            <PropertyList>
+              <event>
+                <name>abs-x-axis</name>
+                <min-range type="double">-1000.0</min-range>
+                <max-range type="double">1000.0</max-range>
+                <tolerance type="double">0.0</tolerance>
+                <output-mode>unsigned-normalized</output-mode>
+                <invert type="bool">true</invert>
+                <binding>
+                  <command>test-axis-cmd</command>
+                </binding>
+              </event>
+            </PropertyList>
+        )");
+        device->setEventName("abs-x-axis");
+
+        _axisCmd.reset();
+        FGEventData edMin{-1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edMin);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edCenter{0.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edCenter);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.5, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edMax{1000.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edMax);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
+
+        FGEventData edQuarter{-500.0, 0.016, KEYMOD_NONE};
+        device->HandleEvent(edQuarter);
+        CPPUNIT_ASSERT_DOUBLES_EQUAL(0.75, _axisCmd.lastSetting, 1e-9);
+    }
+}
