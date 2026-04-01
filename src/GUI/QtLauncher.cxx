@@ -314,7 +314,7 @@ enum class OpenGLStatus
 
 OpenGLStatus checkForWorkingOpenGL()
 {
-    // offscren context creation isn't supported
+    // offscreen context creation isn't supported
     // until very recent Qt versions, so the check below fails
     // https://gitlab.com/flightgear/flightgear/-/work_items/3386
     if (static_qApp->platformName() == "wayland") {
