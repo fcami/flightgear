@@ -86,10 +86,9 @@ void sentryTraceSimgearThrow(const std::string& msg, const std::string& origin, 
         return;
     }
 
-    sentry_value_t exc = sentry_value_new_object();
-    sentry_value_set_by_key(exc, "type", sentry_value_new_string("Exception"));
+    sentry_value_t exc = sentry_value_new_exception("Exception", msg.c_str());
+    sentry_value_set_stacktrace(exc, NULL, 0);
 
-    std::string message = msg;
     sentry_value_t info = sentry_value_new_object();
     if (!origin.empty()) {
         sentry_value_set_by_key(info, "origin", sentry_value_new_string(origin.c_str()));
@@ -101,12 +100,9 @@ void sentryTraceSimgearThrow(const std::string& msg, const std::string& origin, 
     }
 
     sentry_set_context("what", info);
-    sentry_value_set_by_key(exc, "value", sentry_value_new_string(message.c_str()));
 
     sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "exception", exc);
-
-    sentry_event_value_add_stacktrace(event, nullptr, 0);
+    sentry_event_add_exception(event, exc);
     sentry_capture_event(event);
 }
 
@@ -129,30 +125,40 @@ public:
         // we need original priority here, so we don't record MANDATORY_INFO
         // or DEV_ messages, which would get noisy.
         const auto op = e.originalPriority;
-        if ((op != SG_WARN) && (op != SG_ALERT)) {
-            return true;
+        if ((op == SG_MANDATORY_INFO) || (op == SG_DEV_WARN) || (op == SG_DEV_ALERT)) {
+            return false;
         }
 
         if ((e.debugClass == SG_OSG) && doesStringMatchPrefixes(e.message, OSG_messageWhitelist)) {
-            return true;
+            return false;
         }
 
         if (doesStringMatchPrefixes(e.message, general_messageWhitelist)) {
-            return true;
+            return false;
         }
 
-        if (e.message == _lastLoggedMessage) {
-            _lastLoggedCount++;
-            return true;
+        const auto message = e.message.c_str();
+        switch (e.debugPriority) {
+        case SG_INFO:
+            sentry_log_info(message);
+            break;
+
+        case SG_WARN:
+            sentry_log_warn(message);
+            break;
+
+        case SG_ALERT:
+            sentry_log_error(message);
+            break;
+
+        case SG_DEBUG:
+            sentry_log_debug(message);
+            break;
+
+        default:
+            return false;
         }
 
-        if (_lastLoggedCount > 0) {
-            flightgear::addSentryBreadcrumb("(repeats " + std::to_string(_lastLoggedCount) + " times)", "info");
-            _lastLoggedCount = 0;
-        }
-
-        _lastLoggedMessage = e.message;
-        flightgear::addSentryBreadcrumb(e.message, (op == SG_WARN) ? "warning" : "error");
         return true;
     }
 
@@ -187,33 +193,22 @@ void sentrySimgearReportCallback(const std::string& msg, const std::string& more
         }
     }
 
-    sentry_value_t exc = sentry_value_new_object();
-    if (isFatal) {
-        sentry_value_set_by_key(exc, "type", sentry_value_new_string("Fatal Error"));
-    } else {
-        sentry_value_set_by_key(exc, "type", sentry_value_new_string("Exception"));
-    }
-
-    sentry_value_set_by_key(exc, "value", sentry_value_new_string(msg.c_str()));
+    sentry_value_t exc = sentry_value_new_exception(isFatal ? "Fatal Error" : "Exception", msg.c_str());
+    sentry_value_set_stacktrace(exc, NULL, 0);
 
     sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "exception", exc);
-
-    sentry_event_value_add_stacktrace(event, nullptr, 0);
+    sentry_event_add_exception(event, exc);
     sentry_capture_event(event);
 }
 
 void sentryReportBadAlloc()
 {
     if (simgear::ReportBadAllocGuard::isSet()) {
-        sentry_value_t sentryMessage = sentry_value_new_object();
-        sentry_value_set_by_key(sentryMessage, "type", sentry_value_new_string("Fatal Error"));
-        sentry_value_set_by_key(sentryMessage, "formatted", sentry_value_new_string("bad allocation"));
+        sentry_value_t exc = sentry_value_new_exception("Fatal Error", "bad allocation");
+        sentry_value_set_stacktrace(exc, NULL, 0);
 
         sentry_value_t event = sentry_value_new_event();
-        sentry_value_set_by_key(event, "message", sentryMessage);
-
-        sentry_event_value_add_stacktrace(event, nullptr, 0);
+        sentry_event_add_exception(event, exc);
         sentry_capture_event(event);
     }
 
@@ -231,18 +226,11 @@ bool sentryReportCommand(const SGPropertyNode* args, SGPropertyNode* root)
         return false;
     }
 
-    sentry_value_t exc = sentry_value_new_object();
-    sentry_value_set_by_key(exc, "type", sentry_value_new_string("Report"));
-
     const auto message = args->getStringValue("message");
-    sentry_value_set_by_key(exc, "value", sentry_value_new_string(message.c_str()));
 
-    sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "exception", exc);
-    // capture the C++ stack-trace. Probably not that useful but can't hurt
-    sentry_event_value_add_stacktrace(event, nullptr, 0);
-
-    sentry_capture_event(event);
+    // TODO: make the level settable via an argument?
+    sentry_value_t msgEv = sentry_value_new_message_event(SENTRY_LEVEL_INFO, nullptr, message.c_str());
+    sentry_capture_event(msgEv);
 
     return true;
 }
@@ -313,6 +301,7 @@ void initSentry(bool quiet)
     }
 
     sentry_options_set_dist(options, REVISION);
+    sentry_options_set_enable_logs(options, 1);
 
     // for dev / nightly builds, put Sentry in debug mode
     if (!quiet && strcmp(FG_BUILD_TYPE, "Release")) {
@@ -386,7 +375,7 @@ void delayedSentryInit()
     // allow the user to opt-out of sentry.io features
     if (!fgGetBool("/sim/startup/sentry-crash-reporting-enabled", true)) {
         SG_LOG(SG_GENERAL, SG_INFO, "Disabling Sentry.io reporting");
-        sentry_shutdown();
+        sentry_close();
         static_sentryEnabled = false;
         return;
     }
@@ -402,7 +391,7 @@ void delayedSentryInit()
 void shutdownSentry()
 {
     if (static_sentryEnabled) {
-        sentry_shutdown();
+        sentry_close();
         static_sentryEnabled = false;
     }
 }
@@ -479,23 +468,13 @@ void sentryReportException(const std::string& msg, const std::string& location)
     if (!static_sentryEnabled)
         return;
 
-    sentry_value_t exc = sentry_value_new_object();
-    sentry_value_set_by_key(exc, "type", sentry_value_new_string("Exception"));
+    sentry_value_t exc = sentry_value_new_exception("Exception", msg.c_str());
+    sentry_value_set_stacktrace(exc, NULL, 0);
 
-
-    sentry_value_t info = sentry_value_new_object();
-    if (!location.empty()) {
-        sentry_value_set_by_key(info, "location", sentry_value_new_string(location.c_str()));
-    }
-    sentry_set_context("what", info);
-
-    sentry_value_set_by_key(exc, "value", sentry_value_new_string(msg.c_str()));
+    sentry_value_set_by_key(exc, "location", sentry_value_new_string(location.c_str()));
 
     sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "exception", exc);
-
-    // capture the C++ stack-trace. Probably not that useful but can't hurt
-    sentry_event_value_add_stacktrace(event, nullptr, 0);
+    sentry_event_add_exception(event, exc);
     sentry_capture_event(event);
 }
 
@@ -504,45 +483,38 @@ void sentryReportFatalError(const std::string& msg, const std::string& more)
     if (!static_sentryEnabled)
         return;
 
-    sentry_value_t sentryMessage = sentry_value_new_object();
-    sentry_value_set_by_key(sentryMessage, "type", sentry_value_new_string("Fatal Error"));
+    sentry_value_t exc = sentry_value_new_exception("FatalError", msg.c_str());
+    sentry_value_set_stacktrace(exc, NULL, 0);
 
-    sentry_value_t info = sentry_value_new_object();
     if (!more.empty()) {
-        sentry_value_set_by_key(info, "more", sentry_value_new_string(more.c_str()));
+        sentry_value_set_by_key(exc, "more", sentry_value_new_string(more.c_str()));
     }
 
-    sentry_set_context("what", info);
-    sentry_value_set_by_key(sentryMessage, "formatted", sentry_value_new_string(msg.c_str()));
-
     sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "message", sentryMessage);
-
-    sentry_event_value_add_stacktrace(event, nullptr, 0);
+    sentry_event_add_exception(event, exc);
     sentry_capture_event(event);
 }
 
-void sentryReportUserError(const std::string& aggregate, const std::string& parameter, const std::string& details)
+void sentryReportUserError(const std::string& aggregate, const std::string& parameter,
+                           const std::vector<SentryExceptionData>& exceptions)
 {
-    if (!static_sentryEnabled)
-        return;
-
-    sentry_value_t sentryMessage = sentry_value_new_object();
-    sentry_value_set_by_key(sentryMessage, "type", sentry_value_new_string("Error"));
-
-    sentry_value_t info = sentry_value_new_object();
-    sentry_value_set_by_key(info, "details", sentry_value_new_string(details.c_str()));
-
-    sentry_set_context("what", info);
+    sentry_value_t event = sentry_value_new_event();
 
     auto m = aggregate;
     if (!parameter.empty()) {
         m += ":" + parameter;
     }
 
-    sentry_value_t event = sentry_value_new_event();
-    sentry_value_set_by_key(event, "message", sentry_value_new_string(m.c_str()));
+    sentry_value_set_by_key(event, "aggregate", sentry_value_new_string(m.c_str()));
 
+    for (const auto& ex : exceptions) {
+        sentry_value_t exc = sentry_value_new_exception(ex.type.c_str(), ex.value.c_str());
+        if (!ex.location.empty()) {
+            sentry_value_set_by_key(exc, "location", sentry_value_new_string(ex.location.c_str()));
+        }
+
+        sentry_event_add_exception(event, exc);
+    }
     sentry_capture_event(event);
 }
 
@@ -601,7 +573,8 @@ void sentryReportFatalError(const std::string&, const std::string&)
 {
 }
 
-void sentryReportUserError(const std::string&, const std::string&, const std::string&)
+void sentryReportUserError(const std::string& aggregate, const std::string& parameter,
+                           const std::vector<SentryExceptionData>& exceptions)
 {
 }
 

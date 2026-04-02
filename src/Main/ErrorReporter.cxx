@@ -413,10 +413,16 @@ public:
             }
         }
 
+        std::vector<SentryExceptionData> occurrences;
+        for (const auto& e : report.errors) {
+            const auto m = static_errorIds.at(static_cast<int>(e.code)) + "-" + static_errorTypeIds.at(static_cast<int>(e.type));
+            occurrences.emplace_back(m, e.detailedInfo, e.origin.asString());
+        }
+
         const int catId = static_cast<int>(report.type);
         flightgear::sentryReportUserError(static_categoryIds.at(catId),
                                           report.parameter,
-                                          _displayNode->getStringValue());
+                                          occurrences);
     }
 
     void writeReportToStream(const AggregateReport& report, std::ostream& os) const;
