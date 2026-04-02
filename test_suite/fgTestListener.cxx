@@ -1,7 +1,5 @@
-/*
- * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
- * SPDX-License-Identifier: GPL-2.0-or-later
- */
+// SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <cppunit/Test.h>
 #include <cppunit/TestFailure.h>
@@ -76,6 +74,8 @@ void fgTestListener::endTest(CppUnit::Test* test)
         test_data.stdio = capt.str();
 
         // The simgear logstreams.
+        std::lock_guard<std::mutex> lock(getIOstreams().log_capture_lock);
+
         capturedIO& obj = getIOstreams();
 
         test_data.sg_interleaved = obj.sg_interleaved.str();
@@ -95,6 +95,8 @@ void fgTestListener::startTest(CppUnit::Test* test)
 {
     // IO capture.
     if (!debug) {
+        std::lock_guard<std::mutex> lock(getIOstreams().log_capture_lock);
+
         // Clear the simgear logstream buffers.
         capturedIO& obj = getIOstreams();
         obj.sg_interleaved.str("");

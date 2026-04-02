@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
+ * SPDX-FileCopyrightText: 2016 Edward d'Auvergne
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
@@ -13,7 +13,6 @@
 
 // The global stream capture data structure.
 static std::unique_ptr<capturedIO> _iostreams;
-
 
 // capturedIO constructor.
 capturedIO::capturedIO() : simgear::LogCallback("test")
@@ -86,6 +85,7 @@ void setupLogging(const simgear::LogLevels levels, bool split)
     logstream &log = sglog();
 
     // Set up the logstream testing mode.
+    // (removes all existing callbacks)
     log.setTestingMode(true);
 
     // OSG IO capture.

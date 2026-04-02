@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <sstream>
 
 #include <simgear/debug/LogCallback.hxx>
@@ -32,6 +33,8 @@ public:
     std::ostringstream sg_alert_only;
 
     bool _split = false;
+
+    std::mutex log_capture_lock;
 };
 
 
