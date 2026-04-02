@@ -78,8 +78,8 @@ private:
     osg::ref_ptr<flightgear::SceneryPager> _pager;
 
     /// is caching of expired tiles enabled or not?
-    bool _enableCache;
-    bool _use_vpb;
+    bool _enableCache = true;
+
 public:
     FGTileMgr();
     ~FGTileMgr();

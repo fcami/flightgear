@@ -1,25 +1,8 @@
-// scenery.cxx -- data structures and routines for managing scenery.
-//
-// Written by Curtis Olson, started May 1997.
-//
-// Copyright (C) 1997  Curtis L. Olson  - http://www.flightgear.org/~curt
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
-// $Id$
-
+/*
+ * SPDX-FileName:scenery.cxx -- data structures and routines for managing scenery.
+ * SPDX-FileCopyrightText: 1997 Curtis L. Olson  - http://www.flightgear.org/~curt
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include <config.h>
 #include <simgear/simgear_config.h>
@@ -325,21 +308,11 @@ public:
     maskNode->getChild("aircraft", 0, true)->addChangeListener(this, true);
     maskNode->getChild("clouds", 0, true)->addChangeListener(this, true);
 
-    // legacy compatability option
+    // legacy compatibility option
     fgGetNode("/sim/rendering/draw-otw")->addChangeListener(this);
 
     // badly named property, this is what is set by --enable/disable-clouds
     fgGetNode("/environment/clouds/status")->addChangeListener(this);
-
-    auto vpb_active = fgGetNode("/scenery/use-vpb");
-    if (vpb_active) {
-        vpb_active->addChangeListener(this);
-        SGSceneFeatures::instance()->setVPBActive(vpb_active->getBoolValue());
-        flightgear::addSentryTag("use-vpb", "yes");
-
-    } else {
-        flightgear::addSentryTag("use-vpb", "no");
-    }
   }
 
   ~ScenerySwitchListener()
@@ -351,7 +324,6 @@ public:
 
     fgGetNode("/sim/rendering/draw-otw")->removeChangeListener(this);
     fgGetNode("/environment/clouds/status")->removeChangeListener(this);
-    fgGetNode("/scenery/use-vpb")->removeChangeListener(this);
   }
 
   virtual void valueChanged (SGPropertyNode * node)
@@ -359,23 +331,21 @@ public:
     bool b = node->getBoolValue();
     std::string name(node->getNameString());
 
-    if (name == "use-vpb") {
-        SGSceneFeatures::instance()->setVPBActive(b);
-    } else if (name == "terrain") {
-      _scenery->scene_graph->setChildValue(_scenery->terrain_branch, b);
+    if (name == "terrain") {
+        _scenery->scene_graph->setChildValue(_scenery->terrain_branch, b);
     } else if (name == "models") {
-      _scenery->scene_graph->setChildValue(_scenery->models_branch, b);
+        _scenery->scene_graph->setChildValue(_scenery->models_branch, b);
     } else if (name == "aircraft") {
-      _scenery->scene_graph->setChildValue(_scenery->aircraft_branch, b);
+        _scenery->scene_graph->setChildValue(_scenery->aircraft_branch, b);
     } else if (name == "clouds") {
-      // clouds live elsewhere in the scene, but we handle them here
-      globals->get_renderer()->getSky()->set_clouds_enabled(b);
+        // clouds live elsewhere in the scene, but we handle them here
+        globals->get_renderer()->getSky()->set_clouds_enabled(b);
     } else if (name == "draw-otw") {
-      // legacy setting but let's keep it working
-      fgGetNode("/sim/rendering/draw-mask")->setBoolValue("terrain", b);
-      fgGetNode("/sim/rendering/draw-mask")->setBoolValue("models", b);
+        // legacy setting but let's keep it working
+        fgGetNode("/sim/rendering/draw-mask")->setBoolValue("terrain", b);
+        fgGetNode("/sim/rendering/draw-mask")->setBoolValue("models", b);
     } else if (name == "status") {
-      fgGetNode("/sim/rendering/draw-mask")->setBoolValue("clouds", b);
+        fgGetNode("/sim/rendering/draw-mask")->setBoolValue("clouds", b);
     }
   }
 private:
@@ -408,6 +378,9 @@ void FGScenery::init() {
     if (_inited)
         return;
 
+    SGSceneFeatures::instance()->setVPBActive(true);
+    flightgear::addSentryTag("use-vpb", "yes");
+
     // Scene graph root
     scene_graph = new osg::Switch;
     scene_graph->setName( "FGScenery" );
@@ -429,9 +402,9 @@ void FGScenery::init() {
     scene_graph->addChild( aircraft_branch.get() );
 
 // choosing to make the interior branch a child of the main
-// aircraft group, for the moment. This simplifes places which
-// assume all aircraft elements are within this group - principally
-// FGODGuage::set_aircraft_texture.
+    // aircraft group, for the moment. This simplifies places which
+    // assume all aircraft elements are within this group - principally
+    // FGODGuage::set_aircraft_texture.
     interior_branch = new osg::Group;
     interior_branch->setName( "Interior" );
 
@@ -440,12 +413,12 @@ void FGScenery::init() {
     aircraft_branch->addChild( interiorLOD );
 
     // Set up the particle system as a directly accessible branch of the scene graph.
-    auto paricles = simgear::ParticlesGlobalManager::instance();
-    particles_branch = paricles->getCommonRoot();
+    auto particles = simgear::ParticlesGlobalManager::instance();
+    particles_branch = particles->getCommonRoot();
     particles_branch->setName("Particles");
     scene_graph->addChild(particles_branch.get());
-    paricles->setSwitchNode(fgGetNode("/sim/rendering/particles", true));
-    paricles->initFromMainThread();
+    particles->setSwitchNode(fgGetNode("/sim/rendering/particles", true));
+    particles->initFromMainThread();
 
     // Set up the precipitation system.
     precipitation_branch = new osg::Group;
