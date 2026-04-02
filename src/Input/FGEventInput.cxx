@@ -103,9 +103,7 @@ FGInputEvent::FGInputEvent(FGInputDevice* aDevice, SGPropertyNode_ptr eventNode)
         settings.push_back(new FGEventSetting(child));
 }
 
-FGInputEvent::~FGInputEvent()
-{
-}
+FGInputEvent::~FGInputEvent() = default;
 
 // send changed value to device (if condition matches)
 void FGInputEvent::update(double dt)
@@ -135,7 +133,7 @@ void FGInputEvent::fire(FGEventData& eventData)
 
 void FGInputEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
 {
-    binding->fire();
+    binding->fire(eventData.value);
 }
 
 FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGInputEvent(device, eventNode)
@@ -143,7 +141,6 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
     tolerance = eventNode->getDoubleValue("tolerance", 0.002);
     minRange = eventNode->getDoubleValue("min-range", 0.0);
     maxRange = eventNode->getDoubleValue("max-range", 0.0);
-    lastValue = std::numeric_limits<double>::quiet_NaN();
 
     // interpolation of values
     if (eventNode->hasChild("interpolater")) {
@@ -159,7 +156,6 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
             _outputMode = OutputMode::UnsignedNormalized;
         } else if (s == "direct") {
             _outputMode = OutputMode::Direct;
-
         } else {
             throw sg_io_exception("Invalid output mode:" + s, sg_location(eventNode));
         }
@@ -169,26 +165,31 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
         _invert = eventNode->getBoolValue("invert", false);
     }
 
-    switch (_outputMode) {
-    case OutputMode::SignedNormalized:
-        lowThreshold = eventNode->getDoubleValue("low-threshold", -0.9);
-        highThreshold = eventNode->getDoubleValue("high-threshold", 0.9);
-        center = eventNode->getDoubleValue("center", 0.0);
-        deadband = eventNode->getDoubleValue("dead-band", 0.0);
-        break;
-    case OutputMode::UnsignedNormalized:
-        lowThreshold = eventNode->getDoubleValue("low-threshold", 0.05);
-        highThreshold = eventNode->getDoubleValue("high-threshold", 0.95);
-        break;
-    case OutputMode::Direct:
-    default:
-        // DISCUSS:
-        // is this reasonable?
-        lowThreshold = eventNode->getDoubleValue("low-threshold", 0.05 * minRange);
-        highThreshold = eventNode->getDoubleValue("high-threshold", 0.95 * maxRange);
-    };
+    if (eventNode->hasChild("low")) {
+        _lowButton = ButtonEvent_ptr(new FGButtonEvent(device, eventNode->getChild("low")));
+    }
+
+    if (eventNode->hasChild("high")) {
+        _highButton = ButtonEvent_ptr(new FGButtonEvent(device, eventNode->getChild("high")));
+    }
+
+    setDefaultThresholds();
+    if (eventNode->hasChild("low-threshold") || eventNode->hasChild("high-threshold")) {
+        lowThreshold = eventNode->getDoubleValue("low-threshold", lowThreshold);
+        highThreshold = eventNode->getDoubleValue("high-threshold", highThreshold);
+    }
 }
 
+void FGAxisEvent::setDefaultThresholds()
+{
+    if (_outputMode == OutputMode::SignedNormalized) {
+        lowThreshold = -0.9;
+        highThreshold = 0.9;
+    } else if (_outputMode == OutputMode::UnsignedNormalized) {
+        lowThreshold = 0.1;
+        highThreshold = 0.9;
+    }
+}
 void FGAxisEvent::SetDefaultRange(double min, double max)
 {
     if ((minRange == 0.0) && (maxRange == 0.0)) {
@@ -198,6 +199,18 @@ void FGAxisEvent::SetDefaultRange(double min, double max)
 }
 
 FGAxisEvent::~FGAxisEvent() = default;
+
+void FGAxisEvent::update(double dt)
+{
+    FGInputEvent::update(dt);
+    // ensure buttons repeat, since this common for hats
+    if (_lowButton) {
+        _lowButton->update(dt);
+    }
+    if (_highButton) {
+        _highButton->update(dt);
+    }
+}
 
 void FGAxisEvent::fire(FGEventData& eventData)
 {
@@ -219,27 +232,40 @@ void FGAxisEvent::fire(FGEventData& eventData)
     }
 
     FGInputEvent::fire(ed);
+    const auto v = ed.value;
+    if (_lowButton) {
+        ed.value = (v < lowThreshold) ? 1.0 : 0.0;
+        _lowButton->fire(ed);
+    }
+
+    if (_highButton) {
+        ed.value = (v > highThreshold) ? 1.0 : 0.0;
+        _highButton->fire(ed);
+    }
 }
 
 double FGAxisEvent::computeValue(double rawValue) const
 {
-    SG_CLAMP_RANGE(rawValue, minRange, maxRange);
-    const auto range = maxRange - minRange;
+    const double usedMinRange = minRange;
+    const double usedMaxRange = maxRange;
+
+    SG_CLAMP_RANGE(rawValue, usedMinRange, usedMaxRange);
+    const auto range = usedMaxRange - usedMinRange;
 
     double value = rawValue;
     // normalize to -1.0 ... 1.0
     if (_outputMode == OutputMode::SignedNormalized) {
-        // apply deadband around center position
-        if (fabs(rawValue - center) < deadband) {
-            rawValue = center;
-        }
-
-        value = (2.0 * (rawValue - minRange) / range) - 1.0;
+        value = (2.0 * (rawValue - usedMinRange) / range) - 1.0;
         if (_invert) {
             value = -value;
         }
+
+        // apply deadband around center position
+        if (fabs(value - center) < deadband) {
+            value = center;
+        }
     } else if (_outputMode == OutputMode::UnsignedNormalized) {
-        value = (rawValue - minRange) / range;
+        value = (rawValue - usedMinRange) / range;
         if (_invert) {
             value = 1.0 - value;
         }
@@ -248,13 +274,6 @@ double FGAxisEvent::computeValue(double rawValue) const
             value = maxRange - (rawValue - minRange);
         }
     }
-
-    // apply low/high threshold
-    // disabled because historically not enabled, and the default settings
-    // are rather wide (10% of the total range is lost)
-#if 0
-    SG_CLAMP_RANGE(value, lowThreshold, highThreshold);
-#endif
 
     return value;
 }
@@ -282,24 +301,54 @@ FGButtonEvent::FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode
                                                                                     lastState(false)
 {
     repeatable = eventNode->getBoolValue("repeatable", repeatable);
+    if (eventNode->hasChild("output-mode")) {
+        const auto s = eventNode->getStringValue("output-mode");
+        if (s == "button") {
+            _outputMode = OutputMode::Button;
+        } else if (s == "switch") {
+            _outputMode = OutputMode::Switch;
+        } else {
+            throw sg_io_exception("Invalid output mode:" + s, sg_location(eventNode));
+        }
+    }
+
+    if (_outputMode == OutputMode::Switch) {
+        if (repeatable) {
+            throw sg_io_exception("Switch mode doesn't support repeatable events", sg_location(eventNode));
+        }
+    }
+
+    _invert = eventNode->getBoolValue("invert", false);
 }
 
 void FGButtonEvent::fire(FGEventData& eventData)
 {
     bool pressed = eventData.value > 0.0;
-    if (pressed) {
-        // The press event may be repeated.
-        if (!lastState || repeatable) {
-            SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been pressed");
-            FGInputEvent::fire(eventData);
+    if (_invert) {
+        pressed = !pressed;
+    }
+
+    if (_outputMode == OutputMode::Button) {
+        // In button mode, we fire the press event on press, and the mod-up binding on release
+        if (pressed) {
+            // The press event may be repeated.
+            if (!lastState || repeatable) {
+                SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been pressed");
+                FGInputEvent::fire(eventData);
+            }
+        } else {
+            // The release event is never repeated.
+            if (lastState) {
+                SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been released");
+                eventData.modifiers |= KEYMOD_RELEASED;
+                FGInputEvent::fire(eventData);
+            }
         }
-    } else {
-        // The release event is never repeated.
-        if (lastState) {
-            SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been released");
-            eventData.modifiers |= KEYMOD_RELEASED;
-            FGInputEvent::fire(eventData);
-        }
+    } else if (_outputMode == OutputMode::Switch) {
+        // In switch mode, we fire with value=true on press, and value=false on release
+        SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been " << (pressed ? "pressed" : "released"));
+        eventData.value = pressed ? 1.0 : 0.0;
+        FGInputEvent::fire(eventData);
     }
 
     lastState = pressed;
@@ -312,6 +361,13 @@ void FGButtonEvent::update(double dt)
         FGEventData ed{1.0, dt, 0 /* modifiers */};
         FGInputEvent::fire(ed);
     }
+}
+
+void FGButtonEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
+{
+    SGPropertyNode_ptr args(new SGPropertyNode);
+    args->setBoolValue("value", eventData.value > 0.0);
+    binding->fire(args);
 }
 
 FGInputDevice::~FGInputDevice()
@@ -576,7 +632,7 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     bool ok = inputDevice->Open();
     if (!ok) {
-        // TODO repot a better error here, to the user
+        // TODO report a better error here, to the user
         SG_LOG(SG_INPUT, SG_ALERT, "can't open InputDevice " << inputDevice->GetUniqueName());
         delete inputDevice;
         return INVALID_DEVICE_INDEX;

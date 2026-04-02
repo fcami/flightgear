@@ -55,6 +55,52 @@ bool shouldPrefixWithAbs(uint32_t usagePage, uint32_t usage)
     return false;
 }
 
+
+static int hatXValue(int hatValue)
+{
+    switch (hatValue) {
+    case 0:
+    case 1:
+        return 0;
+    case 2:
+    case 3:
+    case 4:
+        return 1;
+    case 5:
+        return 0;
+    case 6:
+    case 7:
+    case 8:
+        return -1;
+    default:
+        return 0;
+    }
+}
+
+static int hatYValue(int hatValue)
+{
+    switch (hatValue) {
+    case 0:
+        return 0;
+    case 1:
+    case 2:
+        return 1;
+    case 3:
+        return 0;
+    case 4:
+    case 5:
+    case 6:
+        return -1;
+    case 7:
+        return 0;
+    case 8:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+
 ReportType reportTypeFromString(const std::string& s)
 {
     if (s == "input") return ReportType::In;
@@ -112,6 +158,9 @@ public:
         // hopefully this doesn't need to be a list
         int logicalMin = 0, logicalMax = 0;
         FGInputEvent_ptr event;
+        bool isHatX = false;
+        bool isHatY = false;
+        bool zeroIsCenter = false; // is 0 the center, or North?
     };
 
 private:
@@ -149,6 +198,9 @@ private:
                             double dt, int keyModifiers);
 
     int maybeSignExtend(Item* item, int inValue);
+    int adjustHatValue(Item* item, int inValue);
+
+    void generateHatEvents(Item* item, int value, double dt, int keyModifiers);
 
     void defineReport(SGPropertyNode_ptr reportNode);
 
@@ -419,10 +471,8 @@ void FGHIDDevice::parseItem(hid_item* item)
             existingItem.second->name += "-0";
         }
 
-        // define the new nae
-        std::stringstream os;
-        os << name << "-" << existingCount;
-        name = os.str();
+        // define the new name
+        name = name + "-" + std::to_string(existingCount);
     }
 
     auto report = getReport(ty, item->report_id, true /* create */);
@@ -437,7 +487,29 @@ void FGHIDDevice::parseItem(hid_item* item)
     itemObject->doSignExtend = (item->logical_min < 0) || (item->logical_max < 0);
     itemObject->logicalMin = item->logical_min;
     itemObject->logicalMax = item->logical_max;
+
     report->items.push_back(itemObject);
+    // synthesies axes for hats, to match Linux Event Input behaviour
+    // also makes porting legacy joystick configs easier
+    const auto u = HID::usage(item->usage);
+    if ((u.first == HID::UsagePage::GenericDesktop) && (u.second == HID::GD_Hatswitch)) {
+        const bool zeroIsCenter = (item->logical_min == 1) && (item->logical_max == 8);
+        // FIXME : multiple hats will not work here, because they won't get renamed
+        // when we suffix the item
+        Item* hatXAxis = new Item(name + "-x", bitOffset, item->report_size);
+        hatXAxis->logicalMin = -1;
+        hatXAxis->logicalMax = 1;
+        hatXAxis->isHatX = true;
+        hatXAxis->zeroIsCenter = zeroIsCenter;
+        report->items.push_back(hatXAxis);
+
+        Item* hatYAxis = new Item(name + "-y", bitOffset, item->report_size);
+        hatYAxis->logicalMin = -1;
+        hatYAxis->logicalMax = 1;
+        hatYAxis->isHatY = true;
+        hatYAxis->zeroIsCenter = zeroIsCenter;
+        report->items.push_back(hatYAxis);
+    }
 }
 
 void FGHIDDevice::Close()
@@ -525,6 +597,19 @@ int FGHIDDevice::maybeSignExtend(Item* item, int inValue)
     return item->doSignExtend ? signExtend(inValue, item->bitSize) : inValue;
 }
 
+int FGHIDDevice::adjustHatValue(Item* item, int inValue)
+{
+    if (item->zeroIsCenter) {
+        return inValue;
+    }
+    // really corresponds to -1, but we don't sign-extend
+    else if (inValue == 15) {
+        return 0;
+    } else {
+        return inValue + 1;
+    }
+}
+
 void FGHIDDevice::processInputReport(Report* report, unsigned char* data,
                                      size_t length,
                                      double dt, int keyModifiers)
@@ -535,9 +620,15 @@ void FGHIDDevice::processInputReport(Report* report, unsigned char* data,
     }
 
     for (auto item : report->items) {
-        int value = extractBits(data, length, item->bitOffset, item->bitSize);
-
-        value = maybeSignExtend(item, value);
+        const int rawValue = extractBits(data, length, item->bitOffset, item->bitSize);
+        int value = maybeSignExtend(item, rawValue);
+        // do this *before* the lastValue check, so we don't generate events
+        // on axes that aren't changing
+        if (item->isHatX) {
+            value = HID::hatXValue(adjustHatValue(item, value));
+        } else if (item->isHatY) {
+            value = HID::hatYValue(adjustHatValue(item, value));
+        }
 
         // suppress events for values that aren't changing
         if (item->isRelative) {
@@ -751,9 +842,7 @@ FGHIDEventInput::FGHIDEventInput() : FGEventInput("Input/HID", "/input/hid"),
     d->p = this; // store back pointer to outer object on pimpl
 }
 
-FGHIDEventInput::~FGHIDEventInput()
-{
-}
+FGHIDEventInput::~FGHIDEventInput() = default;
 
 void FGHIDEventInput::reinit()
 {

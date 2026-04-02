@@ -34,6 +34,8 @@ struct FGEventData {
     double dt{0.0};
 };
 
+class FGButtonEvent;
+using ButtonEvent_ptr = SGSharedPtr<FGButtonEvent>;
 
 /*
  * A wrapper class for a configured event.
@@ -103,9 +105,19 @@ public:
 
     void update(double dt) override;
 
+    enum class OutputMode {
+        Button, ///< fire on press, do mod-up binding on release
+        Switch  ///< fire with value=true on press, value=false on release
+    };
+
 protected:
+    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
+
     bool repeatable;
     bool lastState;
+
+    bool _invert = false;
+    OutputMode _outputMode = OutputMode::Button;
 };
 
 class FGAxisEvent : public FGInputEvent
@@ -113,6 +125,8 @@ class FGAxisEvent : public FGInputEvent
 public:
     FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
     ~FGAxisEvent();
+
+    void update(double dt) override;
 
     void SetRange(double min, double max)
     {
@@ -136,6 +150,7 @@ protected:
     void fire(FGEventData& eventData) override;
 
     double computeValue(double rawValue) const;
+    void setDefaultThresholds();
 
     double tolerance;
     double minRange;
@@ -144,13 +159,15 @@ protected:
     double deadband;
     double lowThreshold;
     double highThreshold;
-    double lastValue;
+    double lastValue = std::numeric_limits<double>::quiet_NaN();
 
     std::unique_ptr<SGInterpTable> interpolater;
     bool mirrorInterpolater = false;
 
     bool _invert = false;
     OutputMode _outputMode = OutputMode::SignedNormalized;
+
+    ButtonEvent_ptr _lowButton, _highButton;
 };
 
 class FGRelAxisEvent : public FGAxisEvent
