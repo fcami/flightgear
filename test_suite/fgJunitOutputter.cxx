@@ -70,17 +70,17 @@ void fgJunitOutputter::printFailureDetail(CppUnit::TestFailure* failure)
 
     // SG_LOG IO streams.
     if (!test_data.sg_interleaved.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, " + test_data.log_priority + " priority", test_data.sg_interleaved, true);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, interleaved", test_data.sg_interleaved, true);
     if (!test_data.sg_bulk_only.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, SG_BULK only priority", test_data.sg_bulk_only);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, SG_BULK only priority", test_data.sg_bulk_only);
     if (!test_data.sg_debug_only.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, SG_DEBUG only priority", test_data.sg_debug_only);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, SG_DEBUG only priority", test_data.sg_debug_only);
     if (!test_data.sg_info_only.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, SG_INFO only priority", test_data.sg_info_only);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, SG_INFO only priority", test_data.sg_info_only);
     if (!test_data.sg_warn_only.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, SG_WARN only priority", test_data.sg_warn_only);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, SG_WARN only priority", test_data.sg_warn_only);
     if (!test_data.sg_alert_only.empty())
-        fgJunitOutputter::printIOStreamMessages("SG_LOG, " + test_data.log_class + " class, SG_ALERT only priority", test_data.sg_alert_only);
+        fgJunitOutputter::printIOStreamMessages("SG_LOG, SG_ALERT only priority", test_data.sg_alert_only);
 
     // Default IO streams.
     fgJunitOutputter::printIOStreamMessages("STDOUT and STDERR", test_data.stdio);

@@ -1,22 +1,7 @@
 /*
- * Copyright (C) 2016 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
-
 
 #include <cppunit/Test.h>
 #include <cppunit/TestFailure.h>
@@ -92,8 +77,7 @@ void fgTestListener::endTest(CppUnit::Test* test)
 
         // The simgear logstreams.
         capturedIO& obj = getIOstreams();
-        test_data.log_class = obj.log_class;
-        test_data.log_priority = obj.log_priority;
+
         test_data.sg_interleaved = obj.sg_interleaved.str();
         test_data.sg_bulk_only = obj.sg_bulk_only.str();
         test_data.sg_debug_only = obj.sg_debug_only.str();

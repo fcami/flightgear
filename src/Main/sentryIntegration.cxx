@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "config.h"
+#include "simgear/debug/debug_types.h"
 
 #include "sentryIntegration.hxx"
 
@@ -112,12 +113,19 @@ void sentryTraceSimgearThrow(const std::string& msg, const std::string& origin, 
 class SentryLogCallback : public simgear::LogCallback
 {
 public:
-    SentryLogCallback() : simgear::LogCallback(SG_ALL, SG_WARN)
+    SentryLogCallback() : simgear::LogCallback("sentry-log")
     {
+        simgear::LogLevels l;
+        l.set(SG_ALL, SG_WARN);
+        setLogLevels(l);
     }
 
     bool doProcessEntry(const simgear::LogEntry& e) override
     {
+        if (!shouldLog(e.debugClass, e.debugPriority)) {
+            return false;
+        }
+
         // we need original priority here, so we don't record MANDATORY_INFO
         // or DEV_ messages, which would get noisy.
         const auto op = e.originalPriority;

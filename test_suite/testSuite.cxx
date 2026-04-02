@@ -1,20 +1,6 @@
 /*
- * Copyright (C) 2016-2018 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include <algorithm>
@@ -22,6 +8,7 @@
 #include <iostream>
 
 #include <simgear/debug/logstream.hxx>
+#include <simgear/misc/strutils.hxx>
 
 #include "dataStore.hxx"
 #include "fgTestRunner.hxx"
@@ -62,14 +49,8 @@ void helpPrintout(std::ostream &stream) {
     stream << "        --> fgfs_test_suite --no-summary -d -u NavRadioTests::testGS\n";
     stream << '\n';
     stream << "  Logging options:\n";
-    stream << "    --log-level={bulk,debug,info,warn,alert,popup,dev_warn,dev_alert}\n";
-    stream << "                        specify the minimum logging level to output\n";
-    stream << "    --log-class=[none, terrain, astro, flight, input, gl, view, cockpit,\n";
-    stream << "                 general, math, event, aircraft, autopilot, io, clipper,\n";
-    stream << "                 network, atc, nasal, instrumentation, systems, ai, environment,\n";
-    stream << "                 sound, navaid, gui, terrasync, particles, headless, osg,\n";
-    stream << "                 undefined, all]\n";
-    stream << "                        select the logging class(es) to output.\n";
+    stream << "    --log <log_spec>    define logging as a list of category=level tuples\n";
+    stream << "                        eg atc=off,terrain=warn,all=info\n";
     stream << "    --log-split         output the different non-interleaved log streams\n";
     stream << "                        sequentially.\n";
     stream << '\n';
@@ -84,8 +65,7 @@ void helpPrintout(std::ostream &stream) {
     stream << "    --fg-root           the path to FGData.\n";
     stream << '\n';
     stream << "Environmental variables:\n";
-    stream << "  FG_TEST_LOG_LEVEL     equivalent to the --log-level option.\n";
-    stream << "  FG_TEST_LOG_CLASS     equivalent to the --log-class option.\n";
+    stream << "  FG_TEST_LOGGING       equivalent to the --log option.\n";
     stream << "  FG_TEST_LOG_SPLIT     equivalent to the --log-split option.\n";
     stream << "  FG_TEST_TIMINGS       equivalent to the -t or --timings option.\n";
     stream << "  FG_TEST_DEBUG         equivalent to the -d or --debug option.\n";
@@ -93,131 +73,6 @@ void helpPrintout(std::ostream &stream) {
     stream << "                         --fg-root, the FG_DATA_DIR CMake option, FG_ROOT,\n";
     stream << "                        '../fgdata/', and '../data/'.\n";
     stream.flush();
-}
-
-
-// Convert the log class comma separated string list into a simgear debug class value.
-sgDebugClass processLogClass(std::string classList, bool &failure) {
-    // Declarations.
-    std::string logClassItem, val;
-    unsigned int logClass=0;
-
-    // Convert the command line value into a string array.
-    std::replace(classList.begin(), classList.end(), ',', ' ');
-    std::vector<std::string> logClasses;
-    stringstream temp(classList);
-    while (temp >> val)
-        logClasses.push_back(val);
-
-    // Build up the value.
-    for (auto const& logClassItem: logClasses)
-        if (logClassItem == "none")
-            logClass |= SG_NONE;
-        else if (logClassItem == "terrain")
-            logClass |= SG_TERRAIN;
-        else if (logClassItem == "astro")
-            logClass |= SG_ASTRO;
-        else if (logClassItem == "flight")
-            logClass |= SG_FLIGHT;
-        else if (logClassItem == "input")
-            logClass |= SG_INPUT;
-        else if (logClassItem == "gl")
-            logClass |= SG_GL;
-        else if (logClassItem == "view")
-            logClass |= SG_VIEW;
-        else if (logClassItem == "cockpit")
-            logClass |= SG_COCKPIT;
-        else if (logClassItem == "general")
-            logClass |= SG_GENERAL;
-        else if (logClassItem == "math")
-            logClass |= SG_MATH;
-        else if (logClassItem == "event")
-            logClass |= SG_EVENT;
-        else if (logClassItem == "aircraft")
-            logClass |= SG_AIRCRAFT;
-        else if (logClassItem == "autopilot")
-            logClass |= SG_AUTOPILOT;
-        else if (logClassItem == "io")
-            logClass |= SG_IO;
-        else if (logClassItem == "clipper")
-            logClass |= SG_CLIPPER;
-        else if (logClassItem == "network")
-            logClass |= SG_NETWORK;
-        else if (logClassItem == "atc")
-            logClass |= SG_ATC;
-        else if (logClassItem == "nasal")
-            logClass |= SG_NASAL;
-        else if (logClassItem == "instrumentation")
-            logClass |= SG_INSTR;
-        else if (logClassItem == "systems")
-            logClass |= SG_SYSTEMS;
-        else if (logClassItem == "ai")
-            logClass |= SG_AI;
-        else if (logClassItem == "environment")
-            logClass |= SG_ENVIRONMENT;
-        else if (logClassItem == "sound")
-            logClass |= SG_SOUND;
-        else if (logClassItem == "navaid")
-            logClass |= SG_NAVAID;
-        else if (logClassItem == "gui")
-            logClass |= SG_GUI;
-        else if (logClassItem == "terrasync")
-            logClass |= SG_TERRASYNC;
-        else if (logClassItem == "particles")
-            logClass |= SG_PARTICLES;
-        else if (logClassItem == "headless")
-            logClass |= SG_HEADLESS;
-        else if (logClassItem == "osg")
-            logClass |= SG_OSG;
-        else if (logClassItem == "undefined")
-            logClass |= SG_UNDEFD;
-        else if (logClassItem == "all")
-            logClass |= SG_ALL;
-        else {
-            std::cout << "The log class \"" << logClassItem << "\" must be one of:" << std::endl;
-            std::cout << "    {none, terrain, astro, flight, input, gl, view, cockpit, general, math," << std::endl;
-            std::cout << "    event, aircraft, autopilot, io, clipper, network, atc, nasal," << std::endl;
-            std::cout << "    instrumentation, systems, ai, environment, sound, navaid, gui, terrasync," << std::endl;
-            std::cout << "    particles, headless, osg, undefined, all}" << std::endl << std::endl;
-            std::cout.flush();
-            failure = true;
-        }
-
-    // Return a simgear debug class.
-    return sgDebugClass(logClass);
-}
-
-
-// Convert the log priority string into a simgear debug priority value.
-sgDebugPriority processLogPriority(std::string logLevel, bool &failure) {
-    // Declarations.
-    sgDebugPriority logPriority=SG_INFO;
-
-    // Conversion.
-    if (logLevel == "bulk")
-        logPriority = SG_BULK;
-    else if (logLevel == "debug")
-        logPriority = SG_DEBUG;
-    else if (logLevel == "info")
-        logPriority = SG_INFO;
-    else if (logLevel == "warn")
-        logPriority = SG_WARN;
-    else if (logLevel == "alert")
-        logPriority = SG_ALERT;
-    else if (logLevel == "popup")
-        logPriority = SG_POPUP;
-    else if (logLevel == "dev_warn")
-        logPriority = SG_DEV_WARN;
-    else if (logLevel == "dev_alert")
-        logPriority = SG_DEV_ALERT;
-    else {
-        std::cout << "The log level setting of \"" << logLevel << "\" must be one of {bulk,debug,info,warn,alert,popup,dev_warn,dev_alert}.\n\n";
-        std::cout.flush();
-        failure = true;
-    }
-
-    // Return the simgear debug priority.
-    return logPriority;
 }
 
 
@@ -291,15 +146,18 @@ int main(int argc, char **argv)
     std::string arg, delim, fgRoot, logClassVal, logLevel;
     size_t      delimPos;
 
-    // The default logging class and priority to show.
-    sgDebugClass    logClass=SG_ALL;
-    sgDebugPriority logPriority=SG_INFO;
+    simgear::LogLevels logLevels;
+    logLevels.set(SG_ALL, SG_INFO);
 
     // Process environmental variables before the command line options.
-    if (getenv("FG_TEST_LOG_LEVEL"))
-        logPriority = processLogPriority(getenv("FG_TEST_LOG_LEVEL"), failure);
-    if (getenv("FG_TEST_LOG_CLASS"))
-        logClass = processLogClass(getenv("FG_TEST_LOG_CLASS"), failure);
+    if (getenv("FG_TEST_LOGGING")) {
+        auto ll = simgear::parseLogSpecFromString(getenv("FG_TEST_LOGGING"));
+        if (!ll) {
+            return 1;
+        }
+        logLevels = *ll;
+    }
+
     if (getenv("FG_TEST_LOG_SPLIT"))
         logSplit = true;
     if (getenv("FG_TEST_TIMINGS"))
@@ -348,25 +206,16 @@ int main(int argc, char **argv)
                 subset_fgdata = argv[i+1];
 
         // Log class.
-        } else if (arg.find( "--log-class" ) == 0) {
+        } else if (arg.find("--logging") == 0) {
             // Process the command line.
-            logClass = SG_NONE;
-            delimPos = arg.find('=');
-            logClassVal = arg.substr(delimPos + 1);
-            logClass = processLogClass(logClassVal, failure);
-            if (failure)
+            auto ll = simgear::parseLogSpecFromString(arg);
+            if (!ll) {
                 return 1;
+            }
 
-        // Log level.
-        } else if (arg.find( "--log-level" ) == 0) {
-            // Process the command line level.
-            delimPos = arg.find('=');
-            logLevel = arg.substr(delimPos + 1);
-            logPriority = processLogPriority(logLevel, failure);
-            if (failure)
-                return 1;
+            logLevels = *ll;
 
-        // Log splitting.
+            // Log splitting.
         } else if (arg == "--log-split") {
             logSplit = true;
 
@@ -428,9 +277,9 @@ int main(int argc, char **argv)
     // Set up logging.
     sglog().setDeveloperMode(true);
     if (debug)
-        sglog().setLogLevels(sgDebugClass(logClass), logPriority);
+        sglog().setLogLevels(logLevels);
     else
-        setupLogging(sgDebugClass(logClass), logPriority, logSplit);
+        setupLogging(logLevels, logSplit);
 
     // Execute each of the test suite categories.
     if (run_system)

@@ -1,22 +1,8 @@
-/*
- * Copyright (C) 2016 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
 
+/*
+ * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #include <algorithm>
 #include <iomanip>
@@ -69,17 +55,17 @@ void fgCompilerOutputter::printFailureDetail(CppUnit::TestFailure *failure)
 
     // SG_LOG IO streams.
     if (!test_data.sg_interleaved.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, "+test_data.log_priority+" priority", test_data.sg_interleaved, true);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, interleaved", test_data.sg_interleaved, true);
     if (!test_data.sg_bulk_only.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, SG_BULK only priority", test_data.sg_bulk_only);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, SG_BULK only priority", test_data.sg_bulk_only);
     if (!test_data.sg_debug_only.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, SG_DEBUG only priority", test_data.sg_debug_only);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, SG_DEBUG only priority", test_data.sg_debug_only);
     if (!test_data.sg_info_only.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, SG_INFO only priority", test_data.sg_info_only);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, SG_INFO only priority", test_data.sg_info_only);
     if (!test_data.sg_warn_only.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, SG_WARN only priority", test_data.sg_warn_only);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, SG_WARN only priority", test_data.sg_warn_only);
     if (!test_data.sg_alert_only.empty())
-        fgCompilerOutputter::printIOStreamMessages("SG_LOG, "+test_data.log_class+" class, SG_ALERT only priority", test_data.sg_alert_only);
+        fgCompilerOutputter::printIOStreamMessages("SG_LOG, SG_ALERT only priority", test_data.sg_alert_only);
 
     // Default IO streams.
     fgCompilerOutputter::printIOStreamMessages("STDOUT and STDERR", test_data.stdio);

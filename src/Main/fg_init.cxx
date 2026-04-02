@@ -573,11 +573,13 @@ void fgInitLogging(const std::string& pri)
         return;
     }
 
-    sgDebugPriority fileLogLevel = SG_INFO;
+    simgear::LogLevels fileLogLevel;
+    fileLogLevel.set(SG_ALL, SG_INFO);
     // https://sourceforge.net/p/flightgear/codetickets/2100/
     if (!pri.empty()) {
         try {
-            fileLogLevel = std::min(fileLogLevel, logstream::priorityFromString(pri));
+            auto priVal = simgear::priorityFromString(pri);
+            fileLogLevel.set(SG_ALL, priVal);
         } catch (std::exception&) {
             // let's not worry about this, and just log at INFO
         }
@@ -588,7 +590,8 @@ void fgInitLogging(const std::string& pri)
         rotateOldLogFiles();
     }
 
-    static_logToHomeCallback = sglog().logToFile(logPath, SG_ALL, fileLogLevel);
+    static_logToHomeCallback = sglog().logToFile("fghome-log", logPath);
+    static_logToHomeCallback->setLogLevels(fileLogLevel);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

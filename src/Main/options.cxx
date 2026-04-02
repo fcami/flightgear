@@ -9,10 +9,11 @@
 
 #include <ostream>
 #include <simgear/compiler.h>
-#include <simgear/structure/exception.hxx>
+#include <simgear/debug/LogCallback.hxx>
 #include <simgear/debug/logstream.hxx>
-#include <simgear/timing/sg_time.hxx>
 #include <simgear/misc/sg_dir.hxx>
+#include <simgear/structure/exception.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <nlohmann/json.hpp>
 
@@ -179,7 +180,6 @@ void fgSetDefaults ()
     // specified so we can do the right thing for voodoo-1/2 cards.
     // fgSetString("/sim/startup/mouse-pointer", "false");
     fgSetBool("/controls/flight/auto-coordination", false);
-    fgSetString("/sim/logging/priority", "alert");
 
     // Features
     fgSetBool("/sim/hud/color/antialiased", false);
@@ -1162,8 +1162,8 @@ fgOptLogDir(const char* arg)
         }
     }
 
-    sglog().logToFile(logFile, sglog().get_log_classes(), sglog().get_log_priority());
-
+    auto cb = sglog().logToFile("file", logFile);
+    cb->setLogLevels(sglog().consoleLogLevels());
     return FG_OPTIONS_OK;
 }
 

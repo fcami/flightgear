@@ -2,7 +2,7 @@
  * SPDX-FileName: JSBsim.cxx
  * SPDX-FileComment: interface to the JSBsim flight model
  * SPDX-FileCopyrightText: Copyright (C) 1999  Curtis L. Olson  - curt@flightgear.org
- * SPDX-License-Identifier: LGPL-2.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifdef HAVE_CONFIG_H
@@ -137,32 +137,29 @@ FGJSBsim::FGJSBsim( double dt )
     // FIXME: this will not respond to
     // runtime changes
 
-    if ((sglog().get_log_classes() & SG_FLIGHT) != 0) {
+    const auto fdmLogPriority = sglog().get_log_priority(SG_FLIGHT) ;
 
-                                // do a rough-and-ready mapping to
-                                // the levels documented in FGFDMExec.h
-        switch (sglog().get_log_priority()) {
-        case SG_BULK:
-            FGJSBBase::debug_lvl = 0x1f;
-            break;
-        case SG_DEBUG:
-            FGJSBBase::debug_lvl = 0x1f;
-        case SG_INFO:
-        case SG_WARN:
-        case SG_ALERT:
-        case SG_POPUP:
-            FGJSBBase::debug_lvl = 0x00;
-            break;
+                              // do a rough-and-ready mapping to
+                              // the levels documented in FGFDMExec.h
+    switch (fdmLogPriority) {
+    case SG_BULK:
+        FGJSBBase::debug_lvl = 0x1f;
+        break;
+    case SG_DEBUG:
+        FGJSBBase::debug_lvl = 0x1f;
+    case SG_INFO:
+    case SG_WARN:
+    case SG_ALERT:
+    case SG_POPUP:
+        FGJSBBase::debug_lvl = 0x00;
+        break;
 
-        default:
-            // silence warning about unhandled cases
-            FGJSBBase::debug_lvl = 0x00;
-            break;
-        }
-    } else {
-                                // if flight is excluded, don't bother
-            FGJSBBase::debug_lvl = 0x00;
+    default:
+        // silence warning about unhandled cases
+        FGJSBBase::debug_lvl = 0x00;
+        break;
     }
+
 
     PropertyManager = new FGPropertyManager( (FGPropertyNode*)globals->get_props() );
     fdmex = new FGFDMExec( PropertyManager );
@@ -1497,26 +1494,26 @@ void FGJSBsim::update_external_forces(double t_off)
 
         	double E = D + DotProduct(hook_root_body, ground_normal_body);
 
-        	// substitue x = sin fi, cos fi = sqrt(1 - x * x)
+        	// substitute x = sin fi, cos fi = sqrt(1 - x * x)
 		// and rearrange to get a quadratic with coeffs:
         	double a = sqr(hook_length) * (sqr(ground_normal_body(1)) + sqr(ground_normal_body(3)));
         	double b = 2 * E * ground_normal_body(3) * hook_length;
-        	double c = sqr(E) - sqr(ground_normal_body(1) * hook_length);	
+        	double c = sqr(E) - sqr(ground_normal_body(1) * hook_length);
 
         	double disc = sqr(b) - 4 * a * c;
         	if (disc >= 0) {
 		    double delta = sqrt(disc) / (2 * a);
-		
+
 		    // allow 4 solutions for safety, should never happen
 		    double sin_fis[4];
 		    double cos_fis[4];
 		    double fis[4];
 		    int points = 0;
-		
+
         	    double sin_fi_guess = -b / (2 * a) - delta;
 		    check_hook_solution(ground_normal_body, E, hook_length, sin_fi_guess, sin_fis, cos_fis, fis, &points);
 		    check_hook_solution(ground_normal_body, E, hook_length, sin_fi_guess + 2 * delta, sin_fis, cos_fis, fis, &points);
-		
+
 		    if (points == 2) {
 			double diff1 = angle_diff(fi, fis[0]);
 			double diff2 = angle_diff(fi, fis[1]);

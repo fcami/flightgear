@@ -502,7 +502,6 @@ static SGLogDeltasListener s_sglogdeltas_listener;
 // Main top level initialization
 int fgMainInit( int argc, char **argv )
 {
-    sglog().setLogLevels( SG_ALL, SG_WARN );
     sglog().setStartupLoggingEnabled(true);
 
     globals = new FGGlobals;
