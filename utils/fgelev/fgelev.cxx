@@ -153,7 +153,6 @@ int main(int argc, char** argv)
     }
 
     // Force Virtual Planet Builder
-    props->setBoolValue("/scenery/use-vpb", true);
     SGSceneFeatures::instance()->setVPBActive(true);
 
     /// now set up the simgears required model stuff

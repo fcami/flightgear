@@ -1,26 +1,10 @@
-// tileentry.cxx -- routines to handle a scenery tile
-//
-// Written by Curtis Olson, started May 1998.
-//
-// Copyright (C) 1998 - 2001  Curtis L. Olson  - http://www.flightgear.org/~curt
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+/*
+ * SPDX-FileName:tileentry.cxx -- routines to handle a scenery tile
+ * SPDX-FileCopyrightText: 1998 Curtis L. Olson  - http://www.flightgear.org/~curt
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
+#include <config.h>
 
 #include <simgear/compiler.h>
 
@@ -47,7 +31,7 @@ TileEntry::TileEntry ( const SGBucket& b )
       _time_expired(-1.0)
 {
     _create_orthophoto();
-    
+
     // Give a default LOD range so that traversals that traverse
     // active children (like the groundcache lookup) will work before
     // tile manager has had a chance to update this node.
@@ -181,7 +165,7 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
         double lon = floor(b.get_center_lon()) + 0.5;
         SG_LOG( SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
 
-        // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.  
+        // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.
         // 1 degree latitude and 1 degree of longitude at the equator is 111km, 15 points
         // are equivalent resolution.
         osg::Node* oceanTile = SGOceanTile(lat, lon, 1.0, 1.0, options->getMaterialLib(), 15, 15);
@@ -193,4 +177,3 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
 VPBTileEntry::~VPBTileEntry ()
 {
 }
-

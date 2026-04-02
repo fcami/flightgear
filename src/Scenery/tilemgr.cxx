@@ -174,27 +174,24 @@ private:
         ;
 };
 
-FGTileMgr::FGTileMgr():
-    state( Start ),
-    last_state( Running ),
-    scheduled_visibility(100.0),
-    _visibilityMeters(fgGetNode("/environment/visibility-m", true)),
-    _lodDetailed(fgGetNode("/sim/rendering/static-lod/detailed", true)),
-    _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
-    _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
-    _disableNasalHooks(fgGetNode("/sim/temp/disable-scenery-nasal", true)),
-    _scenery_loaded(fgGetNode("/sim/sceneryloaded", true)),
-    _scenery_override(fgGetNode("/sim/sceneryloaded-override", true)),
-    _pager_file_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/file-queue-size", true)),
-    _pager_compile_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/compile-queue-size", true)),
-    _pager_merge_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/merge-queue-size", true)),
-    _pager_min_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/min-merge-time", true)),
-    _pager_mean_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/mean-merge-time", true)),
-    _pager_max_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/max-merge-time", true)),
-    _pager_active_lod_count(fgGetNode("/sim/rendering/statistics/database-pager/active-paged-lod-count", true)),
-    _pager(FGScenery::getPagerSingleton()),
-    _enableCache(true),
-    _use_vpb(false)
+FGTileMgr::FGTileMgr() : state(Start),
+                         last_state(Running),
+                         scheduled_visibility(100.0),
+                         _visibilityMeters(fgGetNode("/environment/visibility-m", true)),
+                         _lodDetailed(fgGetNode("/sim/rendering/static-lod/detailed", true)),
+                         _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
+                         _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
+                         _disableNasalHooks(fgGetNode("/sim/temp/disable-scenery-nasal", true)),
+                         _scenery_loaded(fgGetNode("/sim/sceneryloaded", true)),
+                         _scenery_override(fgGetNode("/sim/sceneryloaded-override", true)),
+                         _pager_file_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/file-queue-size", true)),
+                         _pager_compile_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/compile-queue-size", true)),
+                         _pager_merge_queue_size(fgGetNode("/sim/rendering/statistics/database-pager/merge-queue-size", true)),
+                         _pager_min_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/min-merge-time", true)),
+                         _pager_mean_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/mean-merge-time", true)),
+                         _pager_max_merge_time(fgGetNode("/sim/rendering/statistics/database-pager/max-merge-time", true)),
+                         _pager_active_lod_count(fgGetNode("/sim/rendering/statistics/database-pager/active-paged-lod-count", true)),
+                         _pager(FGScenery::getPagerSingleton())
 {
     const char* torrent_enabled_path = "/sim/torrent/enabled";
     SGPropertyNode* torrent_enabled_node = fgGetNode(torrent_enabled_path);
@@ -268,8 +265,6 @@ void FGTileMgr::reinit()
     double tile_min_expiry = fgGetDouble("/sim/rendering/plod-minimum-expiry-time-secs", SG_TILE_MIN_EXPIRY);
     flightgear::addSentryBreadcrumb("PLod-minimum-expiry time=" + std::to_string(tile_min_expiry), "info");
 
-    _use_vpb = fgGetBool("/scenery/use-vpb");
-
     _options->setPluginStringData("SimGear::LOD_RANGE_BARE", std::to_string(bare));
     _options->setPluginStringData("SimGear::LOD_RANGE_ROUGH", std::to_string(rough));
     _options->setPluginStringData("SimGear::LOD_RANGE_DETAILED", std::to_string(detailed));
@@ -277,14 +272,22 @@ void FGTileMgr::reinit()
 
     string_list scenerySuffixes;
     for (auto node : fgGetNode("/sim/rendering/", true)->getChildren("scenery-path-suffix")) {
+        const auto nm = node->getStringValue("name");
+        if (nm == "vpb") {
+            // this was previously marked user-archive, but with WS3 as the only scenery,
+            // we force it to always on
+            scenerySuffixes.push_back(nm);
+            continue;
+        }
+
         if (node->getBoolValue("enabled", true)) {
-            scenerySuffixes.push_back(node->getStringValue("name"));
+            scenerySuffixes.push_back(nm);
         }
     }
 
     if (scenerySuffixes.empty()) {
         // if preferences didn't load, use some default
-        scenerySuffixes = {"Objects", "Terrain"}; // default values
+        scenerySuffixes = {"Objects", "Terrain", "vpb"}; // default values
     }
 
     #ifdef SG_TORRENT
@@ -368,34 +371,29 @@ bool FGTileMgr::sched_tile( const SGBucket& b, double priority, bool current_vie
     // update tile's properties
     tile_cache.request_tile(t,priority,current_view,duration);
 
-    if (_use_vpb) {
-        VPBTileEntry *v = tile_cache.get_vpb_tile( b );
+    VPBTileEntry* v = tile_cache.get_vpb_tile(b);
+    if (!v) {
+        // create a new entry
+        v = new VPBTileEntry(b, _options);
+        SG_LOG(SG_TERRAIN, SG_INFO, "sched_tile: new VPB tile entry for:" << b);
 
-        if (!v)
-        {
-            // create a new entry
-            v = new VPBTileEntry( b, _options );
-            SG_LOG( SG_TERRAIN, SG_INFO, "sched_tile: new VPB tile entry for:" << b );
-
-            // insert the tile into the cache, update will generate load request
-            if ( tile_cache.insert_tile( v ) )
-            {
-                // Attach to scene graph
-                v->addToSceneGraph(globals->get_scenery()->get_terrain_branch());
-            } else {
-                // insert failed (cache full with no available entries to
-                // delete.)  Try again later
-                delete v;
-                return false;
-            }
-
-            SG_LOG( SG_TERRAIN, SG_DEBUG, "  New tile cache size " << (int)tile_cache.get_size() );
+        // insert the tile into the cache, update will generate load request
+        if (tile_cache.insert_tile(v)) {
+            // Attach to scene graph
+            v->addToSceneGraph(globals->get_scenery()->get_terrain_branch());
+        } else {
+            // insert failed (cache full with no available entries to
+            // delete.)  Try again later
+            delete v;
+            return false;
         }
 
-        // update tile's properties.  We ensure the top level VPB tiles have maximum priority.
-        // The LOD system will take care of appropriate prioritization of the sub-tiles
-        tile_cache.request_tile(v, 1.0, current_view, duration);
+        SG_LOG(SG_TERRAIN, SG_DEBUG, "  New tile cache size " << (int)tile_cache.get_size());
     }
+
+    // update tile's properties.  We ensure the top level VPB tiles have maximum priority.
+    // The LOD system will take care of appropriate prioritization of the sub-tiles
+    tile_cache.request_tile(v, 1.0, current_view, duration);
 
     return t->is_loaded();
 }
@@ -551,10 +549,8 @@ void FGTileMgr::update_queues(bool& isDownloadingScenery)
 
             tile_cache.clear_entry(drop_index);
 
-            if (_use_vpb) {
-                // Clear out any VPB data - e.g. roads
-                simgear::VPBLineFeatureRenderer::unloadFeatures(old->get_tile_bucket());
-            }
+            // Clear out any VPB data - e.g. roads
+            simgear::VPBLineFeatureRenderer::unloadFeatures(old->get_tile_bucket());
 
             osg::ref_ptr<osg::Object> subgraph = old->getNode();
             old->removeFromSceneGraph();

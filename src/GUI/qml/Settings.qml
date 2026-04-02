@@ -509,13 +509,11 @@ Item {
                 settingGroup: "render"
 
                 readonly property bool msaaEnabled: (msaa.selectedIndex > 0)
-                readonly property bool ws30Enabled: (sceneryversion.selectedIndex > 0)
 
                 function summary()
                 {
                     var result = [];
                     if (msaaEnabled) result.push(qsTr("anti-aliasing"));
-                    if (ws30Enabled) result.push(qsTr("scenery v3.0"));
                     return result;
                 }
 
@@ -545,21 +543,6 @@ Item {
                                           "loading times and memory use can be improved. This will consume " +
                                           "some disk space and take initial time while images are converted, " +
                                           "but subsequent loads will be faster, and use less memory.")
-                    },
-
-                    SettingsComboBox {
-                        id: sceneryversion
-                        setting: "scenery-version"
-                        advanced: true
-
-                        label: qsTr("Scenery version")
-                        description: qsTr("Scenery version 2.0 is available for the whole world and works well for " +
-                            "lower powered systems. Scenery version 3.0 is currently under development, but is only " +
-                            "available for limited areas. It is more detailed and performs better on high powered systems.")
-                        keywords: ["scenery", "ws2.0", "ws20", "ws3.0", "ws30"]
-                        choices: ["V2.0", "V3.0"]
-                        property var data: [0, 1];
-                        defaultIndex: 0
                     }
                 ]
 
@@ -567,14 +550,6 @@ Item {
                     if (msaaEnabled) {
                         _config.setProperty("/sim/rendering/multi-sample-buffers", 1)
                         _config.setProperty("/sim/rendering/multi-samples", msaa.data[msaa.selectedIndex])
-                    }
-
-                    if (ws30Enabled) {
-                        _config.setProperty("/scenery/use-vpb", true)
-                        _config.setProperty("/sim/rendering/scenery-path-suffix[98]/enabled", true)
-                    } else {
-                        _config.setProperty("/scenery/use-vpb", false)
-                        _config.setProperty("/sim/rendering/scenery-path-suffix[98]/enabled", false)
                     }
 
                     _config.setProperty("/sim/rendering/texture-cache/cache-enabled", compressTextures.value);

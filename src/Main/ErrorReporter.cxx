@@ -892,9 +892,7 @@ ErrorReporter::ErrorReporter() : d(new ErrorReporterPrivate)
         "/sim/rendering/hdr/compute",
 
         "/sim/rendering/max-paged-lod",
-        "/sim/rendering/multithreading-mode",
-        "/scenery/use-vpb",
-    };
+        "/sim/rendering/multithreading-mode"};
 }
 
 ErrorReporter::~ErrorReporter()
