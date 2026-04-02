@@ -223,7 +223,7 @@ struct GUIInfo {
 
     FGPUIDialog* dialog;
     SGPropertyNode_ptr node;
-    std::vector<SGBinding*> bindings;
+    SGBindingList bindings;
     int key;
     string label, legend, text, format;
     format_type fmt_type;
@@ -1230,7 +1230,7 @@ void FGPUIDialog::setupObject(puObject* object, SGPropertyNode* props)
                 bindingNode = copiedBinding;
             }
 
-            info->bindings.push_back(new SGBinding(bindingNode, globals->get_props()));
+            info->bindings.push_back(SGAbstractBinding::createFromProps(bindingNode, globals->get_props()));
         }
         object->setCallback(action_callback);
     }

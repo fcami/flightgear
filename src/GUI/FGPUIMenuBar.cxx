@@ -186,8 +186,7 @@ FGPUIMenuBar::make_menu (SGPropertyNode * node)
 
     char ** items = make_char_array(array_size);
     puCallback * callbacks = make_callback_array(array_size);
-    const vector<unique_ptr<SGBinding>> ** userdata =
-        make_userdata_array(array_size);
+    const auto userdata = make_userdata_array(array_size);
 
     for (unsigned int i = 0, j = item_nodes.size() - 1;
          i < item_nodes.size();
@@ -215,7 +214,7 @@ FGPUIMenuBar::make_menu (SGPropertyNode * node)
                                 // Load all the bindings for this item
         vector<SGPropertyNode_ptr> bindings = item_nodes[i]->getChildren("binding");
         SGPropertyNode * dest = fgGetNode("/sim/bindings/menu", true);
-      
+
         for (unsigned int k = 0; k < bindings.size(); k++) {
             unsigned int m = 0;
             SGPropertyNode_ptr binding;
@@ -224,8 +223,7 @@ FGPUIMenuBar::make_menu (SGPropertyNode * node)
 
             binding = dest->getChild("binding", m, true);
             copyProperties(bindings[k], binding);
-            bindingsVec.push_back(
-                std::make_unique<SGBinding>(binding, globals->get_props()));
+            bindingsVec.push_back(SGAbstractBinding::createFromProps(binding, globals->get_props()));
         }
     }
 
@@ -236,10 +234,10 @@ void
 FGPUIMenuBar::make_menubar ()
 {
     SGPropertyNode *targetpath;
-   
+
     targetpath = fgGetNode("/sim/menubar/default",true);
     // fgLoadProps("gui/menubar.xml", targetpath);
-    
+
     /* NOTE: there is no check to see whether there's any usable data at all
      *
      * This would also have the advantage of being able to create some kind of
@@ -247,15 +245,15 @@ FGPUIMenuBar::make_menubar ()
      * its XML data is not valid, that way we would avoid displaying an
      * unusable menubar without any functionality - if we decided to add another
      * char * element to the commands structure in
-     *  $FG_SRC/src/Main/fgcommands.cxx 
+     *  $FG_SRC/src/Main/fgcommands.cxx
      * we could additionally save each function's (short) description and use
      * this as label for the fallback PUI menubar item labels - as a workaround
-     * one might simply use the internal fgcommands and put them into the 
+     * one might simply use the internal fgcommands and put them into the
      * fallback menu, so that the user is at least able to re-init the menu
      * loading - just in case there was some malformed XML in it
      * (it happend to me ...)
      */
-    
+
     make_menubar(targetpath);
 }
 
@@ -265,8 +263,8 @@ FGPUIMenuBar::make_menubar ()
  * contents, whether they are representing a 'legal' menubar structure.
  */
 void
-FGPUIMenuBar::make_menubar(SGPropertyNode * props) 
-{    
+FGPUIMenuBar::make_menubar(SGPropertyNode * props)
+{
     // Just in case.
     destroy_menubar();
     _menuBar = new puMenuBar;
@@ -308,7 +306,7 @@ FGPUIMenuBar::destroy_menubar ()
         delete[] _char_arrays[i];
         _char_arrays[i] = 0;
     }
-  
+
                                 // Delete all the callback arrays
                                 // we were forced to keep around for
                                 // plib.
@@ -376,8 +374,8 @@ FGPUIMenuBar::make_object_map(SGPropertyNode * node)
     }
 }
 
-namespace { 
-  
+namespace {
+
   struct EnabledListener : SGPropertyChangeListener {
     void valueChanged(SGPropertyNode *node) {
         auto gui = globals->get_subsystem<NewGUI>();
@@ -440,10 +438,10 @@ FGPUIMenuBar::make_callback_array (int size)
     return list;
 }
 
-const vector<unique_ptr<SGBinding>> **
+const vector<SGAbstractBinding_ptr> **
 FGPUIMenuBar::make_userdata_array (int size)
 {
-    auto list = new const vector<unique_ptr<SGBinding>>*[size+1];
+    auto list = new const vector<SGAbstractBinding_ptr>*[size+1];
     for (int i = 0; i <= size; i++) {
         list[i] = nullptr;
     }

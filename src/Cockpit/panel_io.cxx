@@ -55,7 +55,7 @@ using std::string;
 //
 // A layer contains zero or more transformations.
 //
-// Some special types of layers also contain other objects, such as 
+// Some special types of layers also contain other objects, such as
 // chunks of text or other layers.
 //
 // There are currently four types of layers:
@@ -160,8 +160,8 @@ readAction (const SGPropertyNode * node, float w_scale, float h_scale)
     // button-less actions are fired initially
     if (!node->hasValue("w") || !node->hasValue("h")) {
         for (auto bn : node->getChildren("binding")) {
-            SGBinding b(bn, propRoot);
-            b.fire();
+            auto b = SGAbstractBinding::createFromProps(bn, propRoot);
+            b->fire();
         }
 
         return nullptr;
@@ -252,7 +252,7 @@ readTransformation (const SGPropertyNode * node, float w_scale, float h_scale)
   } else {
     t->table = 0;
   }
-  
+
 				// Move the layer horizontally.
   if (type == "x-shift") {
     t->type = FGPanelTransformation::XSHIFT;
@@ -260,7 +260,7 @@ readTransformation (const SGPropertyNode * node, float w_scale, float h_scale)
 //     t->max *= w_scale; //removed by Martin Dressler
     t->offset *= w_scale;
     t->factor *= w_scale; //Added by Martin Dressler
-  } 
+  }
 
 				// Move the layer vertically.
   else if (type == "y-shift") {
@@ -269,14 +269,14 @@ readTransformation (const SGPropertyNode * node, float w_scale, float h_scale)
     //t->max *= h_scale; //removed
     t->offset *= h_scale;
     t->factor *= h_scale; //Added
-  } 
+  }
 
 				// Rotate the layer.  The rotation
 				// is in degrees, and does not need
 				// to scale with the instrument size.
   else if (type == "rotation") {
     t->type = FGPanelTransformation::ROTATION;
-  } 
+  }
 
   else {
     SG_LOG( SG_COCKPIT, SG_ALERT, "Unrecognized transformation type " << type );
@@ -496,7 +496,7 @@ readLayer (const SGPropertyNode * node, float w_scale, float h_scale)
     delete layer;
     return 0;
   }
-  
+
   //
   // Get the transformations for each layer.
   //
@@ -527,7 +527,7 @@ readLayer (const SGPropertyNode * node, float w_scale, float h_scale)
  *
  * The instrument consists of a preferred width and height
  * (the panel may override these), together with a list of layers
- * and a list of actions to be performed when the user clicks 
+ * and a list of actions to be performed when the user clicks
  * the mouse over the instrument.  All co-ordinates are relative
  * to the instrument's position, so instruments are fully relocatable;
  * likewise, co-ordinates for actions and transformations will be
@@ -624,7 +624,7 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
   panel->setHeight(root->getIntValue("h", 443));
 
   //
-  // Grab the visible external viewing area, default to 
+  // Grab the visible external viewing area, default to
   //
 //  panel->setViewHeight(root->getIntValue("view-height",
 //					 768 - panel->getHeight() + 2));
@@ -635,7 +635,7 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
   if (!fgHasNode("/sim/panel/x-offset"))
     fgSetInt("/sim/panel/x-offset", root->getIntValue("x-offset", 0));
 
-  // conditional removed by jim wilson to allow panel xml code 
+  // conditional removed by jim wilson to allow panel xml code
   // with y-offset defined to work...
   if (!fgHasNode("/sim/panel/y-offset"))
     fgSetInt("/sim/panel/y-offset", root->getIntValue("y-offset", 0));
@@ -693,7 +693,7 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
     panel->setMultiBackground(FGTextureManager::createTexture(mbgTexture.c_str()), 7);
 
   }
-  
+
 
 
   //
@@ -714,20 +714,20 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
         const string name = node->getStringValue("name");
         if (name == "KLN89 GPS") {
           //cout << "Special instrument is KLN89\n";
-          
+
           int x = node->getIntValue("x", -1);
           int y = node->getIntValue("y", -1);
           int real_w = node->getIntValue("w", -1);
           int real_h = node->getIntValue("h", -1);
 //          int w = node->getIntValue("w-base", -1);
 //          int h = node->getIntValue("h-base", -1);
-          
+
           if (x == -1 || y == -1) {
             SG_LOG( SG_COCKPIT, SG_ALERT,
             "x and y positions must be specified and > 0" );
             return 0;
           }
-          
+
 //          float w_scale = 1.0;
 //          float h_scale = 1.0;
           if (real_w != -1) {
@@ -738,9 +738,9 @@ readPanel (const SGPropertyNode * root, const SGPath& path)
 //            h_scale = float(real_h) / float(h);
 //            h = real_h;
           }
-          
+
           SG_LOG( SG_COCKPIT, SG_BULK, "Reading instrument " << name );
-          
+
           // Warning - hardwired size!!!
           RenderArea2D* instrument = new RenderArea2D(158, 40, 158, 40, x, y);
           auto gps = globals->get_subsystem<KLN89>();

@@ -14,12 +14,13 @@
 #include <string>
 #include <vector>
 
+#include <simgear/structure/SGBinding.hxx>
 
 // forward decls, avoid pulling in PLIB headers here
 class puMenuBar;
 class puObject;
 class SGPropertyNode;
-class SGBinding;
+
 
 typedef void (*puCallback)(class puObject*);
 
@@ -126,7 +127,7 @@ private:
     // Each element contains the list of bindings for a particular menu entry.
     // Not an std::vector because we want the addresses of previous elements
     // to remain valid when we add new ones.
-    std::forward_list<std::vector<std::unique_ptr<SGBinding>>> _bindings;
+    std::forward_list<std::vector<SGAbstractBinding_ptr>> _bindings;
 
     // These are hoops that we have to jump through because PUI doesn't
     // do memory management for lists.  We have to allocate the arrays,
@@ -136,10 +137,10 @@ private:
     puCallback* make_callback_array(int size);
     // The return value points to an array where each element is a pointer to a
     // vector that gives the list of bindings assigned to a given menu entry.
-    const std::vector<std::unique_ptr<SGBinding>>** make_userdata_array(int size);
+    const std::vector<SGAbstractBinding_ptr>** make_userdata_array(int size);
     std::vector<char**> _char_arrays;
     std::vector<puCallback*> _callback_arrays;
-    std::vector<const std::vector<std::unique_ptr<SGBinding>>**> _userdata_arrays;
+    std::vector<const std::vector<SGAbstractBinding_ptr>**> _userdata_arrays;
 
     // A map for {menu node path}->puObject translation.
     std::map<std::string, puObject*> _objects;
