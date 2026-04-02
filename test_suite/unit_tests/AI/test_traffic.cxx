@@ -1230,7 +1230,7 @@ FGAIAircraft* TrafficTests::flyAI(SGSharedPtr<FGAIAircraft> aiAircraft, std::str
         SG_LOG(SG_AI, SG_DEBUG, "CSV File " << fname << " couldn't be opened");
         aiAircraft->dumpCSVHeader(csvFile);
     }
-    if (sglog().get_log_priority() <= SG_DEBUG) {
+    if (sglog().get_all_log_priority() <= SG_DEBUG) {
         FGTestApi::setUp::logLinestringsToKML(testname);
     }
     flightgear::SGGeodVec geods = flightgear::SGGeodVec();
@@ -1265,7 +1265,7 @@ FGAIAircraft* TrafficTests::flyAI(SGSharedPtr<FGAIAircraft> aiAircraft, std::str
         // Leg has been incremented
         if (aiAircraft->GetFlightPlan()->getLeg() != lastLeg) {
             // The current WP is really in our new leg
-            if (sglog().get_log_priority() <= SG_DEBUG) {
+            if (sglog().get_all_log_priority() <= SG_DEBUG) {
                 snprintf(buffer, sizeof(buffer), "AI Leg %d Callsign %s Iteration %d", lastLeg, aiAircraft->getCallSign().c_str(), iteration);
                 FGTestApi::writeGeodsToKML(buffer, geods);
             }
@@ -1303,7 +1303,7 @@ FGAIAircraft* TrafficTests::flyAI(SGSharedPtr<FGAIAircraft> aiAircraft, std::str
     }
     lastLeg = aiAircraft->GetFlightPlan()->getLeg();
     snprintf(buffer, sizeof(buffer), "AI Leg %d Callsign %s Iteration %d", lastLeg, aiAircraft->getCallSign().c_str(), iteration);
-    if (sglog().get_log_priority() <= SG_DEBUG) {
+    if (sglog().get_all_log_priority() <= SG_DEBUG) {
         FGTestApi::writeGeodsToKML(buffer, geods);
     }
     geods.clear();

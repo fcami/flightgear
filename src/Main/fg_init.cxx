@@ -590,7 +590,7 @@ void fgInitLogging(const std::string& pri)
         rotateOldLogFiles();
     }
 
-    static_logToHomeCallback = sglog().logToFile("fgome-log", logPath);
+    static_logToHomeCallback = sglog().logToFile("fghome-log", logPath);
     static_logToHomeCallback->setLogLevels(fileLogLevel);
 }
 

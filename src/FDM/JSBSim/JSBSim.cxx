@@ -2,7 +2,7 @@
  * SPDX-FileName: JSBsim.cxx
  * SPDX-FileComment: interface to the JSBsim flight model
  * SPDX-FileCopyrightText: Copyright (C) 1999  Curtis L. Olson  - curt@flightgear.org
- * SPDX-License-Identifier: LGPL-2.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1494,26 +1494,26 @@ void FGJSBsim::update_external_forces(double t_off)
 
         	double E = D + DotProduct(hook_root_body, ground_normal_body);
 
-        	// substitue x = sin fi, cos fi = sqrt(1 - x * x)
+        	// substitute x = sin fi, cos fi = sqrt(1 - x * x)
 		// and rearrange to get a quadratic with coeffs:
         	double a = sqr(hook_length) * (sqr(ground_normal_body(1)) + sqr(ground_normal_body(3)));
         	double b = 2 * E * ground_normal_body(3) * hook_length;
-        	double c = sqr(E) - sqr(ground_normal_body(1) * hook_length);	
+        	double c = sqr(E) - sqr(ground_normal_body(1) * hook_length);
 
         	double disc = sqr(b) - 4 * a * c;
         	if (disc >= 0) {
 		    double delta = sqrt(disc) / (2 * a);
-		
+
 		    // allow 4 solutions for safety, should never happen
 		    double sin_fis[4];
 		    double cos_fis[4];
 		    double fis[4];
 		    int points = 0;
-		
+
         	    double sin_fi_guess = -b / (2 * a) - delta;
 		    check_hook_solution(ground_normal_body, E, hook_length, sin_fi_guess, sin_fis, cos_fis, fis, &points);
 		    check_hook_solution(ground_normal_body, E, hook_length, sin_fi_guess + 2 * delta, sin_fis, cos_fis, fis, &points);
-		
+
 		    if (points == 2) {
 			double diff1 = angle_diff(fi, fis[0]);
 			double diff2 = angle_diff(fi, fis[1]);

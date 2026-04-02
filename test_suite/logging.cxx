@@ -1,22 +1,7 @@
 /*
- * Copyright (C) 2016 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * SPDX-FileCopyrightText: (C) 2016 Edward d'Auvergne
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
-
 
 #include <iomanip>
 
@@ -27,74 +12,75 @@
 
 
 // The global stream capture data structure.
-static capturedIO *_iostreams = NULL;
+static std::unique_ptr<capturedIO> _iostreams;
 
 
 // capturedIO constructor.
-capturedIO::capturedIO(sgDebugClass c, sgDebugPriority p)
+capturedIO::capturedIO() : simgear::LogCallback("test")
 {
-    callback_interleaved = new StreamLogCallback(sg_interleaved, c, p, false);
-    callback_bulk_only = new StreamLogCallback(sg_bulk_only, c, SG_BULK, true);
-    callback_debug_only = new StreamLogCallback(sg_debug_only, c, SG_DEBUG, true);
-    callback_info_only = new StreamLogCallback(sg_info_only, c, SG_INFO, true);
-    callback_warn_only = new StreamLogCallback(sg_warn_only, c, SG_WARN, true);
-    callback_alert_only = new StreamLogCallback(sg_alert_only, c, SG_ALERT, true);
-
-    // Store the class as a string.
-    if (c == SG_ALL)
-        log_class = "SG_ALL";
-    else {
-        std::stringstream stream;
-        stream << "0x" << std::right << std::setfill('0') << std::setw(8) << std::hex << c;
-        log_class = stream.str();
-    }
-    
-    // Store the priority as a string.
-    if (p == SG_BULK)
-        log_priority = "SG_BULK";
-    else if (p == SG_DEBUG)
-        log_priority = "SG_DEBUG";
-    else if (p == SG_INFO)
-        log_priority = "SG_INFO";
-    else if (p == SG_WARN)
-        log_priority = "SG_WARN";
-    else if (p == SG_ALERT)
-        log_priority = "SG_ALERT";
-    else if (p == SG_POPUP)
-        log_priority = "SG_POPUP";
-    else if (p == SG_DEV_WARN)
-        log_priority = "SG_DEV_WARN";
-    else if (p == SG_DEV_ALERT)
-        log_priority = "SG_DEV_ALERT";
+    sglog().addCallback(this);
 }
 
-// capturedIO destructor.
 capturedIO::~capturedIO()
 {
-    // Destroy the callback objects.
-    delete callback_interleaved;
-    delete callback_bulk_only;
-    delete callback_debug_only;
-    delete callback_info_only;
-    delete callback_warn_only;
-    delete callback_alert_only;
+    sglog().removeCallback(this);
 }
 
+bool capturedIO::doProcessEntry(const simgear::LogEntry& e)
+{
+    if (!shouldLog(e.debugClass, e.debugPriority)) {
+        return false;
+    }
+
+    if (_split) {
+        std::ostringstream* streamPtr = nullptr;
+        // split the message into the appropriate stream
+        switch (e.debugPriority) {
+        case SG_BULK:
+            streamPtr = &sg_bulk_only;
+            break;
+        case SG_DEBUG:
+            streamPtr = &sg_debug_only;
+            break;
+        case SG_INFO:
+            streamPtr = &sg_info_only;
+            break;
+        case SG_WARN:
+            streamPtr = &sg_warn_only;
+            break;
+        case SG_ALERT:
+            streamPtr = &sg_alert_only;
+            break;
+        default:
+            // ignore other priorities
+            return false;
+        }
+
+        if (streamPtr) {
+            *streamPtr << debugClassToString(e.debugClass) << ":" << e.file << ":" << e.line << ": " << e.message << std::endl;
+        }
+    } else {
+        // interleaved stream, include the priority
+        sg_interleaved << debugClassToString(e.debugClass) << ":" << (int)e.debugPriority << ":" << e.file << ":" << e.line << ": " << e.message << std::endl;
+    }
+
+    return true;
+}
 
 // Return the global stream capture data structure, creating it if needed.
-capturedIO & getIOstreams(sgDebugClass c, sgDebugPriority p)
+capturedIO& getIOstreams()
 {
     // Initialise the global stream capture data structure, if needed.
     if (!_iostreams)
-        _iostreams = new capturedIO(c, p);
+        _iostreams.reset(new capturedIO());
 
     // Return a pointer to the global object.
-    return *_iostreams;
+    return *(_iostreams.get());
 }
 
 
 // Set up to capture all the simgear logging priorities as separate streams.
-void setupLogging(sgDebugClass c, sgDebugPriority p, bool split)
+void setupLogging(const simgear::LogLevels levels, bool split)
 {
     // Get the single logstream instance.
     logstream &log = sglog();
@@ -106,42 +92,16 @@ void setupLogging(sgDebugClass c, sgDebugPriority p, bool split)
     osg::setNotifyHandler(new SGNotifyHandler);
 
     // IO capture.
-    capturedIO &obj = getIOstreams(c, p);
-    if (!split)
-        log.addCallback(obj.callback_interleaved);
-    else {
-        if (p <= SG_BULK)
-            log.addCallback(obj.callback_bulk_only);
-        if (p <= SG_DEBUG)
-            log.addCallback(obj.callback_debug_only);
-        if (p <= SG_INFO)
-            log.addCallback(obj.callback_info_only);
-        if (p <= SG_WARN)
-            log.addCallback(obj.callback_warn_only);
-        if (p <= SG_ALERT)
-            log.addCallback(obj.callback_alert_only);
-    }
+    getIOstreams();
+    _iostreams->setLogLevels(levels);
+    _iostreams->setSplit(split);
 }
 
 
 // Deactivate all the simgear logging priority IO captures.
 void stopLogging()
 {
-    // Get the single logstream instance.
-    logstream &log = sglog();
-
-    // IO decapture.
-    capturedIO &obj = getIOstreams();
-    log.removeCallback(obj.callback_interleaved);
-    log.removeCallback(obj.callback_bulk_only);
-    log.removeCallback(obj.callback_debug_only);
-    log.removeCallback(obj.callback_info_only);
-    log.removeCallback(obj.callback_warn_only);
-    log.removeCallback(obj.callback_alert_only);
-
-    // Clean up the IO stream object.
-    delete _iostreams;
-    _iostreams = NULL;
+    _iostreams.reset();
 
     // Stop the simgear logstream.
     simgear::shutdownLogging();

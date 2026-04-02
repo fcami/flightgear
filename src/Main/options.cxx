@@ -180,7 +180,6 @@ void fgSetDefaults ()
     // specified so we can do the right thing for voodoo-1/2 cards.
     // fgSetString("/sim/startup/mouse-pointer", "false");
     fgSetBool("/controls/flight/auto-coordination", false);
-    fgSetString("/sim/logging/priority", "alert");
 
     // Features
     fgSetBool("/sim/hud/color/antialiased", false);
