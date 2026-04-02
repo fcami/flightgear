@@ -168,11 +168,12 @@ void VectorTests::testRemoveAt()
     CPPUNIT_ASSERT(!ok);
 
     // Index as nil
-    ok = FGTestApi::executeNasal(R"(
+    auto errs = FGTestApi::executeNasalExpectRuntimeErrors(R"(
         var vector = [10, 11, 12];
         removeat(vector, nil); # error, invalid argument
     )");
-    CPPUNIT_ASSERT(!ok);
+    CPPUNIT_ASSERT(errs.has_value());
+    CPPUNIT_ASSERT_EQUAL(static_cast<size_t>(1), errs->size());
 }
 
 void VectorTests::testPop()
