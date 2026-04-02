@@ -159,7 +159,7 @@ protected:
     double deadband;
     double lowThreshold;
     double highThreshold;
-    double lastValue;
+    double lastValue = std::numeric_limits<double>::quiet_NaN();
 
     std::unique_ptr<SGInterpTable> interpolater;
     bool mirrorInterpolater = false;

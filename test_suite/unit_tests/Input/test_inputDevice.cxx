@@ -437,21 +437,25 @@ void InputDeviceTests::testAxesOutputMode()
         _axisCmd.reset();
         FGEventData ed0{0.0, 0.016, KEYMOD_NONE};
         device->HandleEvent(ed0);
+        CPPUNIT_ASSERT_EQUAL(1, _axisCmd.callCount);
         CPPUNIT_ASSERT_DOUBLES_EQUAL(0.0, _axisCmd.lastSetting, 1e-9);
 
         // Full positive (raw 1000) → 1.0
         FGEventData ed1{1000.0, 0.016, KEYMOD_NONE};
         device->HandleEvent(ed1);
+        CPPUNIT_ASSERT_EQUAL(2, _axisCmd.callCount);
         CPPUNIT_ASSERT_DOUBLES_EQUAL(1.0, _axisCmd.lastSetting, 1e-9);
 
         // Full negative (raw -1000) → -1.0
         FGEventData ed2{-1000.0, 0.016, KEYMOD_NONE};
         device->HandleEvent(ed2);
+        CPPUNIT_ASSERT_EQUAL(3, _axisCmd.callCount);
         CPPUNIT_ASSERT_DOUBLES_EQUAL(-1.0, _axisCmd.lastSetting, 1e-9);
 
         // Quarter (raw 500) → 0.5
         FGEventData ed3{500.0, 0.016, KEYMOD_NONE};
         device->HandleEvent(ed3);
+        CPPUNIT_ASSERT_EQUAL(4, _axisCmd.callCount);
         CPPUNIT_ASSERT_DOUBLES_EQUAL(0.5, _axisCmd.lastSetting, 1e-9);
     }
 
