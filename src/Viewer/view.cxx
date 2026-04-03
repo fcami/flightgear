@@ -624,26 +624,29 @@ View::setOrientationOffsets (double roll_offset_deg, double pitch_offset_deg, do
 void
 View::recalc ()
 {
-  if (_type == FG_LOOKFROM) {
-    recalcLookFrom();
-  } else {
-    recalcLookAt();
-  }
+    if (_type == FG_LOOKFROM) {
+        recalcLookFrom();
+    } else {
+        recalcLookAt();
+    }
 
-  // Offset view position & orientation by VR head pose relative to local space
-  _absolute_view_pos = _absoluteLocalPos;
-  mViewOrientation = _localOr;
+    // Offset view position & orientation by VR head pose relative to local space
+    _absolute_view_pos = _absoluteLocalPos;
+    mViewOrientation = _localOr;
 #ifdef ENABLE_OSGXR
-  auto pose = flightgear::VRManager::instance()->getHeadSpace()->locate();
-  if (pose.isPositionValid()) {
-      _absolute_view_pos += mViewOrientation.backTransform(toVec3d(toSG(pose.getPosition())));
-  }
-  if (pose.isOrientationValid()) {
-      mViewOrientation = mViewOrientation * toSG(pose.getOrientation());
-  }
+    // VRManager requires a renderer, which won't be available in the test suite
+    #if !defined(BUILDING_TESTSUITE)
+    auto pose = flightgear::VRManager::instance()->getHeadSpace()->locate();
+    if (pose.isPositionValid()) {
+        _absolute_view_pos += mViewOrientation.backTransform(toVec3d(toSG(pose.getPosition())));
+    }
+    if (pose.isOrientationValid()) {
+        mViewOrientation = mViewOrientation * toSG(pose.getOrientation());
+    }
+    #endif
 #endif
 
-  set_clean();
+    set_clean();
 }
 
 

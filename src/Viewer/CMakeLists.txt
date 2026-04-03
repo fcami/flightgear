@@ -15,7 +15,6 @@ set(SOURCES
 	ViewPropertyEvaluator.cxx
 	renderer.cxx
 	splash.cxx
-	view.cxx
 	viewmgr.cxx
 	sview.cxx
 	GraphicsPresets.cxx
@@ -45,4 +44,5 @@ if (ENABLE_OSGXR)
 		)
 endif()
 
-flightgear_component(Viewer "${SOURCES}" "${HEADERS}")
+# view.cxx is compiled differently for testing
+flightgear_component(Viewer "${SOURCES}" "${HEADERS}" view.cxx)
