@@ -235,13 +235,7 @@ GUIInfo::GUIInfo(FGPUIDialog* d) : dialog(d),
 {
 }
 
-GUIInfo::~GUIInfo()
-{
-    for (unsigned int i = 0; i < bindings.size(); i++) {
-        delete bindings[i];
-        bindings[i] = 0;
-    }
-}
+GUIInfo::~GUIInfo() = default;
 
 void GUIInfo::apply_format(SGPropertyNode* n)
 {
