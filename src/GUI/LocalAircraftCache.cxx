@@ -324,6 +324,11 @@ public:
         _currentAircraftPath = p;
     }
 
+    virtual PathList basePaths() const override
+    {
+        return {_currentAircraftPath, _currentScanPath};
+    }
+
 private:
     SGPath _currentScanPath;
     SGPath _currentAircraftPath;
@@ -354,6 +359,16 @@ public:
         }
 
         return SGPath{};
+    }
+
+    virtual PathList basePaths() const override
+    {
+        std::vector<SGPath> paths;
+        QStringList qtpaths = LocalAircraftCache::instance()->paths();
+        Q_FOREACH (auto p, qtpaths) {
+            paths.push_back(SGPath::fromUtf8(p.toUtf8().toStdString()));
+        }
+        return paths;
     }
 };
 

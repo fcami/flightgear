@@ -26,6 +26,7 @@ public:
 
   virtual SGPath resolve(const std::string& resource, SGPath& context) const
     override;
+  virtual PathList basePaths() const override;
 };
 
 } // of namespace addons

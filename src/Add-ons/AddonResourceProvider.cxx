@@ -62,6 +62,11 @@ ResourceProvider::resolve(const string& resource, SGPath& context) const
   return SGPath(candidate).validate(/* write */ false);
 }
 
+PathList ResourceProvider::basePaths() const
+{
+    return AddonManager::instance()->addonBasePaths();
+}
+
 } // of namespace addons
 
 } // of namespace flightgear
