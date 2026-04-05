@@ -175,9 +175,9 @@ FGAISim::update(double ddt)
      * Earth-to-Body-Axis Transformation Matrix (ZYX Euler sequence)
      * Rx(phi)*Ry(theta)*Rz(psi):
      *
-     *  | c?.c?               c?.s?              -s?    |
-     *  | s?.s?.c? - c?.s?    s?.s?.s? + c?.c?   s?.c? |
-     *  | c?.s?.c? + s?.s?    c?.s?.s? - s?.c?   c?.c? |
+     *  | cθ·cψ               cθ·sψ              -sθ   |
+     *  | sφ·sθ·cψ - cφ·sψ    sφ·sθ·sψ + cφ·cψ   sφ·cθ |
+     *  | cφ·sθ·cψ + sφ·sψ    cφ·sθ·sψ - sφ·cψ   cφ·cθ |
      *
      * Trig values computed once and reused in the Euler-rate kinematics.
      * ------------------------------------------------------------------ */
