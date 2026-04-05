@@ -686,7 +686,7 @@ FGAISim::jsonParse(std::istream& in)
                 std::string k = i.key() + "[" + std::to_string(index++) + "]";
                 if (child.is_object()) {
                     // child is an object, we will iterate its children and add them below
-                    // a path seperator to the result map
+                    // a path separator to the result map
                     for (const auto& subchild : child.items()) {
                         const auto subChildK = k + "/" + subchild.key();
                         if (subchild.value().is_array()) {

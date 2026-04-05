@@ -237,7 +237,7 @@ private:
     float span = 0.0f;               /* wing span                       */
 
     /* static coefficients, *_n is for normalized surface deflection    */
-    float contact_spring[AISIM_MAX]; /* contact spring coeffients       */
+    float contact_spring[AISIM_MAX]; /* contact spring coefficients     */
     float contact_damp[AISIM_MAX];   /* contact damping coefficients    */
     float CLmin, CLa, CLadot, CLq, CLdf_n;
     float CDmin, CDa, CDb, CDi, CDdf_n;
