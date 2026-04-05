@@ -92,9 +92,9 @@ protected:
     /* A pointer to the associated device */
     FGInputDevice* device;
 
-    double lastDt;
-    double intervalSec;
-    double lastSettingValue;
+    double lastDt = std::nan("");
+    double intervalSec = std::nan("");
+    double lastSettingValue = std::nan("");
 };
 
 class FGButtonEvent : public FGInputEvent
@@ -152,13 +152,13 @@ protected:
     double computeValue(double rawValue) const;
     void setDefaultThresholds();
 
-    double tolerance;
-    double minRange;
-    double maxRange;
-    double center;
-    double deadband;
-    double lowThreshold;
-    double highThreshold;
+    double tolerance = 0.0;
+    double minRange = 0.0;
+    double maxRange = 0.0;
+    double center = 0.0;
+    double deadband = 0.0;
+    double lowThreshold = 0.0;
+    double highThreshold = 0.0;
     double lastValue = std::numeric_limits<double>::quiet_NaN();
 
     std::unique_ptr<SGInterpTable> interpolater;

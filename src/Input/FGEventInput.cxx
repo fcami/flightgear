@@ -141,6 +141,8 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
     tolerance = eventNode->getDoubleValue("tolerance", 0.002);
     minRange = eventNode->getDoubleValue("min-range", 0.0);
     maxRange = eventNode->getDoubleValue("max-range", 0.0);
+    center = eventNode->getDoubleValue("center", 0.0);
+    deadband = eventNode->getDoubleValue("dead-band", 0.0);
 
     // interpolation of values
     if (eventNode->hasChild("interpolater")) {
