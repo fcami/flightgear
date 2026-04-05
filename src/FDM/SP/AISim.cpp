@@ -16,6 +16,7 @@
 
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <streambuf>
 
 #include <nlohmann/json.hpp>
@@ -81,14 +82,14 @@ FGAISim::FGAISim(double dt)
     xCp[YAW]  = Cnp;
     xCr[YAW]  = Cnr;
 
-    xCq[LIFT] = -CLq;
-    xCadot[LIFT] = -CLadot;
+    xCq[LIFT] = CLq;
+    xCadot[LIFT] = CLadot;
 
     xCq[PITCH] = Cmq;
     xCadot[PITCH] = Cmadot;
 
-    xCDYLT.ptr()[MIN][LIFT] = -CLmin;
-    xCDYLT.ptr()[MIN][DRAG] = -CDmin;
+    xCDYLT.ptr()[MIN][LIFT] = CLmin;
+    xCDYLT.ptr()[MIN][DRAG] = CDmin;
 
     /* m is assigned in the load function */
     inv_mass = aiVec3(1.0f)/mass;
@@ -170,11 +171,26 @@ FGAISim::update(double ddt)
  printf("wind north: % 7.5f, east: % 7.5f, down:    % 7.5f\n", wind_ned[0], wind_ned[1], wind_ned[2]);
 #endif
 
-    /* Earth-to-Body-Axis Transformation Matrix */
-    /* matrices to compensate for pitch, roll and heading */
-    aiVec3 vector = euler; // simd4::normalize alters the vector
-    float  len = simd4::normalize(vector);
-    aiMtx4 mNed2Body = simd4x4::rotation_matrix(len, vector);
+    /* --------------------------------------------------------------------
+     * Earth-to-Body-Axis Transformation Matrix (ZYX Euler sequence)
+     * Rx(phi)*Ry(theta)*Rz(psi):
+     *
+     *  | c?.c?               c?.s?              -s?    |
+     *  | s?.s?.c? - c?.s?    s?.s?.s? + c?.c?   s?.c? |
+     *  | c?.s?.c? + s?.s?    c?.s?.s? - s?.c?   c?.c? |
+     *
+     * Trig values computed once and reused in the Euler-rate kinematics.
+     * ------------------------------------------------------------------ */
+    float sphi = std::sin(euler[PHI]),   cphi = std::cos(euler[PHI]);
+    float sthe = std::sin(euler[THETA]), cthe = std::cos(euler[THETA]);
+    float spsi = std::sin(euler[PSI]),   cpsi = std::cos(euler[PSI]);
+
+    aiMtx4 mNed2Body(
+        cthe*cpsi,                 cthe*spsi,                -sthe,     0.0f,
+        sphi*sthe*cpsi-cphi*spsi,  sphi*sthe*spsi+cphi*cpsi,  sphi*cthe, 0.0f,
+        cphi*sthe*cpsi+sphi*spsi,  cphi*sthe*spsi-sphi*cpsi,  cphi*cthe, 0.0f,
+        0.0f,                      0.0f,                       0.0f,      1.0f
+    );
     aiMtx4 mBody2Ned = simd4x4::transpose(mNed2Body);
     aiVec3 wind = mNed2Body*wind_ned;
 
@@ -200,21 +216,11 @@ FGAISim::update(double ddt)
 
     /* Force and Moment Coefficients */
     /* Sum all Drag, Side, Lift, Roll, Pitch and Yaw and Thrust coefficients */
-    float p = vPQR[P];
-    float q = vPQR[Q];
-    float r = vPQR[R];
-    float adot = AOAdot[ALPHA];
-
-    /*
-     * CDYL[LIFT]  = (CLq*q + CLadot*adot)*cbar_2U;
-     * Clmn[PITCH] = (Cmq*q + Cmadot*adot)*cbar_2U;
-     *
-     * CDYL[SIDE]  = (CYp*p       + CYr*r)*b_2U;
-     * Clmn[ROLL]  = (Clp*p       + Clr*r)*b_2U;
-     * Clmn[YAW]   = (Cnp*p       + Cnr*r)*b_2U;
-     */
-    aiVec4 Ccbar2U = (xCq*q + xCadot*adot)*cbar_2U;
-    aiVec4 Cb2U    = (xCp*p       + xCr*r)*b_2U;
+    /* Rate terms: (xCq*q + xCadot*adot)*cbar_2U  and
+     *             (xCp*p + xCr*r)*b_2U
+     * vPQR = {p,q,r}.  Broadcast each component as a vector multiply. */
+    aiVec4 Ccbar2U = (xCq*vPQR[Q] + xCadot*AOAdot[ALPHA])*cbar_2U;
+    aiVec4 Cb2U    = (xCp*vPQR[P] + xCr   *vPQR[R]      )*b_2U;
 
     /* xCDYLT and xClmnT already have their factors applied */
     /* in the functions in the header file.                 */
@@ -229,6 +235,7 @@ FGAISim::update(double ddt)
 
     float CL = CDYL[LIFT];
     CDYL += aiVec3(CDi*CL*CL, 0.0f, 0.0f);
+
 #if 0
  printf(" p: %6.3f, q: %6.3f, r: %6.3f, adot: %6.3f\n", p, q, r, adot);
  printf(" CLa: %6.3f, CLadot: %6.3f, CLq: %6.3f\n", xCDYLT.ptr()[ALPHA][LIFT],CLadot*adot,CLq*q);
@@ -250,9 +257,22 @@ FGAISim::update(double ddt)
     aiVec3 Mlmn = Clmn*Coef2Moment;
 
     /* convert from wind axes to body axes */
-    vector = AOA;
-    len = simd4::normalize(vector);
-    aiMtx4 mWind2Body = simd4x4::rotation_matrix(len, vector);
+    /* Ry(alpha)*Rz(-beta) built as an aiMtx4 from pre-computed
+     * trig scalars, then applied as a single matrix-vector multiply.
+     *
+     *  | ca*cb   -sb   -sa*cb |   | Fdrag |
+     *  | ca*sb    cb   -sa*sb | * | Fside |
+     *  |    sa     0      ca  |   | Flift |
+     */
+    float ca = std::cos(alpha), sa = std::sin(alpha);
+    float cb = std::cos(beta),  sb = std::sin(beta);
+
+    aiMtx4 mWind2Body(
+         ca*cb,  -sb,  -sa*cb, 0.0f,
+         ca*sb,   cb,  -sa*sb, 0.0f,
+            sa, 0.0f,      ca, 0.0f,
+          0.0f, 0.0f,    0.0f, 1.0f
+    );
     aiVec3 FXYZ_body = mWind2Body*FDYL;
 
     aiVec3 gravity_body = mNed2Body*gravity_ned;
@@ -273,7 +293,7 @@ FGAISim::update(double ddt)
  printf("MT[%lu]: %5.4f, % 7.5f, %5.4f\n", i, MEngine[ROLL], MEngine[PITCH], MEngine[YAW]);
 #endif
     }
-    while (i--);
+    while(i--);
 #if 0
  printf("FXYZ: %5.4f, %5.4f, %5.4f\n", FXYZ_body[X], FXYZ_body[Y], FXYZ_body[Z]);
  printf("Mlmn: %5.4f, % 7.5f, %5.4f\n", Mlmn[ROLL], Mlmn[PITCH], Mlmn[YAW]);
@@ -289,7 +309,7 @@ FGAISim::update(double ddt)
         {
             aiVec3 lg_ground_ned = mBody2Ned*contact_pos[i];
             if (lg_ground_ned[Z] > cg_agl)
-            {   // weight on wheel
+            {	// weight on wheel
                 aiVec3 lg_vrot = simd4::cross(vPQR, contact_pos[i]);
                 aiVec3 lg_cg_vned = mBody2Ned*lg_vrot;
                 aiVec3 lg_vned = vNED + lg_cg_vned;
@@ -303,8 +323,8 @@ FGAISim::update(double ddt)
                 aiVec3 FLGear = Fbody + Fbrake;
                 FXYZ_body += FLGear;
 
-//              aiVec3 MLGear = simd4::cross(contact_pos[i], FLGear);
-//              Mlmn += MLGear;
+                aiVec3 Mbrake = simd4::cross(contact_pos[i], Fbrake);
+                Mlmn += Mbrake;
 #if 0
  printf("gear: %lu: pos: % 3.2f % 3.2f % 3.2f\n", i,
          lg_ground_ned[0], lg_ground_ned[1], lg_ground_ned[2]);
@@ -315,9 +335,9 @@ FGAISim::update(double ddt)
 #endif
                 if (i<3) WoW_main++;
             }
-            WoW = (WoW_main == 3);
         }
         while(++i < no_contacts);
+        WoW = (WoW_main == 3);
     }
 
     /* local body accelrations */
@@ -357,11 +377,11 @@ printf("AOAdot: %5.4f, AOA: %5.4f, up: XYZdot: % 7.5f, XYZ: % 7.5f, gravity: % 7
 
 #ifdef ENABLE_SP_FDM
     double dist = simd4::magnitude( aiVec2(NEDdist) );
-
+    double ground_track_deg = std::atan2(vNED[EAST], vNED[NORTH]) * SGD_RADIANS_TO_DEGREES;
     double lat2 = 0.0, lon2 = 0.0, az2 = 0.0;
     geo_direct_wgs_84( 0.0, location_geod[LATITUDE] * SGD_RADIANS_TO_DEGREES,
                             location_geod[LONGITUDE] * SGD_RADIANS_TO_DEGREES,
-                            euler[PSI] * SGD_RADIANS_TO_DEGREES,
+                            ground_track_deg,
                             dist * SG_FEET_TO_METER, &lat2, &lon2, &az2 );
     set_location_geod( lat2 * SGD_DEGREES_TO_RADIANS,
                        lon2 * SGD_DEGREES_TO_RADIANS,
@@ -377,34 +397,27 @@ printf("AOAdot: %5.4f, AOA: %5.4f, up: XYZdot: % 7.5f, XYZ: % 7.5f, gravity: % 7
  printf("GEOD:    % 7.5f, % 7.5f, % 7.5f\n", location_geod[0], location_geod[1], location_geod[2]);
 #endif
 
-#if 0
-{
-    vector = simd4::normalize(euler);
-    float len = simd4::normalize(vector);
-    aiMtx4 mWind2Body = simd4x4::rotation_matrix(len, vector);
-    euler_dot = mWind2Body*vPQR;
-    euler += euler_dot*dt;
-}
-#else
     /* angle of body wrt earth: phi (roll), theta (pitch), psi (heading) */
-    float sin_p = std::sin(euler[PHI]);
-    float cos_p = std::cos(euler[PHI]);
-    float sin_t = std::sin(euler[THETA]);
-    float cos_t = std::cos(euler[THETA]);
-    if (std::abs(cos_t) < 0.00001f) cos_t = std::copysign(0.00001f,cos_t);
+    /* Reuse sinEuler/cosEuler computed above for the NED to Body matrix.
+     * No additional sin/cos calls needed here.
+     *
+     * euler_dot[PSI]   = (q*sin(phi) + r*cos(phi)) / cos(theta)
+     * euler_dot[THETA] =  q*cos(phi) - r*sin(phi)
+     * euler_dot[PHI]   =  p + euler_dot[PSI]*sin(theta)
+     */
+    float cthe_safe = cthe;
+    if (std::abs(cthe_safe) < 0.00001f)
+        cthe_safe = std::copysign(0.00001f, cthe_safe);
 
-    if (cos_t == 0.0f) {
-        euler_dot[PSI] =  0.0f;
-    } else {
-        euler_dot[PSI] = (q*sin_p + r*cos_p)/cos_t;
-    }
-    euler_dot[THETA] =    q*cos_p - r*sin_p;
-/*  euler_dot[PHI] = p + (q*sin_p + r*cos_p)*sin_t/cos_t; */
-    euler_dot[PHI] = p + euler_dot[PSI]*sin_t;
-    euler += euler_dot*dt;
+    float psi_dot    = (vPQR[Q]*sphi + vPQR[R]*cphi) / cthe_safe;
+    euler_dot[PSI]   = psi_dot;
+    euler_dot[THETA] =  vPQR[Q]*cphi - vPQR[R]*sphi;
+    euler_dot[PHI]   =  vPQR[P] + psi_dot * sthe;
+
+    euler += euler_dot * dt;
+
 #if 0
  printf("euler:   % 7.5f, % 7.5f, % 7.5f\n", euler[PHI], euler[THETA], euler[PSI]);
-#endif
 #endif
 
 #ifdef ENABLE_SP_FDM
@@ -567,7 +580,13 @@ FGAISim::update_velocity(float v)
     float Sbqbar = Sqbar*span;
     float Sqbarcbar = Sqbar*cbar;
 
-    Coef2Force = aiVec3(Sqbar);
+    // Drag opposes forward motion (-X body axis) and lift acts upward
+    // (-Z, since body Z is positive-downward). Side force is +Y.
+    // All-positive Sqbar would invert drag and lift, making drag propulsive
+    // and swamping aileron/rudder authority.
+    Coef2Force[DRAG] = -Sqbar;
+    Coef2Force[SIDE] =  Sqbar;
+    Coef2Force[LIFT] = -Sqbar;
     Coef2Moment = aiVec3(Sbqbar);
     Coef2Moment[PITCH] = Sqbarcbar;
 
@@ -667,7 +686,7 @@ FGAISim::jsonParse(std::istream& in)
                 std::string k = i.key() + "[" + std::to_string(index++) + "]";
                 if (child.is_object()) {
                     // child is an object, we will iterate its children and add them below
-                    // a path separator to the result map
+                    // a path seperator to the result map
                     for (const auto& subchild : child.items()) {
                         const auto subChildK = k + "/" + subchild.key();
                         if (subchild.value().is_array()) {
@@ -705,11 +724,14 @@ FGAISim::load(std::string path)
     jsonString.assign((std::istreambuf_iterator<char>(file)),
                        std::istreambuf_iterator<char>());
 
-    jsonMap data = jsonParse(file);
+    // Parse from the string we just read -- the file stream is at EOF here
+    // and passing it directly to jsonParse would yield an empty map.
+    std::istringstream jsonStream(jsonString);
+    jsonMap data = jsonParse(jsonStream);
 
     Sw   = data["Sw"];
     cbar = data["cbar"];
-    span = data["b"];
+    span = data["bw"];      // JSON key is "bw", not "b"
 
     mass = data["mass"]/AISIM_G;
 
@@ -770,14 +792,22 @@ FGAISim::load(std::string path)
         struct_to_body(pos);
 
         // Thruster orientation is in the following sequence: pitch, roll, yaw
-        aiVec3 orientation(data[engstr + "/dir[1]"],  // roll (degrees)
-                           data[engstr + "/dir[0]"],  // pitch (degrees)
+        aiVec3 orientation(data[engstr + "/dir[0]"],  // pitch (degrees)
+                           data[engstr + "/dir[1]"],  // roll (degrees)
                            data[engstr + "/dir[2]"]); // yaw (degrees)
         orientation *= SG_DEGREES_TO_RADIANS;
 
-        float len = simd4::normalize(orientation);
-        aiMtx4 mWind2Body = simd4x4::rotation_matrix(len, orientation);
-        aiVec3 dir = mWind2Body*aiVec3(1.0f, 0.0f, 0.0f);
+        aiVec3 dir;
+        float len = simd4::magnitude(orientation);
+        if (len > 0.0f)
+        {
+            orientation /= len;   // normalize without altering len
+            aiMtx4 mWind2Body = simd4x4::rotation_matrix(len, orientation);
+            dir = mWind2Body*aiVec3(1.0f, 0.0f, 0.0f);
+        }
+        else {
+            dir = aiVec3(1.0f, 0.0f, 0.0f);
+        }
         aiVec3 rot = simd4::cross(pos, dir);
 
         float rho = 0.002379f;
@@ -836,7 +866,7 @@ FGAISim::load(std::string path)
     Cmde_n = data["Cmde"]*de_max;
     Cmdf_n = data["Cmdf"]*df_max;
 
-    Cnb    = data["Cnb "];
+    Cnb    = data["Cnb"];
     Cnp    = data["Cnp"];
     Cnr    = data["Cnr"];
     Cnda_n = data["Cnda"]*da_max;
