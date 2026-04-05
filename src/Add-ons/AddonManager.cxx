@@ -268,8 +268,8 @@ AddonManager::addonBasePath(const string& addonId) const
 PathList AddonManager::addonBasePaths() const
 {
     PathList paths;
-    for (auto it = _idToAddonMap.begin(); it != _idToAddonMap.end(); it++) {
-        paths.push_back(it->second->getBasePath());
+    for (const auto& element : _idToAddonMap) {
+        paths.push_back(element.second->getBasePath());
     }
     return paths;
 }
