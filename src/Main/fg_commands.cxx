@@ -530,6 +530,72 @@ do_property_toggle (const SGPropertyNode * arg, SGPropertyNode * root)
 
 
 /**
+ * Built-in command: set a bit in an integer property.
+ *
+ * property: The name of the property to modify (must be integer type).
+ * bit: The bit index to set (0-31).
+ */
+static bool
+do_property_set_bit(const SGPropertyNode* arg, SGPropertyNode* root)
+{
+    SGPropertyNode* prop = get_prop(arg, root);
+    if (prop->getType() != simgear::props::INT) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-set-bit: property '" << prop->getPath() << "' is not an integer property");
+        return false;
+    }
+    const int bit = arg->getIntValue("bit", -1);
+    if (bit < 0 || bit > 31) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-set-bit: bit index " << bit << " is out of range (0-31)");
+        return false;
+    }
+    return prop->setIntValue(prop->getIntValue() | (1 << bit));
+}
+
+/**
+ * Built-in command: clear a bit in an integer property.
+ *
+ * property: The name of the property to modify (must be integer type).
+ * bit: The bit index to clear (0-31).
+ */
+static bool
+do_property_clear_bit(const SGPropertyNode* arg, SGPropertyNode* root)
+{
+    SGPropertyNode* prop = get_prop(arg, root);
+    if (prop->getType() != simgear::props::INT) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-clear-bit: property '" << prop->getPath() << "' is not an integer property");
+        return false;
+    }
+    const int bit = arg->getIntValue("bit", -1);
+    if (bit < 0 || bit > 31) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-clear-bit: bit index " << bit << " is out of range (0-31)");
+        return false;
+    }
+    return prop->setIntValue(prop->getIntValue() & ~(1 << bit));
+}
+
+/**
+ * Built-in command: toggle a bit in an integer property.
+ *
+ * property: The name of the property to modify (must be integer type).
+ * bit: The bit index to toggle (0-31).
+ */
+static bool
+do_property_toggle_bit(const SGPropertyNode* arg, SGPropertyNode* root)
+{
+    SGPropertyNode* prop = get_prop(arg, root);
+    if (prop->getType() != simgear::props::INT) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-toggle-bit: property '" << prop->getPath() << "' is not an integer property");
+        return false;
+    }
+    const int bit = arg->getIntValue("bit", -1);
+    if (bit < 0 || bit > 31) {
+        SG_LOG(SG_GENERAL, SG_WARN, "property-toggle-bit: bit index " << bit << " is out of range (0-31)");
+        return false;
+    }
+    return prop->setIntValue(prop->getIntValue() ^ (1 << bit));
+}
+
+/**
  * Built-in command: assign a value to a property.
  *
  * property: the name of the property to assign.
@@ -1160,6 +1226,9 @@ static struct {
     { "set-dewpoint-temp-degc", do_set_dewpoint_degc },
     */
     {"property-toggle", do_property_toggle},
+    {"property-set-bit", do_property_set_bit},
+    {"property-clear-bit", do_property_clear_bit},
+    {"property-toggle-bit", do_property_toggle_bit},
     {"property-assign", do_property_assign},
     {"property-adjust", do_property_adjust},
     {"property-multiply", do_property_multiply},
