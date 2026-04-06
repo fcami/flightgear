@@ -558,7 +558,7 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
         .method("addChangedCallback", &f_itemAddCallback);
 
     using MenuGhost = nasal::Ghost<NasalMenuPtr>;
-    MenuGhost::init("gui.xml.Menu")
+    MenuGhost::init("gui.xml.MenuImpl")
         .member("label", &NasalMenu::label)
         .member("name", &NasalMenu::name)
         .member("enabled", &NasalMenu::isEnabled)
@@ -577,8 +577,10 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
     auto nas = globals->get_subsystem<FGNasalSys>();
     nasal::Context nasCtx;
     nasal::Hash guiModule{nas->getModule("gui"), nasCtx};
-    nasal::Hash menuHash{guiModule.get("Menu"), nasCtx};
-    menuHash.set("ChildAdded",   naNum(static_cast<int>(MenuChangeKind::ChildAdded)));
+    nasal::Hash xmlHash{guiModule.get("xml"), nasCtx};
+    nasal::Hash menuHash = xmlHash.createHash("Menu");
+
+    menuHash.set("ChildAdded", naNum(static_cast<int>(MenuChangeKind::ChildAdded)));
     menuHash.set("ChildRemoved", naNum(static_cast<int>(MenuChangeKind::ChildRemoved)));
-    menuHash.set("Updated",      naNum(static_cast<int>(MenuChangeKind::Updated)));
+    menuHash.set("Updated", naNum(static_cast<int>(MenuChangeKind::Updated)));
 }

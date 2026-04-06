@@ -17,6 +17,7 @@
 
 #include <simgear/scene/model/SGPickAnimation.hxx>
 #include <simgear/scene/util/SGPickCallback.hxx>
+#include <simgear/structure/commands.hxx>
 #include <simgear/timing/timestamp.hxx>
 
 #include "FGButton.hxx"
