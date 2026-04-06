@@ -40,8 +40,7 @@ class PolyLine : public SGReferenced
 public:
     virtual ~PolyLine();
 
-    enum Type
-    {
+    enum Type {
         INVALID = 0,
         COASTLINE,
         NATIONAL_BOUNDARY, /// aka a border
@@ -49,6 +48,7 @@ public:
         RIVER,
         LAKE,
         URBAN,
+        LAND_MASS,
         // airspace types in the future
         LAST_TYPE
     };
