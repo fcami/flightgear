@@ -251,8 +251,7 @@ FGAISim::update(double ddt)
 
     /* Thrust */
     float Cth = rho*throttle*throttle;
-    for (i=0; i<no_engines; i++)
-    {
+    for (i = 0; i < no_engines; i++) {
         aiVec3 FEngine = FT[i]*(Cth*n2[i]);
         aiVec3 MEngine = MT[i]*Cth;
 
