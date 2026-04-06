@@ -251,7 +251,11 @@ public:
             std::string curName(pick.callback->getCursor());
             if (!curName.empty()) {
                 explicitCursor = true;
-                cur = FGMouseCursor::cursorFromString(curName.c_str());
+                if (curName == "explicit") {
+                    cur = FGMouseCursor::instance()->getCursor();
+                } else {
+                    cur = FGMouseCursor::cursorFromString(curName);
+                }
             }
 
             // if the callback is of higher priority (lower enum index),
@@ -299,6 +303,8 @@ public:
         // Do not compute scenery picks unless a callback requests it, as it is costly.
         SGSceneryPicks pickList;
         bool did_pick = false;
+        mouse& m = mice[0];
+        mouse_mode& mode = m.modes[m.current_mode];
 
         for (ActivePickCallbacks::iterator mi = activePickCallbacks.begin();
              mi != activePickCallbacks.end();
@@ -306,7 +312,11 @@ public:
             SGPickCallbackList::iterator li;
             for (li = mi->second.begin(); li != mi->second.end(); ++li) {
                 if (!did_pick && (*li)->needsDragPosition()) {
-                    pickList = globals->get_renderer()->pick(windowPos);
+                    if (mode._passThrough3D) {
+                        pickList = m.cursor3D->pick();
+                    } else {
+                        pickList = globals->get_renderer()->pick(windowPos);
+                    }
                     did_pick = true;
                 }
 
@@ -314,8 +324,13 @@ public:
                 (*li)->mouseMoved(*ea, pick ? &pick->info : 0);
 
                 std::string curName((*li)->getCursor());
-                if (!curName.empty())
-                    cur = FGMouseCursor::cursorFromString(curName.c_str());
+                if (!curName.empty()) {
+                    if (curName == "explicit") {
+                        cur = FGMouseCursor::instance()->getCursor();
+                    } else {
+                        cur = FGMouseCursor::cursorFromString(curName);
+                    }
+                }
             }
         }
 
@@ -448,7 +463,7 @@ void FGMouseInput::init()
             SGPropertyNode* mode_node = mouse_node->getChild("mode", j, true);
 
             // Read the mouse cursor for this mode
-            m.modes[j].cursor = FGMouseCursor::cursorFromString(mode_node->getStringValue("cursor", "inherit").c_str());
+            m.modes[j].cursor = FGMouseCursor::cursorFromString(mode_node->getStringValue("cursor", "inherit"));
 
             // Read other properties for this mode
             m.modes[j].constrained = mode_node->getBoolValue("constrained", false);
@@ -656,7 +671,11 @@ void FGMouseInput::doMouseClick(int b, int updown, int x, int y, bool mainWindow
             // when spring-loaded mode is active, don't do scene selection for picks
             // https://sourceforge.net/p/flightgear/codetickets/2108/
         } else {
-            pickList = globals->get_renderer()->pick(windowPos);
+            if (mode._passThrough3D) {
+                pickList = m.cursor3D->pick();
+            } else {
+                pickList = globals->get_renderer()->pick(windowPos);
+            }
         }
 
         if (updown == MOUSE_BUTTON_UP) {
@@ -710,37 +729,38 @@ void FGMouseInput::doMouseClick(int b, int updown, int x, int y, bool mainWindow
 
 void FGMouseInput::processMotion(int x, int y, const osgGA::GUIEventAdapter* ea)
 {
-    if (!d->activePickCallbacks[0].empty()) {
-        d->doMouseMoveWithCallbacks(ea);
-        return;
-    }
-
-    if (SviewMouseMotion(x, y, *ea)) {
-        return;
-    }
-
     mouse& m = d->mice[0];
     int modeIndex = m.current_mode;
+    bool pickCallbacks = !d->activePickCallbacks[0].empty();
 
-    if (isRightDragLookActive()) {
-        // right mouse is down, force look mode
+    if (isRightDragLookActive() && !pickCallbacks) {
+        // right mouse is down, force look mode (unless already picking)
         modeIndex = 3;
     }
 
     mouse_mode& mode = m.modes[modeIndex];
 
-    if (mode.pass_through) {
-        osg::Vec2d windowPos;
-        flightgear::eventToWindowCoords(ea, windowPos.x(), windowPos.y());
-
-        // omly do hover picks if no buttons are down
-        if (ea->getButtonMask() == 0) {
-            d->scheduleHoverPick(windowPos);
+    if (!pickCallbacks) {
+        if (SviewMouseMotion(x, y, *ea)) {
+            return;
         }
 
-        // mouse has moved, so we may need to issue tooltip-timeout command again
-        d->tooltipTimeoutDone = false;
+        if (mode.pass_through) {
+            osg::Vec2d windowPos;
+            flightgear::eventToWindowCoords(ea, windowPos.x(), windowPos.y());
+
+            // only do hover picks if no buttons are down
+            if (ea->getButtonMask() == 0) {
+                d->scheduleHoverPick(windowPos);
+            }
+
+            // mouse has moved, so we may need to issue tooltip-timeout command again
+            d->tooltipTimeoutDone = false;
+        }
     }
+
+    // We need to handle bindings even if pickCallbacks, to allow 360 mouse
+    // motion to move the 3D cursor before doMouseMoveWithCallbacks()
 
     if (d->haveWarped) {
         // don't fire mouse-movement events at the first update after warping
@@ -770,6 +790,10 @@ void FGMouseInput::processMotion(int x, int y, const osgGA::GUIEventAdapter* ea)
     // Constrain the mouse if requested
     if (mode.constrained) {
         d->constrainMouse(x, y);
+    }
+
+    if (pickCallbacks) {
+        d->doMouseMoveWithCallbacks(ea);
     }
 }
 

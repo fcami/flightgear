@@ -12,6 +12,7 @@
 
 #include <simgear/math/SGVec2.hxx>
 #include <simgear/math/SGVec3.hxx>
+#include <simgear/props/propertyObject.hxx>
 
 #include <GUI/MouseCursor.hxx>
 
@@ -125,6 +126,11 @@ protected:
     void updateModel();
 
 protected:
+    /// Reach distance.
+    SGPropObjDouble _propReachM;
+    /// 360 motion pixel angle / sensitivity (degrees).
+    SGPropObjDouble _propPxAngleDeg;
+
     /**
      * Map of cursor types to switch indices (model IDs).
      * -1 indicates that no model exists.

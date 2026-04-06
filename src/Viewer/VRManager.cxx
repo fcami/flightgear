@@ -7,6 +7,7 @@
 
 #include <osgXR/Settings>
 
+#include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/scene/util/RenderConstants.hxx>
 #include <simgear/scene/viewer/Compositor.hxx>
 #include <simgear/scene/viewer/CompositorPass.hxx>
@@ -14,6 +15,8 @@
 
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
+
+#include <Scenery/scenery.hxx>
 
 namespace flightgear
 {
@@ -25,11 +28,42 @@ using namespace compositor;
 // then its destruction should take place before fgExitCleanup() is called.
 static osg::ref_ptr<VRManager> managerInstance;
 
+namespace {
+
+/// Update callback for MatrixTransform to sync it to master camera.
+class LocalSpaceUpdateCallback : public osg::NodeCallback
+{
+public:
+    LocalSpaceUpdateCallback(osg::MatrixTransform* transform)
+        : _transform(transform)
+    {
+    }
+
+    void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+    {
+        CameraGroup* cgroup = CameraGroup::getDefault();
+        osg::Camera* masterCam = cgroup->getView()->getCamera();
+
+        // Update the transform object to match the master camera view
+        _transform->setMatrix(masterCam->getInverseViewMatrix());
+
+        traverse(node, nv);
+    }
+
+protected:
+    /// Transform node to adjust.
+    osg::ref_ptr<osg::MatrixTransform> _transform;
+};
+
+} // namespace
+
 VRManager::VRManager()
     : _reloadCompositorCallback(new ReloadCompositorCallback(this)),
       _headSpace(new osgXR::RefSpaceView(this,
                                          // Offset head space back 10cm from view space
                                          osgXR::Pose(osg::Quat(), osg::Vec3f(0.0f, 0.0f, -0.1f)))),
+      _localSpaceUpdater(new osg::Group),
+      _localSpace(new osg::MatrixTransform),
       _propXrLayersValidation("/sim/vr/openxr/layers/validation"),
       _propXrExtensionsDepthInfo("/sim/vr/openxr/extensions/depth-info"),
       _propXrExtensionsVisibilityMask("/sim/vr/openxr/extensions/visibility-mask"),
@@ -48,6 +82,7 @@ VRManager::VRManager()
       _propSwapchainMode("/sim/vr/swapchain-mode"),
       _propMirrorEnabled("/sim/vr/mirror-enabled"),
       _propMirrorMode("/sim/vr/mirror-mode"),
+      _propGuiPath("/sim/vr/config/gui/model/path"),
       _listenerEnabled(this, &osgXR::Manager::setEnabled),
       _listenerDepthInfo(this, &VRManager::setDepthInfo),
       _listenerVisibilityMask(this, &VRManager::setVisibilityMask),
@@ -86,6 +121,7 @@ VRManager::VRManager()
 
     // No need for a change listener, but it should still be resolvable
     _propMirrorEnabled.node(true);
+    _propGuiPath.node(true);
 
     globals->get_commands()->addCommand("vr-recenter", this, &VRManager::cmdRecenter);
 
@@ -104,6 +140,13 @@ VRManager::VRManager()
         if (compositorProps->getBoolValue("multiview/intermediates-tiled", false))
             _settings->allowSwapchainMode(osgXR::Settings::SWAPCHAIN_SINGLE);
     }
+
+    // Only transform nodes in range are updated, so the update callback must be
+    // higher up the scene graph than _localSpace.
+    _localSpace->setName("LocalSpace");
+    _localSpaceUpdater->setName("LocalSpaceUpdater");
+    _localSpaceUpdater->addChild(_localSpace);
+    _localSpaceUpdater->setUpdateCallback(new LocalSpaceUpdateCallback(_localSpace));
 }
 
 VRManager::~VRManager()
@@ -265,6 +308,12 @@ void VRManager::setMirrorMode(const std::string& mode)
 
 void VRManager::update()
 {
+    if (!_localSpaceUpdater->getNumParents() && globals->get_scenery()) {
+        // Add to main scene graph.
+        osg::Group* sceneGroup = globals->get_scenery()->get_scene_graph();
+        sceneGroup->addChild(_localSpaceUpdater);
+    }
+
     osgXR::Manager::update();
     syncProperties();
 }
@@ -319,7 +368,9 @@ void VRManager::doDestroyView(osgXR::View *xrView)
         if (it2 != _xrViews.end())
             _xrViews.erase(it2);
 
-        cgroup->removeCamera(info.get());
+        // On quit camera group may already be gone
+        if (cgroup)
+            cgroup->removeCamera(info.get());
     }
 }
 
@@ -387,6 +438,12 @@ static osgXR::View::Flags getPassVRFlags(const simgear::compositor::Pass *pass)
 
 void VRManager::preReloadCompositor(CameraGroup *cgroup, CameraInfo *info)
 {
+    if (_gui3D) {
+        // Remove the GUI model node from the local space
+        _localSpace->removeChild(_gui3D);
+        _gui3D = nullptr;
+    }
+
     osgXR::View *xrView = _xrViews[info];
 
     auto& passes = info->compositor->getPassList();
@@ -408,6 +465,31 @@ void VRManager::postReloadCompositor(CameraGroup *cgroup, CameraInfo *info)
         auto flags = getPassVRFlags(pass);
         if (flags)
             xrView->addSlave(pass->camera, flags);
+    }
+
+    // Load the 3D GUI model. We do this here so the GUI compositor pass already
+    // exists, but if we have multiple compositors (for multiple views in slave
+    // camera mode) we only need one 3D GUI.
+    if (!_gui3D) {
+        std::string path = _propGuiPath;
+        simgear::ErrorReportContext ec("GUI3D-model", path);
+        SGPath resolvedPath = globals->resolve_aircraft_path(path);
+        if (resolvedPath.isNull()) {
+            simgear::reportFailure(simgear::LoadFailure::NotFound,
+                                   simgear::ErrorCode::XMLModelLoad,
+                                   "Failed to find 3D GUI model",
+                                   SGPath::fromUtf8(path));
+        } else {
+            _gui3D = simgear::SGModelLib::loadModel(resolvedPath.utf8Str(),
+                                                    globals->get_props());
+            if (_gui3D) {
+                // Don't let the aircraft collide catastrophically with the GUI
+                _gui3D->setNodeMask(~SG_NODEMASK_TERRAIN_BIT);
+
+                // Add the model node to the local space
+                _localSpace->addChild(_gui3D);
+            }
+        }
     }
 }
 

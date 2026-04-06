@@ -168,16 +168,6 @@ private:
     CameraGroup* _cameraGroup; // non-owning reference
 };
 
-struct GUIUpdateCallback : public Pass::PassUpdateCallback {
-    virtual void updatePass(Pass &pass,
-                            const osg::Matrix &view_matrix,
-                            const osg::Matrix &proj_matrix) {
-        // Just set both the view matrix and the projection matrix
-        pass.camera->setViewMatrix(view_matrix);
-        pass.camera->setProjectionMatrix(proj_matrix);
-    }
-};
-
 typedef std::vector<SGPropertyNode_ptr> SGPropertyNodeVec;
 
 osg::ref_ptr<CameraGroup> CameraGroup::_defaultGroup;
@@ -650,62 +640,33 @@ void CameraGroup::buildGUICamera(SGPropertyNode* cameraNode,
         return;
     }
 
+    // Create the Compositor using XML configuration.
+    osg::ref_ptr<SGReaderWriterOptions> options =
+        SGReaderWriterOptions::fromPath(globals->get_fg_root());
+    osg::ref_ptr<osg::Viewport> viewport = new osg::Viewport(
+        0, 0, window->gc->getTraits()->width, window->gc->getTraits()->height);
+    Compositor* compositor = Compositor::create(_viewer,
+                                                window->gc,
+                                                viewport.get(),
+                                                "Compositor/gui",
+                                                options);
+    if (!compositor)
+        return;
+
+    // Many other parts of FG require direct access to the GUI osg::Camera
+    // object, the GUI pass must exist.
+    const auto& passes = compositor->getPassList();
+    auto match = std::find_if(passes.begin(), passes.end(),
+                              [](const Pass* pass) { return pass->type == "gui"; });
+    if (match == passes.end()) {
+        SG_LOG(SG_VIEW, SG_POPUP, "CameraGroup::buildGUICamera: GUI compositor must contain a pass of type \"gui\"");
+        delete compositor;
+        return;
+    }
+    int guiPass = match - passes.begin();
+
     // Mark the window as containing the GUI
     window->flags |= GraphicsWindow::GUI;
-
-    Camera* camera = new Camera;
-    camera->setName( "GUICamera" );
-    camera->setAllowEventFocus(false);
-    camera->setGraphicsContext(window->gc.get());
-    // If a viewport isn't set on the camera, then it's hard to dig it
-    // out of the SceneView objects in the viewer, and the coordinates
-    // of mouse events are somewhat bizarre.
-    osg::Viewport *viewport = new osg::Viewport(
-        0, 0, window->gc->getTraits()->width, window->gc->getTraits()->height);
-    camera->setViewport(viewport);
-    camera->setClearMask(0);
-    camera->setInheritanceMask(CullSettings::ALL_VARIABLES
-                               & ~(CullSettings::COMPUTE_NEAR_FAR_MODE
-                                   | CullSettings::CULLING_MODE
-                                   | CullSettings::CLEAR_MASK
-                                   ));
-    camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
-    camera->setCullingMode(osg::CullSettings::NO_CULLING);
-    camera->setProjectionResizePolicy(osg::Camera::FIXED);
-
-    // OSG is buggy and treats draw buffer target as separate from FBO
-    // state. Be explicit about drawing to back buffer to reduce chance of
-    // inheriting a GL_NONE, which is particularly likely with single target
-    // CSM passes and stereo.
-    camera->setDrawBuffer(GL_BACK);
-    camera->setReadBuffer(GL_BACK);
-
-    // The camera group will always update the camera
-    camera->setReferenceFrame(Transform::ABSOLUTE_RF);
-
-    // Draw all nodes in the order they are added to the GUI camera
-    camera->getOrCreateStateSet()
-        ->setRenderBinDetails( 0,
-                               "PreOrderBin",
-                               osg::StateSet::OVERRIDE_RENDERBIN_DETAILS );
-
-    // XXX Camera needs to be drawn last; eventually the render order
-    // should be assigned by a camera manager.
-    camera->setRenderOrder(osg::Camera::POST_RENDER, 10000);
-
-    Pass *pass = new Pass;
-    pass->camera = camera;
-    pass->useMastersSceneData = false;
-    pass->update_callback = new GUIUpdateCallback;
-
-    // For now we just build a simple Compositor directly from C++ space that
-    // encapsulates a single osg::Camera. This could be improved by letting
-    // users change the Compositor config in XML space, for example to be able
-    // to add post-processing to a HUD.
-    // However, since many other parts of FG require direct access to the GUI
-    // osg::Camera object, this is fine for now.
-    Compositor *compositor = new Compositor(_viewer, window->gc, viewport);
-    compositor->addPass(pass);
 
     const int cameraFlags = CameraInfo::GUI | CameraInfo::DO_INTERSECTION_TEST;
     CameraInfo* info = new CameraInfo(cameraFlags);
@@ -713,10 +674,8 @@ void CameraGroup::buildGUICamera(SGPropertyNode* cameraNode,
     info->viewOffset = osg::Matrix::identity();
     info->projOffset = osg::Matrix::identity();
     info->compositor.reset(compositor);
+    info->guiPass = guiPass;
     _cameras.push_back(info);
-
-    // Disable statistics for the GUI camera.
-    camera->setStats(0);
 }
 
 Compositor *CameraGroup::buildVRMirrorCompositor(osg::GraphicsContext* gc,
@@ -830,7 +789,10 @@ CameraInfo* CameraGroup::getGUICamera() const
 
 osg::Camera* getGUICamera(CameraGroup* cgroup)
 {
-    return cgroup->getGUICamera()->compositor->getPass(0)->camera;
+    CameraInfo* camInfo = cgroup->getGUICamera();
+    if (!camInfo)
+        return nullptr;
+    return camInfo->compositor->getPass(camInfo->guiPass)->camera;
 }
 
 const CameraGroup::CameraList& CameraGroup::getCameras()

@@ -12,6 +12,7 @@
 
 #include <simgear/math/SGVec2.hxx>
 #include <simgear/math/SGVec3.hxx>
+#include <simgear/props/propertyObject.hxx>
 
 #include "renderer.hxx"
 
@@ -53,6 +54,13 @@ protected:
     void updateModel();
 
 protected:
+    /// Minimum target angle from forward for cue visibility (degrees).
+    SGPropObjDouble _propVisibilityAngleDeg;
+    /// Cue angle from forward (degrees).
+    SGPropObjDouble _propAngleDeg;
+    /// Cue distance (m).
+    SGPropObjDouble _propDistanceM;
+
     /// Cue currently visible.
     bool _visible = false;
 

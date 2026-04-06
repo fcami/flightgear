@@ -692,17 +692,6 @@ FGRenderer::PickList handlePickIntersections(Intersections& intersections)
     auto highlight = globals->get_subsystem<Highlight>();
     int highlight_num_props = 0;
 
-    // Treat first physical object as hit, even without a pick callback
-    if (!intersections.empty()) {
-        auto hit = intersections.begin();
-
-        SGSceneryPick sceneryPick;
-        sceneryPick.info.local = toSG(hit->getLocalIntersectPoint());
-        sceneryPick.info.wgs84 = toSG(hit->getWorldIntersectPoint());
-        sceneryPick.callback = nullptr;
-        result.push_back(sceneryPick);
-    }
-
     for (const auto& hit : intersections) {
         const osg::NodePath& np = hit.nodePath;
         osg::NodePath::const_reverse_iterator npi;
@@ -723,13 +712,28 @@ FGRenderer::PickList handlePickIntersections(Intersections& intersections)
                 sceneryPick.info.local = toSG(hit.getLocalIntersectPoint());
                 sceneryPick.info.wgs84 = toSG(hit.getWorldIntersectPoint());
 
-                if( pickCallback->needsUV() )
+                if (pickCallback->needsUV()) {
                     sceneryPick.info.uv = uvFromIntersection(hit);
+                    // Skip if UV hitTest fails
+                    if (!pickCallback->hitTest(sceneryPick.info))
+                        goto next_intersection;
+                }
 
                 sceneryPick.callback = pickCallback;
                 result.push_back(sceneryPick);
             } // of installed pick callbacks iteration
         } // of reverse node path walk
+
+        // Treat first physical object as hit, even without a pick callback
+        if (result.empty()) {
+            SGSceneryPick sceneryPick;
+            sceneryPick.info.local = toSG(hit.getLocalIntersectPoint());
+            sceneryPick.info.wgs84 = toSG(hit.getWorldIntersectPoint());
+            sceneryPick.callback = nullptr;
+            result.push_back(sceneryPick);
+        }
+
+    next_intersection:;
     }
 
     return result;
@@ -760,13 +764,16 @@ FGRenderer::addCanvasCamera(osg::Camera* camera)
 {
     assert(camera);
 
+    osg::Camera* guiCamera = getGUICamera(CameraGroup::getDefault());
+    if (!guiCamera)
+        return;
+
     bool should_restart_threading = getViewerBase()->areThreadsRunning();
     if (should_restart_threading) {
         getViewerBase()->stopThreading();
     }
 
     // Use the same graphics context as the GUI camera
-    osg::Camera *guiCamera = getGUICamera(CameraGroup::getDefault());
     osg::GraphicsContext *gc = guiCamera->getGraphicsContext();
     camera->setGraphicsContext(gc);
 

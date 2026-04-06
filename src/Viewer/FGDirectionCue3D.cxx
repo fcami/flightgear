@@ -32,11 +32,22 @@ FGDirectionCue3D::FGDirectionCue3D(osg::Node* target)
 {
     setName("3D direction cue for " + target->getName());
 
+    // Set up properties and usable defaults
+    SGPropertyNode_ptr cue3DNode = fgGetNode("/sim/vr/config/cursors/cue", true);
+
+    _propVisibilityAngleDeg = SGPropObjDouble(cue3DNode, "visibility-angle-deg");
+    _propVisibilityAngleDeg.setDefault(30.0);
+
+    _propAngleDeg = SGPropObjDouble(cue3DNode, "angle-deg");
+    _propAngleDeg.setDefault(10.0);
+
+    _propDistanceM = SGPropObjDouble(cue3DNode, "distance-m");
+    _propDistanceM.setDefault(0.45);
+
     osg::Switch* sw = new osg::Switch;
     addChild(sw);
 
     // Read direction cue model from /sim/vr/config/cursors/cue
-    SGPropertyNode_ptr cue3DNode = fgGetNode("/sim/vr/config/cursors/cue", true);
     std::string path = cue3DNode->getStringValue("model/path", "");
     simgear::ErrorReportContext ec("direction-cue-model", path);
 
@@ -94,13 +105,13 @@ void FGDirectionCue3D::update()
     SGVec3d targetViewNorm = normalize(targetView);
 
     // Configuration
-    const double visibilityFovRad = 0.5;
-    const double cueFovRad = 0.15;
-    const double cueDistM = 0.6;
+    const double visibilityAngleRad = SGMiscd::deg2rad(_propVisibilityAngleDeg);
+    const double cueAngleRad = SGMiscd::deg2rad(_propAngleDeg);
+    const double cueDistM = _propDistanceM;
 
     // Is the target roughly in view?
     // View points in -Z direction
-    if (-targetViewNorm.z() > cos(visibilityFovRad)) {
+    if (-targetViewNorm.z() > cos(visibilityAngleRad)) {
         _targetValid = false;
         updateModel();
         return;
@@ -113,8 +124,8 @@ void FGDirectionCue3D::update()
 
     // Update the cue position
     double targetDirection = atan2(targetViewNorm.x(), targetViewNorm.y());
-    SGVec3d cuePosLocal = SGVec3d(0.0, cueDistM * sin(cueFovRad),
-                                  -cueDistM * cos(cueFovRad));
+    SGVec3d cuePosLocal = SGVec3d(0.0, cueDistM * sin(cueAngleRad),
+                                  -cueDistM * cos(cueAngleRad));
     SGQuatd cueOrView = SGQuatd::fromAngleAxis(targetDirection, SGVec3d(0.0, 0.0, -1.0));
     SGVec3d cuePosView = cueOrView.backTransform(cuePosLocal);
     SGVec3d cuePosGlobal = viewPosition + viewOrientation.backTransform(cuePosView);

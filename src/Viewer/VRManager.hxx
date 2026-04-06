@@ -1,25 +1,25 @@
 // SPDX-FileCopyrightText: 2021 James Hogan <james@albanarts.com>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifndef VRMANAGER_HXX
-#define VRMANAGER_HXX 1
+#pragma once
 
 #include <config.h>
 
 #ifdef ENABLE_OSGXR
 
-#include <osg/ref_ptr>
-#include <osg/observer_ptr>
+    #include <osg/MatrixTransform>
+    #include <osg/observer_ptr>
+    #include <osg/ref_ptr>
 
-#include <osgXR/Manager>
-#include <osgXR/Space>
+    #include <osgXR/Manager>
+    #include <osgXR/Space>
 
-#include <simgear/props/propertyObject.hxx>
-#include <simgear/scene/viewer/CompositorPass.hxx>
+    #include <simgear/props/propertyObject.hxx>
+    #include <simgear/scene/viewer/CompositorPass.hxx>
 
-#include "CameraGroup.hxx"
+    #include "CameraGroup.hxx"
 
-#include <map>
+    #include <map>
 
 namespace flightgear
 {
@@ -141,6 +141,14 @@ class VRManager : public osgXR::Manager
 
         osg::ref_ptr<osgXR::Space> _headSpace;
 
+        /// Wrapper around local space node for updating.
+        osg::ref_ptr<osg::Group> _localSpaceUpdater;
+        /// Local space scene graph node.
+        osg::ref_ptr<osg::MatrixTransform> _localSpace;
+
+        /// 3D GUI object.
+        osg::ref_ptr<osg::Node> _gui3D;
+
         // Properties
 
         SGPropObjBool _propXrLayersValidation;
@@ -163,6 +171,8 @@ class VRManager : public osgXR::Manager
         SGPropObjString _propSwapchainMode;
         SGPropObjBool _propMirrorEnabled;
         SGPropObjString _propMirrorMode;
+
+        SGPropObjString _propGuiPath;
 
         // Property listeners
 
@@ -203,5 +213,3 @@ class VRManager : public osgXR::Manager
 }
 
 #endif // ENABLE_OSGXR
-
-#endif
