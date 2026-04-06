@@ -82,6 +82,8 @@ void InputDeviceTests::setUp()
     cmds->addCommand("test-high-btn-cmd", &_highBtnCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-high-btn-release-cmd", &_highBtnReleaseCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-switch-cmd", &_switchCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-double-press-cmd", &_doublePressCmd, &TestCommandHandler::handle);
+    cmds->addCommand("test-long-press-cmd", &_longPressCmd, &TestCommandHandler::handle);
 }
 
 void InputDeviceTests::tearDown()
@@ -97,6 +99,8 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-high-btn-cmd");
     cmds->removeCommand("test-high-btn-release-cmd");
     cmds->removeCommand("test-switch-cmd");
+    cmds->removeCommand("test-double-press-cmd");
+    cmds->removeCommand("test-long-press-cmd");
 
     FGTestApi::tearDown::shutdownTestGlobals();
 }
@@ -711,4 +715,252 @@ void InputDeviceTests::testButtonSwitchMode()
     device->HandleEvent(pressHigh);
     CPPUNIT_ASSERT_EQUAL(5, _switchCmd.callCount);
     CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+}
+
+// ---------------------------------------------------------------------------
+// testDoublePress
+//
+// FGExtendedButtonEvent with a <mod-double-press> binding:
+//   - The first press fires the regular press binding and opens a time window.
+//   - A second press within that window fires the double-press binding and
+//     suppresses the regular press binding.
+//   - Every release fires the regular mod-up binding, regardless of whether
+//     the press was single or double.
+//   - Once the window expires (via device update), the next press is treated
+//     as a fresh single press.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testDoublePress()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <event>
+            <name>button-action</name>
+            <binding>
+              <command>test-button-press-cmd</command>
+            </binding>
+            <mod-up>
+              <binding>
+                <command>test-button-release-cmd</command>
+              </binding>
+            </mod-up>
+            <mod-double-press>
+              <interval-sec type="double">0.5</interval-sec>
+              <binding>
+                <command>test-double-press-cmd</command>
+              </binding>
+            </mod-double-press>
+          </event>
+        </PropertyList>
+    )");
+
+    device->setEventName("button-action");
+
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    FGEventData release{0.0, 0.016, KEYMOD_NONE};
+
+    // --- 1. First press fires the regular press binding ---
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _doublePressCmd.callCount);
+
+    // --- 2. Release fires the regular mod-up binding ---
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
+
+    // --- 3. Second press within the double-press window fires the double-press
+    //        binding and suppresses the regular press binding ---
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount); // unchanged: suppressed
+    CPPUNIT_ASSERT_EQUAL(1, _doublePressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _doublePressCmd.lastValue);
+
+    // --- 4. Release after the double-press fires the regular mod-up binding ---
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(2, _buttonReleaseCmd.callCount);
+
+    // --- 5. Once the double-press window closes, the next press is a normal
+    //        single press and does not trigger another double-press ---
+    device->update(0.6); // advance past the 0.5 s interval
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(2, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(1, _doublePressCmd.callCount); // no new double-press
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(3, _buttonReleaseCmd.callCount);
+}
+
+// ---------------------------------------------------------------------------
+// testLongPress
+//
+// FGExtendedButtonEvent with a <mod-long-press> binding:
+//   - Pressing the button immediately fires the regular press binding.
+//   - Once the button has been held past the configured threshold (advanced
+//     via device update), the long-press binding fires.
+//   - A release following a long-press does NOT fire the regular mod-up binding.
+//   - A release before the threshold fires the regular mod-up binding normally.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testLongPress()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <event>
+            <name>button-action</name>
+            <binding>
+              <command>test-button-press-cmd</command>
+            </binding>
+            <mod-up>
+              <binding>
+                <command>test-button-release-cmd</command>
+              </binding>
+            </mod-up>
+            <mod-long-press>
+              <interval-sec type="double">1.0</interval-sec>
+              <binding>
+                <command>test-long-press-cmd</command>
+              </binding>
+            </mod-long-press>
+          </event>
+        </PropertyList>
+    )");
+
+    device->setEventName("button-action");
+
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    FGEventData release{0.0, 0.016, KEYMOD_NONE};
+
+    // --- Scenario 1: long hold fires the long-press binding and suppresses mod-up ---
+
+    // Press fires the regular binding immediately
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount);
+
+    // Advance time below the 1.0 s threshold: long-press must not fire yet
+    device->update(0.5);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount);
+
+    // Advance past the threshold (cumulative 1.1 s): long-press fires exactly once
+    device->update(0.6);
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+
+    // Further updates while still pressed must not fire it a second time
+    device->update(0.5);
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
+
+    // Release after a long-press: mod-up fires normally
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+
+    // --- Scenario 2: short press (released before threshold) fires mod-up normally ---
+
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(2, _buttonPressCmd.callCount);
+
+    device->update(0.3);                              // below 1.0 s threshold
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount); // not fired again
+
+    // Release before threshold: mod-up fires
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(2, _buttonReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount); // still just the one from scenario 1
+}
+
+// ---------------------------------------------------------------------------
+// testRepeatableWithLongPress
+//
+// When a button is both repeatable and has a <mod-long-press> binding:
+//   - The regular press binding fires immediately on press.
+//   - While the button is held, the repeatable mechanism fires the regular
+//     binding once on each device update() call (interval-sec defaults to 0).
+//   - The long-press binding fires exactly once after the hold threshold.
+//   - After the long-press fires, repeatable continues to fire the regular
+//     binding on each update — they operate independently.
+//   - A release always fires the mod-up binding, whether or not a long-press
+//     occurred during the hold.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testRepeatableWithLongPress()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <event>
+            <name>button-action</name>
+            <repeatable type="bool">true</repeatable>
+            <binding>
+              <command>test-button-press-cmd</command>
+            </binding>
+            <mod-up>
+              <binding>
+                <command>test-button-release-cmd</command>
+              </binding>
+            </mod-up>
+            <mod-long-press>
+              <interval-sec type="double">1.0</interval-sec>
+              <binding>
+                <command>test-long-press-cmd</command>
+              </binding>
+            </mod-long-press>
+          </event>
+        </PropertyList>
+    )");
+
+    device->setEventName("button-action");
+
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    FGEventData release{0.0, 0.016, KEYMOD_NONE};
+
+    // --- Scenario 1: hold past the long-press threshold ---
+
+    // Press fires the regular binding once
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount);
+
+    // Two update ticks while still below the 1.0 s threshold: repeatable fires
+    // once per tick; long-press must not trigger yet
+    device->update(0.016);
+    CPPUNIT_ASSERT_EQUAL(2, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount);
+
+    device->update(0.016);
+    CPPUNIT_ASSERT_EQUAL(3, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount);
+
+    // Advance past the long-press threshold (cumulative > 1.0 s): long-press
+    // fires exactly once; the same update also triggers one more repeatable fire
+    device->update(1.1);
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+    const int repeatCountAfterLongPress = _buttonPressCmd.callCount;
+    CPPUNIT_ASSERT(repeatCountAfterLongPress > 3); // at least one more repeatable fire
+
+    // Further updates: repeatable keeps firing; long-press does NOT re-fire
+    device->update(0.016);
+    CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(repeatCountAfterLongPress + 1, _buttonPressCmd.callCount);
+
+    // Release after long-press: mod-up fires normally
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+
+    // --- Scenario 2: short hold (released before threshold) ---
+    _buttonPressCmd.reset();
+    _buttonReleaseCmd.reset();
+    _longPressCmd.reset();
+
+    device->HandleEvent(press);
+
+    // A couple of update ticks while held
+    device->update(0.016);
+    device->update(0.016);
+    CPPUNIT_ASSERT_EQUAL(3, _buttonPressCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // not re-fired
+
+    // Release before threshold: mod-up fires normally
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // still only from scenario 1
 }
