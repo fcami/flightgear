@@ -26,6 +26,9 @@
 
 using namespace flightgear;
 
+namespace {
+
+
 /* equatorial and polar earth radius */
 const double rec  = 6378137;          // earth radius, equator (?)
 const double rpol = 6356752.314;      // earth radius, polar   (?)
@@ -33,13 +36,34 @@ const double rpol = 6356752.314;      // earth radius, polar   (?)
 const double MINIMUM_SCALE = 0.002;
 const double MAXIMUM_SCALE = 2.0;
 
-//Returns Earth radius at a given latitude (Ellipsoide equation with two equal axis)
-static double earth_radius_lat( double lat )
+//R eturns Earth radius at a given latitude (Ellipsoide equation with two equal axis)
+double earth_radius_lat(double lat)
 {
     double a = cos(lat)/rec;
     double b = sin(lat)/rpol;
     return 1.0 / sqrt( a * a + b * b );
 }
+
+class PolygonDrawFilter : public flightgear::PolyLine::TypeFilter
+{
+public:
+    bool pass(flightgear::PolyLine::Type aTy) const override
+    {
+        switch (aTy) {
+        case flightgear::PolyLine::LAND_MASS:
+        case flightgear::PolyLine::COASTLINE:
+        case flightgear::PolyLine::URBAN:
+        case flightgear::PolyLine::RIVER:
+        case flightgear::PolyLine::LAKE:
+            return true;
+        default:
+            return false;
+        }
+    }
+};
+
+} // namespace
+
 
 BaseDiagram::BaseDiagram(QQuickItem* pr) :
     QQuickPaintedItem(pr),
@@ -165,7 +189,6 @@ void BaseDiagram::paintCarrierIcon(QPainter* painter, const SGGeod& geod, int he
 
     painter->restore();
 }
-
 void BaseDiagram::paintPolygonData(QPainter* painter)
 {
     QTransform invT = m_viewportTransform.inverted();
@@ -177,42 +200,51 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     double drawRangeNm = std::max(SGGeodesy::distanceNm(viewCenter, topLeft),
                                   SGGeodesy::distanceNm(viewCenter, bottomRight));
 
-    flightgear::PolyLineList landLines(flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                                                          flightgear::PolyLine::LAND_MASS));
-    for (auto line : landLines) {
-        fillClosedGeodVec(painter, QColor(180, 190, 160), line->points());
+    // Single octree traversal for all drawn polygon/line types.
+    const flightgear::PolyLineList allLines =
+        flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
+
+    // Partition into per-type lists without extra allocations.
+    flightgear::PolyLineList landLines, coastLines, urbanLines, riverLines, lakeLines;
+    for (const auto& line : allLines) {
+        switch (line->type()) {
+        case flightgear::PolyLine::LAND_MASS: landLines.push_back(line); break;
+        case flightgear::PolyLine::COASTLINE: coastLines.push_back(line); break;
+        case flightgear::PolyLine::URBAN: urbanLines.push_back(line); break;
+        case flightgear::PolyLine::RIVER: riverLines.push_back(line); break;
+        case flightgear::PolyLine::LAKE: lakeLines.push_back(line); break;
+        default: break;
+        }
     }
 
-    flightgear::PolyLineList lines(flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                                                      flightgear::PolyLine::COASTLINE));
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(180, 190, 160));
+    for (const auto& line : landLines) {
+        fillClosedGeodVec(painter, line->points());
+    }
 
     QPen waterPen(QColor(64, 64, 255), 1);
     waterPen.setCosmetic(true);
     painter->setPen(waterPen);
-    for (auto line : lines) {
+    for (const auto& line : coastLines) {
         paintGeodVec(painter, line->points());
     }
 
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::URBAN);
-    for (auto line : lines) {
-        fillClosedGeodVec(painter, QColor(192, 192, 96), line->points());
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(192, 192, 96));
+    for (const auto& line : urbanLines) {
+        fillClosedGeodVec(painter, line->points());
     }
-
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::RIVER);
 
     painter->setPen(waterPen);
-    for (auto line : lines) {
+    for (const auto& line : riverLines) {
         paintGeodVec(painter, line->points());
     }
 
-
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::LAKE);
-
-    for (auto line : lines) {
-        fillClosedGeodVec(painter, QColor(128, 128, 255), line->points());
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(128, 128, 255));
+    for (const auto& line : lakeLines) {
+        fillClosedGeodVec(painter, line->points());
     }
 }
 
@@ -227,17 +259,14 @@ void BaseDiagram::paintGeodVec(QPainter* painter, const flightgear::SGGeodVec& v
     painter->drawPolyline(projected.data(), projected.size());
 }
 
-void BaseDiagram::fillClosedGeodVec(QPainter* painter, const QColor& color, const flightgear::SGGeodVec& vec)
+void BaseDiagram::fillClosedGeodVec(QPainter* painter, const flightgear::SGGeodVec& vec)
 {
     QVector<QPointF> projected;
     projected.reserve(vec.size());
-    flightgear::SGGeodVec::const_iterator it;
-    for (it=vec.begin(); it != vec.end(); ++it) {
-        projected.append(project(*it));
+    for (const auto& v : vec) {
+        projected.append(project(v));
     }
 
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(color);
     painter->drawPolygon(projected.data(), projected.size());
 }
 
