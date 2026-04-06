@@ -104,8 +104,8 @@ public:
         xClmnT.ptr()[AILERON][YAW] = Cnda_n*f;
     }
     inline void set_flaps_norm(float f) {
-        xCDYLT.ptr()[FLAPS][LIFT] = CLdf_n*f;
-        xCDYLT.ptr()[FLAPS][DRAG] = CDdf_n*std::abs(f);
+        xCDYLT.ptr()[FLAPS][LIFT] = CLdf_n * f;
+        xCDYLT.ptr()[FLAPS][DRAG] = CDdf_n * std::abs(f);
         xClmnT.ptr()[FLAPS][PITCH] = Cmdf_n*f;
     }
     inline void set_throttle_norm(float f) { throttle = f; }
@@ -146,14 +146,14 @@ public:
 
     inline void set_alpha_rad(float f) {
         f = _MINMAX(f, -0.25f, 0.25f);		// -14 to 14 degrees
-        xCDYLT.ptr()[ALPHA][LIFT] = CLa*f;
-        xCDYLT.ptr()[ALPHA][DRAG] = CDa*std::abs(f);
+        xCDYLT.ptr()[ALPHA][LIFT] = CLa * f;
+        xCDYLT.ptr()[ALPHA][DRAG] = CDa * std::abs(f);
         xClmnT.ptr()[ALPHA][PITCH] = Cma*f;
         AOA[ALPHA] = f;
     }
     inline void set_beta_rad(float f) {
         f = _MINMAX(f, -0.30f, 0.30f);		// -17 to 17 degrees
-        xCDYLT.ptr()[BETA][DRAG] = CDb*std::abs(f);
+        xCDYLT.ptr()[BETA][DRAG] = CDb * std::abs(f);
         xCDYLT.ptr()[BETA][SIDE] = CYb*f;
         xClmnT.ptr()[BETA][ROLL] = Clb*f;
         xClmnT.ptr()[BETA][YAW] = Cnb*f;

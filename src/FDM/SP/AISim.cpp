@@ -14,10 +14,10 @@
 #include <limits>
 #include <cstdio>
 
-#include <string>
 #include <fstream>
 #include <sstream>
 #include <streambuf>
+#include <string>
 
 #include <nlohmann/json.hpp>
 
@@ -99,7 +99,7 @@ FGAISim::FGAISim(double dt)
     if (no_contacts)
     {
         for (size_t i=0; i<no_contacts; ++i) {
-            if (cg_agl > contact_pos[i][Z]) cg_agl = contact_pos[i][Z];
+            if (cg_agl < contact_pos[i][Z]) cg_agl = contact_pos[i][Z];
         }
     }
     set_altitude_agl_ft(cg_agl);
@@ -175,16 +175,15 @@ FGAISim::update(double ddt)
      *
      * Trig values computed once and reused in the Euler-rate kinematics.
      * ------------------------------------------------------------------ */
-    float sphi = std::sin(euler[PHI]),   cphi = std::cos(euler[PHI]);
+    float sphi = std::sin(euler[PHI]), cphi = std::cos(euler[PHI]);
     float sthe = std::sin(euler[THETA]), cthe = std::cos(euler[THETA]);
-    float spsi = std::sin(euler[PSI]),   cpsi = std::cos(euler[PSI]);
+    float spsi = std::sin(euler[PSI]), cpsi = std::cos(euler[PSI]);
 
     aiMtx4 mNed2Body(
-        cthe*cpsi,                 cthe*spsi,                -sthe,     0.0f,
-        sphi*sthe*cpsi-cphi*spsi,  sphi*sthe*spsi+cphi*cpsi,  sphi*cthe, 0.0f,
-        cphi*sthe*cpsi+sphi*spsi,  cphi*sthe*spsi-sphi*cpsi,  cphi*cthe, 0.0f,
-        0.0f,                      0.0f,                       0.0f,      1.0f
-    );
+        cthe * cpsi, cthe * spsi, -sthe, 0.0f,
+        sphi * sthe * cpsi - cphi * spsi, sphi * sthe * spsi + cphi * cpsi, sphi * cthe, 0.0f,
+        cphi * sthe * cpsi + sphi * spsi, cphi * sthe * spsi - sphi * cpsi, cphi * cthe, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
     aiMtx4 mBody2Ned = simd4x4::transpose(mNed2Body);
     aiVec3 wind = mNed2Body*wind_ned;
 
@@ -208,8 +207,8 @@ FGAISim::update(double ddt)
     /* Rate terms: (xCq*q + xCadot*adot)*cbar_2U  and
      *             (xCp*p + xCr*r)*b_2U
      * vPQR = {p,q,r}.  Broadcast each component as a vector multiply. */
-    aiVec4 Ccbar2U = (xCq*vPQR[Q] + xCadot*AOAdot[ALPHA])*cbar_2U;
-    aiVec4 Cb2U    = (xCp*vPQR[P] + xCr   *vPQR[R]      )*b_2U;
+    aiVec4 Ccbar2U = (xCq * vPQR[Q] + xCadot * AOAdot[ALPHA]) * cbar_2U;
+    aiVec4 Cb2U = (xCp * vPQR[P] + xCr * vPQR[R]) * b_2U;
 
     /* xCDYLT and xClmnT already have their factors applied */
     /* in the functions in the header file.                 */
@@ -223,7 +222,7 @@ FGAISim::update(double ddt)
     while(i--);
 
     float CL = CDYL[LIFT];
-    CDYL += aiVec3(CDi*CL*CL, 0.0f, 0.0f);
+    CDYL += aiVec3(CDi * CL * CL, 0.0f, 0.0f);
 
     /* State Accelerations (convert coefficients to forces and moments) */
     aiVec3 FDYL = CDYL*Coef2Force;
@@ -238,14 +237,13 @@ FGAISim::update(double ddt)
      *  |    sa     0      ca  |   | Flift |
      */
     float ca = std::cos(alpha), sa = std::sin(alpha);
-    float cb = std::cos(beta),  sb = std::sin(beta);
+    float cb = std::cos(beta), sb = std::sin(beta);
 
     aiMtx4 mWind2Body(
-         ca*cb,  -sb,  -sa*cb, 0.0f,
-         ca*sb,   cb,  -sa*sb, 0.0f,
-            sa, 0.0f,      ca, 0.0f,
-          0.0f, 0.0f,    0.0f, 1.0f
-    );
+        ca * cb, -sb, -sa * cb, 0.0f,
+        ca * sb, cb, -sa * sb, 0.0f,
+        sa, 0.0f, ca, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
     aiVec3 FXYZ_body = mWind2Body*FDYL;
 
     aiVec3 gravity_body = mNed2Body*gravity_ned;
@@ -253,8 +251,7 @@ FGAISim::update(double ddt)
 
     /* Thrust */
     float Cth = rho*throttle*throttle;
-    i = no_engines-1;
-    do
+    for (i=0; i<no_engines; i++)
     {
         aiVec3 FEngine = FT[i]*(Cth*n2[i]);
         aiVec3 MEngine = MT[i]*Cth;
@@ -262,7 +259,6 @@ FGAISim::update(double ddt)
         FXYZ_body += FEngine;
         Mlmn += MEngine;
     }
-    while(i--);
 
     /* contact point (landing gear) forces and moments */
     WoW = false;
@@ -287,8 +283,9 @@ FGAISim::update(double ddt)
                 aiVec3 lg_vrot = simd4::cross(vPQR, contact_pos[i]);
                 aiVec3 lg_cg_vned = mBody2Ned*lg_vrot;
                 aiVec3 lg_vned = vNED + lg_cg_vned;
-                float Fn = std::min((contact_spring[i]*compression +
-                                     contact_damp[i]*lg_vned[Z]), 0.0f);
+                float Fn = std::min((contact_spring[i] * compression +
+                                     contact_damp[i] * lg_vned[Z]),
+                                    0.0f);
 
                 aiVec3 Fcontact_ned(0.0f, 0.0f, Fn);
                 aiVec3 Fgear = mNed2Body * Fcontact_ned;
@@ -300,25 +297,23 @@ FGAISim::update(double ddt)
 
                 // only apply friction when there is a noticeable velocity
                 float vground = simd4::magnitude(aiVec2(lg_vned));
-                if (vground > 0.001f)
-                {
-                   /* Friction in body frame: scale the normal force magnitude
+                if (vground > 0.001f) {
+                    /* Friction in body frame: scale the normal force magnitude
                     * by mu and the normalised contact-point body velocity so
                     * the force opposes motion and is proportional to speed.
                     * Use the body-frame contact velocity (lg_vrot gives the
                     * rotational contribution;
                     * full body velocity is vUVW + lg_vrot).
                     */
-                   aiVec3 lg_vbody = vUVW + lg_vrot;
-                   float vbody_mag = simd4::magnitude(lg_vbody);
-                   if (vbody_mag > 0.001f)
-                   {
-                       /* mu_body = {rolling_mu, side_mu, 0}; Fn is negative so
+                    aiVec3 lg_vbody = vUVW + lg_vrot;
+                    float vbody_mag = simd4::magnitude(lg_vbody);
+                    if (vbody_mag > 0.001f) {
+                        /* mu_body = {rolling_mu, side_mu, 0}; Fn is negative so
                         * -Fn gives the positive normal load magnitude. */
-                       aiVec3 Fbrake = (mu_body * (-Fn)) * (lg_vbody * (1.0f / vbody_mag));
-                       FXYZ_body += Fbrake;
-                       Mlmn += simd4::cross(arm, Fbrake);
-                   }
+                        aiVec3 Fbrake = (mu_body * (-Fn)) * (lg_vbody * (1.0f / vbody_mag));
+                        FXYZ_body += Fbrake;
+                        Mlmn += simd4::cross(arm, Fbrake);
+                    }
                 }
                 if (i<3) WoW_main++;
             }
@@ -328,7 +323,7 @@ FGAISim::update(double ddt)
     }
 
     /* local body accelrations */
-    XYZdot = FXYZ_body*inv_mass;
+    XYZdot = FXYZ_body * inv_mass;
 
 
     /* Dynamic Equations */
@@ -339,20 +334,20 @@ FGAISim::update(double ddt)
 
     /* body-axis rotational accelerations: rolling, pitching, yawing */
     vPQRdot = mJinv*(Mlmn - vPQR*(mJ*vPQR));
-    vPQR += vPQRdot*dt;
+    vPQR += vPQRdot * dt;
 
     /* position of center of mass wrt earth: north, east, down */
     vNED = mBody2Ned*vUVW;
-    aiVec3 NEDdist = vNED*dt;
+    aiVec3 NEDdist = vNED * dt;
 
 #ifdef ENABLE_SP_FDM
     double dist = simd4::magnitude( aiVec2(NEDdist) );
     double ground_track_deg = std::atan2(vNED[EAST], vNED[NORTH]) * SGD_RADIANS_TO_DEGREES;
     double lat2 = 0.0, lon2 = 0.0, az2 = 0.0;
-    geo_direct_wgs_84( 0.0, location_geod[LATITUDE] * SGD_RADIANS_TO_DEGREES,
-                            location_geod[LONGITUDE] * SGD_RADIANS_TO_DEGREES,
-                            ground_track_deg,
-                            dist * SG_FEET_TO_METER, &lat2, &lon2, &az2 );
+    geo_direct_wgs_84(0.0, location_geod[LATITUDE] * SGD_RADIANS_TO_DEGREES,
+                      location_geod[LONGITUDE] * SGD_RADIANS_TO_DEGREES,
+                      ground_track_deg,
+                      dist * SG_FEET_TO_METER, &lat2, &lon2, &az2);
     set_location_geod( lat2 * SGD_DEGREES_TO_RADIANS,
                        lon2 * SGD_DEGREES_TO_RADIANS,
                        location_geod[ALTITUDE] - NEDdist[DOWN] );
@@ -376,10 +371,10 @@ FGAISim::update(double ddt)
     if (std::abs(cthe_safe) < 0.00001f)
         cthe_safe = std::copysign(0.00001f, cthe_safe);
 
-    float psi_dot    = (vPQR[Q]*sphi + vPQR[R]*cphi) / cthe_safe;
-    euler_dot[PSI]   = psi_dot;
-    euler_dot[THETA] =  vPQR[Q]*cphi - vPQR[R]*sphi;
-    euler_dot[PHI]   =  vPQR[P] + psi_dot * sthe;
+    float psi_dot = (vPQR[Q] * sphi + vPQR[R] * cphi) / cthe_safe;
+    euler_dot[PSI] = psi_dot;
+    euler_dot[THETA] = vPQR[Q] * cphi - vPQR[R] * sphi;
+    euler_dot[PHI] = vPQR[P] + psi_dot * sthe;
 
     euler += euler_dot * dt;
 
@@ -548,7 +543,7 @@ FGAISim::update_velocity(float v)
     // All-positive Sqbar would invert drag and lift, making drag propulsive
     // and swamping aileron/rudder authority.
     Coef2Force[DRAG] = -Sqbar;
-    Coef2Force[SIDE] =  Sqbar;
+    Coef2Force[SIDE] = Sqbar;
     Coef2Force[LIFT] = -Sqbar;
     Coef2Moment = aiVec3(Sbqbar);
     Coef2Moment[PITCH] = Sqbarcbar;
@@ -694,7 +689,7 @@ FGAISim::load(std::string path)
 
     Sw   = data["Sw"];
     cbar = data["cbar"];
-    span = data["bw"];      // JSON key is "bw", not "b"
+    span = data["bw"]; // JSON key is "bw", not "b"
 
     mass = data["mass"]/AISIM_G;
 
@@ -759,13 +754,11 @@ FGAISim::load(std::string path)
 
         aiVec3 dir;
         float len = simd4::magnitude(orientation);
-        if (len > 0.0f)
-        {
-            orientation /= len;   // normalize without altering len
+        if (len > 0.0f) {
+            orientation /= len; // normalize without altering len
             aiMtx4 mWind2Body = simd4x4::rotation_matrix(len, orientation);
-            dir = mWind2Body*aiVec3(1.0f, 0.0f, 0.0f);
-        }
-        else {
+            dir = mWind2Body * aiVec3(1.0f, 0.0f, 0.0f);
+        } else {
             dir = aiVec3(1.0f, 0.0f, 0.0f);
         }
         aiVec3 rot = simd4::cross(pos, dir);
@@ -826,7 +819,7 @@ FGAISim::load(std::string path)
     Cmde_n = data["Cmde"]*de_max;
     Cmdf_n = data["Cmdf"]*df_max;
 
-    Cnb    = data["Cnb"];
+    Cnb = data["Cnb"];
     Cnp    = data["Cnp"];
     Cnr    = data["Cnr"];
     Cnda_n = data["Cnda"]*da_max;
