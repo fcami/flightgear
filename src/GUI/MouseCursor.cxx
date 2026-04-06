@@ -220,9 +220,12 @@ bool FGMouseCursor::setCursorCommand(const SGPropertyNode* arg, SGPropertyNode*)
         my->setIntValue(y);
     }
 
-
-    Cursor c = cursorFromString(arg->getStringValue("cursor"));
-    setCursor(c);
+    auto* cursor = arg->getNode("cursor");
+    if (cursor && cursor->getType() != simgear::props::NONE) {
+        Cursor c = cursorFromString(cursor->getStringValue());
+        setCursor(c);
+        setCursorVisible(c != CURSOR_NONE);
+    }
     return true;
 }
 
@@ -232,6 +235,7 @@ typedef struct {
 } MouseCursorMap;
 
 const MouseCursorMap mouse_cursor_map[] = {
+    {"none", FGMouseCursor::CURSOR_NONE},
     {"arrow", FGMouseCursor::CURSOR_ARROW},
     {"hand", FGMouseCursor::CURSOR_HAND},
     {"closed-hand", FGMouseCursor::CURSOR_CLOSED_HAND},
@@ -254,8 +258,18 @@ const MouseCursorMap mouse_cursor_map[] = {
 
     // aliases
     {"inherit", FGMouseCursor::CURSOR_ARROW},
+    {"pointer", FGMouseCursor::CURSOR_ARROW},
     {"drag-horizontal", FGMouseCursor::CURSOR_LEFT_RIGHT},
     {"drag-vertical", FGMouseCursor::CURSOR_UP_DOWN},
+    {"leftright", FGMouseCursor::CURSOR_LEFT_RIGHT},
+    {"topside", FGMouseCursor::CURSOR_TOP_SIDE},
+    {"bottomside", FGMouseCursor::CURSOR_BOTTOM_SIDE},
+    {"leftside", FGMouseCursor::CURSOR_LEFT_SIDE},
+    {"rightside", FGMouseCursor::CURSOR_RIGHT_SIDE},
+    {"topleft", FGMouseCursor::CURSOR_TOP_LEFT},
+    {"topright", FGMouseCursor::CURSOR_TOP_RIGHT},
+    {"bottomleft", FGMouseCursor::CURSOR_BOTTOM_LEFT},
+    {"bottomright", FGMouseCursor::CURSOR_BOTTOM_RIGHT},
     {0, FGMouseCursor::CURSOR_ARROW}};
 
 FGMouseCursor::Cursor FGMouseCursor::cursorFromString(const std::string& cursor_name)
