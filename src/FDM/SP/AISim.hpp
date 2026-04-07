@@ -145,14 +145,16 @@ public:
     }
 
     inline void set_alpha_rad(float f) {
-        f = _MINMAX(f, -0.25f, 0.25f);		// -14 to 14 degrees
+        f = _MINMAX(f, -5.0 * SGD_DEGREES_TO_RADIANS,
+                    15.0 * SGD_DEGREES_TO_RADIANS);
         xCDYLT.ptr()[ALPHA][LIFT] = CLa * f;
         xCDYLT.ptr()[ALPHA][DRAG] = CDa * std::abs(f);
         xClmnT.ptr()[ALPHA][PITCH] = Cma*f;
         AOA[ALPHA] = f;
     }
     inline void set_beta_rad(float f) {
-        f = _MINMAX(f, -0.30f, 0.30f);		// -17 to 17 degrees
+        f = _MINMAX(f, -10.0 * SGD_DEGREES_TO_RADIANS,
+                    10.0 * SGD_DEGREES_TO_RADIANS);
         xCDYLT.ptr()[BETA][DRAG] = CDb * std::abs(f);
         xCDYLT.ptr()[BETA][SIDE] = CYb*f;
         xClmnT.ptr()[BETA][ROLL] = Clb*f;

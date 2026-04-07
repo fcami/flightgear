@@ -94,17 +94,20 @@ FGAISim::FGAISim(double dt)
     /* m is assigned in the load function */
     inv_mass = aiVec3(1.0f)/mass;
 
-    // calculate aircraft position when resting on the landing gear.
-    float cg_agl = -cg[Z];
+    // cg_agl is the CG height above the ground when resting on the gear.
+    float cg_agl = 0.0f;
     if (no_contacts)
     {
         for (size_t i=0; i<no_contacts; ++i) {
             if (cg_agl < contact_pos[i][Z]) cg_agl = contact_pos[i][Z];
         }
+        cg_agl += cg[Z]; // cg[Z] is negative when CG is above the aero datum
     }
+    if (cg_agl <= 0.0f) cg_agl = -cg[Z]; // fallback: no gear defined
     set_altitude_agl_ft(cg_agl);
 
     // Contact point at the center of gravity
+    // used for upside down, crash
     contact_pos[no_contacts] = 0.0f;
     contact_spring[no_contacts] = -20000.0f;
     contact_damp[no_contacts] = -2000.0f;
@@ -192,11 +195,12 @@ FGAISim::update(double ddt)
     update_velocity( simd4::magnitude( vUVWaero ) );
 
     /* Wind angles */
+    /* Make sure they stay zero until some velocity is reached. */
     aiVec3 prevAOA = AOA;
-    alpha = (vUVWaero[U] == 0.0f) ? 0.0f : std::atan2(vUVWaero[W], vUVWaero[U]);
+    alpha = (vUVWaero[U] < 1.0f) ? 0.0f : std::atan2(vUVWaero[W], vUVWaero[U]);
     set_alpha_rad( alpha );
 
-    beta = (velocity == 0.0f) ? 0.0f : std::asin(vUVWaero[V]/velocity);
+    beta = (velocity < 1.0f) ? 0.0f : std::asin(vUVWaero[V] / velocity);
     set_beta_rad( beta );
 
     /* set_alpha_rad and set_beta_rad set the new AOA */
@@ -273,9 +277,7 @@ FGAISim::update(double ddt)
                 /* Compression depth = how far the contact point has penetrated
                  * below the ground surface. lg_ground_ned[Z] is the total depth
                  * of the contact point below the CG; cg_agl is the CG height
-                 * above ground at rest. The difference is the actual strut
-                 * compression. Using lg_ground_ned[Z] alone overcalculates Fn
-                 * and makes it vary with attitude rather than true compression.
+                 * above ground at rest. The difference is the strut compression.
                  */
                 float compression = lg_ground_ned[Z] - cg_agl;
 
@@ -298,12 +300,12 @@ FGAISim::update(double ddt)
                 float vground = simd4::magnitude(aiVec2(lg_vned));
                 if (vground > 0.001f) {
                     /* Friction in body frame: scale the normal force magnitude
-                    * by mu and the normalised contact-point body velocity so
-                    * the force opposes motion and is proportional to speed.
-                    * Use the body-frame contact velocity (lg_vrot gives the
-                    * rotational contribution;
-                    * full body velocity is vUVW + lg_vrot).
-                    */
+                     * by mu and the normalised contact-point body velocity so
+                     * the force opposes motion and is proportional to speed.
+                     * Use the body-frame contact velocity (lg_vrot gives the
+                     * rotational contribution;
+                     * full body velocity is vUVW + lg_vrot).
+                     */
                     aiVec3 lg_vbody = vUVW + lg_vrot;
                     float vbody_mag = simd4::magnitude(lg_vbody);
                     if (vbody_mag > 0.001f) {
@@ -760,10 +762,11 @@ FGAISim::load(std::string path)
         } else {
             dir = aiVec3(1.0f, 0.0f, 0.0f);
         }
-        aiVec3 rot = simd4::cross(pos, dir);
+
+        // Moment arm is from the CG to the engine.
+        aiVec3 arm = pos - cg;
 
         float rho = 0.002379f;
-//      float MTmax = data[engstr + "/MT_max"];
 
         float max_rpm = data[engstr + "/rpm_max"];
         if (max_rpm == 0.0f) {
@@ -775,11 +778,20 @@ FGAISim::load(std::string path)
             n2[i] *= n2[i];
         }
 
-        FTmax /= (rho*n2[i]);
-//      MTmax /= rho / max_rpm;
+        FTmax /= (rho * n2[i]);
 
         FT[i] = dir * FTmax;
-        MT[i] = rot * FT[i]; // + dir * MTmax;
+
+        /* MT_max is propeller torque — it acts along the thrust axis (dir)
+         * and scales with Cth exactly like thrust. It is added to the
+         * positional moment cross(arm, dir)*FTmax so that:
+         *   - Off-centre engines get both the position-induced moment and torque
+         *   - Centre-line engines (arm ≈ 0) get only the propeller torque,
+         *     which is the dominant effect for single-engine propeller aircraft */
+        float MTmax = data[engstr + "/MT_max"];
+        MTmax /= (rho * n2[i]);
+        MT[i] = simd4::cross(arm, dir) * FTmax // moment from thrust line offset
+                + dir * MTmax;                 // propeller torque along thrust axis
     }
     while(++no_engines < AISIM_MAX);
 
