@@ -127,8 +127,7 @@ QRect BaseDiagram::rect() const
 
 void BaseDiagram::paint(QPainter* p)
 {
-    //p->setRenderHints(QPainter::Antialiasing);
-    p->fillRect(rect(), QColor(0x3f, 0x3f, 0x3f));
+    p->fillRect(rect(), QColor(150, 200, 205));
 
     if (m_autoScalePan) {
         // fit bounds within our available space, allowing for a margin
@@ -239,14 +238,16 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     validatePolygonCache(viewCenter, drawRangeNm);
     const PolygonDataCache& cache = *m_polygonCache;
 
+    const QColor waterColor(150, 200, 205);
+
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(180, 190, 160));
+    painter->setBrush(QColor(160, 190, 160));
     for (const auto& line : cache.landLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
     // Graticules drawn immediately above land so they sit below all other features.
-    QPen graticulePen(QColor(150, 155, 145), 1);
+    QPen graticulePen(QColor(20, 20, 20), 2);
     graticulePen.setCosmetic(true);
     painter->setPen(graticulePen);
     for (const auto& line : cache.gratLines) {
@@ -254,20 +255,19 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     }
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(192, 192, 96));
+    painter->setBrush(QColor(190, 190, 190));
     for (const auto& line : cache.urbanLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(128, 128, 255));
+    painter->setBrush(waterColor);
     for (const auto& line : cache.lakeLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
-    QPen waterPen(QColor(64, 64, 255), 1);
-    waterPen.setCosmetic(true);
-    painter->setPen(waterPen);
+    painter->setBrush(Qt::NoBrush);
+    painter->setPen(QPen(QColor(100, 100, 200), 2));
     for (const auto& line : cache.coastLines) {
         paintGeodVec(painter, line->points());
     }
@@ -286,13 +286,15 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         paintGeodVec(painter, line->points());
     }
 
+    QPen waterPen(waterColor, 2);
+    waterPen.setCosmetic(true);
     painter->setPen(waterPen);
     for (const auto& line : cache.riverLines) {
         paintGeodVec(painter, line->points());
     }
 
     // Geographic special lines (equator, tropics, datelines) drawn last, on top of all.
-    QPen geographicLinePen(QColor(220, 200, 80), 1);
+    QPen geographicLinePen(QColor(255, 255, 255), 2);
     geographicLinePen.setCosmetic(true);
     geographicLinePen.setStyle(Qt::DashLine);
     painter->setPen(geographicLinePen);
