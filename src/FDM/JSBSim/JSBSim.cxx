@@ -161,7 +161,7 @@ FGJSBsim::FGJSBsim( double dt )
     }
 
     auto PropertyManager = std::make_unique<FGPropertyManager>((SGPropertyNode*)globals->get_props());
-    fdmex = std::make_shared<FGFDMExec>(PropertyManager.get());
+    fdmex = std::make_unique<FGFDMExec>(PropertyManager.get());
     fdmex->Hold();
 
     Atmosphere      = fdmex->GetAtmosphere();

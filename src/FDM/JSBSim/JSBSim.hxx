@@ -217,7 +217,7 @@ public:
                       double vel[3], double angularVel[3]);
 
 private:
-    std::shared_ptr<JSBSim::FGFDMExec> fdmex;
+    std::unique_ptr<JSBSim::FGFDMExec> fdmex;
     std::shared_ptr<JSBSim::FGInitialCondition> fgic;
     bool needTrim;
 
