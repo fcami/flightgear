@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2025 James Turner <james@flightgear.org>
 
+# (?x) sets the Python re.VERBOSE flag for the whole regular expression:
+# https://docs.python.org/3/library/re.html#re.X
 exclude: |
-  ^(
+  (?x)^(
     3rdparty/|
     src/FDM/JSBSim/|
     src/Main/README$
