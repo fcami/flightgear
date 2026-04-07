@@ -72,7 +72,7 @@ protected:
     double m_scale;
     QRectF m_bounds;
     bool m_autoScalePan;
-    QPointF m_panOffset, m_lastMousePos;
+    QPointF m_lastMousePos;
     int m_wheelAngleDeltaAccumulator;
     bool m_didPan;
     LauncherController::AircraftType m_aircraftType = LauncherController::Airplane;
@@ -86,6 +86,10 @@ protected:
     void paintAirplaneIcon(QPainter *painter, const SGGeod &geod, int headingDeg);
     void paintCarrierIcon(QPainter *painter, const SGGeod &geod, int headingDeg);
     void paintAirways(QPainter* painter, const FGPositionedList& navs);
+
+    // Called after m_projectionCenter is updated during a pan. Subclasses that
+    // cache pre-projected geometry must override this to re-project their data.
+    virtual void onProjectionCenterChanged() {}
 
     QPointF projectedPosition(PositionedID pid) const;
     QPointF projectedPosition(FGPositionedRef pos) const;

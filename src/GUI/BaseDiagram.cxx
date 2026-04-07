@@ -86,8 +86,6 @@ QTransform BaseDiagram::transform() const
     t.translate(width() / 2, height() / 2); // center projection origin in the widget
     t.scale(m_scale, m_scale);
 
-    // apply any pan offset that exists
-    t.translate(m_panOffset.x(), m_panOffset.y());
     // center the bounding box (may not be at the origin)
     t.translate(-m_bounds.center().x(), -m_bounds.center().y());
     return t;
@@ -709,14 +707,20 @@ void BaseDiagram::mouseMoveEvent(QMouseEvent *me)
 {
     m_autoScalePan = false;
 
-    QPointF delta = me->pos() - m_lastMousePos;
+    const QPointF delta = me->pos() - m_lastMousePos;
     m_lastMousePos = me->pos();
 
-    // offset is stored in metres so we don't have to modify it when
-    // zooming
-    m_panOffset += (delta / m_scale);
-    m_didPan = true;
+    // Unproject the new viewport centre and update m_projectionCenter so
+    // projection quality is always best at whatever the user is looking at.
+    // In the new projection (0,0) is the viewport centre, so bounds.center
+    // must be zeroed to keep transform() correct.
+    const QPointF newViewportProj = m_bounds.center() - (delta / m_scale);
+    m_projectionCenter = unproject(newViewportProj, m_projectionCenter);
+    m_bounds.translate(-m_bounds.center());
 
+    onProjectionCenterChanged();
+
+    m_didPan = true;
     update();
 }
 
@@ -774,7 +778,6 @@ void BaseDiagram::resetZoom()
 {
     m_autoScalePan = true;
     m_scale = 1.0;
-    m_panOffset = QPointF();
     update();
 }
 

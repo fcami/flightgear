@@ -636,6 +636,30 @@ QPainterPath AirportDiagram::pathForHelipad(const HelipadData& h, const QTransfo
     return x.map(m_helipadBoundsPath);
 }
 
+void AirportDiagram::onProjectionCenterChanged()
+{
+    if (!m_airport)
+        return;
+
+    // Re-project all cached geometry relative to the new m_projectionCenter.
+    // Do NOT call recomputeBounds: that would snap the view back to the airport.
+    for (RunwayData& r : m_runways) {
+        r.p1 = project(r.runway->geod());
+        r.p2 = project(r.runway->end());
+    }
+
+    for (ParkingData& pd : m_parking) {
+        pd.pt = project(pd.parking->geod());
+    }
+
+    for (HelipadData& pd : m_helipads) {
+        pd.pt = project(pd.helipad->geod());
+    }
+
+    buildTaxiways();
+    buildPavements();
+}
+
 void AirportDiagram::buildTaxiways()
 {
     m_taxiways.clear();

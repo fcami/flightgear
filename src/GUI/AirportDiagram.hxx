@@ -77,12 +77,14 @@ Q_SIGNALS:
     void approachExtensionChanged();
 
 protected:
-    
+
     void mouseReleaseEvent(QMouseEvent* me) override;
 
     void paintContents(QPainter*) override;
 
     void doComputeBounds() override;
+
+    void onProjectionCenterChanged() override;
 private:
     struct RunwayData {
         QPointF p1, p2;
