@@ -49,6 +49,8 @@ public:
         LAKE,
         URBAN,
         LAND_MASS,
+        GRATICULE,
+        GEOGRAPHIC_LINE,
         // airspace types in the future
         LAST_TYPE
     };

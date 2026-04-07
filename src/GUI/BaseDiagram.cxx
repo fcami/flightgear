@@ -54,6 +54,8 @@ public:
         case flightgear::PolyLine::COASTLINE:
         case flightgear::PolyLine::NATIONAL_BOUNDARY:
         case flightgear::PolyLine::REGIONAL_BOUNDARY:
+        case flightgear::PolyLine::GRATICULE:
+        case flightgear::PolyLine::GEOGRAPHIC_LINE:
         case flightgear::PolyLine::URBAN:
         case flightgear::PolyLine::RIVER:
         case flightgear::PolyLine::LAKE:
@@ -207,16 +209,19 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
 
     // Partition into per-type lists without extra allocations.
-    flightgear::PolyLineList landLines, coastLines, nationalLines, regionalLines, urbanLines, riverLines, lakeLines;
+    flightgear::PolyLineList landLines, gratLines, coastLines, nationalLines, regionalLines,
+        urbanLines, riverLines, lakeLines, geographicLines;
     for (const auto& line : allLines) {
         switch (line->type()) {
         case flightgear::PolyLine::LAND_MASS:          landLines.push_back(line); break;
+        case flightgear::PolyLine::GRATICULE:          gratLines.push_back(line); break;
         case flightgear::PolyLine::COASTLINE:          coastLines.push_back(line); break;
         case flightgear::PolyLine::NATIONAL_BOUNDARY:  nationalLines.push_back(line); break;
         case flightgear::PolyLine::REGIONAL_BOUNDARY:  regionalLines.push_back(line); break;
         case flightgear::PolyLine::URBAN:              urbanLines.push_back(line); break;
         case flightgear::PolyLine::RIVER:              riverLines.push_back(line); break;
         case flightgear::PolyLine::LAKE:               lakeLines.push_back(line); break;
+        case flightgear::PolyLine::GEOGRAPHIC_LINE:    geographicLines.push_back(line); break;
         default: break;
         }
     }
@@ -227,12 +232,14 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         fillClosedGeodVec(painter, line->points());
     }
 
-    QPen waterPen(QColor(64, 64, 255), 1);
-    waterPen.setCosmetic(true);
-    painter->setPen(waterPen);
-    for (const auto& line : coastLines) {
+    // Graticules drawn immediately above land so they sit below all other features.
+    QPen graticulePen(QColor(150, 155, 145), 1);
+    graticulePen.setCosmetic(true);
+    painter->setPen(graticulePen);
+    for (const auto& line : gratLines) {
         paintGeodVec(painter, line->points());
     }
+
 
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(192, 192, 96));
@@ -240,15 +247,17 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         fillClosedGeodVec(painter, line->points());
     }
 
-    painter->setPen(waterPen);
-    for (const auto& line : riverLines) {
-        paintGeodVec(painter, line->points());
-    }
-
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(128, 128, 255));
     for (const auto& line : lakeLines) {
         fillClosedGeodVec(painter, line->points());
+    }
+
+    QPen waterPen(QColor(64, 64, 255), 1);
+    waterPen.setCosmetic(true);
+    painter->setPen(waterPen);
+    for (const auto& line : coastLines) {
+        paintGeodVec(painter, line->points());
     }
 
     QPen nationalBoundaryPen(QColor(255, 255, 255), 2);
@@ -258,10 +267,24 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         paintGeodVec(painter, line->points());
     }
 
-    QPen regionalBoundaryPen(QColor(192, 192, 192), 2);
+    QPen regionalBoundaryPen(QColor(192, 192, 192), 1);
     regionalBoundaryPen.setCosmetic(true);
     painter->setPen(regionalBoundaryPen);
     for (const auto& line : regionalLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    painter->setPen(waterPen);
+    for (const auto& line : riverLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    // Geographic special lines (equator, tropics, datelines) drawn last, on top of all.
+    QPen geographicLinePen(QColor(220, 200, 80), 1);
+    geographicLinePen.setCosmetic(true);
+    geographicLinePen.setStyle(Qt::DashLine);
+    painter->setPen(geographicLinePen);
+    for (const auto& line : geographicLines) {
         paintGeodVec(painter, line->points());
     }
 }
