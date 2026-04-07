@@ -13,14 +13,15 @@
 #endif
 
 #include <algorithm>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fstream>
-#include <sstream>
+#include <cassert>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
+#include <string>
 #include <vector>
+
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
@@ -52,6 +53,7 @@
 #include "NasalPositioned.hxx"
 #include "NasalSGPath.hxx"
 #include "NasalString.hxx"
+#include "NasalStringFormatting.hxx"
 #include "NasalSys.hxx"
 #include "NasalSys_private.hxx"
 #include "NasalTranslations.hxx"
@@ -61,7 +63,6 @@
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
 
-using std::map;
 using std::string;
 using std::vector;
 
@@ -1086,6 +1087,8 @@ void FGNasalSys::init()
     for(i=0; funcs[i].name; i++)
         hashset(d->_globals, funcs[i].name,
                 naNewFunc(d->_context, naNewCCode(d->_context, funcs[i].func)));
+
+    nasal::addStringFormattingFunction(); // add a format() function to Nasal
     nasal::Hash io_module = getGlobals().get<nasal::Hash>("io");
     io_module.set("open", f_open);
     io_module.set("stat", f_custom_stat);

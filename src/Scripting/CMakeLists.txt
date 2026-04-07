@@ -14,6 +14,7 @@ set(SOURCES
   NasalCondition.cxx
   NasalHTTP.cxx
   NasalString.cxx
+  NasalStringFormatting.cxx
   NasalModelData.cxx
   NasalSGPath.cxx
   NasalTranslations.cxx
@@ -35,6 +36,7 @@ set(HEADERS
   NasalCondition.hxx
   NasalHTTP.hxx
   NasalString.hxx
+  NasalStringFormatting.hxx
   NasalModelData.hxx
   NasalSGPath.hxx
   NasalTranslations.hxx
