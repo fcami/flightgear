@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include <QHash>
 #include <QPainterPath>
 #include <QPixmap>
@@ -129,6 +131,24 @@ private:
     void paintPolygonData(QPainter *painter);
     void paintGeodVec(QPainter *painter, const flightgear::SGGeodVec &vec);
     void fillClosedGeodVec(QPainter* painter, const flightgear::SGGeodVec& vec);
+
+    void validatePolygonCache(const SGGeod& viewCenter, double drawRangeNm);
+
+    struct PolygonDataCache {
+        SGGeod viewCenter;
+        double drawRangeNm = 0.0;
+        flightgear::PolyLineList landLines;
+        flightgear::PolyLineList gratLines;
+        flightgear::PolyLineList coastLines;
+        flightgear::PolyLineList nationalLines;
+        flightgear::PolyLineList regionalLines;
+        flightgear::PolyLineList urbanLines;
+        flightgear::PolyLineList riverLines;
+        flightgear::PolyLineList lakeLines;
+        flightgear::PolyLineList geographicLines;
+    };
+
+    std::optional<PolygonDataCache> m_polygonCache;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(BaseDiagram::IconOptions)

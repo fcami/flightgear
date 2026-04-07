@@ -193,6 +193,39 @@ void BaseDiagram::paintCarrierIcon(QPainter* painter, const SGGeod& geod, int he
 
     painter->restore();
 }
+
+void BaseDiagram::validatePolygonCache(const SGGeod& viewCenter, double drawRangeNm)
+{
+    if (m_polygonCache.has_value() && (m_polygonCache->viewCenter == viewCenter) && (m_polygonCache->drawRangeNm == drawRangeNm)) {
+        return;
+    }
+
+    PolygonDataCache cache;
+    cache.viewCenter = viewCenter;
+    cache.drawRangeNm = drawRangeNm;
+
+    // Single octree traversal for all drawn polygon/line types.
+    const flightgear::PolyLineList allLines =
+        flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
+
+    for (const auto& line : allLines) {
+        switch (line->type()) {
+        case flightgear::PolyLine::LAND_MASS:          cache.landLines.push_back(line); break;
+        case flightgear::PolyLine::GRATICULE:          cache.gratLines.push_back(line); break;
+        case flightgear::PolyLine::COASTLINE:          cache.coastLines.push_back(line); break;
+        case flightgear::PolyLine::NATIONAL_BOUNDARY:  cache.nationalLines.push_back(line); break;
+        case flightgear::PolyLine::REGIONAL_BOUNDARY:  cache.regionalLines.push_back(line); break;
+        case flightgear::PolyLine::URBAN:              cache.urbanLines.push_back(line); break;
+        case flightgear::PolyLine::RIVER:              cache.riverLines.push_back(line); break;
+        case flightgear::PolyLine::LAKE:               cache.lakeLines.push_back(line); break;
+        case flightgear::PolyLine::GEOGRAPHIC_LINE:    cache.geographicLines.push_back(line); break;
+        default: break;
+        }
+    }
+
+    m_polygonCache = std::move(cache);
+}
+
 void BaseDiagram::paintPolygonData(QPainter* painter)
 {
     QTransform invT = m_viewportTransform.inverted();
@@ -204,31 +237,13 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     double drawRangeNm = std::max(SGGeodesy::distanceNm(viewCenter, topLeft),
                                   SGGeodesy::distanceNm(viewCenter, bottomRight));
 
-    // Single octree traversal for all drawn polygon/line types.
-    const flightgear::PolyLineList allLines =
-        flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
 
-    // Partition into per-type lists without extra allocations.
-    flightgear::PolyLineList landLines, gratLines, coastLines, nationalLines, regionalLines,
-        urbanLines, riverLines, lakeLines, geographicLines;
-    for (const auto& line : allLines) {
-        switch (line->type()) {
-        case flightgear::PolyLine::LAND_MASS:          landLines.push_back(line); break;
-        case flightgear::PolyLine::GRATICULE:          gratLines.push_back(line); break;
-        case flightgear::PolyLine::COASTLINE:          coastLines.push_back(line); break;
-        case flightgear::PolyLine::NATIONAL_BOUNDARY:  nationalLines.push_back(line); break;
-        case flightgear::PolyLine::REGIONAL_BOUNDARY:  regionalLines.push_back(line); break;
-        case flightgear::PolyLine::URBAN:              urbanLines.push_back(line); break;
-        case flightgear::PolyLine::RIVER:              riverLines.push_back(line); break;
-        case flightgear::PolyLine::LAKE:               lakeLines.push_back(line); break;
-        case flightgear::PolyLine::GEOGRAPHIC_LINE:    geographicLines.push_back(line); break;
-        default: break;
-        }
-    }
+    validatePolygonCache(viewCenter, drawRangeNm);
+    const PolygonDataCache& cache = *m_polygonCache;
 
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(180, 190, 160));
-    for (const auto& line : landLines) {
+    for (const auto& line : cache.landLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
@@ -236,46 +251,45 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     QPen graticulePen(QColor(150, 155, 145), 1);
     graticulePen.setCosmetic(true);
     painter->setPen(graticulePen);
-    for (const auto& line : gratLines) {
+    for (const auto& line : cache.gratLines) {
         paintGeodVec(painter, line->points());
     }
 
-
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(192, 192, 96));
-    for (const auto& line : urbanLines) {
+    for (const auto& line : cache.urbanLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
     painter->setPen(Qt::NoPen);
     painter->setBrush(QColor(128, 128, 255));
-    for (const auto& line : lakeLines) {
+    for (const auto& line : cache.lakeLines) {
         fillClosedGeodVec(painter, line->points());
     }
 
     QPen waterPen(QColor(64, 64, 255), 1);
     waterPen.setCosmetic(true);
     painter->setPen(waterPen);
-    for (const auto& line : coastLines) {
+    for (const auto& line : cache.coastLines) {
         paintGeodVec(painter, line->points());
     }
 
     QPen nationalBoundaryPen(QColor(255, 255, 255), 2);
     nationalBoundaryPen.setCosmetic(true);
     painter->setPen(nationalBoundaryPen);
-    for (const auto& line : nationalLines) {
+    for (const auto& line : cache.nationalLines) {
         paintGeodVec(painter, line->points());
     }
 
     QPen regionalBoundaryPen(QColor(192, 192, 192), 1);
     regionalBoundaryPen.setCosmetic(true);
     painter->setPen(regionalBoundaryPen);
-    for (const auto& line : regionalLines) {
+    for (const auto& line : cache.regionalLines) {
         paintGeodVec(painter, line->points());
     }
 
     painter->setPen(waterPen);
-    for (const auto& line : riverLines) {
+    for (const auto& line : cache.riverLines) {
         paintGeodVec(painter, line->points());
     }
 
@@ -284,7 +298,7 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     geographicLinePen.setCosmetic(true);
     geographicLinePen.setStyle(Qt::DashLine);
     painter->setPen(geographicLinePen);
-    for (const auto& line : geographicLines) {
+    for (const auto& line : cache.geographicLines) {
         paintGeodVec(painter, line->points());
     }
 }
