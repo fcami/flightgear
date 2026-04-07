@@ -291,6 +291,7 @@ protected:
 
   bool looped;
   bool next_looped;
+  std::string _defaultDirPrefix;
 
   SGSoundSample *get_sample (const char *name);
 
