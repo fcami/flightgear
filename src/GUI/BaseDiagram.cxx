@@ -52,6 +52,8 @@ public:
         switch (aTy) {
         case flightgear::PolyLine::LAND_MASS:
         case flightgear::PolyLine::COASTLINE:
+        case flightgear::PolyLine::NATIONAL_BOUNDARY:
+        case flightgear::PolyLine::REGIONAL_BOUNDARY:
         case flightgear::PolyLine::URBAN:
         case flightgear::PolyLine::RIVER:
         case flightgear::PolyLine::LAKE:
@@ -205,14 +207,16 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
 
     // Partition into per-type lists without extra allocations.
-    flightgear::PolyLineList landLines, coastLines, urbanLines, riverLines, lakeLines;
+    flightgear::PolyLineList landLines, coastLines, nationalLines, regionalLines, urbanLines, riverLines, lakeLines;
     for (const auto& line : allLines) {
         switch (line->type()) {
-        case flightgear::PolyLine::LAND_MASS: landLines.push_back(line); break;
-        case flightgear::PolyLine::COASTLINE: coastLines.push_back(line); break;
-        case flightgear::PolyLine::URBAN: urbanLines.push_back(line); break;
-        case flightgear::PolyLine::RIVER: riverLines.push_back(line); break;
-        case flightgear::PolyLine::LAKE: lakeLines.push_back(line); break;
+        case flightgear::PolyLine::LAND_MASS:          landLines.push_back(line); break;
+        case flightgear::PolyLine::COASTLINE:          coastLines.push_back(line); break;
+        case flightgear::PolyLine::NATIONAL_BOUNDARY:  nationalLines.push_back(line); break;
+        case flightgear::PolyLine::REGIONAL_BOUNDARY:  regionalLines.push_back(line); break;
+        case flightgear::PolyLine::URBAN:              urbanLines.push_back(line); break;
+        case flightgear::PolyLine::RIVER:              riverLines.push_back(line); break;
+        case flightgear::PolyLine::LAKE:               lakeLines.push_back(line); break;
         default: break;
         }
     }
@@ -245,6 +249,20 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     painter->setBrush(QColor(128, 128, 255));
     for (const auto& line : lakeLines) {
         fillClosedGeodVec(painter, line->points());
+    }
+
+    QPen nationalBoundaryPen(QColor(255, 255, 255), 2);
+    nationalBoundaryPen.setCosmetic(true);
+    painter->setPen(nationalBoundaryPen);
+    for (const auto& line : nationalLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    QPen regionalBoundaryPen(QColor(192, 192, 192), 2);
+    regionalBoundaryPen.setCosmetic(true);
+    painter->setPen(regionalBoundaryPen);
+    for (const auto& line : regionalLines) {
+        paintGeodVec(painter, line->points());
     }
 }
 

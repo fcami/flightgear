@@ -212,6 +212,8 @@ protected:
         const std::initializer_list<FileAndType> files = {
             {"ne_10m_land_tiles.shp", flightgear::PolyLine::LAND_MASS, true},
             {"ne_10m_coastline.shp", flightgear::PolyLine::COASTLINE, false},
+            {"ne_10m_admin_0_boundary_lines_land.shp", flightgear::PolyLine::NATIONAL_BOUNDARY, false},
+            {"ne_10m_admin_1_states_provinces_lines.shp", flightgear::PolyLine::REGIONAL_BOUNDARY, false},
             {"ne_10m_rivers_lake_centerlines.shp", flightgear::PolyLine::RIVER, false},
             {"ne_10m_lakes.shp", flightgear::PolyLine::LAKE, true},
             {"ne_10m_urban_areas.shp", flightgear::PolyLine::URBAN, true}};
