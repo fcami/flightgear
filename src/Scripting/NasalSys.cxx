@@ -56,6 +56,7 @@
 #include "NasalSys_private.hxx"
 #include "NasalTranslations.hxx"
 #include "NasalUnitTesting.hxx"
+#include "ScriptBinding.hxx"
 
 #include <Main/globals.hxx>
 #include <Main/fg_props.hxx>
@@ -1061,6 +1062,9 @@ void FGNasalSys::init()
     if (d->_inited) {
         SG_LOG(SG_GENERAL, SG_ALERT, "duplicate init of Nasal");
     }
+
+    ScriptBinding::registerFactory();
+
     int i;
 
     d->_context = naNewContext();
@@ -1615,15 +1619,15 @@ bool FGNasalSys::reloadModuleFromFile(const std::string& moduleName)
     }
 }
 
-naRef FGNasalSys::getModule(const std::string& moduleName) const
+naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 {
     naRef mod = naHash_cget(d->_globals, (char*)moduleName.c_str());
-    return mod;
-}
-
-naRef FGNasalSys::getModule(const char* moduleName)
-{
-    naRef mod = naHash_cget(d->_globals, (char*)moduleName);
+    if (naIsNil(mod) && create) {
+        naContext ctx = naNewContext();
+        mod = naNewHash(ctx);
+        naHash_cset(d->_globals, (char*)moduleName.c_str(), mod);
+        naFreeContext(ctx);
+    }
     return mod;
 }
 
@@ -1671,6 +1675,13 @@ naRef FGNasalSys::parse(naContext ctx, const char* filename,
     return naBindFunction(ctx, code, d->_globals);
 }
 
+nasal::NasalCode FGNasalSys::createCode(const std::string& source,
+                                        const std::string& filename,
+                                        int firstLine)
+{
+    return nasal::NasalCode(d->_globals, source, filename, firstLine);
+}
+
 bool FGNasalSys::handleCommand( const char* moduleName,
                                 const char* fileName,
                                 const char* src,
@@ -1690,12 +1701,7 @@ bool FGNasalSys::handleCommand( const char* moduleName,
     // command.
     naRef locals = naNil();
     if(moduleName[0]) {
-        naRef modname = naNewString(ctx);
-        naStr_fromdata(modname, (char*)moduleName, strlen(moduleName));
-        if (!naHash_get(d->_globals, modname, &locals)) {
-            locals = naNewHash(ctx);
-            naHash_set(d->_globals, modname, locals);
-        }
+        locals = getModule(moduleName, true /*create*/);
     }
 
     // Cache this command's argument for inspection via cmdarg().  For

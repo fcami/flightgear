@@ -18,6 +18,7 @@ set(SOURCES
   NasalSGPath.cxx
   NasalTranslations.cxx
   NasalFlightPlan.cxx
+  ScriptBinding.cxx
   sqlitelib.cxx
   # we don't add this here because we need to exclude it in the testSuite
   # so it can't go nto fgfsObjects library
@@ -39,6 +40,7 @@ set(HEADERS
   NasalSGPath.hxx
   NasalTranslations.hxx
   NasalFlightPlan.hxx
+  ScriptBinding.hxx
 )
 
 if(WIN32)

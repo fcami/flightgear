@@ -11,6 +11,7 @@
                                    // SGVec2<T> conversion.
 #include <simgear/misc/sg_dir.hxx>
 #include <simgear/misc/sg_path.hxx>
+#include <simgear/nasal/cppbind/NasalCode.hxx>
 #include <simgear/nasal/cppbind/NasalHash.hxx>
 #include <simgear/nasal/nasal.h>
 #include <simgear/props/props.hxx>
@@ -91,8 +92,7 @@ public:
 
     void deleteModule(const char* moduleName);
 
-    naRef getModule(const std::string& moduleName) const;
-    naRef getModule(const char* moduleName);
+    naRef getModule(const std::string& moduleName, bool create = false) const;
 
     bool addCommand(naRef func, const std::string& name);
     bool removeCommand(const std::string& name);
@@ -160,6 +160,21 @@ public:
     static naRef getPropertyValue(naContext c, SGPropertyNode* node);
 
     bool reloadModuleFromFile(const std::string& moduleName);
+
+    /**
+     * @brief Compile a Nasal source string into a cached, callable NasalCode object.
+     *
+     * The code is parsed immediately and bound to the Nasal globals namespace.
+     * Check NasalCode::isValid() and NasalCode::getErrors() after construction.
+     *
+     * @param source    The Nasal source code to compile
+     * @param filename  Filename used in error messages (default "<inline>")
+     * @param firstLine First line number for error reporting (default 1)
+     * @return A NasalCode object; may be invalid if parsing failed
+     */
+    nasal::NasalCode createCode(const std::string& source,
+                                const std::string& filename = "<inline>",
+                                int firstLine = 1);
 
     // private methods: the class has a lot of friends to allow particular classes
     // to do book-keeping, this is not ideal.
