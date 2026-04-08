@@ -67,12 +67,9 @@ void ScriptBinding::innerFire() const
     nas->setCmdArg(_arg);
 
     naRef locals = naNil();
-    int lsave = naGCSave(locals);
-
     if (!_moduleName.empty()) {
-        locals = nas->getModule(_moduleName.c_str(), true /*create*/);
+        locals = nas->getModule(_moduleName, true /*create*/);
     }
 
     _code.callWithLocals(locals);
-    naGCRelease(lsave);
 }
