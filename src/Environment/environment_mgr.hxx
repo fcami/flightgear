@@ -82,7 +82,7 @@ private:
     int max_tower_height_feet;
     int min_tower_height_feet;
     int default_tower_height_feet;
-    bool rebuildCloudLayers;
+    bool rebuildCloudLayers = true;
 
     simgear::TiedPropertyList _tiedProperties;
     SGPropertyChangeListener* _3dCloudsEnableListener;

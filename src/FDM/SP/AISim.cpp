@@ -36,9 +36,6 @@
 # include "simd4x4.hxx"
 #endif
 
-#define FEET_TO_INCHES       12.0f
-#define INCHES_TO_FEET       (1.0f/FEET_TO_INCHES)
-
 FGAISim::FGAISim(double dt)
 {
     simd4x4::zeros(xCDYLT);
@@ -153,20 +150,52 @@ FGAISim::init()
 #endif
 }
 
-void
-FGAISim::update(double ddt)
+// FlightGear FDM update
+void FGAISim::update(double dt)
 {
 #ifdef ENABLE_SP_FDM
-    if (is_suspended() || ddt == 0)
+    if (is_suspended() || dt == 0)
         return;
 #endif
-
-    // initialize all of AISim vars
-    aiVec3 dt(ddt);
 
 #ifdef ENABLE_SP_FDM
     copy_to_AISim();
 #endif
+
+    update_fdm(dt);
+
+#ifdef ENABLE_SP_FDM
+    copy_from_AISim();
+#endif
+}
+
+#if 0
+// FlightGear AIModel upodate
+void AISim::update_aimodel(double dt)
+{
+    // 1. Get Goals from FlightGear (AIFlightPlan)
+    auto goals = get_flightplan_data();
+
+    // 2. NN Inference (The "Pilot")
+    // This replaces the simple PID or hardcoded logic
+    float* nn_inputs = preprocess(current_state, goals);
+    ControlSurfaceCommands cmd = my_nn_model.predict(nn_inputs);
+
+    // 3. AISim uses the 'cmd' to calculate new accelerations/velocities
+    copy_to_AISim(cmd);
+
+    // 4. Run 6DOF FDM (The "Physics")
+    update_fdm(cmd, dt);
+
+    // 5. Output back to FG
+    copy_back_to_flightgear();
+}
+#endif
+
+void FGAISim::update_fdm(double ddt)
+{
+    // initialize all of AISim vars
+    aiVec3 dt(ddt);
 
     /* --------------------------------------------------------------------
      * Earth-to-Body-Axis Transformation Matrix (ZYX Euler sequence)
@@ -214,8 +243,9 @@ FGAISim::update(double ddt)
     aiVec4 Ccbar2U = (xCq * vPQR[Q] + xCadot * AOAdot[ALPHA]) * cbar_2U;
     aiVec4 Cb2U = (xCp * vPQR[P] + xCr * vPQR[R]) * b_2U;
 
-    /* xCDYLT and xClmnT already have their factors applied */
-    /* in the functions in the header file.                 */
+    /* Add Drag, Side, Lift and Roll, Pitch and Yaw coefficients */
+    /* for Rudder, Elevator, Aileron and Flaps.                  */
+    /* xCDYLT and xClmnT already have their factors applied.     */
     aiVec4 CDYL(0.0f, Cb2U[SIDE], Ccbar2U[LIFT]);
     aiVec4 Clmn(Cb2U[ROLL], Ccbar2U[PITCH], Cb2U[YAW]);
     size_t i = 3;
@@ -225,6 +255,7 @@ FGAISim::update(double ddt)
     }
     while(i--);
 
+    /* Add Induced Drag */
     float CL = CDYL[LIFT];
     CDYL += aiVec3(CDi * CL * CL, 0.0f, 0.0f);
 
@@ -232,7 +263,7 @@ FGAISim::update(double ddt)
     aiVec3 FDYL = CDYL*Coef2Force;
     aiVec3 Mlmn = Clmn*Coef2Moment;
 
-    /* convert from wind axes to body axes */
+    /* Convert from wind axes to body axes */
     /* Ry(alpha)*Rz(-beta) built as an aiMtx4 from pre-computed
      * trig scalars, then applied as a single matrix-vector multiply.
      *
@@ -253,7 +284,7 @@ FGAISim::update(double ddt)
     aiVec3 gravity_body = mNed2Body*gravity_ned;
     FXYZ_body += gravity_body*mass;
 
-    /* Thrust */
+    /* Thrust force and moment as a function of normalized throttle */
     float Cth = rho*throttle*throttle;
     for (i = 0; i < no_engines; i++) {
         aiVec3 FEngine = FT[i]*(Cth*n2[i]);
@@ -263,7 +294,7 @@ FGAISim::update(double ddt)
         Mlmn += MEngine;
     }
 
-    /* contact point (landing gear) forces and moments */
+    /* Contact point (landing gear) forces and moments */
     WoW = false;
     if (no_contacts && cg_agl < 10.0f)
     {
@@ -378,10 +409,6 @@ FGAISim::update(double ddt)
     euler_dot[PHI] = vPQR[P] + psi_dot * sthe;
 
     euler += euler_dot * dt;
-
-#ifdef ENABLE_SP_FDM
-    copy_from_AISim();
-#endif
 }
 
 #ifdef ENABLE_SP_FDM
@@ -471,7 +498,6 @@ FGAISim::copy_from_AISim()
 
 // ----------------------------------------------------------------------------
 
-#define OMEGA_EARTH 	0.00007272205217f
 #define MAX_ALT		101
 
 // 1976 Standard Atmosphere - Density (slugs/ft2): 0 - 101,000 ft
@@ -748,8 +774,8 @@ FGAISim::load(std::string path)
         struct_to_body(pos);
 
         // Thruster orientation is in the following sequence: pitch, roll, yaw
-        aiVec3 orientation(data[engstr + "/dir[0]"],  // pitch (degrees)
-                           data[engstr + "/dir[1]"],  // roll (degrees)
+        aiVec3 orientation(data[engstr + "/dir[0]"],  // roll (degrees)
+                           data[engstr + "/dir[1]"],  // pitch (degrees)
                            data[engstr + "/dir[2]"]); // yaw (degrees)
         orientation *= SG_DEGREES_TO_RADIANS;
 
@@ -766,8 +792,6 @@ FGAISim::load(std::string path)
         // Moment arm is from the CG to the engine.
         aiVec3 arm = pos - cg;
 
-        float rho = 0.002379f;
-
         float max_rpm = data[engstr + "/rpm_max"];
         if (max_rpm == 0.0f) {
              n2[i] = 1.0f;
@@ -778,18 +802,18 @@ FGAISim::load(std::string path)
             n2[i] *= n2[i];
         }
 
-        FTmax /= (rho * n2[i]);
-
+        FTmax /= (AISIM_RHO * n2[i]);
         FT[i] = dir * FTmax;
 
-        /* MT_max is propeller torque — it acts along the thrust axis (dir)
+        /* MT_max is propeller torque: it acts along the thrust axis (dir)
          * and scales with Cth exactly like thrust. It is added to the
          * positional moment cross(arm, dir)*FTmax so that:
-         *   - Off-centre engines get both the position-induced moment and torque
-         *   - Centre-line engines (arm ≈ 0) get only the propeller torque,
-         *     which is the dominant effect for single-engine propeller aircraft */
+         *  - Off-centre engines get both the position-induced moment and torque
+         *  - Centre-line engines (arm ~ 0) get only the propeller torque,
+         *    which is the dominant effect for single-engine propeller aircraft.
+         */
         float MTmax = data[engstr + "/MT_max"];
-        MTmax /= (rho * n2[i]);
+        MTmax /= (AISIM_RHO * n2[i]);
         MT[i] = simd4::cross(arm, dir) * FTmax // moment from thrust line offset
                 + dir * MTmax;                 // propeller torque along thrust axis
     }

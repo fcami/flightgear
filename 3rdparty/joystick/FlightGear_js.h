@@ -44,7 +44,7 @@ protected:
   struct os_specific_s *os ;
   friend struct os_specific_s ;
   int          error        ;
-  char         name [ 128 ] ;
+  char         name [ 128 ] = "";
   int          num_axes     ;
   int          num_buttons  ;
 

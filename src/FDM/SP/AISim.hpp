@@ -6,6 +6,9 @@
  * @brief Interface to the AI Sim
  */
 
+// running: fgfs --aircraft=aisim --aero=<aircraft>
+// See $FGDATA/Aircraft-aisim for available aircraft configuration files.
+
 #pragma once
 
 #ifdef HAVE_CONFIG_H
@@ -29,12 +32,14 @@
 # define SGD_RADIANS_TO_DEGREES         (1/SGD_DEGREES_TO_RADIANS)
 # define SGD_PI                         3.1415926536
 #endif
+#define FEET_TO_INCHES 12.0f
+#define INCHES_TO_FEET (1.0f / FEET_TO_INCHES)
 
-// #define SG_DEGREES_TO_RADIANS 0.0174532925f
 
 // max. no. gears, max. no. engines
 #define AISIM_MAX       4
 #define AISIM_G         32.174f
+#define AISIM_RHO 0.002379f
 
 #ifndef _MINMAX
 # define _MINMAX(a,b,c)  (((a)>(c)) ? (c) : (((a)<(b)) ? (b) : (a)))
@@ -51,11 +56,18 @@ private:
     enum { LATITUDE=0, LONGITUDE=1, ALTITUDE=2 };
     enum { NORTH=0, EAST=1, DOWN=2 };
     enum { LEFT=0, RIGHT=1, UP=2 };
-    enum { MAX=0, VELOCITY=1, PROPULSION=2 };
-    enum { FLAPS=2, RUDDER=2, MIN=3, AILERON=3, ELEVATOR=3 };
+    enum { FLAPS = 2,
+           MIN = 3 };
+    enum { RUDDER = 2,
+           AILERON = 3,
+           ELEVATOR = 3 };
     enum { DRAG=0, SIDE=1, LIFT=2 };
-    enum { ROLL=0, PITCH=1, YAW=2, THRUST=3 };
-    enum { PHI=0, THETA, PSI };
+    enum { ROLL = 0,
+           PITCH = 1,
+           YAW = 2 };
+    enum { PHI = 0,
+           THETA = 1,
+           PSI = 2 };
     enum { ALPHA=0, BETA=1 };
     enum { P=0, Q=1, R=2 };
     enum { U=0, V=1, W=2 };
@@ -90,46 +102,76 @@ public:
     bool copy_from_AISim();
 #endif
 
-    /* controls */
-    inline void set_rudder_norm(float f) {
+    // both xCDYLT and xClmnT are defined as a 4x4 slot (aiMtx4)
+    void set_alpha_rad(float f)
+    {
+        f = _MINMAX(f, -5.0 * SGD_DEGREES_TO_RADIANS,
+                    15.0 * SGD_DEGREES_TO_RADIANS);
+        xCDYLT.ptr()[ALPHA][LIFT] = CLa * f;
+        xCDYLT.ptr()[ALPHA][DRAG] = CDa * std::abs(f);
+        xClmnT.ptr()[ALPHA][PITCH] = Cma * f;
+        AOA[ALPHA] = f;
+    }
+    void set_beta_rad(float f)
+    {
+        f = _MINMAX(f, -10.0 * SGD_DEGREES_TO_RADIANS,
+                    10.0 * SGD_DEGREES_TO_RADIANS);
+        xCDYLT.ptr()[BETA][DRAG] = CDb * std::abs(f);
+        xCDYLT.ptr()[BETA][SIDE] = CYb * f;
+        xClmnT.ptr()[BETA][ROLL] = Clb * f;
+        xClmnT.ptr()[BETA][YAW] = Cnb * f;
+        AOA[BETA] = f;
+    }
+
+    // controls
+    void set_rudder_norm(float f)
+    {
         xCDYLT.ptr()[RUDDER][SIDE] = CYdr_n*f;
         xClmnT.ptr()[RUDDER][ROLL] = Cldr_n*f;
         xClmnT.ptr()[RUDDER][YAW] = -Cndr_n*f;
     }
-    inline void set_elevator_norm(float f) {
+    // elevator (pitch) and aileron (roll and yaw) occupy the same slot
+    void set_elevator_norm(float f)
+    {
         xClmnT.ptr()[ELEVATOR][PITCH] = Cmde_n*f;
     }
-    inline void set_aileron_norm(float f) {
+    void set_aileron_norm(float f)
+    {
         xClmnT.ptr()[AILERON][ROLL] = Clda_n*f;
         xClmnT.ptr()[AILERON][YAW] = Cnda_n*f;
     }
-    inline void set_flaps_norm(float f) {
+    void set_flaps_norm(float f)
+    {
         xCDYLT.ptr()[FLAPS][LIFT] = CLdf_n * f;
         xCDYLT.ptr()[FLAPS][DRAG] = CDdf_n * std::abs(f);
         xClmnT.ptr()[FLAPS][PITCH] = Cmdf_n*f;
     }
-    inline void set_throttle_norm(float f) { throttle = f; }
-    inline void set_brake_norm(float f) { mu_body[0] = -0.02f-0.7f*f; }
+    void set_throttle_norm(float f) { throttle = f; }
+    void set_brake_norm(float f) { mu_body[0] = -0.02f - 0.7f * f; }
 
     /* (initial) state, local frame */
-    inline void set_location_geod(aiVec3d& p) {
+    void set_location_geod(aiVec3d& p)
+    {
         location_geod = p;
     }
-    inline void set_location_geod(double lat, double lon, double alt) {
+    void set_location_geod(double lat, double lon, double alt)
+    {
         location_geod = aiVec3d(lat, lon, alt);
     }
-    inline void set_altitude_asl_ft(float f) { location_geod[ALTITUDE] = f; };
-    inline void set_altitude_agl_ft(float f) { cg_agl = f; }
+    void set_altitude_asl_ft(float f) { location_geod[ALTITUDE] = f; };
+    void set_altitude_agl_ft(float f) { cg_agl = f; }
 
-    inline void set_euler_angles_rad(const aiVec3& e) {
+    void set_euler_angles_rad(const aiVec3& e)
+    {
         euler = e;
-     }
-    inline void set_euler_angles_rad(float phi, float theta, float psi) {
+    }
+    void set_euler_angles_rad(float phi, float theta, float psi)
+    {
         euler = aiVec3(phi, theta, psi);
     }
-    inline void set_roll_rad(float f) { euler[PHI] = f; }
-    inline void set_pitch_rad(float f) { euler[THETA] = f; }
-    inline void set_heading_rad(float f) { euler[PSI] = f; }
+    void set_roll_rad(float f) { euler[PHI] = f; }
+    void set_pitch_rad(float f) { euler[THETA] = f; }
+    void set_heading_rad(float f) { euler[PSI] = f; }
 
     void set_velocity_fps(const aiVec3& v) { vUVW = v; }
     void set_velocity_fps(float u, float v, float w) {
@@ -139,38 +181,25 @@ public:
         vUVW = aiVec3(u, 0.0f, 0.0f);
     }
 
-    inline void set_wind_ned_fps(const aiVec3& w) { wind_ned = w; }
-    inline void set_wind_ned_fps(float n, float e, float d) {
+    void set_wind_ned_fps(const aiVec3& w) { wind_ned = w; }
+    void set_wind_ned_fps(float n, float e, float d)
+    {
         wind_ned = aiVec3(n, e, d);
     }
 
-    inline void set_alpha_rad(float f) {
-        f = _MINMAX(f, -5.0 * SGD_DEGREES_TO_RADIANS,
-                    15.0 * SGD_DEGREES_TO_RADIANS);
-        xCDYLT.ptr()[ALPHA][LIFT] = CLa * f;
-        xCDYLT.ptr()[ALPHA][DRAG] = CDa * std::abs(f);
-        xClmnT.ptr()[ALPHA][PITCH] = Cma*f;
-        AOA[ALPHA] = f;
-    }
-    inline void set_beta_rad(float f) {
-        f = _MINMAX(f, -10.0 * SGD_DEGREES_TO_RADIANS,
-                    10.0 * SGD_DEGREES_TO_RADIANS);
-        xCDYLT.ptr()[BETA][DRAG] = CDb * std::abs(f);
-        xCDYLT.ptr()[BETA][SIDE] = CYb*f;
-        xClmnT.ptr()[BETA][ROLL] = Clb*f;
-        xClmnT.ptr()[BETA][YAW] = Cnb*f;
-        AOA[BETA] = f;
-    }
-    inline float get_alpha_rad() {
+    float get_alpha_rad()
+    {
         return AOA[ALPHA];
     }
-    inline float get_beta_rad() {
+    float get_beta_rad()
+    {
         return AOA[BETA];
     }
 
 private:
     std::map<std::string, float> jsonParse(std::istream& in);
 
+    void update_fdm(double dt);
     void update_velocity(float v);
     aiMtx4 matrix_inverse(aiMtx4 mtx);
     aiMtx4 invert_inertia(aiMtx4 mtx);
@@ -234,7 +263,7 @@ private:
     aiVec3 mass = 0.0f;              /* mass                            */
     aiVec3 cg = 0.0f;                /* center of gravity               */
     aiVec4 I = 0.0f;                 /* inertia                         */
-    float Sw = 0.0f;		     /* wing area                       */
+    float Sw = 0.0f;                 /* wing area                       */
     float cbar = 0.0f;               /* mean average chord              */
     float span = 0.0f;               /* wing span                       */
 
