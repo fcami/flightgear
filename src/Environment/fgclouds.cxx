@@ -822,10 +822,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 void FGClouds::commitResult(RebuildResult result)
 {
     // These fgSet* calls must stay on the main thread
-    fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm",
-               result.maxZ / float(result.detailedVoxelData->r()));
+    const float cloudFieldHeightM = result.maxZ * _detailedFieldVoxelSize;
+    const float cloudTopAbsoluteM = result.cloudbaseM + cloudFieldHeightM;
+    fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", cloudTopAbsoluteM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));    
     fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-m", result.cloudbaseM);
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-height-m", cloudFieldHeightM);
     fgSetBool("/sim/rendering/hdr/clouds/mirror-u", false);
     fgSetBool("/sim/rendering/hdr/clouds/mirror-v", false);
 
@@ -945,8 +946,12 @@ void FGClouds::updateFromOsgTraversal()
     if (_fieldRepeating) updateRepeatingField();
 
     // Adjust the altitude of the cloud base
-    float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (_detailedFieldHeight * _detailedFieldVoxelSize));
+    const float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
+    const float cloudFieldHeightM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-height-m");
+    const float cloudTopAbsoluteM = cloudBaseM + cloudFieldHeightM;
+
+    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (float) (_detailedFieldHeight * _detailedFieldVoxelSize));    
+    fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", cloudTopAbsoluteM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));    
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
