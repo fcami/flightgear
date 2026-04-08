@@ -39,8 +39,9 @@
 #include <sstream>
 
 #include <simgear/debug/logstream.hxx>
-#include <simgear/sound/soundmgr.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/sound/sample_group.hxx>
+#include <simgear/sound/soundmgr.hxx>
 #include <simgear/structure/exception.hxx>
 
 using std::string;
@@ -201,6 +202,7 @@ FGVoicePlayer::~FGVoicePlayer ()
 void
 FGVoicePlayer::bind (SGPropertyNode *node, const char* default_dir_prefix)
 {
+    _defaultDirPrefix = default_dir_prefix;
     dir_prefix = node->getStringValue("voice/file-prefix", default_dir_prefix);
     speaker.bind(node);
 }
@@ -248,7 +250,14 @@ FGVoicePlayer::get_sample (const char *name)
     SGSoundSample *sample = _sgr->find(refname);
     if (! sample)
     {
+        auto resMan = simgear::ResourceManager::instance();
         string filename = dir_prefix + string(name) + ".wav";
+        auto p = resMan->findPath(filename);
+        if (p.isNull()) {
+            // fall back to the default prefix
+            filename = _defaultDirPrefix + string(name) + ".wav";
+        }
+
         sample = new SGSoundSample(filename.c_str(), SGPath());
         
         _sgr->add(sample, refname);

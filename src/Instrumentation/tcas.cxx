@@ -203,7 +203,6 @@ TCAS::VoicePlayer::init(void)
 
     // add an empty voice for pLevelOff (since we don't have a sample for it)
     make_voice(&Voices.pLevelOff);
-    
     speaker.update_configuration();
 }
 
