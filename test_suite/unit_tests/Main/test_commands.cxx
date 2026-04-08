@@ -125,3 +125,116 @@ void CommandsTests::testPropertyMultiplyCommand()
         CPPUNIT_ASSERT(!(*cmd)(arg, globals->get_props()));
     }
 }
+
+void CommandsTests::testPropertyBitCommands()
+{
+    auto cmdSet = SGCommandMgr::instance()->getCommand("property-set-bit");
+    auto cmdClear = SGCommandMgr::instance()->getCommand("property-clear-bit");
+    auto cmdToggle = SGCommandMgr::instance()->getCommand("property-toggle-bit");
+
+    // property-set-bit
+    {
+        fgSetInt("/bits", 0);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 3);
+        CPPUNIT_ASSERT((*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-set-bit failed", 8, fgGetInt("/bits"));
+
+        // setting a bit that is already set should be idempotent
+        CPPUNIT_ASSERT((*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-set-bit idempotent", 8, fgGetInt("/bits"));
+    }
+
+    // property-clear-bit
+    {
+        fgSetInt("/bits", 0xFF);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 4);
+        CPPUNIT_ASSERT((*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-clear-bit failed", 0xFF & ~(1 << 4), fgGetInt("/bits"));
+
+        // clearing an already-cleared bit should be idempotent
+        CPPUNIT_ASSERT((*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-clear-bit idempotent", 0xFF & ~(1 << 4), fgGetInt("/bits"));
+    }
+
+    // property-toggle-bit
+    {
+        fgSetInt("/bits", 0);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 5);
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit set", 1 << 5, fgGetInt("/bits"));
+
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit clear", 0, fgGetInt("/bits"));
+    }
+
+    // boundary: bit 0 (LSB)
+    {
+        fgSetInt("/bits", 0);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 0);
+        CPPUNIT_ASSERT((*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-set-bit bit 0", 1, fgGetInt("/bits"));
+
+        CPPUNIT_ASSERT((*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-clear-bit bit 0", 0, fgGetInt("/bits"));
+
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit bit 0 set", 1, fgGetInt("/bits"));
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit bit 0 clear", 0, fgGetInt("/bits"));
+    }
+
+    // boundary: bit 31 (MSB of a 32-bit int)
+    {
+        fgSetInt("/bits", 0);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 31);
+        CPPUNIT_ASSERT((*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-set-bit bit 31", static_cast<int>(1u << 31), fgGetInt("/bits"));
+
+        CPPUNIT_ASSERT((*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-clear-bit bit 31", 0, fgGetInt("/bits"));
+
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit bit 31 set", static_cast<int>(1u << 31), fgGetInt("/bits"));
+        CPPUNIT_ASSERT((*cmdToggle)(arg, globals->get_props()));
+        CPPUNIT_ASSERT_EQUAL_MESSAGE("property-toggle-bit bit 31 clear", 0, fgGetInt("/bits"));
+    }
+
+    // reject non-integer property
+    {
+        fgSetDouble("/floatprop", 1.5);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/floatprop");
+        arg->setIntValue("bit", 0);
+        CPPUNIT_ASSERT(!(*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT(!(*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT(!(*cmdToggle)(arg, globals->get_props()));
+    }
+
+    // reject out-of-range bit index
+    {
+        fgSetInt("/bits", 0);
+
+        SGPropertyNode_ptr arg(new SGPropertyNode);
+        arg->setStringValue("property", "/bits");
+        arg->setIntValue("bit", 32);
+        CPPUNIT_ASSERT(!(*cmdSet)(arg, globals->get_props()));
+        CPPUNIT_ASSERT(!(*cmdClear)(arg, globals->get_props()));
+        CPPUNIT_ASSERT(!(*cmdToggle)(arg, globals->get_props()));
+    }
+}

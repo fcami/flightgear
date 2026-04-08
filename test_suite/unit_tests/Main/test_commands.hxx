@@ -17,6 +17,7 @@ class CommandsTests : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE(CommandsTests);
     CPPUNIT_TEST(testPropertyAdjustCommand);
     CPPUNIT_TEST(testPropertyMultiplyCommand);
+    CPPUNIT_TEST(testPropertyBitCommands);
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -30,6 +31,7 @@ public:
     // The tests.
     void testPropertyAdjustCommand();
     void testPropertyMultiplyCommand();
+    void testPropertyBitCommands();
 
 private:
 };
