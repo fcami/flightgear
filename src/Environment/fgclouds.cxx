@@ -53,17 +53,17 @@ FGClouds::FGClouds() : index(0)
     _cloudUpdateNode->setName("Cloud Update Node");
     _cloudUpdateNode->addUpdateCallback(new FGCloudUpdateCallback(this));
 
-    auto p = globals->get_props();
+    auto p = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
 
-    _cloudBaseM = p->getNode("/sim/rendering/hdr/clouds/cloud-base-m", true);
-    _cloudBaseZNorm = p->getNode("/sim/rendering/hdr/clouds/cloud-base-z-norm", true);
-    _cloudCenterX = p->getNode("/sim/rendering/hdr/clouds/cloud-center-x", true);
-    _cloudCenterY = p->getNode("/sim/rendering/hdr/clouds/cloud-center-y", true);
-    _cloudCenterZ = p->getNode("/sim/rendering/hdr/clouds/cloud-center-z", true);
-    _mirrorU = p->getNode("/sim/rendering/hdr/clouds/mirror-u", true);
-    _mirrorV = p->getNode("/sim/rendering/hdr/clouds/mirror-v", true);
-    _cloudFieldRepeating = p->getNode("/sim/rendering/hdr/clouds/cloud-field-repeating", true);
-    _activeVoxelFieldHeightNorm = p->getNode("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", true);
+    _cloudBaseM = p->getNode("cloud-base-m", true);
+    _cloudBaseZNorm = p->getNode("cloud-base-z-norm", true);
+    _cloudCenterX = p->getNode("cloud-center-x", true);
+    _cloudCenterY = p->getNode("cloud-center-y", true);
+    _cloudCenterZ = p->getNode("cloud-center-z", true);
+    _mirrorU = p->getNode("mirror-u", true);
+    _mirrorV = p->getNode("mirror-v", true);
+    _cloudFieldRepeating = p->getNode("cloud-field-repeating", true);
+    _activeVoxelFieldHeightNorm = p->getNode("active-voxel-field-height-norm", true);
 }
 
 FGClouds::~FGClouds()
@@ -552,9 +552,9 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
 
-    _cloudCenterX->setFloatValue( (float)_centerCart.x());
-    _cloudCenterY->setFloatValue( (float)_centerCart.y());
-    _cloudCenterZ->setFloatValue( (float)_centerCart.z());
+    _cloudCenterX->setFloatValue((float)_centerCart.x());
+    _cloudCenterY->setFloatValue((float)_centerCart.y());
+    _cloudCenterZ->setFloatValue((float)_centerCart.z());
     _cloudFieldRepeating->setBoolValue(_fieldRepeating);
 
 
@@ -1008,20 +1008,20 @@ void FGClouds::updateRepeatingField()
         _centerCart = _centerCart + toSG(snapECEF);
 
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-        _cloudCenterX->setFloatValue( (float)_centerCart.x());
-        _cloudCenterY->setFloatValue( (float)_centerCart.y());
-        _cloudCenterZ->setFloatValue( (float)_centerCart.z());
+        _cloudCenterX->setFloatValue((float)_centerCart.x());
+        _cloudCenterY->setFloatValue((float)_centerCart.y());
+        _cloudCenterZ->setFloatValue((float)_centerCart.z());
 
         // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
         // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
         // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
         // in too large a rotation of the up vector.
         if (std::abs(snapX) >= 1.0f) {
-            _mirrorU->setBoolValue( ! _mirrorU->getBoolValue());
+            _mirrorU->setBoolValue(!_mirrorU->getBoolValue());
         }
 
         if (std::abs(snapY) >= 1.0f) {
-            _mirrorV->setBoolValue( ! _mirrorV->getBoolValue());
+            _mirrorV->setBoolValue(!_mirrorV->getBoolValue());
         }
     }
 }
