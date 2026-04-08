@@ -207,6 +207,7 @@ void BaseDiagram::validatePolygonCache(const SGGeod& viewCenter, double drawRang
 
     for (const auto& line : allLines) {
         switch (line->type()) {
+            // clang-format off
         case flightgear::PolyLine::LAND_MASS:          cache.landLines.push_back(line); break;
         case flightgear::PolyLine::GRATICULE:          cache.gratLines.push_back(line); break;
         case flightgear::PolyLine::COASTLINE:          cache.coastLines.push_back(line); break;
@@ -217,6 +218,7 @@ void BaseDiagram::validatePolygonCache(const SGGeod& viewCenter, double drawRang
         case flightgear::PolyLine::LAKE:               cache.lakeLines.push_back(line); break;
         case flightgear::PolyLine::GEOGRAPHIC_LINE:    cache.geographicLines.push_back(line); break;
         default: break;
+            // clang-format on
         }
     }
 
@@ -239,9 +241,11 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     const PolygonDataCache& cache = *m_polygonCache;
 
     const QColor waterColor(150, 200, 205);
+    const QColor landColor(160, 190, 160);
+    const QColor adminBoundaryColor(139, 90, 110);
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(160, 190, 160));
+    painter->setBrush(landColor);
     for (const auto& line : cache.landLines) {
         fillClosedGeodVec(painter, line->points());
     }
@@ -272,15 +276,16 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
         paintGeodVec(painter, line->points());
     }
 
-    QPen nationalBoundaryPen(QColor(255, 255, 255), 2);
+    QPen nationalBoundaryPen(adminBoundaryColor, 2);
     nationalBoundaryPen.setCosmetic(true);
     painter->setPen(nationalBoundaryPen);
     for (const auto& line : cache.nationalLines) {
         paintGeodVec(painter, line->points());
     }
 
-    QPen regionalBoundaryPen(QColor(192, 192, 192), 1);
+    QPen regionalBoundaryPen(adminBoundaryColor, 1);
     regionalBoundaryPen.setCosmetic(true);
+    regionalBoundaryPen.setStyle(Qt::DotLine);
     painter->setPen(regionalBoundaryPen);
     for (const auto& line : cache.regionalLines) {
         paintGeodVec(painter, line->points());
@@ -294,7 +299,7 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     }
 
     // Geographic special lines (equator, tropics, datelines) drawn last, on top of all.
-    QPen geographicLinePen(QColor(255, 255, 255), 2);
+    QPen geographicLinePen(graticulePen);
     geographicLinePen.setCosmetic(true);
     geographicLinePen.setStyle(Qt::DashLine);
     painter->setPen(geographicLinePen);

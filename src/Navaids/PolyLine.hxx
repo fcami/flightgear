@@ -95,7 +95,7 @@ public:
 
     static PolyLineList linesNearPos(const SGGeod& aPos, double aRangeNm, const TypeFilter& aFilter);
 
-    SGBoxd cartesianBox() const;
+    const SGBoxd& cartesianBox() const;
 
     void addToSpatialIndex() const;
 
@@ -104,6 +104,7 @@ private:
 
     Type m_type;
     SGGeodVec m_data;
+    SGBoxd m_box;
 };
 
 
