@@ -52,6 +52,18 @@ FGClouds::FGClouds() : index(0)
     _cloudUpdateNode = new osg::Group;
     _cloudUpdateNode->setName("Cloud Update Node");
     _cloudUpdateNode->addUpdateCallback(new FGCloudUpdateCallback(this));
+
+    auto p = globals->get_props();
+
+    _cloudBaseM = p->getNode("/sim/rendering/hdr/clouds/cloud-base-m", true);
+    _cloudBaseZNorm = p->getNode("/sim/rendering/hdr/clouds/cloud-base-z-norm", true);
+    _cloudCenterX = p->getNode("/sim/rendering/hdr/clouds/cloud-center-x", true);
+    _cloudCenterY = p->getNode("/sim/rendering/hdr/clouds/cloud-center-y", true);
+    _cloudCenterZ = p->getNode("/sim/rendering/hdr/clouds/cloud-center-z", true);
+    _mirrorU = p->getNode("/sim/rendering/hdr/clouds/mirror-u", true);
+    _mirrorV = p->getNode("/sim/rendering/hdr/clouds/mirror-v", true);
+    _cloudFieldRepeating = p->getNode("/sim/rendering/hdr/clouds/cloud-field-repeating", true);
+    _activeVoxelFieldHeightNorm = p->getNode("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", true);
 }
 
 FGClouds::~FGClouds()
@@ -540,10 +552,10 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
 
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
-    fgSetBool("/sim/rendering/hdr/clouds/cloud-field-repeating", _fieldRepeating);
+    _cloudCenterX->setFloatValue( (float)_centerCart.x());
+    _cloudCenterY->setFloatValue( (float)_centerCart.y());
+    _cloudCenterZ->setFloatValue( (float)_centerCart.z());
+    _cloudFieldRepeating->setBoolValue(_fieldRepeating);
 
 
     // Sun direction - read subsystem state on main thread
@@ -652,6 +664,16 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     result.windOffsetData->setName("Wind Offset Data");
     result.windOffsetData->setFileName("Wind Offset Data");
     result.windOffsetData->allocateImage(snap.detailedFieldHeight, 1, 1, GL_RGBA, GL_FLOAT);
+
+    // Set up the wind column
+    const std::size_t width = result.windOffsetData->s();
+    float* raw = reinterpret_cast<float*>(result.windOffsetData->data());
+    for (std::size_t i = 0; i < width; i++) {
+        raw[i * 4 + 0] = 0.0f;
+        raw[i * 4 + 1] = 0.0f;
+        raw[i * 4 + 2] = 0.0f;
+        raw[i * 4 + 3] = 0.0f;
+    }
 
     // The alpha value is use for a Signed Distance Field, and indicates the maximum distance that can be travelled
     // before hitting something in UV coordinates.  We default to 1 pixel.
@@ -821,14 +843,13 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 
 void FGClouds::commitResult(RebuildResult result)
 {
-    // These fgSet* calls must stay on the main thread
+    // Setting property values needs to be done on the main thread as an atomic operation
     const float cloudFieldHeightM = result.maxZ * _detailedFieldVoxelSize;
-    const float cloudTopAbsoluteM = result.cloudbaseM + cloudFieldHeightM;
-    fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", cloudTopAbsoluteM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));    
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-height-m", cloudFieldHeightM);
-    fgSetBool("/sim/rendering/hdr/clouds/mirror-u", false);
-    fgSetBool("/sim/rendering/hdr/clouds/mirror-v", false);
+    _activeVoxelFieldHeightNorm->setFloatValue(cloudFieldHeightM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
+    _cloudBaseM->setFloatValue(result.cloudbaseM);
+    _cloudBaseZNorm->setFloatValue(result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
+    _mirrorU->setBoolValue(false);
+    _mirrorV->setBoolValue(false);
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
@@ -921,6 +942,8 @@ void FGClouds::updateWindColumn(double dt, FGEnvironment* env)
         // Work out the offset in normalized UV coordinates
         raw[i * 4] += env->get_wind_from_north_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
         raw[i * 4 + 1] += env->get_wind_from_east_fps() * dt * SG_FEET_TO_METER / fieldWidthM;
+        raw[i * 4 + 2] = 0.0f;
+        raw[i * 4 + 3] = 0.0f;
     }
 }
 
@@ -946,12 +969,9 @@ void FGClouds::updateFromOsgTraversal()
     if (_fieldRepeating) updateRepeatingField();
 
     // Adjust the altitude of the cloud base
-    const float cloudBaseM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-base-m");
-    const float cloudFieldHeightM = fgGetFloat("/sim/rendering/hdr/clouds/cloud-height-m");
-    const float cloudTopAbsoluteM = cloudBaseM + cloudFieldHeightM;
-
-    fgSetFloat("/sim/rendering/hdr/clouds/cloud-base-z-norm", cloudBaseM / (float) (_detailedFieldHeight * _detailedFieldVoxelSize));    
-    fgSetFloat("/sim/rendering/hdr/clouds/active-voxel-field-height-norm", cloudTopAbsoluteM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));    
+    const float cloudBaseM = _cloudBaseM->getFloatValue();
+    const float fieldHeightM = (float)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseZNorm->setFloatValue(cloudBaseM / fieldHeightM);    
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
@@ -988,20 +1008,20 @@ void FGClouds::updateRepeatingField()
         _centerCart = _centerCart + toSG(snapECEF);
 
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-x", (float)_centerCart.x());
-        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-y", (float)_centerCart.y());
-        fgSetFloat("/sim/rendering/hdr/clouds/cloud-center-z", (float)_centerCart.z());
+        _cloudCenterX->setFloatValue( (float)_centerCart.x());
+        _cloudCenterY->setFloatValue( (float)_centerCart.y());
+        _cloudCenterZ->setFloatValue( (float)_centerCart.z());
 
         // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
         // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
         // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
         // in too large a rotation of the up vector.
         if (std::abs(snapX) >= 1.0f) {
-            fgSetBool("/sim/rendering/hdr/clouds/mirror-u", !fgGetBool("/sim/rendering/hdr/clouds/mirror-u"));
+            _mirrorU->setBoolValue( ! _mirrorU->getBoolValue());
         }
 
         if (std::abs(snapY) >= 1.0f) {
-            fgSetBool("/sim/rendering/hdr/clouds/mirror-v", !fgGetBool("/sim/rendering/hdr/clouds/mirror-v"));
+            _mirrorV->setBoolValue( ! _mirrorV->getBoolValue());
         }
     }
 }
