@@ -971,7 +971,7 @@ void FGClouds::updateFromOsgTraversal()
     // Adjust the altitude of the cloud base
     const float cloudBaseM = _cloudBaseM->getFloatValue();
     const float fieldHeightM = (float)(_detailedFieldHeight * _detailedFieldVoxelSize);
-    _cloudBaseZNorm->setFloatValue(cloudBaseM / fieldHeightM);    
+    _cloudBaseZNorm->setFloatValue(cloudBaseM / fieldHeightM);
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
