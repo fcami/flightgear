@@ -116,6 +116,17 @@ private:
 
     osg::ref_ptr<simgear::SGReaderWriterOptions> _options;
 
+    // Properties that are subsequently mapped to Uniforms by the Effects system
+    SGPropertyNode_ptr _cloudBaseM;
+    SGPropertyNode_ptr _cloudBaseZNorm;
+    SGPropertyNode_ptr _cloudCenterX;
+    SGPropertyNode_ptr _cloudCenterY;
+    SGPropertyNode_ptr _cloudCenterZ;
+    SGPropertyNode_ptr _mirrorU;
+    SGPropertyNode_ptr _mirrorV;
+    SGPropertyNode_ptr _cloudFieldRepeating;
+    SGPropertyNode_ptr _activeVoxelFieldHeightNorm;
+
     // A node in the scenegraph purely used to ensure that the voxel data
     // is modified during the update traversal.
     osg::ref_ptr<osg::Group> _cloudUpdateNode;
