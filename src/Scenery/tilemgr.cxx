@@ -349,7 +349,7 @@ bool FGTileMgr::sched_tile( const SGBucket& b, double priority, bool current_vie
     {
         // create a new entry
         t = new STGTileEntry( b );
-        SG_LOG( SG_TERRAIN, SG_INFO, "sched_tile: new STG tile entry for:" << b );
+        SG_LOG(SG_TERRAIN, SG_DEBUG, "sched_tile: new STG tile entry for:" << b);
 
         // insert the tile into the cache, update will generate load request
         if ( tile_cache.insert_tile( t ) )
@@ -375,7 +375,7 @@ bool FGTileMgr::sched_tile( const SGBucket& b, double priority, bool current_vie
     if (!v) {
         // create a new entry
         v = new VPBTileEntry(b, _options);
-        SG_LOG(SG_TERRAIN, SG_INFO, "sched_tile: new VPB tile entry for:" << b);
+        SG_LOG(SG_TERRAIN, SG_DEBUG, "sched_tile: new VPB tile entry for:" << b);
 
         // insert the tile into the cache, update will generate load request
         if (tile_cache.insert_tile(v)) {
@@ -752,6 +752,12 @@ bool FGTileMgr::isTileDirSyncing(const std::string& tileFileName) const
         return false;
     }
 
+    // hack to keep things quiet until we fix:
+    // https://gitlab.com/flightgear/flightgear/-/work_items/3408
+    if (simgear::strutils::starts_with(tileFileName, "vpb/")) {
+        return false;
+    }
+
     // if Models is syncing, also wait for it, since otherwise
     // we get load errors
     if (terraSync->isDataDirPending("Models")) {
@@ -763,9 +769,14 @@ bool FGTileMgr::isTileDirSyncing(const std::string& tileFileName) const
         return torrentIsSyncing(tileFileName);
     }
     #endif
-    std::string nameWithoutExtension = tileFileName.substr(0, tileFileName.size() - 4);
-    long int bucketIndex = simgear::strutils::to_int(nameWithoutExtension);
-    SGBucket bucket(bucketIndex);
+    try {
+        std::string nameWithoutExtension = tileFileName.substr(0, tileFileName.size() - 4);
+        long int bucketIndex = simgear::strutils::to_int(nameWithoutExtension);
+        SGBucket bucket(bucketIndex);
 
-    return terraSync->isTileDirPending(bucket.gen_base_path());
+        return terraSync->isTileDirPending(bucket.gen_base_path());
+    } catch (const std::exception& e) {
+        SG_LOG(SG_TERRAIN, SG_DEV_ALERT, "Error checking if tile '" << tileFileName << "' is syncing: " << e.what());
+        return false;
+    }
 }
