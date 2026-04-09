@@ -73,15 +73,12 @@ getLoggingPriority ()
 void
 setLoggingPriority (const char * p)
 {
-  if (p == 0)
-      return;
-
-  const string ps = p;
-  try {
-      sglog().set_log_priority(simgear::priorityFromString(ps));
-  } catch (std::exception& e) {
-      SG_LOG(SG_GENERAL, SG_WARN, "Unknown logging priority: " << ps);
-  }
+    const auto levels = simgear::parseLogSpecFromString(p);
+    if (levels) {
+        sglog().setLogLevels(levels.value(), "console");
+    } else {
+        SG_LOG(SG_GENERAL, SG_ALERT, "Error parsing logging specification '" << p << "'");
+    }
 }
 
 

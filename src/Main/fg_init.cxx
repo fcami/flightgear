@@ -577,11 +577,9 @@ void fgInitLogging(const std::string& pri)
     fileLogLevel.set(SG_ALL, SG_INFO);
     // https://sourceforge.net/p/flightgear/codetickets/2100/
     if (!pri.empty()) {
-        try {
-            auto priVal = simgear::priorityFromString(pri);
-            fileLogLevel.set(SG_ALL, priVal);
-        } catch (std::exception&) {
-            // let's not worry about this, and just log at INFO
+        const auto levels = simgear::parseLogSpecFromString(pri);
+        if (levels.has_value()) {
+            fileLogLevel = levels.value();
         }
     }
 
