@@ -471,7 +471,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-O3 -g -DNDEBUG")
 
     if(HAVE_QT)
-        # if Qt is built with reduce-relocations, applicatino code
+        # if Qt is built with reduce-relocations, application code
         # needs to be compiled with -fPIC to match
         set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     endif()
@@ -630,4 +630,4 @@ include(Installation)
 
 # The test suite.
 enable_testing()
-add_subdirectory(test_suite EXCLUDE_FROM_ALL)
+add_subdirectory(test_suite)

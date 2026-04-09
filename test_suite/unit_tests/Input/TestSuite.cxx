@@ -13,3 +13,4 @@
 #endif
 
     CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(InputDeviceTests, "Unit tests");
+    CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(ReportSettingTests, "Unit tests");

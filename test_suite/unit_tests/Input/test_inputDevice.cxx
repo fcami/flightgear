@@ -10,12 +10,18 @@
 #include "cppunit/TestAssert.h"
 #include "test_suite/FGTestApi/testGlobals.hxx"
 
+#include <Main/FGInterpolator.hxx>
 #include <Main/fg_os.hxx>
 #include <Main/globals.hxx>
+#include <Main/util.hxx>
 
 #include <Input/FGEventInput.hxx>
 
+#include <Scripting/NasalSys.hxx>
+
 #include <simgear/structure/commands.hxx>
+
+extern bool global_nasalMinimalInit;
 
 using namespace std::string_literals;
 
@@ -42,8 +48,25 @@ public:
     // Expose the protected deviceNode for test assertions
     SGPropertyNode* getDeviceNode() const { return deviceNode; }
 
+    void SendOutputReport(unsigned int reportId, const simgear::UInt8Vector& data) override
+    {
+        _lastOutputReportId = reportId;
+        _lastOutputReportData = data;
+    }
+
+    void clearReport()
+    {
+        _lastOutputReportId = 0;
+        _lastOutputReportData.clear();
+    }
+
+    unsigned int getLastOutputReportId() const { return _lastOutputReportId; }
+    const simgear::UInt8Vector& getLastOutputReportData() const { return _lastOutputReportData; }
+
 private:
     std::string _translatedName;
+    unsigned int _lastOutputReportId = 0;
+    simgear::UInt8Vector _lastOutputReportData;
 };
 
 // ---------------------------------------------------------------------------
@@ -963,4 +986,229 @@ void InputDeviceTests::testRepeatableWithLongPress()
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
     CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
     CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // still only from scenario 1
+}
+
+// ReportSettingTests setUp / tearDown
+// ---------------------------------------------------------------------------
+void ReportSettingTests::setUp()
+{
+    FGTestApi::setUp::initTestGlobals("ReportSetting");
+
+    fgInitAllowedPaths();
+    globals->get_props()->getNode("nasal", true);
+
+    globals->get_subsystem_mgr()->add<FGInterpolator>();
+
+    globals->get_subsystem_mgr()->bind();
+    globals->get_subsystem_mgr()->init();
+
+    global_nasalMinimalInit = true;
+    globals->get_subsystem_mgr()->add<FGNasalSys>();
+
+    globals->get_subsystem_mgr()->postinit();
+}
+
+void ReportSettingTests::tearDown()
+{
+    global_nasalMinimalInit = false;
+    FGTestApi::tearDown::shutdownTestGlobals();
+}
+
+// ---------------------------------------------------------------------------
+// testNasalInlineCodeString
+//
+// A <nasal> child returning a Nasal string produces the corresponding byte
+// vector via reportBytes().
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalInlineCodeString()
+{
+    SGPropertyNode_ptr base = new SGPropertyNode;
+    base->setIntValue("report-id", 1);
+    base->setStringValue("nasal", "\"ABC\"");
+
+    FGReportSetting rs(base);
+    CPPUNIT_ASSERT(!rs.hasError());
+
+    auto bytes = rs.reportBytes("test-module");
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>('A'), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>('B'), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>('C'), bytes[2]);
+}
+
+// ---------------------------------------------------------------------------
+// testNasalInlineCodeVector
+//
+// A <nasal> child returning a Nasal vector of numbers produces the
+// corresponding byte vector via reportBytes().
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalInlineCodeVector()
+{
+    SGPropertyNode_ptr base = new SGPropertyNode;
+    base->setIntValue("report-id", 2);
+    base->setStringValue("nasal", "[1, 2, 127]");
+
+    FGReportSetting rs(base);
+    CPPUNIT_ASSERT(!rs.hasError());
+
+    auto bytes = rs.reportBytes("test-module");
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(1), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(2), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(127), bytes[2]);
+}
+
+// ---------------------------------------------------------------------------
+// testNasalCode
+//
+// A <nasal-function> child causes the constructor to compile a trivial
+// function-call expression.
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalCodeArgs()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <nasal>
+          <open>
+            <![CDATA[
+              var testFunc = func(a, b) { return [a, b, 30]; };
+            ]]>
+        </open>
+          </nasal>
+        <report>
+          <report-id type="int">4</report-id>
+          <nasal>testFunc(11, 22)</nasal>
+          <watch>/test-report/watch-val</watch>
+        </report>
+        </PropertyList>
+    )");
+
+    // will trigger, reports are initially dirty
+    device->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
+    device->clearReport();
+
+    globals->get_props()->setStringValue("/test-report/watch-val", "trigger");
+    device->update(0.0);
+
+    CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
+    auto bytes = device->getLastOutputReportData();
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(11), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(22), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
+}
+
+// ---------------------------------------------------------------------------
+// testNasalFunction
+//
+// A <nasal-function> child causes the constructor to compile a trivial
+// function-call expression.
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalFunction()
+{
+    auto device = makeDevice("test-device", R"(
+        <PropertyList>
+          <nasal>
+          <open>
+            <![CDATA[
+              var testFunc = func { return [10, 20, 30]; };
+            ]]>
+        </open>
+          </nasal>
+        <report>
+          <report-id type="int">4</report-id>
+          <nasal-function>testFunc</nasal-function>
+          <watch>/test-report/watch-val</watch>
+        </report>
+        </PropertyList>
+    )");
+
+    // will trigger, reports are initially dirty
+    device->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
+    device->clearReport();
+
+    globals->get_props()->setStringValue("/test-report/watch-val", "trigger");
+    device->update(0.0);
+
+    CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
+    auto bytes = device->getLastOutputReportData();
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(10), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(20), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
+}
+
+// ---------------------------------------------------------------------------
+// testWatchDirtyTracking
+//
+// The dirty flag starts true after construction.  After Test() consumes it,
+// the flag stays false until a watched property changes to a different value.
+// Changing back to the same value does not re-dirty.
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testWatchDirtyTracking()
+{
+    globals->get_props()->setStringValue("/test-report/watch-val", "initial");
+
+    SGPropertyNode_ptr base = new SGPropertyNode;
+    base->setIntValue("report-id", 5);
+    base->setStringValue("nasal", "\"data\"");
+    base->setStringValue("watch", "/test-report/watch-val");
+
+    FGReportSetting rs(base);
+
+    // Construction always starts dirty
+    CPPUNIT_ASSERT(rs.Test());
+    CPPUNIT_ASSERT(!rs.Test()); // consumed; not dirty until a change arrives
+
+    // Changing the watched property marks dirty
+    globals->get_props()->setStringValue("/test-report/watch-val", "changed");
+    CPPUNIT_ASSERT(rs.Test());
+    CPPUNIT_ASSERT(!rs.Test()); // consumed
+
+    // Setting the same value again must not re-dirty
+    globals->get_props()->setStringValue("/test-report/watch-val", "changed");
+    CPPUNIT_ASSERT(!rs.Test());
+}
+
+// ---------------------------------------------------------------------------
+// testReportType
+//
+// <report-type>output</report-type>  (or absent) → Type::Output
+// <report-type>feature</report-type>             → Type::Feature
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testReportType()
+{
+    // No <report-type> node → defaults to Output
+    {
+        SGPropertyNode_ptr base = new SGPropertyNode;
+        base->setIntValue("report-id", 1);
+        base->setStringValue("nasal", "nil");
+
+        FGReportSetting rs(base);
+        CPPUNIT_ASSERT_EQUAL(FGReportSetting::Type::Output, rs.getReportType());
+    }
+
+    // Explicit "feature"
+    {
+        SGPropertyNode_ptr base = new SGPropertyNode;
+        base->setIntValue("report-id", 2);
+        base->setStringValue("nasal", "nil");
+        base->setStringValue("report-type", "feature");
+
+        FGReportSetting rs(base);
+        CPPUNIT_ASSERT_EQUAL(FGReportSetting::Type::Feature, rs.getReportType());
+    }
+
+    // Explicit "output"
+    {
+        SGPropertyNode_ptr base = new SGPropertyNode;
+        base->setIntValue("report-id", 3);
+        base->setStringValue("nasal", "nil");
+        base->setStringValue("report-type", "output");
+
+        FGReportSetting rs(base);
+        CPPUNIT_ASSERT_EQUAL(FGReportSetting::Type::Output, rs.getReportType());
+    }
 }
