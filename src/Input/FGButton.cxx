@@ -33,7 +33,7 @@ void FGButton::init(const SGPropertyNode* node, const std::string& name,
                     const std::string& module)
 {
   if (node == 0) {
-    SG_LOG(SG_INPUT, SG_DEBUG, "No bindings for button " << name);
+      SG_BULK_LOG(SG_INPUT, "No bindings for button " << name);
   } else {
     is_repeatable = node->getBoolValue("repeatable", is_repeatable);
     // Get the bindings for the button
@@ -46,17 +46,17 @@ void FGButton::update( int modifiers, bool pressed, int x, int y)
   if (pressed) {
     // The press event may be repeated.
     if (!last_state || is_repeatable) {
-      SG_LOG( SG_INPUT, SG_DEBUG, "FGButton: Button has been pressed" );
-      for (unsigned int k = 0; k < bindings[modifiers].size(); k++) {
-        bindings[modifiers][k]->fire(x, y);
-      }
+        SG_BULK_LOG(SG_INPUT, "FGButton: Button has been pressed");
+        for (unsigned int k = 0; k < bindings[modifiers].size(); k++) {
+            bindings[modifiers][k]->fire(x, y);
+        }
     }
   } else {
     // The release event is never repeated.
     if (last_state) {
-      SG_LOG( SG_INPUT, SG_DEBUG, "FGButton: Button has been released" );
-      for (unsigned int k = 0; k < bindings[modifiers|KEYMOD_RELEASED].size(); k++)
-        bindings[modifiers|KEYMOD_RELEASED][k]->fire(x, y);
+        SG_BULK_LOG(SG_INPUT, "FGButton: Button has been released");
+        for (unsigned int k = 0; k < bindings[modifiers | KEYMOD_RELEASED].size(); k++)
+            bindings[modifiers | KEYMOD_RELEASED][k]->fire(x, y);
     }
   }
 

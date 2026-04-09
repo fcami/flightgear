@@ -174,13 +174,19 @@ void FGDeviceConfigurationMap::refreshCacheForFile(const SGPath& path)
   }
 
   if (n->hasChild("device-id") && n->hasChild("vendor-id")) {
-      uint32_t vendorId = n->getIntValue("vendor-id");
-      uint32_t deviceId = n->getIntValue("device-id");
-      const auto vendorDeviceId = (vendorId << 16) | deviceId;
-      const auto name = nameForVendorDeviceId(vendorDeviceId);
-      if (!name.empty()) {
-          names.push_back(name);
-          insertEntryIfNew(name, path);
+      try {
+          uint32_t vendorId = simgear::strutils::to_int(n->getStringValue("vendor-id"), 0 /* auto-detect base */);
+          uint32_t deviceId = simgear::strutils::to_int(n->getStringValue("device-id"), 0 /* auto-detect base */);
+          const auto vendorDeviceId = (vendorId << 16) | deviceId;
+          const auto name = nameForVendorDeviceId(vendorDeviceId);
+          if (!name.empty()) {
+              names.push_back(name);
+              insertEntryIfNew(name, path);
+          }
+      } catch (const std::exception& e) {
+          simgear::reportFailure(simgear::LoadFailure::BadData, simgear::ErrorCode::InputDeviceConfig,
+                                 "Invalid vendor/device ID:"s + e.what(),
+                                 path);
       }
   }
 

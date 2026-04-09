@@ -589,7 +589,7 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
         const string nameWithSerial = deviceName + "::" + inputDevice->GetSerialNumber();
         if (configMap.hasConfiguration(nameWithSerial)) {
             configNode = configMap.configurationForDeviceName(nameWithSerial);
-            SG_LOG(SG_INPUT, SG_INFO, "using instance-specific configuration for device " << nameWithSerial << " : " << configNode->getStringValue("source"));
+            SG_LOG(SG_INPUT, SG_INFO, "using serial-number-specific configuration for device " << nameWithSerial << " : " << configNode->getStringValue("source"));
             inputDevice->SetUniqueName(nameWithSerial);
         }
     }
@@ -598,8 +598,8 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
         const auto name = FGDeviceConfigurationMap::nameForVendorDeviceId(inputDevice->GetVendorDeviceId());
         if (configMap.hasConfiguration(name)) {
             configNode = configMap.configurationForDeviceName(name);
-            SG_LOG(SG_INPUT, SG_INFO, "using vendor/device-specific configuration for device " << name << " : " << configNode->getStringValue("source"));
-            inputDevice->SetUniqueName(name);
+            SG_LOG(SG_INPUT, SG_INFO, "using vendor/device-specific configuration for device " << deviceName << " (" << name << ") " << configNode->getStringValue("source"));
+            inputDevice->SetUniqueName(deviceName);
         }
     }
 
@@ -645,8 +645,6 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     bool ok = inputDevice->Open();
     if (!ok) {
-        // TODO report a better error here, to the user
-        SG_LOG(SG_INPUT, SG_ALERT, "can't open InputDevice " << inputDevice->GetUniqueName());
         delete inputDevice;
         return INVALID_DEVICE_INDEX;
     }
