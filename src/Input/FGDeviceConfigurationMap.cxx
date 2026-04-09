@@ -19,14 +19,23 @@
 #include <Main/globals.hxx>
 #include <Main/sentryIntegration.hxx>
 #include <Navaids/NavDataCache.hxx>
+#include <string>
 
 using simgear::PropertyList;
 using std::string;
+using namespace std::string_literals;
 
-FGDeviceConfigurationMap::FGDeviceConfigurationMap()
+std::string FGDeviceConfigurationMap::nameForVendorDeviceId(uint32_t vendorDeviceId)
 {
+    const uint16_t v = (vendorDeviceId >> 16) & 0xFFFF;
+    const uint16_t d = vendorDeviceId & 0xFFFF;
 
+    std::ostringstream os;
+    os << std::hex << "vendor:0x" << v << ":device:0x" << d;
+    return os.str();
 }
+
+FGDeviceConfigurationMap::FGDeviceConfigurationMap() = default;
 
 FGDeviceConfigurationMap::FGDeviceConfigurationMap( const string& relative_path,
                                                    SGPropertyNode* nodePath,
@@ -47,22 +56,18 @@ FGDeviceConfigurationMap::FGDeviceConfigurationMap( const string& relative_path,
 std::string FGDeviceConfigurationMap::computeSuffix(SGPropertyNode_ptr node)
 {
     if (node->hasChild("serial-number")) {
-        return std::string("::") + node->getStringValue("serial-number");
+        return "::"s + node->getStringValue("serial-number");
     }
 
     // allow specifying a device number / index in the override
     if (node->hasChild("device-number")) {
-        std::ostringstream os;
-        os << "_" << node->getIntValue("device-number");
-        return os.str();
+        return "_"s + std::to_string(node->getIntValue("device-number"));
     }
 
     return{};
 }
 
-FGDeviceConfigurationMap::~FGDeviceConfigurationMap()
-{
-}
+FGDeviceConfigurationMap::~FGDeviceConfigurationMap() = default;
 
 SGPropertyNode_ptr
 FGDeviceConfigurationMap::configurationForDeviceName(const std::string& name)
@@ -134,13 +139,15 @@ void FGDeviceConfigurationMap::readCachedData(const SGPath& path)
 {
   auto cache = flightgear::NavDataCache::instance();
   for (string s : cache->readStringListProperty(path.utf8Str())) {
-    // important - only insert if not already present. This ensures
-    // user configs can override those in the base package, since they are
-    // searched first.
-    if (namePathMap.find(s) == namePathMap.end()) {
-      namePathMap.insert(std::make_pair(s, path));
-    }
+      insertEntryIfNew(s, path);
   } // of cached names iteration
+}
+
+void FGDeviceConfigurationMap::insertEntryIfNew(const std::string& name, const SGPath& path)
+{
+    if (namePathMap.find(name) == namePathMap.end()) {
+        namePathMap.insert(std::make_pair(name, path));
+    }
 }
 
 void FGDeviceConfigurationMap::refreshCacheForFile(const SGPath& path)
@@ -163,10 +170,24 @@ void FGDeviceConfigurationMap::refreshCacheForFile(const SGPath& path)
   for (auto nameProp : n->getChildren("name")) {
     const string name = nameProp->getStringValue() + suffix;
     names.push_back(name);
-    // same comment as readCachedData: only insert if not already present
-    if (namePathMap.find(name) == namePathMap.end()) {
-      namePathMap.insert(std::make_pair(name, path));
-    }
+    insertEntryIfNew(name, path);
+  }
+
+  if (n->hasChild("device-id") && n->hasChild("vendor-id")) {
+      try {
+          uint32_t vendorId = simgear::strutils::to_int(n->getStringValue("vendor-id"), 0 /* auto-detect base */);
+          uint32_t deviceId = simgear::strutils::to_int(n->getStringValue("device-id"), 0 /* auto-detect base */);
+          const auto vendorDeviceId = (vendorId << 16) | deviceId;
+          const auto name = nameForVendorDeviceId(vendorDeviceId);
+          if (!name.empty()) {
+              names.push_back(name);
+              insertEntryIfNew(name, path);
+          }
+      } catch (const std::exception& e) {
+          simgear::reportFailure(simgear::LoadFailure::BadData, simgear::ErrorCode::InputDeviceConfig,
+                                 "Invalid vendor/device ID:"s + e.what(),
+                                 path);
+      }
   }
 
   auto cache = flightgear::NavDataCache::instance();

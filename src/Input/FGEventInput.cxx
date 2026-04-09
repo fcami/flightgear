@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // SPDX-FileCopyrightText: 2009 Torsten Dreyer
 
+#include "Input/FGDeviceConfigurationMap.hxx"
 #include "simgear/debug/debug_types.h"
 #include "simgear/misc/strutils.hxx"
 #include "simgear/nasal/nasal.h"
@@ -588,10 +589,20 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
         const string nameWithSerial = deviceName + "::" + inputDevice->GetSerialNumber();
         if (configMap.hasConfiguration(nameWithSerial)) {
             configNode = configMap.configurationForDeviceName(nameWithSerial);
-            SG_LOG(SG_INPUT, SG_INFO, "using instance-specific configuration for device " << nameWithSerial << " : " << configNode->getStringValue("source"));
+            SG_LOG(SG_INPUT, SG_INFO, "using serial-number-specific configuration for device " << nameWithSerial << " : " << configNode->getStringValue("source"));
             inputDevice->SetUniqueName(nameWithSerial);
         }
     }
+
+    if (inputDevice->GetVendorDeviceId() != 0) {
+        const auto name = FGDeviceConfigurationMap::nameForVendorDeviceId(inputDevice->GetVendorDeviceId());
+        if (configMap.hasConfiguration(name)) {
+            configNode = configMap.configurationForDeviceName(name);
+            SG_LOG(SG_INPUT, SG_INFO, "using vendor/device-specific configuration for device " << deviceName << " (" << name << ") " << configNode->getStringValue("source"));
+            inputDevice->SetUniqueName(deviceName);
+        }
+    }
+
     if (configNode == nullptr) {
         const auto nameWithIndex = computeDeviceIndexName(inputDevice);
         // try instanced (counted) name
@@ -634,8 +645,6 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     bool ok = inputDevice->Open();
     if (!ok) {
-        // TODO report a better error here, to the user
-        SG_LOG(SG_INPUT, SG_ALERT, "can't open InputDevice " << inputDevice->GetUniqueName());
         delete inputDevice;
         return INVALID_DEVICE_INDEX;
     }

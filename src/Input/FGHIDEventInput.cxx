@@ -261,6 +261,9 @@ FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*)
         SetSerialNumber(simgear::strutils::convertWStringToUtf8(serial));
     }
 
+    SetVendorDeviceId(devInfo->vendor_id << 16 | devInfo->product_id);
+
+
     std::string _usage = HID::nameForUsage(devInfo->usage_page, devInfo->usage);
     SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " " << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " " << "release " << devInfo->release_number << " " << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") " << "ifn " << devInfo->interface_number << " " << GetName());
 }
@@ -317,7 +320,10 @@ bool FGHIDDevice::Open()
         _rawXMLDescriptor.resize(2048);
         int descriptorSize = hid_get_report_descriptor(_device, _rawXMLDescriptor.data(), _rawXMLDescriptor.size());
         if (descriptorSize <= 0) {
-            SG_LOG(SG_INPUT, SG_WARN, "HID: " << GetUniqueName() << " failed to read HID descriptor");
+            const auto path = SGPath(_hidPath);
+            simgear::reportFailure(simgear::LoadFailure::IOError,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "Failed to read HID descriptor from " + _hidPath + " '" + GetUniqueName() + "'.", path);
             return false;
         }
 
@@ -334,6 +340,11 @@ bool FGHIDDevice::Open()
         auto reportItem = itemWithName(v.first);
         if (!reportItem.second) {
             SG_LOG(SG_INPUT, SG_WARN, "HID device:" << GetUniqueName() << " has no element for event:" << v.first);
+            const auto path = SGPath(_hidPath);
+            simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "HID device:" + GetUniqueName() + " has no element for event:" + v.first,
+                                   path);
             continue;
         }
 
@@ -869,8 +880,7 @@ void FGHIDEventInput::postinit()
                 seenPaths.insert(pathStr);
                 d->evaluateDevice(curDev);
             } else {
-                std::string _usage = HID::nameForUsage(curDev->usage_page, curDev->usage);
-                SG_LOG(SG_INPUT, SG_DEBUG, "Skipping duplicate path " << pathStr << " " << "usage " << _usage << "(0x" << std::hex << curDev->usage_page << ":0x" << std::hex << curDev->usage << ")");
+                SG_BULK_LOG(SG_INPUT, "Skipping duplicate path " << pathStr << " (0x" << std::hex << curDev->usage_page << ":0x" << std::hex << curDev->usage << ")");
             }
         }
     }
@@ -901,6 +911,11 @@ SGSubsystemMgr::Registrant<FGHIDEventInput> registrantFGHIDEventInput;
 
 void FGHIDEventInput::FGHIDEventInputPrivate::evaluateDevice(hid_device_info* deviceInfo)
 {
+    if (deviceInfo->vendor_id == 0x05ac) {
+        // Apple device, definitely not a device we care about
+        return;
+    }
+
     // allocate an input device, and add to the base class to see if we have
     // a config
     p->AddDevice(new FGHIDDevice(deviceInfo, p));

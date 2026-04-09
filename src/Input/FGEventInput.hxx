@@ -9,6 +9,7 @@
 
 #include "FGCommonInput.hxx"
 
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -243,6 +244,17 @@ public:
     const std::string& GetNasalModule() const { return nasalModule; }
     std::string class_id = "FGInputDevice";
 
+    // allow matching based on HID IDs, as well as names
+    uint32_t GetVendorDeviceId() const
+    {
+        return _vendorDeviceId;
+    }
+
+    void SetVendorDeviceId(uint32_t id)
+    {
+        _vendorDeviceId = id;
+    }
+
 protected:
     // A map of events, this device handles
     std::map<std::string, FGInputEvent_ptr> handledEvents;
@@ -275,6 +287,8 @@ protected:
     /// when loading the device multiple times, to ensure the Nasal
     /// module is unique
     std::string _uniqueName;
+
+    uint32_t _vendorDeviceId = 0;
 };
 
 typedef SGSharedPtr<FGInputDevice> FGInputDevice_ptr;

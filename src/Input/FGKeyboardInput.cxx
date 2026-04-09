@@ -100,7 +100,7 @@ void FGKeyboardInput::postinit()
   PropertyList keys = key_nodes->getChildren("key");
   for (unsigned int i = 0; i < keys.size(); i++) {
     int index = keys[i]->getIndex();
-    SG_LOG(SG_INPUT, SG_DEBUG, "Binding key " << index);
+    SG_BULK_LOG(SG_INPUT, "Binding key " << index);
     if( index >= MAX_KEYS ) {
       SG_LOG(SG_INPUT, SG_WARN, "Key binding " << index << " out of range");
       continue;
