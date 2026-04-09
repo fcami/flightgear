@@ -1,14 +1,10 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_props.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_condition.cxx
-    PARENT_SCOPE
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx test_props.cxx test_condition.cxx
+    test_props.hxx test_condition.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_props.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_condition.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(SimgearPropsTests     m)
+fg_add_test_suite(SimgearConditionTests m)

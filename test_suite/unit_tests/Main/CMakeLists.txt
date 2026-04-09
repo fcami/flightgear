@@ -1,20 +1,16 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_autosaveMigration.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_FGLocale.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_posinit.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_timeManager.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.cxx
-    PARENT_SCOPE
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx
+    test_autosaveMigration.cxx test_FGLocale.cxx test_posinit.cxx
+    test_timeManager.cxx test_commands.cxx
+    test_autosaveMigration.hxx test_FGLocale.hxx test_posinit.hxx
+    test_timeManager.hxx test_commands.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_autosaveMigration.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_FGLocale.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_posinit.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_timeManager.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_commands.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(AutosaveMigrationTests u)
+fg_add_test_suite(FGLocaleTests         u)
+fg_add_test_suite(PosInitTests          u)
+fg_add_test_suite(TimeManagerTests      u)
+fg_add_test_suite(CommandsTests         u)

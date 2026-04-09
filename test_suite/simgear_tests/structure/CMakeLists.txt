@@ -1,17 +1,10 @@
 # SPDX-FileCopyrightText: 2020  James Turner <james@flightgear.org>
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_binding.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_event.cxx
-    PARENT_SCOPE
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx test_binding.cxx test_event.cxx
+    test_binding.hxx test_event.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_binding.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_event.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(SimgearEventTests   m)
+fg_add_test_suite(SimgearBindingTests m)

@@ -1,14 +1,10 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test-mktime.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_Views.cxx
-    PARENT_SCOPE
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx test-mktime.cxx test_Views.cxx
+    test-mktime.hxx test_Views.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test-mktime.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_Views.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(MktimeTests u)
+fg_add_test_suite(ViewsTests  u)

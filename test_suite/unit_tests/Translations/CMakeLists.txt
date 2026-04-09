@@ -1,17 +1,10 @@
 # SPDX-FileCopyrightText: 2025 Florent Rougon
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_FGTranslate.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_TranslationResource.cxx
-    PARENT_SCOPE
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx test_FGTranslate.cxx test_TranslationResource.cxx
+    test_FGTranslate.hxx test_TranslationResource.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_FGTranslate.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_TranslationResource.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(FGTranslateTests          u)
+fg_add_test_suite(TranslationResourceTests  u)

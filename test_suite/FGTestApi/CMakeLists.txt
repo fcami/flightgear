@@ -1,32 +1,23 @@
-# SPDX-FileName: CMakeLists.txt
 # SPDX-FileCopyrightText: Copyright (C) 2020 Edward d'Auvergne
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/testGlobals.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/NavDataCache.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/PrivateAccessorFDM.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/scene_graph.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestPilot.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/NasalUnitTesting_TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestDataLogger.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testApis.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/DummyCanvasSystemAdapter.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testStringUtils.cxx
-    PARENT_SCOPE
-)
-
-
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/testGlobals.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/NavDataCache.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/PrivateAccessorFDM.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/scene_graph.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestPilot.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestDataLogger.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/DummyCanvasSystemAdapter.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testStringUtils.hxx
-    PARENT_SCOPE
+target_sources(fgfs_test_suite PRIVATE
+    testGlobals.cxx
+    NavDataCache.cxx
+    PrivateAccessorFDM.cxx
+    scene_graph.cxx
+    TestPilot.cxx
+    NasalUnitTesting_TestSuite.cxx
+    TestDataLogger.cxx
+    testApis.cxx
+    DummyCanvasSystemAdapter.cxx
+    testStringUtils.cxx
+    testGlobals.hxx
+    NavDataCache.hxx
+    PrivateAccessorFDM.hxx
+    scene_graph.hxx
+    TestPilot.hxx
+    TestDataLogger.hxx
+    DummyCanvasSystemAdapter.hxx
+    testStringUtils.hxx
 )

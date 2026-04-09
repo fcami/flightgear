@@ -1,12 +1,9 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    #${CMAKE_CURRENT_SOURCE_DIR}/testgps.cxx
-    PARENT_SCOPE
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx
+    #testgps.cxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    #${CMAKE_CURRENT_SOURCE_DIR}/testgps.hxx
-    PARENT_SCOPE
-)
+#fg_add_test_suite(GPSTests s)

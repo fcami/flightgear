@@ -1,12 +1,6 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testAeroMesh.cxx
-    PARENT_SCOPE
-)
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/testAeroMesh.hxx
-    PARENT_SCOPE
-)
+target_sources(fgfs_test_suite PRIVATE TestSuite.cxx testAeroMesh.cxx testAeroMesh.hxx)
+
+fg_add_test_suite(AeroMeshTests s)

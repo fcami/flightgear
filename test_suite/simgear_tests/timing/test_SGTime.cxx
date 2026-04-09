@@ -34,12 +34,12 @@ void SimgearTimingTests::testBadZoneDetectPosition()
     if (rootPath.isNull()) {
         return;
     }
-    
-    std::unique_ptr<SGTime> t(new SGTime{rootPath});
-    
+
+    std::unique_ptr<SGTime> t(new SGTime{rootPath / "Timezone"});
+
     const auto goodPos = SGGeod::fromDeg(-69.5, 12.0);
     CPPUNIT_ASSERT(t->updateLocal(goodPos, rootPath / "Timezone"));
-    
+
     // discovered while flying with the Shuttle, but actually
     // can happen at sea level.
     // https://sourceforge.net/p/flightgear/codetickets/2780/

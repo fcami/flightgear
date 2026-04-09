@@ -1,19 +1,16 @@
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_flightplan.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_fpNasal.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_navaids2.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_aircraftPerformance.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_routeManager.cxx
-    PARENT_SCOPE
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx
+    test_flightplan.cxx test_fpNasal.cxx test_navaids2.cxx
+    test_aircraftPerformance.cxx test_routeManager.cxx
+    test_flightplan.hxx test_fpNasal.hxx
+    test_aircraftPerformance.hxx test_routeManager.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_flightplan.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_fpNasal.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_aircraftPerformance.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/test_routeManager.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(FlightplanTests          u)
+fg_add_test_suite(FPNasalTests             u)
+fg_add_test_suite(NavaidsTests             u)
+fg_add_test_suite(AircraftPerformanceTests u)
+fg_add_test_suite(RouteManagerTests        u)

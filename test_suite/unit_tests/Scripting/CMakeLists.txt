@@ -1,23 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: (C) 2015 Edward d'Auvergne
 
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/TestSuite.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testNasalSys.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testNasalLib.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testGC.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/benchmarkPropsAccess.cxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testVector.cxx
-    PARENT_SCOPE
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx
+    testNasalSys.cxx testNasalLib.cxx testGC.cxx benchmarkPropsAccess.cxx testVector.cxx
+    testNasalSys.hxx testNasalLib.hxx testGC.hxx benchmarkPropsAccess.hxx testVector.hxx
 )
 
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/testNasalSys.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testNasalLib.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testGC.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/benchmarkPropsAccess.hxx
-    ${CMAKE_CURRENT_SOURCE_DIR}/testVector.hxx
-    PARENT_SCOPE
-)
+fg_add_test_suite(NasalSysTests      u)
+fg_add_test_suite(NasalGCTests       u)
+fg_add_test_suite(NasalLibTests      u)
+fg_add_test_suite(BenchmarkPropsAccess u)
+fg_add_test_suite(VectorTests        u)

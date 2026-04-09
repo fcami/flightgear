@@ -1,19 +1,5 @@
-# Add each simgear test category.
-foreach( simgear_test_category
-    )
+# SPDX-FileCopyrightText: 2016 Edward d'Auvergne
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-    add_subdirectory(${simgear_test_category})
-
-endforeach( simgear_test_category )
-
-
-set(TESTSUITE_SOURCES
-    ${TESTSUITE_SOURCES}
-    PARENT_SCOPE
-)
-
-
-set(TESTSUITE_HEADERS
-    ${TESTSUITE_HEADERS}
-    PARENT_SCOPE
-)
+# Add each FGData test category.
+# (No subcategories currently.)
