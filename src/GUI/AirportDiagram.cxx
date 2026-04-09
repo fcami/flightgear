@@ -2,21 +2,8 @@
 //
 // Written by James Turner, started December 2014.
 //
-// Copyright (C) 2014 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2014 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "AirportDiagram.hxx"
 
@@ -634,6 +621,30 @@ QPainterPath AirportDiagram::pathForHelipad(const HelipadData& h, const QTransfo
     QTransform x = t;
     x.translate(h.pt.x(), h.pt.y());
     return x.map(m_helipadBoundsPath);
+}
+
+void AirportDiagram::onProjectionCenterChanged()
+{
+    if (!m_airport)
+        return;
+
+    // Re-project all cached geometry relative to the new m_projectionCenter.
+    // Do NOT call recomputeBounds: that would snap the view back to the airport.
+    for (RunwayData& r : m_runways) {
+        r.p1 = project(r.runway->geod());
+        r.p2 = project(r.runway->end());
+    }
+
+    for (ParkingData& pd : m_parking) {
+        pd.pt = project(pd.parking->geod());
+    }
+
+    for (HelipadData& pd : m_helipads) {
+        pd.pt = project(pd.helipad->geod());
+    }
+
+    buildTaxiways();
+    buildPavements();
 }
 
 void AirportDiagram::buildTaxiways()

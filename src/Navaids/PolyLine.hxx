@@ -40,8 +40,7 @@ class PolyLine : public SGReferenced
 public:
     virtual ~PolyLine();
 
-    enum Type
-    {
+    enum Type {
         INVALID = 0,
         COASTLINE,
         NATIONAL_BOUNDARY, /// aka a border
@@ -49,6 +48,9 @@ public:
         RIVER,
         LAKE,
         URBAN,
+        LAND_MASS,
+        GRATICULE,
+        GEOGRAPHIC_LINE,
         // airspace types in the future
         LAST_TYPE
     };
@@ -93,7 +95,7 @@ public:
 
     static PolyLineList linesNearPos(const SGGeod& aPos, double aRangeNm, const TypeFilter& aFilter);
 
-    SGBoxd cartesianBox() const;
+    const SGBoxd& cartesianBox() const;
 
     void addToSpatialIndex() const;
 
@@ -102,6 +104,7 @@ private:
 
     Type m_type;
     SGGeodVec m_data;
+    SGBoxd m_box;
 };
 
 

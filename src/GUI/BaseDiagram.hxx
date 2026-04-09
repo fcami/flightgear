@@ -1,25 +1,10 @@
 // BaseDiagram.hxx - part of GUI launcher using Qt5
-//
-// Written by James Turner, started October 2015.
-//
-// Copyright (C) 2014 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2014 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifndef GUI_BASEDIAGRAM_HXX
-#define GUI_BASEDIAGRAM_HXX
+#pragma once
+
+#include <optional>
 
 #include <QHash>
 #include <QPainterPath>
@@ -87,7 +72,7 @@ protected:
     double m_scale;
     QRectF m_bounds;
     bool m_autoScalePan;
-    QPointF m_panOffset, m_lastMousePos;
+    QPointF m_lastMousePos;
     int m_wheelAngleDeltaAccumulator;
     bool m_didPan;
     LauncherController::AircraftType m_aircraftType = LauncherController::Airplane;
@@ -101,6 +86,10 @@ protected:
     void paintAirplaneIcon(QPainter *painter, const SGGeod &geod, int headingDeg);
     void paintCarrierIcon(QPainter *painter, const SGGeod &geod, int headingDeg);
     void paintAirways(QPainter* painter, const FGPositionedList& navs);
+
+    // Called after m_projectionCenter is updated during a pan. Subclasses that
+    // cache pre-projected geometry must override this to re-project their data.
+    virtual void onProjectionCenterChanged() {}
 
     QPointF projectedPosition(PositionedID pid) const;
     QPointF projectedPosition(FGPositionedRef pos) const;
@@ -145,9 +134,25 @@ private:
     void paintNavaid(QPainter *painter, const FGPositionedRef &pos);
     void paintPolygonData(QPainter *painter);
     void paintGeodVec(QPainter *painter, const flightgear::SGGeodVec &vec);
-    void fillClosedGeodVec(QPainter *painter, const QColor &color, const flightgear::SGGeodVec &vec);
+    void fillClosedGeodVec(QPainter* painter, const flightgear::SGGeodVec& vec);
+
+    void validatePolygonCache(const SGGeod& viewCenter, double drawRangeNm);
+
+    struct PolygonDataCache {
+        SGGeod viewCenter;
+        double drawRangeNm = 0.0;
+        flightgear::PolyLineList landLines;
+        flightgear::PolyLineList gratLines;
+        flightgear::PolyLineList coastLines;
+        flightgear::PolyLineList nationalLines;
+        flightgear::PolyLineList regionalLines;
+        flightgear::PolyLineList urbanLines;
+        flightgear::PolyLineList riverLines;
+        flightgear::PolyLineList lakeLines;
+        flightgear::PolyLineList geographicLines;
+    };
+
+    std::optional<PolygonDataCache> m_polygonCache;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(BaseDiagram::IconOptions)
-
-#endif // of GUI_BASEDIAGRAM_HXX

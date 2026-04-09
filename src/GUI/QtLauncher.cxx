@@ -210,11 +210,15 @@ protected:
         };
 
         const std::initializer_list<FileAndType> files = {
+            {"ne_10m_land_tiles.shp", flightgear::PolyLine::LAND_MASS, true},
             {"ne_10m_coastline.shp", flightgear::PolyLine::COASTLINE, false},
+            {"ne_10m_admin_0_boundary_lines_land.shp", flightgear::PolyLine::NATIONAL_BOUNDARY, false},
+            {"ne_10m_admin_1_states_provinces_lines.shp", flightgear::PolyLine::REGIONAL_BOUNDARY, false},
+            {"ne_10m_graticules_30.shp", flightgear::PolyLine::GRATICULE, false},
+            {"ne_10m_geographic_lines.shp", flightgear::PolyLine::GEOGRAPHIC_LINE, false},
             {"ne_10m_rivers_lake_centerlines.shp", flightgear::PolyLine::RIVER, false},
             {"ne_10m_lakes.shp", flightgear::PolyLine::LAKE, true},
-            {"ne_10m_urban_areas.shp", flightgear::PolyLine::URBAN, true}
-        };
+            {"ne_10m_urban_areas.shp", flightgear::PolyLine::URBAN, true}};
 
         for (const auto& d : files) {
             if (m_abandoned) {
@@ -600,7 +604,7 @@ bool runLauncherDialog()
 {
     // Used for NavDataCache initialization: needed to find the apt.dat files
     launcherSetSceneryPaths();
-    // startup the nav-cache now. This pre-empts normal startup of
+    // startup the nav-cache now. This preempts normal startup of
     // the cache, but no harm done. (Providing scenery paths are consistent)
 
     bool ok = initNavCache();

@@ -23,12 +23,12 @@ PolyLine::PolyLine(Type aTy, const SGGeodVec& points) : m_type(aTy),
                                                         m_data(points)
 {
     assert(!points.empty());
+    for (const auto& pt : m_data) {
+        m_box.expandBy(SGVec3d::fromGeod(pt));
+    }
 }
 
-PolyLine::~PolyLine()
-{
-
-}
+PolyLine::~PolyLine() = default;
 
 unsigned int PolyLine::numPoints() const
 {
@@ -87,9 +87,17 @@ PolyLineRef PolyLine::create(PolyLine::Type aTy, const SGGeodVec &aRawPoints)
 void PolyLine::bulkAddToSpatialIndex(PolyLineList::const_iterator begin,
                                      PolyLineList::const_iterator end)
 {
-    flightgear::PolyLineList::const_iterator it;
-    for (it=begin; it != end; ++it) {
-        (*it)->addToSpatialIndex();
+    // Phase 1: collect (box, line) pairs - boxes are already cached, no compute needed
+    std::vector<std::pair<SGBoxd, PolyLineRef>> entries;
+    entries.reserve(std::distance(begin, end));
+    for (auto it = begin; it != end; ++it) {
+        entries.emplace_back((*it)->cartesianBox(), *it);
+    }
+
+    // Phase 2: insert into octree serially
+    Octree::Node* root = Octree::globalTransientOctree();
+    for (const auto& [box, line] : entries) {
+        root->findNodeForBox(box)->addPolyLine(const_cast<PolyLine*>(line.get()));
     }
 }
 
@@ -99,16 +107,9 @@ void PolyLine::addToSpatialIndex() const
     node->addPolyLine(const_cast<PolyLine*>(this));
 }
 
-SGBoxd PolyLine::cartesianBox() const
+const SGBoxd& PolyLine::cartesianBox() const
 {
-    SGBoxd result;
-    SGGeodVec::const_iterator it;
-    for (it = m_data.begin(); it != m_data.end(); ++it) {
-        SGVec3d cart = SGVec3d::fromGeod(*it);
-        result.expandBy(cart);
-    }
-
-    return result;
+    return m_box;
 }
 
 class SingleTypeFilter : public PolyLine::TypeFilter

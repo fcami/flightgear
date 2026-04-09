@@ -1,22 +1,7 @@
 // BaseDiagram.cxx - part of GUI launcher using Qt5
 //
-// Written by James Turner, started December 2014.
-//
-// Copyright (C) 2014 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2014 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "BaseDiagram.hxx"
 
@@ -41,6 +26,9 @@
 
 using namespace flightgear;
 
+namespace {
+
+
 /* equatorial and polar earth radius */
 const double rec  = 6378137;          // earth radius, equator (?)
 const double rpol = 6356752.314;      // earth radius, polar   (?)
@@ -48,13 +36,38 @@ const double rpol = 6356752.314;      // earth radius, polar   (?)
 const double MINIMUM_SCALE = 0.002;
 const double MAXIMUM_SCALE = 2.0;
 
-//Returns Earth radius at a given latitude (Ellipsoide equation with two equal axis)
-static double earth_radius_lat( double lat )
+//R eturns Earth radius at a given latitude (Ellipsoide equation with two equal axis)
+double earth_radius_lat(double lat)
 {
     double a = cos(lat)/rec;
     double b = sin(lat)/rpol;
     return 1.0 / sqrt( a * a + b * b );
 }
+
+class PolygonDrawFilter : public flightgear::PolyLine::TypeFilter
+{
+public:
+    bool pass(flightgear::PolyLine::Type aTy) const override
+    {
+        switch (aTy) {
+        case flightgear::PolyLine::LAND_MASS:
+        case flightgear::PolyLine::COASTLINE:
+        case flightgear::PolyLine::NATIONAL_BOUNDARY:
+        case flightgear::PolyLine::REGIONAL_BOUNDARY:
+        case flightgear::PolyLine::GRATICULE:
+        case flightgear::PolyLine::GEOGRAPHIC_LINE:
+        case flightgear::PolyLine::URBAN:
+        case flightgear::PolyLine::RIVER:
+        case flightgear::PolyLine::LAKE:
+            return true;
+        default:
+            return false;
+        }
+    }
+};
+
+} // namespace
+
 
 BaseDiagram::BaseDiagram(QQuickItem* pr) :
     QQuickPaintedItem(pr),
@@ -73,8 +86,6 @@ QTransform BaseDiagram::transform() const
     t.translate(width() / 2, height() / 2); // center projection origin in the widget
     t.scale(m_scale, m_scale);
 
-    // apply any pan offset that exists
-    t.translate(m_panOffset.x(), m_panOffset.y());
     // center the bounding box (may not be at the origin)
     t.translate(-m_bounds.center().x(), -m_bounds.center().y());
     return t;
@@ -116,8 +127,7 @@ QRect BaseDiagram::rect() const
 
 void BaseDiagram::paint(QPainter* p)
 {
-    //p->setRenderHints(QPainter::Antialiasing);
-    p->fillRect(rect(), QColor(0x3f, 0x3f, 0x3f));
+    p->fillRect(rect(), QColor(150, 200, 205));
 
     if (m_autoScalePan) {
         // fit bounds within our available space, allowing for a margin
@@ -181,6 +191,40 @@ void BaseDiagram::paintCarrierIcon(QPainter* painter, const SGGeod& geod, int he
     painter->restore();
 }
 
+void BaseDiagram::validatePolygonCache(const SGGeod& viewCenter, double drawRangeNm)
+{
+    if (m_polygonCache.has_value() && (m_polygonCache->viewCenter == viewCenter) && (m_polygonCache->drawRangeNm == drawRangeNm)) {
+        return;
+    }
+
+    PolygonDataCache cache;
+    cache.viewCenter = viewCenter;
+    cache.drawRangeNm = drawRangeNm;
+
+    // Single octree traversal for all drawn polygon/line types.
+    const flightgear::PolyLineList allLines =
+        flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm, PolygonDrawFilter{});
+
+    for (const auto& line : allLines) {
+        switch (line->type()) {
+            // clang-format off
+        case flightgear::PolyLine::LAND_MASS:          cache.landLines.push_back(line); break;
+        case flightgear::PolyLine::GRATICULE:          cache.gratLines.push_back(line); break;
+        case flightgear::PolyLine::COASTLINE:          cache.coastLines.push_back(line); break;
+        case flightgear::PolyLine::NATIONAL_BOUNDARY:  cache.nationalLines.push_back(line); break;
+        case flightgear::PolyLine::REGIONAL_BOUNDARY:  cache.regionalLines.push_back(line); break;
+        case flightgear::PolyLine::URBAN:              cache.urbanLines.push_back(line); break;
+        case flightgear::PolyLine::RIVER:              cache.riverLines.push_back(line); break;
+        case flightgear::PolyLine::LAKE:               cache.lakeLines.push_back(line); break;
+        case flightgear::PolyLine::GEOGRAPHIC_LINE:    cache.geographicLines.push_back(line); break;
+        default: break;
+            // clang-format on
+        }
+    }
+
+    m_polygonCache = std::move(cache);
+}
+
 void BaseDiagram::paintPolygonData(QPainter* painter)
 {
     QTransform invT = m_viewportTransform.inverted();
@@ -192,36 +236,75 @@ void BaseDiagram::paintPolygonData(QPainter* painter)
     double drawRangeNm = std::max(SGGeodesy::distanceNm(viewCenter, topLeft),
                                   SGGeodesy::distanceNm(viewCenter, bottomRight));
 
-    flightgear::PolyLineList lines(flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                                                      flightgear::PolyLine::COASTLINE));
 
-    QPen waterPen(QColor(64, 64, 255), 1);
+    validatePolygonCache(viewCenter, drawRangeNm);
+    const PolygonDataCache& cache = *m_polygonCache;
+
+    const QColor waterColor(150, 200, 205);
+    const QColor landColor(160, 190, 160);
+    const QColor adminBoundaryColor(139, 90, 110);
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(landColor);
+    for (const auto& line : cache.landLines) {
+        fillClosedGeodVec(painter, line->points());
+    }
+
+    // Graticules drawn immediately above land so they sit below all other features.
+    QPen graticulePen(QColor(20, 20, 20), 2);
+    graticulePen.setCosmetic(true);
+    painter->setPen(graticulePen);
+    for (const auto& line : cache.gratLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(190, 190, 190));
+    for (const auto& line : cache.urbanLines) {
+        fillClosedGeodVec(painter, line->points());
+    }
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(waterColor);
+    for (const auto& line : cache.lakeLines) {
+        fillClosedGeodVec(painter, line->points());
+    }
+
+    painter->setBrush(Qt::NoBrush);
+    painter->setPen(QPen(QColor(100, 100, 200), 2));
+    for (const auto& line : cache.coastLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    QPen nationalBoundaryPen(adminBoundaryColor, 2);
+    nationalBoundaryPen.setCosmetic(true);
+    painter->setPen(nationalBoundaryPen);
+    for (const auto& line : cache.nationalLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    QPen regionalBoundaryPen(adminBoundaryColor, 1);
+    regionalBoundaryPen.setCosmetic(true);
+    regionalBoundaryPen.setStyle(Qt::DotLine);
+    painter->setPen(regionalBoundaryPen);
+    for (const auto& line : cache.regionalLines) {
+        paintGeodVec(painter, line->points());
+    }
+
+    QPen waterPen(waterColor, 2);
     waterPen.setCosmetic(true);
     painter->setPen(waterPen);
-    for (auto line : lines) {
+    for (const auto& line : cache.riverLines) {
         paintGeodVec(painter, line->points());
     }
 
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::URBAN);
-    for (auto line : lines) {
-        fillClosedGeodVec(painter, QColor(192, 192, 96), line->points());
-    }
-
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::RIVER);
-
-    painter->setPen(waterPen);
-    for (auto line : lines) {
+    // Geographic special lines (equator, tropics, datelines) drawn last, on top of all.
+    QPen geographicLinePen(graticulePen);
+    geographicLinePen.setCosmetic(true);
+    geographicLinePen.setStyle(Qt::DashLine);
+    painter->setPen(geographicLinePen);
+    for (const auto& line : cache.geographicLines) {
         paintGeodVec(painter, line->points());
-    }
-
-
-    lines = flightgear::PolyLine::linesNearPos(viewCenter, drawRangeNm,
-                                              flightgear::PolyLine::LAKE);
-
-    for (auto line : lines) {
-        fillClosedGeodVec(painter, QColor(128, 128, 255), line->points());
     }
 }
 
@@ -236,17 +319,14 @@ void BaseDiagram::paintGeodVec(QPainter* painter, const flightgear::SGGeodVec& v
     painter->drawPolyline(projected.data(), projected.size());
 }
 
-void BaseDiagram::fillClosedGeodVec(QPainter* painter, const QColor& color, const flightgear::SGGeodVec& vec)
+void BaseDiagram::fillClosedGeodVec(QPainter* painter, const flightgear::SGGeodVec& vec)
 {
     QVector<QPointF> projected;
     projected.reserve(vec.size());
-    flightgear::SGGeodVec::const_iterator it;
-    for (it=vec.begin(); it != vec.end(); ++it) {
-        projected.append(project(*it));
+    for (const auto& v : vec) {
+        projected.append(project(v));
     }
 
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(color);
     painter->drawPolygon(projected.data(), projected.size());
 }
 
@@ -634,14 +714,20 @@ void BaseDiagram::mouseMoveEvent(QMouseEvent *me)
 {
     m_autoScalePan = false;
 
-    QPointF delta = me->pos() - m_lastMousePos;
+    const QPointF delta = me->pos() - m_lastMousePos;
     m_lastMousePos = me->pos();
 
-    // offset is stored in metres so we don't have to modify it when
-    // zooming
-    m_panOffset += (delta / m_scale);
-    m_didPan = true;
+    // Unproject the new viewport centre and update m_projectionCenter so
+    // projection quality is always best at whatever the user is looking at.
+    // In the new projection (0,0) is the viewport centre, so bounds.center
+    // must be zeroed to keep transform() correct.
+    const QPointF newViewportProj = m_bounds.center() - (delta / m_scale);
+    m_projectionCenter = unproject(newViewportProj, m_projectionCenter);
+    m_bounds.translate(-m_bounds.center());
 
+    onProjectionCenterChanged();
+
+    m_didPan = true;
     update();
 }
 
@@ -699,7 +785,6 @@ void BaseDiagram::resetZoom()
 {
     m_autoScalePan = true;
     m_scale = 1.0;
-    m_panOffset = QPointF();
     update();
 }
 
