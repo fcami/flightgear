@@ -26,7 +26,7 @@ public:
 
   virtual SGPath resolve(const std::string& resource, SGPath& context) const
     override;
-  virtual PathList basePaths() const override;
+  virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override;
 };
 
 } // of namespace addons

@@ -101,10 +101,10 @@ public:
         return SGPath(); // not found
     }
 
-    virtual PathList basePaths() const override
+    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         PathList paths = globals->get_aircraft_paths();
-        paths.push_back(fgGetString("/sim/aircraft-dir"));
+        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
         return paths;
     }
 };
@@ -123,9 +123,11 @@ public:
         return p.exists() ? p : SGPath();
     }
 
-    virtual PathList basePaths() const override
+    virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        return {fgGetString("/sim/aircraft-dir")};
+        std::vector<SGPath> paths;
+        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
+        return paths;
     }
 };
 

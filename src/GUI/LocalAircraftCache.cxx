@@ -324,7 +324,7 @@ public:
         _currentAircraftPath = p;
     }
 
-    virtual PathList basePaths() const override
+    virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         return {_currentAircraftPath, _currentScanPath};
     }
@@ -361,12 +361,12 @@ public:
         return SGPath{};
     }
 
-    virtual PathList basePaths() const override
+    virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         std::vector<SGPath> paths;
         QStringList qtpaths = LocalAircraftCache::instance()->paths();
         Q_FOREACH (auto p, qtpaths) {
-            paths.push_back(SGPath::fromUtf8(p.toUtf8().toStdString()));
+            findAllOfTypeHelper(SGPath::fromUtf8(p.toUtf8().toStdString()), type, paths);
         }
         return paths;
     }

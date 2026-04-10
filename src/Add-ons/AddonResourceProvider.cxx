@@ -62,9 +62,13 @@ ResourceProvider::resolve(const string& resource, SGPath& context) const
   return SGPath(candidate).validate(/* write */ false);
 }
 
-PathList ResourceProvider::basePaths() const
+PathList ResourceProvider::findAllOfType(simgear::ResourceManager::FileType type) const
 {
-    return AddonManager::instance()->addonBasePaths();
+    std::vector<SGPath> paths;
+    for (const auto& path : AddonManager::instance()->addonBasePaths()) {
+        findAllOfTypeHelper(path, type, paths);
+    }
+    return paths;
 }
 
 } // of namespace addons
