@@ -31,6 +31,56 @@ using flightgear::LanguageInfo;
 
 extern naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
 
+namespace {
+struct CompatObjectClassInfo {
+    std::string type;
+    uint32_t uiVersion = 1;
+    bool allChildrenAllowed = false; ///< set if the widget is a generic container
+    std::set<std::string> childTypes;
+
+    bool isChildNode(const SGPropertyNode* node, int uiVersion) const;
+};
+
+std::vector<CompatObjectClassInfo> static_nasalClassInfo;
+
+std::vector<CompatObjectClassInfo>::const_iterator findClassInfo(const std::string& type)
+{
+    return std::find_if(static_nasalClassInfo.begin(), static_nasalClassInfo.end(),
+                        [&type](const CompatObjectClassInfo& info) {
+                            return info.type == type;
+                        });
+}
+
+bool CompatObjectClassInfo::isChildNode(const SGPropertyNode* node, int uiVersion) const
+{
+    // common case for leaf widgets that can't have children
+    if (!allChildrenAllowed && childTypes.empty()) {
+        return false;
+    }
+
+    // see if the name is plausible
+    bool couldBeChild = false;
+    if (allChildrenAllowed) {
+        couldBeChild = findClassInfo(node->getNameString()) != static_nasalClassInfo.end();
+    } else {
+        couldBeChild = childTypes.find(node->getNameString()) != childTypes.end();
+    }
+
+    if (!couldBeChild) {
+        return false;
+    }
+
+    const auto childClassInfoIt = findClassInfo(node->getNameString());
+    if ((childClassInfoIt != static_nasalClassInfo.end()) && (childClassInfoIt->uiVersion > uiVersion)) {
+        SG_LOG(SG_GUI, SG_DEV_WARN, "PUICompatDialog: child node '" << node->getNameString() << "'is only supported in ui-version " << childClassInfoIt->uiVersion << ", but dialog has ui-version " << uiVersion);
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace
+
 PUICompatObject::PUICompatObject(naRef impl, const std::string& type)
     : nasal::Object(impl), _type(type)
 {
@@ -98,6 +148,39 @@ static naRef f_translateWithMaybePlural(const PUICompatObject& widget,
         );
 }
 
+static naRef f_registerObjectClass(const nasal::CallContext& ctx)
+{
+    const auto type = ctx.requireArg<std::string>(0);
+    auto it = findClassInfo(type);
+    if (it != static_nasalClassInfo.end()) {
+        ctx.runtimeError("Class info for type '%s' is already registered", type.c_str());
+    }
+
+    CompatObjectClassInfo info;
+    info.type = type;
+    info.uiVersion = ctx.requireArg<uint32_t>(1);
+
+    const auto children = ctx.getArg<std::vector<std::string>>(2);
+    if (children.empty()) {
+        info.allChildrenAllowed = true;
+    } else if (children.size() == 1 && (children[0] == "*")) {
+        info.allChildrenAllowed = true;
+    } else {
+        for (const auto& childType : children) {
+            info.childTypes.insert(childType);
+        }
+    }
+
+    static_nasalClassInfo.push_back(std::move(info));
+    return naNil();
+}
+
+static naRef f_clearObjectClassInfo(const nasal::CallContext& ctx)
+{
+    static_nasalClassInfo.clear();
+    return naNil();
+}
+
 void PUICompatObject::setupGhost(nasal::Hash& compatModule)
 {
     using NasalGUIObject = nasal::Ghost<PUICompatObjectRef>;
@@ -131,6 +214,8 @@ void PUICompatObject::setupGhost(nasal::Hash& compatModule)
 
     nasal::Hash objectHash = compatModule.createHash("Object");
     objectHash.set("new", &f_makeCompatObjectPeer);
+    objectHash.set("registerClass", &f_registerObjectClass);
+    objectHash.set("clearClassInfo", &f_clearObjectClassInfo);
 }
 
 PUICompatObjectRef PUICompatObject::createForType(const std::string& type, SGPropertyNode_ptr config)
@@ -239,12 +324,13 @@ void PUICompatObject::init()
 
 
     // children
+    auto nasalClassInfo = findClassInfo(_type);
     int nChildren = _config->nChildren();
     for (int i = 0; i < nChildren; i++) {
         auto childNode = _config->getChild(i);
-
         const auto nodeName = childNode->getNameString();
-        if (!isNodeAChildObject(nodeName, uiVersion)) {
+
+        if (!nasalClassInfo->isChildNode(childNode, uiVersion)) {
             continue;
         }
 
@@ -279,25 +365,6 @@ naRef PUICompatObject::show(naRef viewParent)
 {
     nasal::Context ctx;
     return callMethod<naRef>("show", viewParent);
-}
-
-bool PUICompatObject::isNodeAChildObject(const std::string& nm, int uiVersion)
-{
-    string_list typeNames = {
-        "button", "one-shot", "slider", "dial",
-        "text", "input", "radio",
-        "combo", "textbox", "select",
-        "hrule", "vrule", "group", "frame",
-        "checkbox", "canvas"};
-
-    if (uiVersion >= 2) {
-        typeNames.push_back("standard-button");
-        typeNames.push_back("tabs");
-        typeNames.push_back("button-box");
-    }
-
-    auto it = std::find(typeNames.begin(), typeNames.end(), nm);
-    return it != typeNames.end();
 }
 
 void PUICompatObject::update()

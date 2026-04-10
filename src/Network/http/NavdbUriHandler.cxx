@@ -295,10 +295,11 @@ bool NavdbUriHandler::handleRequest(const HTTPRequest & request, HTTPResponse & 
     result = FGPositioned::findWithinRange(pos, range, &filter);
   } else if (query == "airports") {
       njson results;
-      for (char** airports = FGAirport::searchNamesAndIdents(""); *airports; airports++) {
-          results.push_back(std::string{*airports});
-      }
-      response.Content = results.dump(indent ? 2 : -1);
+      // FIXME FIXME
+      // for (char** airports = FGAirport::searchNamesAndIdents(""); *airports; airports++) {
+      //     results.push_back(std::string{*airports});
+      // }
+      // response.Content = results.dump(indent ? 2 : -1);
       return true;
 
   } else if (query == "airport") {

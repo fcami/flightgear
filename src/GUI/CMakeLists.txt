@@ -4,12 +4,15 @@
 include(FlightGearComponent)
 
 set(SOURCES
+    AirportListModel.cxx
     dialog.cxx
     gui_funcs.cxx
     menubar.cxx
     new_gui.cxx
     FGColor.cxx
     FileDialog.cxx
+    ItemModel.cxx
+    NasalItemView.cxx
     MouseCursor.cxx
     MessageBox.cxx
     Highlight.cxx
@@ -20,14 +23,17 @@ set(SOURCES
 )
 
 set(HEADERS
+    AirportListModel.hxx
     dialog.hxx
     gui.h
     menubar.hxx
     new_gui.hxx
     FGColor.hxx
     FileDialog.hxx
+    ItemModel.hxx
     MouseCursor.hxx
     MessageBox.hxx
+    NasalItemView.hxx
     Highlight.hxx
     FGPUICompatDialog.hxx
     PUICompatObject.hxx
@@ -166,8 +172,6 @@ if (HAVE_QT)
         SimGearCore)
 
     add_library(fgqmlui
-                        PropertyItemModel.cxx
-                        PropertyItemModel.hxx
                         FGQmlInstance.cxx
                         FGQmlInstance.hxx
                         FGQmlPropertyNode.cxx

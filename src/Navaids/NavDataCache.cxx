@@ -652,15 +652,15 @@ public:
 
     getOctreeLeafChildren = prepare("SELECT rowid, type FROM positioned WHERE octree_node=?1");
 
-    searchAirports = prepare("SELECT ident, name FROM positioned WHERE (name LIKE ?1 OR ident LIKE ?1) " AND_TYPED
+    searchAirports = prepare("SELECT rowid, ident, name FROM positioned WHERE (name LIKE ?1 OR ident LIKE ?1) " AND_TYPED
                              // prioritize entries with matching ICAO
                              " ORDER BY (ident LIKE ?1) DESC");
     sqlite3_bind_int(searchAirports, 2, FGPositioned::AIRPORT);
     sqlite3_bind_int(searchAirports, 3, FGPositioned::SEAPORT);
 
-    getAllAirports = prepare("SELECT ident, name FROM positioned WHERE type>=?1 AND type <=?2");
-    sqlite3_bind_int(getAllAirports, 1, FGPositioned::AIRPORT);
-    sqlite3_bind_int(getAllAirports, 2, FGPositioned::SEAPORT);
+    // getAllAirports = prepare("SELECT ident, name FROM positioned WHERE type>=?1 AND type <=?2");
+    // sqlite3_bind_int(getAllAirports, 1, FGPositioned::AIRPORT);
+    // sqlite3_bind_int(getAllAirports, 2, FGPositioned::SEAPORT);
 
 
     getAirportItemByIdent = prepare("SELECT guid FROM all_positioned WHERE airport=?1 AND ident=?2 AND type=?3");
@@ -2301,80 +2301,33 @@ NavDataCache::getOctreeLeafChildren(int64_t octreeNodeId)
   return r;
 }
 
-
-/**
- * A special purpose helper (used by FGAirport::searchNamesAndIdents) to
- * implement the AirportList dialog. It's unfortunate that it needs to reside
- * here, but for now it's least ugly solution.
- */
-char** NavDataCache::searchAirportNamesAndIdents(const std::string& searchInput)
+size_t NavDataCache::searchAirports(const std::string& query, std::vector<AirportDesc>& outResults)
 {
-  sqlite3_stmt_ptr stmt;
-  unsigned int numMatches = 0, numAllocated = 16;
-  string heliport("HELIPORT");
-  bool heli_p = searchInput.substr(0, heliport.length()) == heliport;
-  auto pos = searchInput.find(":");
-  string aFilter((pos != string::npos) ? searchInput.substr(pos+1) : searchInput);
-  string searchTerm("%" + aFilter + "%");
-
-  if (aFilter.empty() && !heli_p) {
-    stmt = d->getAllAirports;
-    numAllocated = 4096; // start much larger for all airports
-  } else {
-    stmt = d->searchAirports;
-    sqlite_bind_stdstring(stmt, 1, searchTerm);
-    if (heli_p) {
-        sqlite3_bind_int(stmt, 2, FGPositioned::HELIPORT);
-        sqlite3_bind_int(stmt, 3, FGPositioned::HELIPORT);
-    }
-    else {
-        sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
-        sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
-    }
+  // query string too short, don't bother to search
+  if (query.length() < 2) {
+    return 0;
   }
 
-  char** result = (char**) malloc(sizeof(char*) * numAllocated);
+  std::vector<AirportDesc> results;
+
+  auto stmt = d->searchAirports;
+  sqlite_bind_stdstring(stmt, 1, query);
+  sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
+  sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
+
   while (d->stepSelect(stmt)) {
-    if ((numMatches + 1) >= numAllocated) {
-      numAllocated <<= 1; // double in size!
-    // reallocate results array
-      char** nresult = (char**) malloc(sizeof(char*) * numAllocated);
-      memcpy(nresult, result, sizeof(char*) * numMatches);
-      free(result);
-      result = nresult;
-    }
-
-    // nasty code to avoid excessive string copying and allocations.
-    // We format results as follows (note whitespace!):
-    //   ' name-of-airport-chars   (ident)'
-    // so the total length is:
-    //    1 + strlen(name) + 4 + strlen(icao) + 1 + 1 (for the null)
-    // which gives a grand total of 7 + name-length + icao-length.
-    // note the ident can be three letters (non-ICAO local strip), four
-    // (default ICAO) or more (extended format ICAO)
-    int nameLength = sqlite3_column_bytes(stmt, 1);
-    int icaoLength = sqlite3_column_bytes(stmt, 0);
-    char* entry = (char*) malloc(7 + nameLength + icaoLength);
-    char* dst = entry;
-    *dst++ = ' ';
-    memcpy(dst, sqlite3_column_text(stmt, 1), nameLength);
-    dst += nameLength;
-    *dst++ = ' ';
-    *dst++ = ' ';
-    *dst++ = ' ';
-    *dst++ = '(';
-    memcpy(dst, sqlite3_column_text(stmt, 0), icaoLength);
-    dst += icaoLength;
-    *dst++ = ')';
-    *dst++ = 0;
-
-    result[numMatches++] = entry;
+    string ident = (char*) sqlite3_column_text(stmt, 2);
+    string name = (char*) sqlite3_column_text(stmt, 3);
+    const auto id = sqlite3_column_int64(stmt, 0);
+    results.emplace_back(ident, name, id);
   }
 
-  result[numMatches] = NULL; // end of list marker
   d->reset(stmt);
-  return result;
+
+  outResults.swap(results);
+  return outResults.size();
 }
+
 
 FGPositionedRef
 NavDataCache::findCommByFreq(int freqKhz, const SGGeod& aPos, FGPositioned::Filter* aFilter)

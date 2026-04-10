@@ -207,12 +207,15 @@ public:
                                          FGPositioned::Filter* aFilter);
 
 
-    /**
-   * Helper to implement the AirportSearch widget. Optimised text search of
-   * airport names and idents, returning a list suitable for passing directly
-   * to PLIB.
-   */
-    char** searchAirportNamesAndIdents(const std::string& aFilter);
+    struct AirportDesc
+    {
+        std::string name;
+        std::string icao;
+        // type field
+        PositionedID id;
+    };
+
+    size_t searchAirports(const std::string& query, std::vector<AirportDesc>& results);
 
     /**
    * Find the closest matching comm-station on a frequency, to a position.
