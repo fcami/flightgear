@@ -121,6 +121,44 @@ protected:
     OutputMode _outputMode = OutputMode::Button;
 };
 
+/**
+ * FGButtonEvent subclass adding double-press and long-press support.
+ *
+ * Created by FGInputEvent::NewObject when @c mod-double-press or
+ * @c mod-long-press child nodes are present on the event node.
+ */
+class FGExtendedButtonEvent : public FGButtonEvent
+{
+public:
+    FGExtendedButtonEvent(FGInputDevice* device, SGPropertyNode_ptr node);
+    void fire(FGEventData& eventData) override;
+    void update(double dt) override;
+
+private:
+    void readTimedBindings(SGPropertyNode_ptr eventNode, const char* nodeName, SGBindingList& bindList);
+    double readDoubleClickInterval(SGPropertyNode_ptr subNode) const;
+    double readLongPressInterval(SGPropertyNode_ptr subNode) const;
+
+    /// Bindings fired on a double-press (second press within _doublePressIntervalSec).
+    /// When defined, the second press does not fire the regular down bindings.
+    SGBindingList _doublePressBind;
+
+    /// Bindings fired when the button has been held for _longPressIntervalSec.
+    /// When defined, the subsequent release does not fire the regular mod-up bindings.
+    SGBindingList _longPressBind;
+
+    double _doublePressIntervalSec = 0.0;
+    double _longPressIntervalSec = 0.0;
+
+    // double-press detection state
+    bool _waitingForDoublePress = false;
+    double _timeSinceFirstPress = 0.0;
+
+    // long-press detection state
+    double _pressHeldTime = 0.0;
+    bool _longPressFired = false;
+};
+
 class FGAxisEvent : public FGInputEvent
 {
 public:

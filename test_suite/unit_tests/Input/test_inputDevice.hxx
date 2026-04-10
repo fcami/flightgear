@@ -50,6 +50,9 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testHighLowThreshold);
     CPPUNIT_TEST(testAxesOutputMode);
     CPPUNIT_TEST(testButtonSwitchMode);
+    CPPUNIT_TEST(testDoublePress);
+    CPPUNIT_TEST(testLongPress);
+    CPPUNIT_TEST(testRepeatableWithLongPress);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -64,6 +67,9 @@ public:
     void testHighLowThreshold();
     void testAxesOutputMode();
     void testButtonSwitchMode();
+    void testDoublePress();
+    void testLongPress();
+    void testRepeatableWithLongPress();
 
 private:
     TestCommandHandler _simpleCmd;
@@ -76,4 +82,6 @@ private:
     TestCommandHandler _highBtnCmd;
     TestCommandHandler _highBtnReleaseCmd;
     TestCommandHandler _switchCmd;
+    TestCommandHandler _doublePressCmd;
+    TestCommandHandler _longPressCmd;
 };

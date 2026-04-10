@@ -78,8 +78,12 @@ static inline bool StartsWith(string& s, const char* cp)
 FGInputEvent* FGInputEvent::NewObject(FGInputDevice* device, SGPropertyNode_ptr eventNode)
 {
     string name = eventNode->getStringValue("name", "");
-    if (StartsWith(name, "button-"))
+    if (StartsWith(name, "button-")) {
+        if (eventNode->hasChild("mod-double-press") || eventNode->hasChild("mod-long-press")) {
+            return new FGExtendedButtonEvent(device, eventNode);
+        }
         return new FGButtonEvent(device, eventNode);
+    }
 
     if (StartsWith(name, "rel-"))
         return new FGRelAxisEvent(device, eventNode);
@@ -371,6 +375,120 @@ void FGButtonEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
     SGPropertyNode_ptr args(new SGPropertyNode);
     args->setBoolValue("value", eventData.value > 0.0);
     binding->fire(args);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// FGExtendedButtonEvent
+
+FGExtendedButtonEvent::FGExtendedButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode)
+    : FGButtonEvent(device, eventNode)
+{
+    readTimedBindings(eventNode, "mod-double-press", _doublePressBind);
+    readTimedBindings(eventNode, "mod-long-press", _longPressBind);
+
+    if (auto* n = eventNode->getChild("mod-double-press"))
+        _doublePressIntervalSec = readDoubleClickInterval(n);
+    if (auto* n = eventNode->getChild("mod-long-press"))
+        _longPressIntervalSec = readLongPressInterval(n);
+}
+
+void FGExtendedButtonEvent::readTimedBindings(SGPropertyNode_ptr eventNode, const char* nodeName, SGBindingList& bindList)
+{
+    auto* subNode = eventNode->getChild(nodeName);
+    if (!subNode)
+        return;
+    const auto& nasalMod = device->GetNasalModule();
+    for (auto b : subNode->getChildren("binding")) {
+        if (b->getStringValue("command") == "nasal" && !nasalMod.empty()) {
+            b->setStringValue("module", nasalMod);
+        }
+        bindList.push_back(SGAbstractBinding::createFromProps(b, globals->get_props()));
+    }
+}
+
+double FGExtendedButtonEvent::readDoubleClickInterval(SGPropertyNode_ptr subNode) const
+{
+    return subNode->getDoubleValue("interval-sec",
+                                   fgGetDouble("/sim/input/double-press-sec", 0.4));
+}
+
+double FGExtendedButtonEvent::readLongPressInterval(SGPropertyNode_ptr subNode) const
+{
+    return subNode->getDoubleValue("interval-sec",
+                                   fgGetDouble("/sim/input/long-press-sec", 0.8));
+}
+
+void FGExtendedButtonEvent::fire(FGEventData& eventData)
+{
+    bool pressed = eventData.value > 0.0;
+    if (_invert) {
+        pressed = !pressed;
+    }
+
+    if (_outputMode == OutputMode::Button) {
+        if (pressed) {
+            // Reset long-press tracking on each new press
+            _pressHeldTime = 0.0;
+            _longPressFired = false;
+
+            if (!lastState || repeatable) {
+                if (_waitingForDoublePress && !_doublePressBind.empty()) {
+                    // Second press within the double-press window: fire double-press bindings
+                    // and suppress the normal press bindings
+                    SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' double-pressed");
+                    for (auto& b : _doublePressBind)
+                        FGButtonEvent::fire(b.get(), eventData);
+                    _timeSinceFirstPress = 0.0;
+                } else {
+                    SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been pressed");
+                    FGInputEvent::fire(eventData);
+                    if (!_doublePressBind.empty()) {
+                        _waitingForDoublePress = true;
+                        _timeSinceFirstPress = 0.0;
+                    }
+                }
+            }
+        } else {
+            if (lastState) {
+                SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been released");
+                eventData.modifiers |= KEYMOD_RELEASED;
+                FGInputEvent::fire(eventData);
+                _pressHeldTime = 0.0;
+            }
+        }
+    } else if (_outputMode == OutputMode::Switch) {
+        SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been " << (pressed ? "pressed" : "released"));
+        eventData.value = pressed ? 1.0 : 0.0;
+        FGInputEvent::fire(eventData);
+    }
+
+    lastState = pressed;
+}
+
+void FGExtendedButtonEvent::update(double dt)
+{
+    FGButtonEvent::update(dt);
+
+    // Double-press timeout: clear the waiting flag once the window expires
+    if (_waitingForDoublePress) {
+        _timeSinceFirstPress += dt;
+        if (_timeSinceFirstPress >= _doublePressIntervalSec) {
+            _waitingForDoublePress = false;
+            _timeSinceFirstPress = 0.0;
+        }
+    }
+
+    // Long-press: fire the long-press bindings once the hold time is exceeded
+    if (lastState && !_longPressBind.empty() && !_longPressFired) {
+        _pressHeldTime += dt;
+        if (_pressHeldTime >= _longPressIntervalSec) {
+            SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' long-pressed");
+            FGEventData ed{1.0, dt, 0 /* modifiers */};
+            for (auto& b : _longPressBind)
+                FGButtonEvent::fire(b.get(), ed);
+            _longPressFired = true;
+        }
+    }
 }
 
 FGInputDevice::~FGInputDevice()
