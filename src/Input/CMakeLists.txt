@@ -13,8 +13,8 @@ else()
 endif()
 
 if (ENABLE_HID_INPUT)
-	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx)
-	list(APPEND EVENT_INPUT_HEADERS FGHIDEventInput.hxx FGHIDUsage.hxx)
+	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx FGHIDDevice.cxx)
+	list(APPEND EVENT_INPUT_HEADERS FGHIDEventInput.hxx FGHIDUsage.hxx FGHIDDevice.hxx)
 endif()
 
 set(SOURCES
@@ -22,6 +22,11 @@ set(SOURCES
 	FGCommonInput.cxx
 	FGDeviceConfigurationMap.cxx
 	FGEventInput.cxx
+	FGInputEvent.cxx
+	FGButtonEvent.cxx
+	FGAxisEvent.cxx
+	FGInputDevice.cxx
+	FGReportSetting.cxx
 	FGKeyboardInput.cxx
 	FGMouseInput.cxx
 	input.cxx
@@ -32,6 +37,11 @@ set(HEADERS
 	FGCommonInput.hxx
 	FGDeviceConfigurationMap.hxx
 	FGEventInput.hxx
+	FGInputEvent.hxx
+	FGButtonEvent.hxx
+	FGAxisEvent.hxx
+	FGInputDevice.hxx
+	FGReportSetting.hxx
 	FGKeyboardInput.hxx
 	FGMouseInput.hxx
 	input.hxx
@@ -77,7 +87,9 @@ endif()
 if (ENABLE_HID_INPUT)
 	if (COMMAND flightgear_test)
 		set(HID_INPUT_TEST_SOURCES test_hidinput.cxx FGEventInput.cxx
-			FGCommonInput.cxx FGDeviceConfigurationMap.cxx)
+			FGCommonInput.cxx FGDeviceConfigurationMap.cxx
+			FGInputEvent.cxx FGButtonEvent.cxx FGAxisEvent.cxx
+			FGInputDevice.cxx FGReportSetting.cxx)
 
 		flightgear_test(hidinput "${HID_INPUT_TEST_SOURCES}")
 		target_link_libraries(hidinput ${EVENT_INPUT_LIBRARIES} hidapi)

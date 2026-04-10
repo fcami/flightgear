@@ -1,15 +1,25 @@
-
+// FGReportSetting.hxx -- event-setting and report-setting types for input devices
+//
 // SPDX-License-Identifier: GPL-2.0-or-later
 // SPDX-FileCopyrightText: 2009 Torsten Dreyer
 
 #pragma once
 
+#include <map>
+#include <string>
+#include <vector>
+
+#include <simgear/io/lowlevel.hxx>
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/misc/strutils.hxx>
 #include <simgear/nasal/cppbind/NasalCode.hxx>
-/*
-  FGEventSetting
-  stores one value or property node together with an optional condition
-  Multiple FGEventSetting can be assigned to one FGInputEvent
-*/
+#include <simgear/props/condition.hxx>
+#include <simgear/props/props.hxx>
+#include <simgear/structure/SGReferenced.hxx>
+#include <simgear/structure/SGSharedPtr.hxx>
+#include <simgear/structure/SGSourceLocation.hxx>
+
+/// TODO: document
 class FGEventSetting : public SGReferenced
 {
 public:
@@ -28,6 +38,7 @@ protected:
 typedef SGSharedPtr<FGEventSetting> FGEventSetting_ptr;
 typedef std::vector<FGEventSetting_ptr> setting_list_t;
 
+/// TODO: document
 class FGReportSetting : public SGReferenced,
                         public SGPropertyChangeListener
 {
