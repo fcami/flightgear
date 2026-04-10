@@ -794,7 +794,27 @@ FGReportSetting::FGReportSetting(SGPropertyNode_ptr base)
 {
     location = base->getLocation();
     reportId = base->getIntValue("report-id");
-    nasalFunction = base->getStringValue("nasal-function");
+
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    if (!nas) {
+        SG_LOG(SG_INPUT, SG_DEV_ALERT, "Nasal subsystem not available, input report settings won't work");
+        return;
+    }
+
+    const auto loc = base->getLocation();
+    if (base->hasChild("nasal-function")) {
+        auto nasalFunction = base->getStringValue("nasal-function");
+        // we're compiling a trivial function call as code, so we can use the same
+        // code path at runtime
+        nasalCode = nas->createCode(nasalFunction + "()", loc.getPath(), loc.getLine());
+    } else if (base->hasChild("nasal")) {
+        nasalCode = nas->createCode(base->getStringValue("nasal"), loc.getPath(), loc.getLine());
+    } else {
+        simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                               simgear::ErrorCode::InputDeviceConfig,
+                               "No nasal/nasal-function defined for report setting",
+                               sg_location(base));
+    }
 
     if (base->hasChild("report-type")) {
         const auto s = base->getStringValue("report-type");
@@ -832,17 +852,9 @@ simgear::UInt8Vector FGReportSetting::reportBytes(const std::string& moduleName)
         return {};
     }
 
-    naRef module = nas->getModule(moduleName.c_str());
-    if (naIsNil(module)) {
-        throw sg_exception("Unknown Nasal module:" + moduleName, nasalFunction, sg_location(location));
-    }
+    naRef locals = nas->getModule(moduleName, true /*create*/);
+    naRef result = nasalCode.callWithLocals(locals);
 
-    naRef func = naHash_cget(module, (char*)nasalFunction.c_str());
-    if (!naIsFunc(func)) {
-        throw sg_exception("Not a Nasal function:" + nasalFunction, nasalFunction, sg_location(location));
-    }
-
-    naRef result = nas->call(func, 0, 0, naNil());
     if (naIsString(result)) {
         size_t len = naStr_len(result);
         char* bytes = naStr_data(result);
@@ -868,8 +880,7 @@ simgear::UInt8Vector FGReportSetting::reportBytes(const std::string& moduleName)
         return {};
     }
 
-    throw sg_exception("Bad data from report setting", nasalFunction,
-                       sg_location(location));
+    throw sg_exception("Bad data from input report setting", "result was not a string or vector", sg_location(location));
 }
 
 void FGReportSetting::valueChanged(SGPropertyNode* n)

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <simgear/nasal/cppbind/NasalCode.hxx>
 /*
   FGEventSetting
   stores one value or property node together with an optional condition
@@ -53,7 +54,6 @@ public:
         error = true;
     }
 
-    std::string getNasalFunctionName() const { return nasalFunction; }
     bool Test();
     simgear::UInt8Vector reportBytes(const std::string& moduleName) const;
     virtual void valueChanged(SGPropertyNode* node);
@@ -61,7 +61,9 @@ public:
 protected:
     unsigned int reportId = 0;
     Type _type = Type::Output;
-    std::string nasalFunction;
+
+    nasal::NasalCode nasalCode;
+
     bool dirty = true;
     bool error = false;
     SGSourceLocation location;

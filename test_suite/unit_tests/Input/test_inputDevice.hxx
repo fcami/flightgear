@@ -85,3 +85,34 @@ private:
     TestCommandHandler _doublePressCmd;
     TestCommandHandler _longPressCmd;
 };
+
+/**
+ * Unit tests for FGReportSetting: nasal code paths and dirty-flag tracking.
+ *
+ * A separate fixture is needed because FGReportSetting requires FGNasalSys to
+ * be present in the subsystem manager, whereas InputDeviceTests deliberately
+ * keeps its setUp lightweight.
+ */
+class ReportSettingTests : public CppUnit::TestFixture
+{
+    CPPUNIT_TEST_SUITE(ReportSettingTests);
+    CPPUNIT_TEST(testNasalInlineCodeString);
+    CPPUNIT_TEST(testNasalInlineCodeVector);
+    CPPUNIT_TEST(testNasalFunction);
+    CPPUNIT_TEST(testWatchDirtyTracking);
+    CPPUNIT_TEST(testReportType);
+    CPPUNIT_TEST(testNasalCodeArgs);
+    CPPUNIT_TEST_SUITE_END();
+
+public:
+    void setUp() override;
+    void tearDown() override;
+
+    void testNasalInlineCodeString();
+    void testNasalInlineCodeVector();
+    void testNasalInlineCodeNil();
+    void testNasalFunction();
+    void testWatchDirtyTracking();
+    void testReportType();
+    void testNasalCodeArgs();
+};
