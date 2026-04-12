@@ -171,7 +171,7 @@ static void addAirportProperties(njson& json, FGAirport* airport)
     json["longestRwyHeading_deg"] = longestRunway->headingDeg();
     json["longestRwySurface"] = longestRunway->surfaceName();
 
-    if (airport->getMetar()) {
+    if (airport->hasMetar()) {
         json["metar"] = true;
     }
 

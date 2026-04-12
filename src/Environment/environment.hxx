@@ -35,6 +35,21 @@ public:
   virtual void Tie( SGPropertyNode_ptr base, bool setArchivable = true );
   virtual void Untie();
 
+  virtual time_t getLastRequestTime() const { return lastRequestTime; }
+  virtual time_t getLastUpdateTime() const { return lastUpdateTime; }
+
+  virtual void setLastRequestTime(time_t t) { lastRequestTime = t; }
+  virtual void setLastUpdateTime(time_t t) { lastUpdateTime = t; }
+
+  virtual void setGeod(const SGGeod& geod)
+  {
+	  mPosition = geod;
+  }
+
+  virtual const SGGeod& geod() const
+  {
+	  return mPosition;
+  }
   virtual double get_visibility_m () const;
 
   virtual double get_temperature_sea_level_degc () const;
@@ -89,6 +104,7 @@ public:
   virtual bool get_is_isa() const;
 
   FGEnvironment & interpolate (const FGEnvironment & env2, double fraction, FGEnvironment * result) const;
+
 private:
   virtual void copy (const FGEnvironment &environment);
   void _init();
@@ -105,6 +121,9 @@ private:
   void _recalc_relative_humidity ();
   void _recalc_alt_pt ();
 
+  SGGeod mPosition;
+  time_t lastRequestTime;
+  time_t lastUpdateTime;
   double elevation_ft;
   double visibility_m;
 

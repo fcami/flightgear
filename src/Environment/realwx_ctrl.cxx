@@ -20,6 +20,7 @@
 #include <simgear/timing/sg_time.hxx>
 #include <simgear/structure/event_mgr.hxx>
 #include <simgear/structure/commands.hxx>
+#include <simgear/structure/SgSharedPtr.hxx>
 
 #include "metarproperties.hxx"
 #include "metarairportfilter.hxx"
@@ -503,6 +504,19 @@ RealWxController * RealWxController::createInstance( SGPropertyNode_ptr rootNode
   return new NoaaMetarRealWxController( rootNode );
 }
 
+/*
+SGSharedPtr<SGPropertyNode_ptr> RealWxController::getMetarProperties(const std::string& icao)
+{
+    SG_LOG
+    (
+        SG_ENVIRONMENT,
+        SG_INFO,
+        "RealWxController::getMetarProperties()"
+        "spawning load request for station-id '" << icao << "'"
+    );
+    return SGSharedPtr<LiveMetarProperties>();
+}
+*/
 RealWxController::~RealWxController()
 {
 }
