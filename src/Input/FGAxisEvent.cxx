@@ -17,6 +17,8 @@ FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : 
     center = eventNode->getDoubleValue("center", 0.0);
     deadband = eventNode->getDoubleValue("dead-band", 0.0);
 
+    noiseThresholdBits = eventNode->getIntValue("noise-threshold-bits", 0);
+
     // interpolation of values
     if (eventNode->hasChild("interpolater")) {
         interpolater.reset(new SGInterpTable{eventNode->getChild("interpolater")});

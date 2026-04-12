@@ -274,8 +274,8 @@ FGLinuxInputDevice::~FGLinuxInputDevice()
   }
 }
 
-FGLinuxInputDevice::FGLinuxInputDevice() :
-  fd(-1)
+FGLinuxInputDevice::FGLinuxInputDevice() : FGInputDevice({}),
+                                           fd(-1)
 {
 }
 

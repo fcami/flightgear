@@ -40,6 +40,11 @@ public:
         Direct
     };
 
+    uint32_t getNoiseThresholdBits() const
+    {
+        return noiseThresholdBits;
+    }
+
 protected:
     void fire(FGEventData& eventData) override;
 
@@ -54,6 +59,8 @@ protected:
     double lowThreshold = 0.0;
     double highThreshold = 0.0;
     double lastValue = std::numeric_limits<double>::quiet_NaN();
+
+    uint32_t noiseThresholdBits = 0; ///< how many low bits to ignore as input noise
 
     std::unique_ptr<SGInterpTable> interpolater;
     bool mirrorInterpolater = false;
