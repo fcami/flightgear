@@ -77,6 +77,7 @@ include(GNUInstallDirs)
 include( DetectDistro )
 include( DetectBrowser )
 include( ExportDebugSymbols )
+include( CTest )
 
 set(CMAKE_DEBUG_POSTFIX          "d" CACHE STRING "add a postfix, usually d on windows")
 set(CMAKE_RELEASE_POSTFIX        ""  CACHE STRING "add a postfix, usually empty on windows")
@@ -628,6 +629,6 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT f
 
 include(Installation)
 
-# The test suite.
-enable_testing()
+if (BUILD_TESTING)
 add_subdirectory(test_suite)
+endif()
