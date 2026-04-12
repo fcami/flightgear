@@ -483,7 +483,7 @@ naRef initNasalPositioned_cppbind(naRef globalsRef, naContext c)
 
   NasalAirport::init("FGAirport")
     .bases<NasalPositioned>()
-    .member("has_metar", &FGAirport::getMetar)
+    .member("has_metar", &FGAirport::hasMetar)
     .member("runways", &FGAirport::getRunwayMap)
     .member("helipads", &FGAirport::getHelipadMap)
     .member("taxiways", &FGAirport::getTaxiways)

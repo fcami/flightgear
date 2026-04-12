@@ -52,8 +52,7 @@ public:
 
     const FGEnvironment* getAircraftEnvironment() const;
 
-    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) const;
-
+    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos);
 private:
     friend FGEnvironmentMgrMultiplayerListener;
     void updateClosestAirport();
@@ -78,6 +77,8 @@ private:
 
     FGClimate* _climate = nullptr;
     FGEnvironment* _environment = nullptr; // always the same, for now
+    std::vector<FGEnvironment*> environmentCache;
+
     FGClouds* fgClouds = nullptr;
     int max_tower_height_feet;
     int min_tower_height_feet;

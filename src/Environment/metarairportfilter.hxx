@@ -22,7 +22,7 @@ public:
 protected:
     MetarAirportFilter() {}
     virtual bool passAirport(FGAirport* aApt) const {
-        return aApt->getMetar();
+        return aApt->hasMetar();
     }
 
   // permit heliports and seaports too
