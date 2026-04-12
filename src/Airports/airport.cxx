@@ -22,9 +22,11 @@
 #include <simgear/props/props_io.hxx>
 #include <simgear/sg_inlines.h>
 #include <simgear/structure/exception.hxx>
+#include <simgear/structure/SGReferenced.hxx>
 
 #include <Environment/environment_mgr.hxx>
 #include <Environment/environment.hxx>
+#include <Environment/FGMetar.hxx>
 #include <Main/fg_props.hxx>
 #include <Airports/runways.hxx>
 #include <Airports/pavement.hxx>
@@ -61,6 +63,7 @@ FGAirport::FGAirport( PositionedID aGuid,
     FGPositioned(aGuid, aType, id, location),
     _name(name),
     _has_metar(has_metar),
+    _metar(nullptr),
     _sceneryPath(std::move(sceneryPath)),
     mTowerDataLoaded(false),
     mHasTower(false),
@@ -97,6 +100,15 @@ bool FGAirport::isHeliport() const
 SGPath FGAirport::sceneryPath() const
 {
   return _sceneryPath;
+}
+
+// FIXME add a validity check here
+inline bool FGAirport::isMetarValid() const { return _metar; }
+
+void FGAirport::setMetar(SGSharedPtr<FGMetar> m)
+{
+  _has_metar = true;
+  _metar = std::move(m);
 }
 
 //------------------------------------------------------------------------------

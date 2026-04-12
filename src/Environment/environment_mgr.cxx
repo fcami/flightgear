@@ -368,8 +368,20 @@ const FGEnvironment* FGEnvironmentMgr::getAircraftEnvironment() const
 }
 
 FGEnvironment
-FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos) const
+FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
 {
+    auto near = [&](FGEnvironment* e) { return SGGeodesy::distanceM(e->geod(), aPos) < 10000; };
+
+    auto it = std::find_if(environmentCache.begin(), environmentCache.end(), near);
+    if (it == environmentCache.end()) {
+        // cache miss; create a new environment for this position
+        FGEnvironment* env = new FGEnvironment();
+        env->set_elevation_ft(aPos.getElevationFt());
+        env->setGeod(aPos);
+        env->Tie(fgGetNode("/environment", true));
+        environmentCache.push_back(env);
+        return *env;
+    }
     // Always returns the same environment
     // for now; we'll make it interesting
     // later.

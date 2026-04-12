@@ -19,6 +19,8 @@ public:
     virtual ~RealWxController();
 
     static RealWxController * createInstance( SGPropertyNode_ptr rootNode );
+
+    //SGSharedPtr<SGPropertyNode_ptr> getMetarProperties(const std::string& icao);
 };
 
 } // namespace Environment

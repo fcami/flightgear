@@ -844,7 +844,13 @@ void FGAirportDynamics::getActiveRunway(const std::string& trafficType,
                                         int action, std::string& runway,
                                         double heading)
 {
-    //FIXME must align with FGAirport::findBestRunwayForHeading
+  // Fetch the subsystem manager.
+    auto mgr = globals->get_subsystem_mgr();
+    auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+    if (envMgr) {
+        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
+    }
+
 
     bool ok = innerGetActiveRunway(trafficType, action, runway, heading);
     if (!ok || runway.empty()) {
@@ -1034,11 +1040,11 @@ FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
     if (envMgr) {
         // FIXME : this should use the weather at the airport, not the player's
         // location.
-        const auto stationWeather = envMgr->getAircraftEnvironment();
+        const auto stationWeather = envMgr->getEnvironmentAtPosition(parent()->geod());
 
-        double windSpeed = stationWeather->get_wind_speed_kt();
+        double windSpeed = stationWeather.get_wind_speed_kt();
         if (windSpeed > 0.0) {
-            hdg = stationWeather->get_wind_from_heading_deg();
+            hdg = stationWeather.get_wind_from_heading_deg();
         }
     }
 
