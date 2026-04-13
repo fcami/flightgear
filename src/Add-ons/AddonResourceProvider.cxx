@@ -62,7 +62,7 @@ ResourceProvider::resolve(const string& resource, SGPath& context) const
   return SGPath(candidate).validate(/* write */ false);
 }
 
-PathList ResourceProvider::findAllOfType(simgear::ResourceManager::FileType type) const
+std::vector<SGPath> ResourceProvider::findAllOfType(simgear::ResourceManager::FileType type) const
 {
     std::vector<SGPath> paths;
     for (const SGPath& path : AddonManager::instance()->addonBasePaths()) {
