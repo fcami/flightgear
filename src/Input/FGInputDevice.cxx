@@ -20,6 +20,19 @@ using std::map;
 using std::string;
 using namespace std::string_literals;
 
+FGInputDevice::FGInputDevice(std::string aName, std::string aSerial) : name(aName),
+                                                                       serialNumber(aSerial),
+                                                                       _configListener(std::make_unique<PrivateListener>(this))
+{
+}
+
+void FGInputDevice::PrivateListener::valueChanged(SGPropertyNode* node)
+{
+    if (node->getNameString() == "debug-events") {
+        device->SetDebugEvents(node->getBoolValue());
+    }
+}
+
 FGInputDevice::~FGInputDevice()
 {
     auto nas = globals->get_subsystem<FGNasalSys>();
@@ -33,6 +46,11 @@ FGInputDevice::~FGInputDevice()
             }
         }
         nas->deleteModule(nasalModule.c_str());
+    }
+
+    auto debug = deviceNode->getNode("debug-events");
+    if (debug) {
+        debug->removeChangeListener(_configListener.get());
     }
 }
 
@@ -92,6 +110,9 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
                 nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
         }
     }
+
+    auto node = deviceNode->getNode("debug-events", true);
+    node->addChangeListener(_configListener.get());
 }
 
 void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
@@ -170,4 +191,9 @@ void FGInputDevice::SendFeatureReport(unsigned int reportId, const simgear::UInt
 void FGInputDevice::SendOutputReport(unsigned int reportId, const simgear::UInt8Vector& data)
 {
     SG_LOG(SG_INPUT, SG_WARN, "SendOutputReport not implemented");
+}
+
+void FGInputDevice::SetDebugEvents(bool debug)
+{
+    debugEvents = debug;
 }

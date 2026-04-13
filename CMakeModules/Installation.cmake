@@ -52,7 +52,15 @@ if (APPLE)
     install(DIRECTORY ${OSG_PLUGINS_DIR} DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:fgfs>/PlugIns)
 
     # add extra utilities to the bundle
-    install(TARGETS fgcom fgjs fgelev DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:fgfs>/MacOS)
+    if (TARGET fgjs)
+        install(TARGETS fgjs
+            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:fgfs>/MacOS
+        )
+    endif()
+
+    install(TARGETS fgcom fgelev
+        DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:fgfs>/MacOS
+    )
 
     if (TARGET sentry::sentry)
         install(FILES $<TARGET_FILE:sentry::sentry> DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:fgfs>/Frameworks)

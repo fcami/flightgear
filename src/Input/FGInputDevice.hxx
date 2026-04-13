@@ -26,9 +26,6 @@
 class FGInputDevice : public SGReferenced
 {
 public:
-    FGInputDevice() {}
-    FGInputDevice(std::string aName, std::string aSerial = {}) : name(aName), serialNumber(aSerial) {}
-
     virtual ~FGInputDevice();
 
     virtual bool Open() = 0;
@@ -82,7 +79,11 @@ public:
         _vendorDeviceId = id;
     }
 
+    void SetDebugEvents(bool debug);
+
 protected:
+    FGInputDevice(std::string aName, std::string aSerial = {});
+
     // A map of events, this device handles
     std::map<std::string, FGInputEvent_ptr> handledEvents;
 
@@ -116,6 +117,19 @@ protected:
     std::string _uniqueName;
 
     uint32_t _vendorDeviceId = 0;
+
+    class PrivateListener : public SGPropertyChangeListener
+    {
+    public:
+        PrivateListener(FGInputDevice* dev) : device(dev) {}
+
+        void valueChanged(SGPropertyNode* node) override;
+
+    private:
+        FGInputDevice* device;
+    };
+
+    std::unique_ptr<PrivateListener> _configListener;
 };
 
 typedef SGSharedPtr<FGInputDevice> FGInputDevice_ptr;

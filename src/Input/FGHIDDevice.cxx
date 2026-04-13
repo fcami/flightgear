@@ -123,7 +123,7 @@ public:
 ///////////////////////////////////////////////////////////////////////////////
 // FGHIDDevice
 
-FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*)
+FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*) : FGInputDevice({})
 {
     class_id = "FGHIDDevice";
     _hidPath = devInfo->path;
@@ -533,18 +533,41 @@ void FGHIDDevice::processInputReport(Report* report, unsigned char* data,
                 continue;
             }
         } else {
-            // suppress no-change events for absolute items
-            if (value == item->lastValue) {
-                continue;
+            // real-world consumer hardware can have optimistic ADCs, but cheap
+            // potentiometers, leading to bit readings that vary continuously, making a lot of
+            // spurious events. To mitigate this, allow the configuration to define a noise
+            // threshold in bits. Note the literal value is still used, we don't quantize the
+            // value we send in HIDEventData, so the full resolution is still available to event handlers
+            auto axis = dynamic_cast<FGAxisEvent*>(item->event.get());
+            const uint32_t noiseThresholdBits = axis ? axis->getNoiseThresholdBits() : 0;
+            if (noiseThresholdBits > 0) {
+                const int noiseThreshold = 1 << noiseThresholdBits;
+                if (std::abs(value - item->lastValue) < noiseThreshold) {
+                    continue;
+                }
+
+            } else {
+                if (value == item->lastValue) {
+                    continue;
+                }
             }
         }
 
+        const auto oldValue = item->lastValue;
         item->lastValue = value;
-        if (!item->event)
+        // we don't need to forward un-handled events, *but* we do want to record them in `last-event` node,
+        // in debug mode
+        if (!item->event && !debugEvents) {
             continue;
+        }
 
+        SG_LOG(SG_INPUT, SG_INFO, "HID device:" << GetUniqueName() << " item:" << item->name << " value:" << value << ", old value:" << oldValue);
         if (_debugRaw) {
             SG_LOG(SG_INPUT, SG_INFO, "\titem:" << item->name << " = " << value);
+        }
+
+        if (!item->event && debugEvents) {
+            SG_LOG(SG_INPUT, SG_INFO, "\tunhandled item:" << item->name << " value:" << value);
         }
 
         HIDEventData event{item, value, dt, keyModifiers};
