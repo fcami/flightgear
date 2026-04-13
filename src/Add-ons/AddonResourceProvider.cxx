@@ -65,7 +65,7 @@ ResourceProvider::resolve(const string& resource, SGPath& context) const
 PathList ResourceProvider::findAllOfType(simgear::ResourceManager::FileType type) const
 {
     std::vector<SGPath> paths;
-    for (const auto& path : AddonManager::instance()->addonBasePaths()) {
+    for (const SGPath& path : AddonManager::instance()->addonBasePaths()) {
         findAllOfTypeHelper(path, type, paths);
     }
     return paths;
