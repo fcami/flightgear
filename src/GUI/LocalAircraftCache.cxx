@@ -23,6 +23,8 @@
 #include <Main/sentryIntegration.hxx>
 
 #include <simgear/misc/ResourceManager.hxx>
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
@@ -324,9 +326,12 @@ public:
         _currentAircraftPath = p;
     }
 
-    virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        return {_currentAircraftPath, _currentScanPath};
+        std::vector<SGPath> paths;
+        findAllOfTypeHelper(_currentAircraftPath, type, paths);
+        findAllOfTypeHelper(_currentScanPath, type, paths);
+        return paths;
     }
 
 private:
@@ -361,7 +366,7 @@ public:
         return SGPath{};
     }
 
-    virtual PathList findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         std::vector<SGPath> paths;
         QStringList qtpaths = LocalAircraftCache::instance()->paths();
