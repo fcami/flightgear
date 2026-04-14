@@ -113,15 +113,25 @@ Item {
 
                     SettingCheckbox {
                         id: fetchMetar
-                        label: qsTr("Real-world weather")
+                        enabled: !fetchOpenMeteo.checked
+                        label: qsTr("Real-world weather (METAR)")
                         description: qsTr("Download real-world weather from the NOAA servers based on location.")
                         option: "real-weather-fetch"
                         setting: "fetch-metar"
                     },
 
+                    SettingCheckbox {
+                        id: fetchOpenMeteo
+                        enabled: !fetchMetar.checked
+                        label: qsTr("Real-world weather (OpenMeteo)")
+                        description: qsTr("Download real-world weather from the OpenMeteo servers based on location.")
+                        option: "real-weather-fetch"
+                        setting: "fetch-openmeteo"
+                    },
+
                     SettingsComboBox {
                         id: weatherScenario
-                        enabled: !fetchMetar.checked
+                        enabled: !(fetchMetar.checked || fetchOpenMeteo.checked)
                         label: qsTr("Weather scenario")
                         displayRole: "name"
                         model: _weatherScenarios
@@ -141,7 +151,7 @@ Item {
                         }
 
                         hidden: !weatherScenario.isCustomMETAR
-                        enabled: !fetchMetar.checked
+                        enabled: !(fetchMetar.checked || fetchOpenMeteo.checked)
                         label: qsTr("METAR")
                         placeholder: "XXXX 012345Z 28035G50KT 250V300 9999 TSRA SCT022CB BKN030 13/09 Q1005"
                         useFullWidth: true
@@ -185,6 +195,11 @@ Item {
                             _config.setProperty("/local-weather/tmp/tile-management", "METAR");
                             _config.setProperty("/local-weather/tmp/tile-type", "live");
                         }
+                    } else if (fetchOpenMeteo.checked) {
+                        if (advancedWeather.checked) {
+                            _config.setProperty("/local-weather/tmp/tile-management", "OpenMeteo");
+                            _config.setProperty("/local-weather/tmp/tile-type", "live");
+                        }
                     } else {
                         if (weatherScenario.isCustomMETAR) {
                             if (customMETAR.isMETARValid && (customMETAR.value != "")) {
@@ -219,7 +234,7 @@ Item {
                 {
                     var result = [];
                     if (advancedWeather.checked) result.push(qsTr("advanced weather"));
-                    if (fetchMetar.checked) result.push(qsTr("real-world weather"));
+                    if (fetchMetar.checked || fetchOpenMeteo.checked) result.push(qsTr("real-world weather"));
                     return result;
                 }
             }
