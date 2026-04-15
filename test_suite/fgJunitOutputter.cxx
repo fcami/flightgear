@@ -171,13 +171,13 @@ void fgJunitOutputter::writeJunit()
                   [&localType, &localtest_data_records, &localjunitReportFile](string testClass) {
                       time_t classTiming = 0;
                       std::for_each(localtest_data_records->begin(), localtest_data_records->end(),
-                                    [&localjunitReportFile, &classTiming, &testClass](TestDataCapt test_data) {
+                                    [&classTiming, &testClass](TestDataCapt test_data) {
                                         if (test_data.name.rfind(testClass, 0) == 0) {
                                             classTiming += test_data.timing;
                                         }
                                     });
                       std::for_each(localtest_data_records->begin(), localtest_data_records->end(),
-                                    [&localType, &localjunitReportFile, &classTiming, &testClass](TestDataCapt test_data) {
+                                    [&localType, &localjunitReportFile, &testClass](TestDataCapt test_data) {
                                         if (test_data.name.rfind(testClass, 0) == 0) {
                                             auto methodName = test_data.name.substr(test_data.name.find("::") + 2, test_data.name.length());
                                             localjunitReportFile << "<testcase suite_name=\"" << localType << "\" classname=\"" << testClass << "\" name=\"" << methodName << "\" time=\"" << ((double)test_data.timing / 1000000) << "\" file=\""

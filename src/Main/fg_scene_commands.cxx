@@ -426,14 +426,13 @@ do_dialog_apply (const SGPropertyNode * arg, SGPropertyNode * root)
 
 
 /**
- * Redraw GUI (applying new widget colors). Doesn't reload the dialogs,
- * unlike reinit().
+ * Deprecated: gui-redraw is not needed with Canvas GUI.
+ * Dynamic menu changes are handled via property-change listeners.
  */
 static bool
 do_gui_redraw (const SGPropertyNode * arg, SGPropertyNode * root)
 {
-    auto gui = globals->get_subsystem<NewGUI>();
-    gui->redraw();
+    SG_LOG(SG_GUI, SG_DEV_ALERT, "gui-redraw command is deprecated and has no effect with Canvas GUI");
     return true;
 }
 

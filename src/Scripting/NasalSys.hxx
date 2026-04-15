@@ -57,8 +57,9 @@ public:
     bool parseAndRun(const std::string& source);
 
     bool parseAndRunWithOutput(const std::string& source,
-                     std::string& output,
-                     std::string& errors);
+                               std::string& output,
+                               std::string& errors,
+                               int lineOffset = 1);
 
     // Implementation of the settimer extension function
     void setTimer(naContext c, int argc, naRef* args);
@@ -190,7 +191,7 @@ private:
     void addModule(std::string moduleName, simgear::PathList scripts);
     static void logError(naContext);
     naRef parse(naContext ctx, const char* filename, const char* buf, int len,
-               std::string& errors);
+                std::string& errors, int lineOffset = 1);
     naRef genPropsModule();
 
     friend TimerObj;

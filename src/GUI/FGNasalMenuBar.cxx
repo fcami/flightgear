@@ -38,6 +38,12 @@ enum class VisibilityMode {
     HideIfOverlapsWindow
 };
 
+enum class MenuChangeKind {
+    ChildAdded = 0,
+    ChildRemoved = 1,
+    Updated = 2
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 
 class NasalMenuItem : public SGReferenced,
@@ -88,23 +94,30 @@ public:
         return _submenu;
     }
 
+    SGPropertyNode_ptr configNode() const
+    {
+        return _config;
+    }
+
     void initFromNode(SGPropertyNode_ptr config);
 
-    using NasalCallback = std::function<void()>;
+    using NasalCallback = std::function<void(int, int)>;
 
     void addCallback(NasalCallback cb)
     {
-        _callbacks.push_back(cb);
+        _changedCallbacks.push_back(cb);
     }
 
 protected:
     void valueChanged(SGPropertyNode* prop) override;
 
 private:
-    void runCallbacks()
+    SGPropertyNode_ptr _config;
+    void runChangedCallbacks(MenuChangeKind kind, int index)
     {
-        std::for_each(_callbacks.begin(), _callbacks.end(), [](NasalCallback& cb) {
-            cb();
+        const int kindInt = static_cast<int>(kind);
+        std::for_each(_changedCallbacks.begin(), _changedCallbacks.end(), [kindInt, index](NasalCallback& cb) {
+            cb(kindInt, index);
         });
     }
 
@@ -120,7 +133,7 @@ private:
         _checkedNode, _labelNode;
     NasalMenuPtr _submenu;
     SGBindingList _bindings;
-    std::vector<NasalCallback> _callbacks;
+    std::vector<NasalCallback> _changedCallbacks;
 };
 
 class NasalMenu : public SGReferenced,
@@ -128,6 +141,7 @@ class NasalMenu : public SGReferenced,
 {
 public:
     using ItemsVec = std::vector<NasalMenuItemPtr>;
+    using NasalCallback = std::function<void(int, int)>;
 
     std::string label() const
     {
@@ -149,19 +163,40 @@ public:
         return _items;
     }
 
+    SGPropertyNode_ptr configNode() const
+    {
+        return _config;
+    }
+
+    void addCallback(NasalCallback cb)
+    {
+        _changedCallbacks.push_back(cb);
+    }
+
     void aboutToShow();
 
     void initFromNode(SGPropertyNode_ptr config);
 
 protected:
     void valueChanged(SGPropertyNode* prop) override;
+    void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override;
+    void childRemoved(SGPropertyNode* parent, SGPropertyNode* child) override;
 
 private:
     std::string _name;
     std::string _label;
     bool _enabled = true;
-    SGPropertyNode_ptr _enabledNode, _labelNode;
+    SGPropertyNode_ptr _enabledNode, _labelNode, _config;
     ItemsVec _items;
+    std::vector<NasalCallback> _changedCallbacks;
+
+    void runChangedCallbacks(MenuChangeKind kind, int index)
+    {
+        const int kindInt = static_cast<int>(kind);
+        std::for_each(_changedCallbacks.begin(), _changedCallbacks.end(), [kindInt, index](NasalCallback& cb) {
+            cb(kindInt, index);
+        });
+    }
 };
 
 
@@ -169,6 +204,7 @@ private:
 
 void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
 {
+    _config = config;
     auto n = config->getChild("name");
     if (!n) {
         SG_LOG(SG_GUI, SG_DEV_WARN, "menu item without <name> element:" << config->getLocation());
@@ -226,8 +262,8 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
 
 void NasalMenuItem::valueChanged(SGPropertyNode* n)
 {
-    // sort this by likelyhood these changing, to avoid
-    // unnecessary string comaprisons
+    // sort this by likelihood these changing, to avoid
+    // unnecessary string comparisons
     if (n == _enabledNode) {
         _enabled = _enabledNode->getBoolValue();
     } else if (n == _checkedNode) {
@@ -238,8 +274,8 @@ void NasalMenuItem::valueChanged(SGPropertyNode* n)
         _name = n->getStringValue();
     }
 
-    // allow Nasal to response to changes
-    runCallbacks();
+    // allow Nasal to respond to changes
+    runChangedCallbacks(MenuChangeKind::Updated, -1);
 }
 
 void NasalMenuItem::fire()
@@ -265,6 +301,9 @@ void NasalMenuItem::aboutToShow()
 
 void NasalMenu::initFromNode(SGPropertyNode_ptr config)
 {
+    _config = config;
+    config->addChangeListener(this);
+
     const auto name = config->getStringValue("name");
     _name = name;
 
@@ -304,21 +343,115 @@ void NasalMenu::valueChanged(SGPropertyNode* n)
     } else if (n == _labelNode) {
         _label = FGMenuBar::getLocalizedLabel(n->getParent());
     }
+    runChangedCallbacks(MenuChangeKind::Updated, -1);
+}
+
+void NasalMenu::childAdded(SGPropertyNode* parent, SGPropertyNode* child)
+{
+    if (parent != _config) return;
+    if (child->getNameString() != "item") return;
+
+    auto newItem = new NasalMenuItem;
+    newItem->initFromNode(child);
+
+    // Insert in index order; indices may be non-contiguous so compare directly
+    const int newIndex = child->getIndex();
+    auto insertPos = std::find_if(_items.begin(), _items.end(), [newIndex](const NasalMenuItemPtr& item) {
+        return item->configNode()->getIndex() > newIndex;
+    });
+    _items.insert(insertPos, newItem);
+    runChangedCallbacks(MenuChangeKind::ChildAdded, newIndex);
+}
+
+void NasalMenu::childRemoved(SGPropertyNode* parent, SGPropertyNode* child)
+{
+    if (parent != _config) return;
+    if (child->getNameString() != "item") return;
+
+    const int removedIndex = child->getIndex();
+    auto it = std::find_if(_items.begin(), _items.end(), [child](const NasalMenuItemPtr& item) {
+        return item->configNode() == child;
+    });
+    if (it != _items.end()) {
+        runChangedCallbacks(MenuChangeKind::ChildRemoved, removedIndex);
+        _items.erase(it);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class FGNasalMenuBar::NasalMenuBarPrivate
+class FGNasalMenuBar::NasalMenuBarPrivate : public SGPropertyChangeListener
 {
 public:
+    using NasalCallback = std::function<void(int, int)>;
+
     std::vector<NasalMenuPtr> getMenus() const
     {
         return menus;
     }
 
+    void addCallback(NasalCallback cb)
+    {
+        _changedCallbacks.push_back(cb);
+    }
+
     VisibilityMode visibilityMode = VisibilityMode::Visible;
     bool computedVisibility = true;
     std::vector<NasalMenuPtr> menus;
+    SGPropertyNode_ptr config;
+
+protected:
+    void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
+    {
+        if (parent != config) return;
+        if (child->getNameString() != "menu") return;
+
+        auto newMenu = new NasalMenu;
+        newMenu->initFromNode(child);
+
+        // Insert in index order; indices may be non-contiguous so compare directly
+        const int newIndex = child->getIndex();
+        auto insertPos = std::find_if(menus.begin(), menus.end(), [newIndex](const NasalMenuPtr& m) {
+            return m->configNode()->getIndex() > newIndex;
+        });
+        menus.insert(insertPos, newMenu);
+        runChangedCallbacks(MenuChangeKind::ChildAdded, newIndex);
+    }
+
+    void childRemoved(SGPropertyNode* parent, SGPropertyNode* child) override
+    {
+        if (parent != config) return;
+        if (child->getNameString() != "menu") return;
+
+        const int removedIndex = child->getIndex();
+        auto it = std::find_if(menus.begin(), menus.end(), [child](const NasalMenuPtr& m) {
+            return m->configNode() == child;
+        });
+        if (it != menus.end()) {
+            runChangedCallbacks(MenuChangeKind::ChildRemoved, removedIndex);
+            menus.erase(it);
+        }
+    }
+
+private:
+    friend class FGNasalMenuBar;
+
+    static naRef addChangedCallback(NasalMenuBarPrivate& bar, const nasal::CallContext& ctx)
+    {
+        auto cb = ctx.requireArg<NasalCallback>(0);
+        bar.addCallback(cb);
+        return naNil();
+    }
+
+    std::vector<NasalCallback> _changedCallbacks;
+
+    void runChangedCallbacks(MenuChangeKind kind, int index)
+    {
+        const int kindInt = static_cast<int>(kind);
+        std::for_each(_changedCallbacks.begin(), _changedCallbacks.end(), [kindInt, index](NasalCallback& cb) {
+            cb(kindInt, index);
+        });
+    }
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -364,6 +497,9 @@ void FGNasalMenuBar::hide()
 
 void FGNasalMenuBar::configure(SGPropertyNode_ptr config)
 {
+    _d->config = config;
+    config->addChangeListener(_d.get());
+
     _d->menus.clear();
     for (auto i : config->getChildren("menu")) {
         auto m = new NasalMenu;
@@ -399,6 +535,13 @@ static naRef f_itemAddCallback(NasalMenuItem& item, const nasal::CallContext& ct
     return naNil();
 }
 
+static naRef f_menuAddCallback(NasalMenu& menu, const nasal::CallContext& ctx)
+{
+    auto cb = ctx.requireArg<NasalMenu::NasalCallback>(0);
+    menu.addCallback(cb);
+    return naNil();
+}
+
 void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
 {
     using MenuItemGhost = nasal::Ghost<NasalMenuItemPtr>;
@@ -415,14 +558,29 @@ void FGNasalMenuBar::setupGhosts(nasal::Hash& compatModule)
         .method("addChangedCallback", &f_itemAddCallback);
 
     using MenuGhost = nasal::Ghost<NasalMenuPtr>;
-    MenuGhost::init("gui.xml.Menu")
+    MenuGhost::init("gui.xml.MenuImpl")
         .member("label", &NasalMenu::label)
         .member("name", &NasalMenu::name)
         .member("enabled", &NasalMenu::isEnabled)
-        .member("items", &NasalMenu::items);
+        .member("items", &NasalMenu::items)
+        .method("addChangedCallback", &f_menuAddCallback);
 
 
-    using MenuBarGhost = nasal::Ghost<std::shared_ptr<NasalMenuBarPrivate>>;
+    using MenuBarRef = std::shared_ptr<NasalMenuBarPrivate>;
+    using MenuBarGhost = nasal::Ghost<MenuBarRef>;
     MenuBarGhost::init("gui.xml.MenuBar")
-        .member("menus", &NasalMenuBarPrivate::getMenus);
+        .member("menus", &NasalMenuBarPrivate::getMenus)
+        .method("addChangedCallback", &NasalMenuBarPrivate::addChangedCallback);
+
+    // Expose MenuChangeKind constants on gui.Menu so Nasal callers can compare
+    // against symbolic names rather than raw integers.
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    nasal::Context nasCtx;
+    nasal::Hash guiModule{nas->getModule("gui"), nasCtx};
+    nasal::Hash xmlHash{guiModule.get("xml"), nasCtx};
+    nasal::Hash menuHash = xmlHash.createHash("Menu");
+
+    menuHash.set("ChildAdded", naNum(static_cast<int>(MenuChangeKind::ChildAdded)));
+    menuHash.set("ChildRemoved", naNum(static_cast<int>(MenuChangeKind::ChildRemoved)));
+    menuHash.set("Updated", naNum(static_cast<int>(MenuChangeKind::Updated)));
 }

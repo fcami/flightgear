@@ -353,11 +353,11 @@ FGNasalSys::~FGNasalSys()
     nasalSys = nullptr;
 }
 
-bool FGNasalSys::parseAndRunWithOutput(const std::string& source, std::string& output, std::string& errors)
+bool FGNasalSys::parseAndRunWithOutput(const std::string& source, std::string& output, std::string& errors, int lineOffset)
 {
     naContext ctx = naNewContext();
     naRef code = parse(ctx, "FGNasalSys::parseAndRun()", source.c_str(),
-                       source.size(), errors);
+                       source.size(), errors, lineOffset);
     if(naIsNil(code)) {
         naFreeContext(ctx);
         return false;
@@ -1631,12 +1631,12 @@ naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 
 naRef FGNasalSys::parse(naContext ctx, const char* filename,
                         const char* buf, int len,
-                        std::string& errors)
+                        std::string& errors, int lineOffset)
 {
     int errLine = -1;
     naRef srcfile = naNewString(ctx);
     naStr_fromdata(srcfile, (char*)filename, strlen(filename));
-    naRef code = naParseCode(ctx, srcfile, 1, (char*)buf, len, &errLine);
+    naRef code = naParseCode(ctx, srcfile, lineOffset, (char*)buf, len, &errLine);
     if(naIsNil(code)) {
         std::ostringstream errorMessageStream;
         errorMessageStream << "Nasal parse error: " << naGetError(ctx) <<
