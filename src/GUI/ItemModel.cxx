@@ -29,18 +29,17 @@ size_t ItemModel::addChangeCallback(ChangeCallback cb)
 
 void ItemModel::removeChangeCallback(size_t index)
 {
-    auto it = m_callbacks.begin() + index;
-    if (it == m_callbacks.end()) {
+    if (index >= m_callbacks.size()) {
         return;
     }
 
-    m_callbacks.erase(it);
+    m_callbacks.erase(m_callbacks.begin() + index);
 }
 
 void ItemModel::didChangeData(int row, int changedRows)
 {
-    assert(row > 0);
-    assert(row < count());
+    assert(row >= 0);
+    assert(row < (int)count());
     fireCallbacks(Change::Modified, row, changedRows);
 }
 

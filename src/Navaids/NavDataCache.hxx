@@ -210,11 +210,12 @@ public:
     struct AirportDesc {
         std::string name;
         std::string icao;
-        // type field
-        PositionedID id;
+        PositionedID id; ///< positioned DB row id
     };
 
-    size_t searchAirports(const std::string& query, std::vector<AirportDesc>& results);
+    size_t searchAirports(const std::string& query, std::vector<AirportDesc>& results,
+                          FGPositioned::Type minType = FGPositioned::AIRPORT,
+                          FGPositioned::Type maxType = FGPositioned::SEAPORT);
 
     /**
    * Find the closest matching comm-station on a frequency, to a position.

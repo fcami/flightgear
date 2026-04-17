@@ -658,11 +658,6 @@ public:
     sqlite3_bind_int(searchAirports, 2, FGPositioned::AIRPORT);
     sqlite3_bind_int(searchAirports, 3, FGPositioned::SEAPORT);
 
-    // getAllAirports = prepare("SELECT ident, name FROM positioned WHERE type>=?1 AND type <=?2");
-    // sqlite3_bind_int(getAllAirports, 1, FGPositioned::AIRPORT);
-    // sqlite3_bind_int(getAllAirports, 2, FGPositioned::SEAPORT);
-
-
     getAirportItemByIdent = prepare("SELECT guid FROM all_positioned WHERE airport=?1 AND ident=?2 AND type=?3");
 
     findAirportRunway = prepare("SELECT airport, rowid FROM positioned WHERE ident=?2 AND type=?3 AND airport="
@@ -1013,7 +1008,7 @@ public:
     sqlite3_stmt_ptr getOctreeChildren, insertOctree, updateOctreeChildren,
         getOctreeLeafChildren;
 
-    sqlite3_stmt_ptr searchAirports, getAllAirports;
+    sqlite3_stmt_ptr searchAirports;
     sqlite3_stmt_ptr findCommByFreq, findNavsByFreq,
         findNavsByFreqNoPos, findNavaidForRunway;
     sqlite3_stmt_ptr getAirportItems, getAirportItemByIdent;
@@ -2301,7 +2296,8 @@ NavDataCache::getOctreeLeafChildren(int64_t octreeNodeId)
   return r;
 }
 
-size_t NavDataCache::searchAirports(const std::string& query, std::vector<AirportDesc>& outResults)
+size_t NavDataCache::searchAirports(const std::string& query, std::vector<AirportDesc>& outResults,
+                                    FGPositioned::Type minType, FGPositioned::Type maxType)
 {
     // query string too short, don't bother to search
     if (query.length() < 2) {
@@ -2312,9 +2308,9 @@ size_t NavDataCache::searchAirports(const std::string& query, std::vector<Airpor
 
     auto stmt = d->searchAirports;
     const auto likeQuery = "%" + query + "%";
-    sqlite_bind_stdstring(stmt, 1, likeQuery);
-    sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
-    sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
+    sqlite_bind_temp_stdstring(stmt, 1, likeQuery);
+    sqlite3_bind_int(stmt, 2, minType);
+    sqlite3_bind_int(stmt, 3, maxType);
 
     while (d->stepSelect(stmt)) {
         // SELECT rowid, ident, name  →  columns 0, 1, 2

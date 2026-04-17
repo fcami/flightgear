@@ -283,7 +283,7 @@ bool NavdbUriHandler::handleRequest(const HTTPRequest & request, HTTPResponse & 
       // until we decide if re-implementing this API makes sense on the NavDB,
       // let's return a 404 to avoid confusion.
       response.StatusCode = 404;
-      response.Content = "{ 'error': 'currently unimplemented' }";
+      response.Content = "{\"error\": \"currently unimplemented\"}"; // valid JSON
       return true;
   } else if (query == "airport") {
     FGAirportRef airport = FGAirport::findByIdent(request.RequestVariables.get("id"));

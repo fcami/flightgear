@@ -5,6 +5,8 @@
 
 #include "AirportListModel.hxx"
 
+#include <algorithm>
+
 #include "Navaids/NavDataCache.hxx"
 #include <Airports/airport.hxx>
 
@@ -40,16 +42,27 @@ void AirportListModel::requery()
 
     if (_searchTerm.size() < 3) {
         SG_LOG(SG_GUI, SG_INFO, "AirportListModel::requery: search term too short");
+        didReset();
         return;
     }
 
-    flightgear::NavDataCache::instance()->searchAirports(_searchTerm, _data);
+    const auto typeMin = _useHeliports ? FGPositioned::HELIPORT : FGPositioned::AIRPORT;
+    const auto typeMax = _useHeliports ? FGPositioned::HELIPORT : FGPositioned::SEAPORT;
+    flightgear::NavDataCache::instance()->searchAirports(_searchTerm, _data, typeMin, typeMax);
     didReset();
 }
 
 void AirportListModel::addRecentEntry(const FGAirportRef apt)
 {
-    _recents.insert(_recents.end(), apt);
+    // Deduplicate: remove any existing entry for this airport before appending.
+    _recents.erase(std::remove(_recents.begin(), _recents.end(), apt), _recents.end());
+    _recents.push_back(apt);
+
+    // Cap the recents list to avoid unbounded growth.
+    constexpr size_t kMaxRecents = 128;
+    if (_recents.size() > kMaxRecents) {
+        _recents.erase(_recents.begin());
+    }
 }
 
 void AirportListModel::useRecentAirports()
