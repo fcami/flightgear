@@ -104,7 +104,6 @@ public:
     virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         std::vector<SGPath> paths;
-        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
         for (const SGPath& path : globals->get_aircraft_paths()) {
             findAllOfTypeHelper(path, type, paths);
         }
