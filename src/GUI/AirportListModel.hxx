@@ -4,6 +4,8 @@
 #pragma once
 
 #include "Navaids/positioned.hxx"
+
+#include <Airports/airports_fwd.hxx>
 #include <GUI/ItemModel.hxx>
 #include <Navaids/NavDataCache.hxx>
 
@@ -17,7 +19,7 @@ public:
 
     /**
      * @brief Set the search term: an ICAO code or part of the airport's full name
-     * 
+     *
      */
     void setSearchTerm(const std::string &search);
 
@@ -32,7 +34,7 @@ public:
 private:
     void requery();
     void useRecentAirports();
-    
+
     std::string _searchTerm;
     bool _useHeliports = false;
     FGPositionedList _recents;

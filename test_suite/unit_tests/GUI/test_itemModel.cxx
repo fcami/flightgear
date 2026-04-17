@@ -27,6 +27,7 @@
 #include "test_suite/FGTestApi/DummyCanvasSystemAdapter.hxx"
 #include "test_suite/FGTestApi/testGlobals.hxx"
 
+#include <GUI/AirportListModel.hxx>
 #include <GUI/FGPUICompatDialog.hxx>
 #include <GUI/ItemModel.hxx>
 #include <GUI/NasalItemView.hxx>
@@ -34,6 +35,7 @@
 
 #include <GUI/new_gui.hxx>
 
+#include <Airports/airport.hxx>
 #include <Scripting/NasalSys.hxx>
 
 using namespace std::string_literals;
@@ -462,4 +464,127 @@ void ItemModelTests::testItemView()
     )");
 
     CPPUNIT_ASSERT(ok);
+}
+
+void ItemModelTests::testAirportListModelSearch()
+{
+    SGSharedPtr<AirportListModel> m(new AirportListModel);
+
+    // A term shorter than 3 characters should leave the model empty without crashing.
+    m->setSearchTerm("ED");
+    CPPUNIT_ASSERT_EQUAL(0UL, m->count());
+
+    // Partial ICAO prefix "EDD" should match the family of German airports
+    // (EDDF Frankfurt, EDDM Munich, EDDL Düsseldorf, …).
+    m->setSearchTerm("EDD");
+    CPPUNIT_ASSERT(m->count() > 0);
+
+    // The label is "ICAO name" – both parts must be non-empty.
+    for (size_t i = 0; i < m->count(); ++i) {
+        auto label = std::any_cast<std::string>(m->dataAt(i, "label"));
+        CPPUNIT_ASSERT(!label.empty());
+    }
+
+    // Well-known airports must be present.
+    bool foundEDDF = false, foundEDDM = false;
+    for (size_t i = 0; i < m->count(); ++i) {
+        auto icao = std::any_cast<std::string>(m->dataAt(i, "icao"));
+        if (icao == "EDDF") foundEDDF = true;
+        if (icao == "EDDM") foundEDDM = true;
+    }
+    CPPUNIT_ASSERT_MESSAGE("EDDF (Frankfurt) must appear in EDD search", foundEDDF);
+    CPPUNIT_ASSERT_MESSAGE("EDDM (Munich) must appear in EDD search", foundEDDM);
+
+    // Changing to an unrelated term resets the results.
+    m->setSearchTerm("ZZZZ_UNLIKELY");
+    // May or may not be empty, but should not crash; count() must be defined.
+    (void)m->count();
+}
+
+void ItemModelTests::testAirportListModelNameSearch()
+{
+    SGSharedPtr<AirportListModel> m(new AirportListModel);
+
+    // "castle" should find airports whose name contains "castle"
+    // (e.g. Newcastle Airport EGNT, Castle Donington EGNX, …).
+    m->setSearchTerm("castle");
+    CPPUNIT_ASSERT_MESSAGE("'castle' search should return at least one airport",
+                           m->count() > 0);
+
+    for (size_t i = 0; i < m->count(); ++i) {
+        auto label = std::any_cast<std::string>(m->dataAt(i, "label"));
+        std::string lower = label;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        CPPUNIT_ASSERT_MESSAGE("label should contain 'castle': " + label,
+                               lower.find("castle") != std::string::npos);
+    }
+
+    // "new" should find airports such as Newcastle, New Orleans, Newark, etc.
+    m->setSearchTerm("new");
+    CPPUNIT_ASSERT_MESSAGE("'new' search should return at least one airport",
+                           m->count() > 0);
+
+    bool foundEGNT = false; // Newcastle Airport
+    bool foundKEWR = false; // Newark Liberty International Airport
+    bool foundKNEW = false; // New Orleans Lakefront Airport
+
+    for (size_t i = 0; i < m->count(); ++i) {
+        auto label = std::any_cast<std::string>(m->dataAt(i, "label"));
+        std::string lower = label;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        CPPUNIT_ASSERT_MESSAGE("label should contain 'new': " + label,
+                               lower.find("new") != std::string::npos);
+
+        auto icao = std::any_cast<std::string>(m->dataAt(i, "icao"));
+        if (icao == "EGNT") foundEGNT = true;
+        if (icao == "KEWR") foundKEWR = true;
+        if (icao == "KNEW") foundKNEW = true;
+    }
+    CPPUNIT_ASSERT_MESSAGE("EGNT (Newcastle) must appear in 'new' search", foundEGNT);
+    CPPUNIT_ASSERT_MESSAGE("KEWR (Newark) must appear in 'new' search", foundKEWR);
+    CPPUNIT_ASSERT_MESSAGE("KNEW (New Orleans) must appear in 'new' search", foundKNEW);
+}
+
+void ItemModelTests::testAirportListModelRecents()
+{
+    SGSharedPtr<AirportListModel> m(new AirportListModel);
+
+    // No search term, no recents: model should be empty.
+    CPPUNIT_ASSERT_EQUAL(0UL, m->count());
+
+    // Populate recents.
+    FGAirportRef egnt = FGAirport::findByIdent("EGNT"); // Newcastle
+    FGAirportRef eddf = FGAirport::findByIdent("EDDF"); // Frankfurt
+    CPPUNIT_ASSERT_MESSAGE("EGNT must be in nav data", egnt != nullptr);
+    CPPUNIT_ASSERT_MESSAGE("EDDF must be in nav data", eddf != nullptr);
+    m->addRecentEntry(egnt);
+    m->addRecentEntry(eddf);
+
+    // Drive the model into a non-empty state first so that clearing the
+    // search term is treated as a change and triggers useRecentAirports().
+    m->setSearchTerm("EDD");
+    CPPUNIT_ASSERT(m->count() > 0);
+
+    // Clearing the search term must show the recent airports.
+    ModelObserver obs;
+    m->addChangeCallback([&obs](ItemModel::Change t, size_t row, size_t count) {
+        obs.f(t, row, count);
+    });
+
+    m->setSearchTerm("");
+    CPPUNIT_ASSERT_EQUAL(2UL, m->count());
+
+    // The recents callback must have fired a Reset.
+    CPPUNIT_ASSERT(!obs.events.empty());
+    CPPUNIT_ASSERT_EQUAL(ItemModel::Change::Reset, obs.events.front().change);
+
+    // Entries must appear in the order they were added.
+    CPPUNIT_ASSERT_EQUAL("EGNT"s, std::any_cast<std::string>(m->dataAt(0, "icao")));
+    CPPUNIT_ASSERT_EQUAL("EDDF"s, std::any_cast<std::string>(m->dataAt(1, "icao")));
+
+    // Labels must be non-empty and contain the ICAO code.
+    auto label0 = std::any_cast<std::string>(m->dataAt(0, "label"));
+    CPPUNIT_ASSERT(label0.find("EGNT") != std::string::npos);
+    auto label1 = std::any_cast<std::string>(m->dataAt(1, "label"));
+    CPPUNIT_ASSERT(label1.find("EDDF") != std::string::npos);
 }

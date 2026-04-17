@@ -1900,7 +1900,7 @@ void NavDataCache::commitTransaction()
 void NavDataCache::abortTransaction()
 {
   SG_LOG(SG_NAVCACHE, SG_WARN, "NavCache: aborting transaction");
-  flightgear::sentryReportException("DB aborting transactino");
+  flightgear::sentryReportException("DB aborting transaction");
 
   assert(d->transactionLevel > 0);
   if (--d->transactionLevel == 0) {
@@ -2311,15 +2311,17 @@ size_t NavDataCache::searchAirports(const std::string& query, std::vector<Airpor
   std::vector<AirportDesc> results;
 
   auto stmt = d->searchAirports;
-  sqlite_bind_stdstring(stmt, 1, query);
+  const auto likeQuery = "%" + query + "%";
+  sqlite_bind_stdstring(stmt, 1, likeQuery);
   sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
   sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
 
   while (d->stepSelect(stmt)) {
-    string ident = (char*) sqlite3_column_text(stmt, 2);
-    string name = (char*) sqlite3_column_text(stmt, 3);
-    const auto id = sqlite3_column_int64(stmt, 0);
-    results.emplace_back(ident, name, id);
+      // SELECT rowid, ident, name  →  columns 0, 1, 2
+      string ident = (char*)sqlite3_column_text(stmt, 1);
+      string name = (char*)sqlite3_column_text(stmt, 2);
+      const auto id = sqlite3_column_int64(stmt, 0);
+      results.emplace_back(name, ident, id); // AirportDesc{name, icao, id}
   }
 
   d->reset(stmt);

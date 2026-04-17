@@ -19,6 +19,9 @@ class ItemModelTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testCallbacks);
     CPPUNIT_TEST(testNasalModel);
     CPPUNIT_TEST(testItemView);
+    CPPUNIT_TEST(testAirportListModelSearch);
+    CPPUNIT_TEST(testAirportListModelNameSearch);
+    CPPUNIT_TEST(testAirportListModelRecents);
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -35,6 +38,9 @@ public:
     void testNasalPropertyModel();
     void testNasalModel();
     void testItemView();
+    void testAirportListModelSearch();
+    void testAirportListModelNameSearch();
+    void testAirportListModelRecents();
 
 private:
 };
