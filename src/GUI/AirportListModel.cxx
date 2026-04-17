@@ -6,6 +6,7 @@
 #include "AirportListModel.hxx"
 
 #include "Navaids/NavDataCache.hxx"
+#include <Airports/airport.hxx>
 
 using namespace std::string_literals;
 
