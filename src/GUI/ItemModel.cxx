@@ -111,8 +111,7 @@ static naRef f_makeNasalItemModel(const nasal::CallContext& ctx);
 class NasalItemModel : public ItemModel, public nasal::Object
 {
 public:
-    NasalItemModel(naRef impl):
-        Object(impl)
+    NasalItemModel(naRef impl) : Object(impl)
     {
     }
 

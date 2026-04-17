@@ -62,21 +62,21 @@ public:
         return _view->yPositionForIndex(_index);
     }
 
-  std::string label() const
-  {
-      return _view->model()->labelAt(_index);
-  }
+    std::string label() const
+    {
+        return _view->model()->labelAt(_index);
+    }
 
-  std::any value() const
-  {
-      return _view->model()->valueAt(_index);
-  }
+    std::any value() const
+    {
+        return _view->model()->valueAt(_index);
+    }
 
-  const size_t index() const { return _index; }
+    const size_t index() const { return _index; }
 
-  private:
-  const size_t _index;
-  NasalItemView* _view;
+private:
+    const size_t _index;
+    NasalItemView* _view;
 };
 
 using DelegateModelDataPtr = SGSharedPtr<DelegateModelData>;
@@ -86,8 +86,7 @@ using NasalDelegateModelData = nasal::Ghost<DelegateModelDataPtr>;
  * @brief storage data about each created delegate.
  *
  */
-struct DelegateData
-{
+struct DelegateData {
     DelegateData(size_t i) : index(i) {}
 
     size_t index;
@@ -261,7 +260,7 @@ int NasalItemView::yPositionForIndex(int index) const
 int NasalItemView::scrollBarHeight() const
 {
     return std::max(d->m_minScrollBarHeight,
-        (d->m_cachedCount * d->m_delegateHeight) - d->m_viewHeight);
+                    (d->m_cachedCount * d->m_delegateHeight) - d->m_viewHeight);
 }
 
 int NasalItemView::scrollBarPosition() const

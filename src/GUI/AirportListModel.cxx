@@ -11,7 +11,7 @@ using namespace std::string_literals;
 
 AirportListModel::AirportListModel() = default;
 
-void AirportListModel::setSearchTerm(const std::string &search)
+void AirportListModel::setSearchTerm(const std::string& search)
 {
     if (search == _searchTerm) {
         return;

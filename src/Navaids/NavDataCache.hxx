@@ -207,8 +207,7 @@ public:
                                          FGPositioned::Filter* aFilter);
 
 
-    struct AirportDesc
-    {
+    struct AirportDesc {
         std::string name;
         std::string icao;
         // type field

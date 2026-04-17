@@ -15,13 +15,15 @@ public:
     AirportListModel();
 
     std::string searchTerm() const
-    { return _searchTerm; }
+    {
+        return _searchTerm;
+    }
 
     /**
      * @brief Set the search term: an ICAO code or part of the airport's full name
      *
      */
-    void setSearchTerm(const std::string &search);
+    void setSearchTerm(const std::string& search);
 
     // set airport type (heliport / seaport / etc)
     //
@@ -31,6 +33,7 @@ public:
 
     size_t count() const override;
     std::any dataAt(size_t index, const std::string& key) const override;
+
 private:
     void requery();
     void useRecentAirports();

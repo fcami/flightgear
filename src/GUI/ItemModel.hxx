@@ -61,7 +61,7 @@ private:
 
     bool m_addRemoveActive = false;
     size_t m_addRemoveRow = 0,
-        m_addRemoveCount = 0;
+           m_addRemoveCount = 0;
     std::vector<ChangeCallback> m_callbacks;
     mutable size_t m_cachedCount = 0;
 };

@@ -2303,31 +2303,31 @@ NavDataCache::getOctreeLeafChildren(int64_t octreeNodeId)
 
 size_t NavDataCache::searchAirports(const std::string& query, std::vector<AirportDesc>& outResults)
 {
-  // query string too short, don't bother to search
-  if (query.length() < 2) {
-    return 0;
-  }
+    // query string too short, don't bother to search
+    if (query.length() < 2) {
+        return 0;
+    }
 
-  std::vector<AirportDesc> results;
+    std::vector<AirportDesc> results;
 
-  auto stmt = d->searchAirports;
-  const auto likeQuery = "%" + query + "%";
-  sqlite_bind_stdstring(stmt, 1, likeQuery);
-  sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
-  sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
+    auto stmt = d->searchAirports;
+    const auto likeQuery = "%" + query + "%";
+    sqlite_bind_stdstring(stmt, 1, likeQuery);
+    sqlite3_bind_int(stmt, 2, FGPositioned::AIRPORT);
+    sqlite3_bind_int(stmt, 3, FGPositioned::SEAPORT);
 
-  while (d->stepSelect(stmt)) {
-      // SELECT rowid, ident, name  →  columns 0, 1, 2
-      string ident = (char*)sqlite3_column_text(stmt, 1);
-      string name = (char*)sqlite3_column_text(stmt, 2);
-      const auto id = sqlite3_column_int64(stmt, 0);
-      results.emplace_back(name, ident, id); // AirportDesc{name, icao, id}
-  }
+    while (d->stepSelect(stmt)) {
+        // SELECT rowid, ident, name  →  columns 0, 1, 2
+        string ident = (char*)sqlite3_column_text(stmt, 1);
+        string name = (char*)sqlite3_column_text(stmt, 2);
+        const auto id = sqlite3_column_int64(stmt, 0);
+        results.emplace_back(name, ident, id); // AirportDesc{name, icao, id}
+    }
 
-  d->reset(stmt);
+    d->reset(stmt);
 
-  outResults.swap(results);
-  return outResults.size();
+    outResults.swap(results);
+    return outResults.size();
 }
 
 

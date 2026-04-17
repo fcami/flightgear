@@ -143,8 +143,7 @@ private:
     std::vector<Item> m_data;
 };
 
-void
-ItemModelTests::testCallbacks()
+void ItemModelTests::testCallbacks()
 {
     ItemModelRef m(new TrivialItemModel({{"Apples", "app"},
                                          {"Bananas", "ban"},
