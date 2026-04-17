@@ -15,6 +15,7 @@
 #include "GUI/ItemModel.hxx"
 
 #include "simgear/nasal/cppbind/NasalCallContext.hxx"
+#include "simgear/nasal/cppbind/NasalHash.hxx"
 #include "simgear/nasal/cppbind/NasalObject.hxx"
 #include "simgear/nasal/cppbind/to_nasal.hxx"
 #include "simgear/structure/SGReferenced.hxx"
