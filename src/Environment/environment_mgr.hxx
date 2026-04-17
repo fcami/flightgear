@@ -85,7 +85,6 @@ private:
     bool rebuildCloudLayers = true;
 
     simgear::TiedPropertyList _tiedProperties;
-    SGPropertyChangeListener* _3dCloudsEnableListener;
     FGEnvironmentMgrMultiplayerListener* _multiplayerListener;
     SGSky* _sky;
 

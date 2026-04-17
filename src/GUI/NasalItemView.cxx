@@ -6,11 +6,11 @@
 #include "NasalItemView.hxx"
 
 // std
+#include <algorithm>
 #include <any>
 #include <cstddef>
 #include <string>
 #include <utility>
-
 
 #include "GUI/ItemModel.hxx"
 
