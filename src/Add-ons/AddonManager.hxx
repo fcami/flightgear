@@ -17,8 +17,6 @@
 #include <simgear/props/props.hxx>
 
 #include "addon_fwd.hxx"
-#include "Addon.hxx"
-#include "AddonVersion.hxx"
 
 namespace flightgear
 {
@@ -70,6 +68,7 @@ public:
   AddonRef getAddon(const std::string& addonId) const;
   AddonVersionRef addonVersion(const std::string& addonId) const;
   SGPath addonBasePath(const std::string& addonId) const;
+  std::vector<SGPath> addonBasePaths() const;
 
   // Base node pertaining to the add-on in the Global Property Tree
   SGPropertyNode_ptr addonNode(const std::string& addonId) const;

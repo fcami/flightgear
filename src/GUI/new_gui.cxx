@@ -25,6 +25,7 @@
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
+#include <Add-ons/Addon.hxx>
 #include <Add-ons/AddonManager.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>

@@ -23,6 +23,8 @@
 #include <Main/sentryIntegration.hxx>
 
 #include <simgear/misc/ResourceManager.hxx>
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
@@ -324,6 +326,11 @@ public:
         _currentAircraftPath = p;
     }
 
+    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        return {};
+    }
+
 private:
     SGPath _currentScanPath;
     SGPath _currentAircraftPath;
@@ -354,6 +361,11 @@ public:
         }
 
         return SGPath{};
+    }
+
+    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        return {};
     }
 };
 

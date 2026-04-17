@@ -8,7 +8,6 @@
 
 #include "config.h"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -37,9 +36,8 @@
 namespace strutils = simgear::strutils;
 
 using std::string;
-using std::vector;
-using std::shared_ptr;
 using std::unique_ptr;
+using std::vector;
 
 namespace flightgear
 {
@@ -265,6 +263,15 @@ SGPath
 AddonManager::addonBasePath(const string& addonId) const
 {
   return getAddon(addonId)->getBasePath();
+}
+
+PathList AddonManager::addonBasePaths() const
+{
+    PathList paths;
+    for (const auto& element : _idToAddonMap) {
+        paths.push_back(element.second->getBasePath());
+    }
+    return paths;
 }
 
 SGPropertyNode_ptr AddonManager::addonNode(const string& addonId) const

@@ -16,6 +16,7 @@
 #include <simgear/structure/commands.hxx>
 #include <simgear/structure/exception.hxx>
 
+#include <Add-ons/Addon.hxx>
 #include <Add-ons/AddonManager.hxx>
 #include <Airports/airport.hxx>
 #include <Main/fg_props.hxx>
@@ -29,7 +30,6 @@
 #include "AIEscort.hxx"
 #include "AIGroundVehicle.hxx"
 #include "AIManager.hxx"
-#include "AIMultiplayer.hxx"
 #include "AIShip.hxx"
 #include "AIStatic.hxx"
 #include "AIStorm.hxx"

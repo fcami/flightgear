@@ -50,7 +50,6 @@
 #include "globals.hxx"
 #include "locale.hxx"
 
-#include "fg_io.hxx"
 #include "fg_props.hxx"
 
 class AircraftResourceProvider : public simgear::ResourceProvider
@@ -60,7 +59,7 @@ public:
     {
     }
 
-    virtual SGPath resolve(const std::string& aResource, SGPath&) const
+    virtual SGPath resolve(const std::string& aResource, SGPath&) const override
     {
         string_list pieces(sgPathBranchSplit(aResource));
         if ((pieces.size() < 3) || (pieces.front() != "Aircraft")) {
@@ -101,6 +100,15 @@ public:
 
         return SGPath(); // not found
     }
+
+    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        std::vector<SGPath> paths;
+        for (const SGPath& path : globals->get_aircraft_paths()) {
+            findAllOfTypeHelper(path, type, paths);
+        }
+        return paths;
+    }
 };
 
 class CurrentAircraftDirProvider : public simgear::ResourceProvider
@@ -110,11 +118,18 @@ public:
     {
     }
 
-    virtual SGPath resolve(const std::string& aResource, SGPath&) const
+    virtual SGPath resolve(const std::string& aResource, SGPath&) const override
     {
         SGPath p = SGPath::fromUtf8(fgGetString("/sim/aircraft-dir"));
         p.append(aResource);
         return p.exists() ? p : SGPath();
+    }
+
+    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        std::vector<SGPath> paths;
+        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
+        return paths;
     }
 };
 
