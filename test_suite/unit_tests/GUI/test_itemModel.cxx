@@ -460,6 +460,15 @@ void ItemModelTests::testItemView()
        # unitTest.assert_equal(6, v._delegateCount);
 
         v.dumpDelegates();
+
+        # reset model to empty: all bound delegates must have unbind() called
+        bm.labels = [];
+        bm.values = [];
+        bm.mass = [];
+        model.reset();
+
+        unitTest.assert_equal(0, v._boundDelegateCount);
+        unitTest.assert_equal(nil, v.delegateForIndex(0));
     )");
 
     CPPUNIT_ASSERT(ok);

@@ -325,6 +325,10 @@ void NasalItemView::onCallback(ItemModel::Change t, size_t row, size_t count)
     using Change = ItemModel::Change;
     switch (t) {
     case Change::Reset:
+        for (auto& dd : d->m_delegates) {
+            dd.delegate->callMethod<void>("unbind");
+            d->m_inactiveDelegates.push_back(dd.delegate);
+        }
         d->m_delegates.clear();
         d->m_cachedCount = d->m_model->count();
         d->resetExtent();
