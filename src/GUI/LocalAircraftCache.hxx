@@ -75,6 +75,7 @@ struct AircraftItem
     QUrl homepageUrl;
     QUrl wikipediaUrl;
     QUrl supportUrl;
+    QUrl communityUrl;
     QVariant status(int variant);
 
 
