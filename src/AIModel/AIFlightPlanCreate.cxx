@@ -383,12 +383,24 @@ FGTaxiRoute FGAIFlightPlan::findBestTaxiRouteToRunway(const FGAIAircraft* ac, co
         SGGeod runwayTakeoff = rwy->pointOnCenterline(5.0);
         if (gn->getVersion() > 0) {
             runwayNode = gn->findNearestNodeOnRunwayEntry(runwayTakeoff, rwy);
+            if (!runwayNode) {
+                SG_LOG(SG_AI, SG_DEV_WARN, "Could not find runwaynode findNearestNodeOnRunwayEntry " << apt->getId() << "/" << rwy->ident());
+                runwayNode = gn->findNearestNode(runwayTakeoff);
+                if (!runwayNode) {
+                    SG_LOG(SG_AI, SG_DEV_WARN, "Could not find runwaynode findNearestNode " << apt->getId() << "/" << rwy->ident());
+                    return taxiRoute;
+                }
+            }
         } else {
             runwayNode = gn->findNearestNode(runwayTakeoff);
+            if (!runwayNode) {
+                SG_LOG(SG_AI, SG_DEV_WARN, "Could not find runwaynode findNearestNode " << apt->getId() << "/" << rwy->ident());
+                return taxiRoute;
+            }
         }
         taxiRoute = gn->findShortestRoute(node, runwayNode);
         if (taxiRoute.empty()) {
-            SG_LOG(SG_AI, SG_BULK, "Could not find taxi route to " << apt->getId() << "/" << rwy->ident() << " using fallback shortest route.");
+            SG_LOG(SG_AI, SG_DEV_WARN, "Could not find taxi route to " << apt->getId() << "/" << rwy->ident() << " using fallback shortest route.");
         }
     }
     return taxiRoute;
@@ -484,7 +496,7 @@ bool FGAIFlightPlan::createRunwayTaxi(FGAIAircraft* ac, bool firstFlight,
     FGTaxiRoute taxiRoute = findBestTaxiRouteToRunway(ac, apt, rwy, gn, node);
 
     // This may happen with buggy ground networks
-    if (taxiRoute.size() <= 1) {
+    if (taxiRoute.empty()) {
         SG_LOG(SG_AI, SG_DEV_WARN, "Taxiroute too short " << apt->getId() << "creating default taxi.");
         createDefaultTakeoffTaxi(ac, apt, rwy);
         return true;
