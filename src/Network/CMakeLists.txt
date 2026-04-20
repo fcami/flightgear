@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: 2010 James Turner <james@flightgear.org>
+
 include(FlightGearComponent)
 
 set(SOURCES
@@ -81,10 +84,6 @@ flightgear_component(Network "${SOURCES}" "${HEADERS}")
 
 if (CycloneDDS_FOUND)
   add_subdirectory(DDS)
-endif()
-
-if(RTI_FOUND)
-  add_subdirectory(HLA)
 endif()
 
 add_subdirectory(http)
