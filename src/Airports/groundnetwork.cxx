@@ -153,6 +153,9 @@ bool FGTaxiRoute::next(FGTaxiNodeRef& node, int* rte)
         *rte = *(currRoute);
         ++currRoute;
     } else {
+        if (currRoute == routes.end()) {
+            throw sg_range_exception("Misconfigured taxi route");
+        }
         // Handle special case for the first node.
         *rte = -1 * *(currRoute);
     }
@@ -602,8 +605,11 @@ public:
 
 FGTaxiRoute FGGroundNetwork::findShortestRoute(FGTaxiNode* start, FGTaxiNode* end, bool fullSearch) const
 {
-    if (!start || !end) {
-        throw sg_exception("Bad arguments to findShortestRoute");
+    if (!start) {
+        throw sg_exception("Bad arguments to findShortestRoute: start node is null");
+    }
+    if (!end) {
+        throw sg_exception("Bad arguments to findShortestRoute: end node is null");
     }
     //implements Dijkstra's algorithm to find shortest distance route from start to end
     //taken from http://en.wikipedia.org/wiki/Dijkstra's_algorithm
