@@ -380,30 +380,30 @@ public:
     NavDataCache::DatFileType datFileType,
     bool verbose);
 
-    
+
     sqlite3_stmt_ptr prepareSQL(const std::string& sql)
     {
         sqlite3_stmt_ptr stmt;
         int result = sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, nullptr);
         int retries = 0;
         int retryMSec = 1;
-        
+
         while (result == SQLITE_BUSY) {
             if (retries > MAX_RETRIES) {
                 break;
             }
-            
+
             ++retries;
             SGTimeStamp::sleepForMSec(retryMSec);
             retryMSec = retryMSec << 1; // double each time
             // try again
             result = sqlite3_prepare_v2(db, sql.c_str(), sql.length(), &stmt, nullptr);
         }
-        
+
         if (result == SQLITE_OK) {
             return stmt; // common case, all good
         }
-        
+
       string errMsg;
       if (result == SQLITE_MISUSE) {
         errMsg = "Sqlite API abuse";
@@ -1356,7 +1356,7 @@ NavDataCache::NavDataCache()
         flightgear::fatalMessageBoxThenExit(
             "Missing navigation cache",
             "Unable to open navigation cache in read-only mode. Please run FlightGear in normal (writeable) mode at least once to create the cache file.",
-            "No navigation data was found at: " + dbPath.utf8Str() + "");
+            "No navigation data was found at: " + dbPath.utf8Str() + "", 1 /* exit status */, false /* don't report */);
     }
 
     const int MAX_TRIES = readOnly ? 1 : 3;
@@ -2254,7 +2254,7 @@ int NavDataCache::getOctreeBranchChildren(int64_t octreeNodeId)
         // but will still call this code speculatively.
         // see the early-return just below in defineOctreeNode
         return 0;
-    }   
+    }
 
   int children = sqlite3_column_int(d->getOctreeChildren, 0);
   d->reset(d->getOctreeChildren);
@@ -2266,7 +2266,7 @@ void NavDataCache::defineOctreeNode(Octree::Branch* pr, Octree::Node* nd)
   if (isReadOnly()) {
     return;
   }
-  
+
   sqlite3_bind_int64(d->insertOctree, 1, nd->guid());
   d->execInsert(d->insertOctree);
 
@@ -2814,7 +2814,7 @@ void NavDataCache::Transaction::commit()
     if (_instance->isReadOnly()) {
         return;
     }
-        
+
     assert(!_committed);
     _committed = true;
     _instance->commitTransaction();
