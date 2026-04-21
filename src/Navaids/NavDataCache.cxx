@@ -1356,7 +1356,7 @@ NavDataCache::NavDataCache()
         flightgear::fatalMessageBoxThenExit(
             "Missing navigation cache",
             "Unable to open navigation cache in read-only mode. Please run FlightGear in normal (writeable) mode at least once to create the cache file.",
-            "No navigation data was found at: " + dbPath.utf8Str() + "", 1 /* exit status */, false /* don't report] */);
+            "No navigation data was found at: " + dbPath.utf8Str() + "", 1 /* exit status */, false /* don't report */);
     }
 
     const int MAX_TRIES = readOnly ? 1 : 3;
