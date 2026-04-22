@@ -7,13 +7,22 @@ spec:
       type: boolean
       default: false
       description: "Clear the 'ccache' cache before starting the builds"
+
+    simgear_ref:
+      type: string
+      default: next
+      description: "Git ref of the 'simgear' artifacts to fetch"
+
+    fgdata_ref:
+      type: string
+      default: next
+      description: "Git ref of the 'fgdata' artifacts to fetch"
 ---
 
 variables:
   BUILD_DIR: "$CI_PROJECT_DIR/build"
   PREFIX_DIR: "$CI_PROJECT_DIR/dist"
   OSG_REF: next
-  BRANCH_REF: next
   # cache:key is not allowed to contain '/' characters
   BRANCH_REF_SLUG: next
   # create a root dir *above* the Simgear checkout, otherwise CMake
@@ -133,7 +142,7 @@ linux-build:
     - project: flightgear/simgear
       job: linux-build
       artifacts: true
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear_ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
@@ -168,7 +177,7 @@ linux-qt5-build:
     - project: flightgear/simgear
       job: linux-qt5-build
       artifacts: true
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear_ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
@@ -246,7 +255,7 @@ windows-build:
   needs:
     - project: flightgear/simgear
       job: windows-build
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear_ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: windows_build
@@ -295,7 +304,7 @@ macos-build:
   needs:
     - project: flightgear/simgear
       job: macos-build
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear_ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: macos-build
@@ -325,7 +334,7 @@ test:
       artifacts: true
     - project: flightgear/fgdata
       job: create-test-data
-      ref: $BRANCH_REF
+      ref: $[[ inputs.fgdata_ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: linux-build
