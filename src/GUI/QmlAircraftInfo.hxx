@@ -92,6 +92,7 @@ class QmlAircraftInfo : public QObject
     Q_PROPERTY(QUrl homePage READ homePage NOTIFY infoChanged)
     Q_PROPERTY(QUrl supportUrl READ supportUrl NOTIFY infoChanged)
     Q_PROPERTY(QUrl wikipediaUrl READ wikipediaUrl NOTIFY infoChanged)
+    Q_PROPERTY(QUrl communityUrl READ communityUrl NOTIFY infoChanged)
 
     Q_PROPERTY(QuantityValue cruiseSpeed READ cruiseSpeed NOTIFY infoChanged)
     Q_PROPERTY(QuantityValue cruiseAltitude READ cruiseAltitude NOTIFY infoChanged)
@@ -124,6 +125,7 @@ public:
     QUrl homePage() const;
     QUrl supportUrl() const;
     QUrl wikipediaUrl() const;
+    QUrl communityUrl() const;
 
     QString packageId() const;
     quint64 packageSize() const;

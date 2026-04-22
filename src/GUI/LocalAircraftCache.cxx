@@ -41,7 +41,7 @@
 
 #include "SettingsWrapper.hxx"
 
-static quint32 CACHE_VERSION = 13;
+static quint32 CACHE_VERSION = 14;
 
 const std::vector<QByteArray> static_localizedStringTags = {"name", "desc"};
 
@@ -162,6 +162,7 @@ bool AircraftItem::initFromFile(QDir dir, QString filePath)
     homepageUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/home-page")));
     supportUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/support")));
     wikipediaUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/wikipedia")));
+    communityUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/community")));
 
     _localized.push_front(ls);
     readLocalizedStrings(sim);
@@ -245,7 +246,7 @@ void AircraftItem::fromDataStream(QDataStream& ds)
     ds >> thumbnailPath;
     ds >> minFGVersion;
     ds >> needsMaintenance >> usesHeliports >> usesSeaports;
-    ds >> homepageUrl >> supportUrl >> wikipediaUrl;
+    ds >> homepageUrl >> supportUrl >> wikipediaUrl >> communityUrl;
     ds >> tags;
     ds >> _localized;
 
@@ -265,7 +266,7 @@ void AircraftItem::toDataStream(QDataStream& ds) const
     ds << thumbnailPath;
     ds << minFGVersion;
     ds << needsMaintenance << usesHeliports << usesSeaports;
-    ds << homepageUrl << supportUrl << wikipediaUrl;
+    ds << homepageUrl << supportUrl << wikipediaUrl << communityUrl;
     ds << tags;
     ds << _localized;
 }

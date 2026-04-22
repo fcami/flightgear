@@ -143,6 +143,12 @@ Rectangle {
                         label: qsTr("Support and issue reporting")
                         link: aircraft.supportUrl
                     }
+                    
+                    Weblink {
+                        visible: aircraft.communityUrl != ""
+                        label: qsTr("Community")
+                        link: aircraft.communityUrl
+                    }
 
                     Weblink {
                         visible: aircraft.wikipediaUrl != ""
