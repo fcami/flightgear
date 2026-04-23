@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	apt_loader.cxx
 	dynamicloader.cxx
 	dynamics.cxx
@@ -19,9 +19,6 @@ set(SOURCES
 	xmlloader.cxx
 	airportdynamicsmanager.cxx
 	AirportBuilder.cxx
-	)
-
-set(HEADERS
 	airports_fwd.hxx
 	apt_loader.hxx
 	dynamicloader.hxx
@@ -39,6 +36,4 @@ set(HEADERS
 	xmlloader.hxx
 	airportdynamicsmanager.hxx
 	AirportBuilder.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

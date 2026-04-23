@@ -12,8 +12,7 @@ if(MSVC)
     set(MS_RESOURCE_FILE flightgear.rc)
 endif(MSVC)
 
-set(SOURCES
-
+target_sources(fgfsObjects PRIVATE
     fg_commands.cxx
     fg_init.cxx
     fg_io.cxx
@@ -33,9 +32,6 @@ set(SOURCES
     util.cxx
     ErrorReporter.cxx
     ${MS_RESOURCE_FILE}
-)
-
-set(HEADERS
     AircraftDirVisitorBase.hxx
     fg_commands.hxx
     fg_init.hxx
@@ -55,8 +51,6 @@ set(HEADERS
     ErrorReporter.hxx
     sentryIntegration.hxx
 )
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sentryIntegration.cxx")
 
 # the main() function

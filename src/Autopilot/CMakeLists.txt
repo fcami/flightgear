@@ -1,5 +1,5 @@
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	analogcomponent.cxx
 	autopilot.cxx
 	autopilotgroup.cxx
@@ -12,9 +12,6 @@ set(SOURCES
 	pisimplecontroller.cxx
 	predictor.cxx
 	route_mgr.cxx
-	)
-	
-set(HEADERS
 	analogcomponent.hxx
 	autopilot.hxx
 	autopilotgroup.hxx
@@ -27,6 +24,4 @@ set(HEADERS
 	pisimplecontroller.hxx
 	predictor.hxx
 	route_mgr.hxx
-	)
-    	
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)
