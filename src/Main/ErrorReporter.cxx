@@ -243,16 +243,25 @@ public:
         _manifestLoaded = true; // set before loading to prevent re-entry
 
         const SGPath manifestPath = globals->findDataPath("SharedModelsManifest.json");
-        sg_ifstream in(manifestPath);
+        sg_gzifstream in(manifestPath);
         if (!in.is_open()) {
             SG_LOG(SG_GENERAL, SG_WARN, "SharedModelsManifest.json not found at: " << manifestPath);
             return;
         }
 
         const auto content = in.read_all();
-        cJSON* json = cJSON_Parse(content.c_str());
+        cJSON* json = cJSON_Parse(reinterpret_cast<const char*>(content.data()));
         if (!json) {
             SG_LOG(SG_GENERAL, SG_DEV_ALERT, "Failed to parse SharedModelsManifest.json");
+            return;
+        }
+
+        // custom deleter to ensure JSON is freed on all exit paths
+        std::unique_ptr<cJSON, decltype(&cJSON_Delete)> jsonPtr(json, &cJSON_Delete);
+
+        cJSON* schemaVersion = cJSON_GetObjectItem(json, "schemaVersion");
+        if (!schemaVersion || schemaVersion->type != cJSON_Number || schemaVersion->valueint != 1) {
+            SG_LOG(SG_GENERAL, SG_DEV_ALERT, "Unsupported schema version in SharedModelsManifest.json");
             return;
         }
 
@@ -266,7 +275,6 @@ public:
                 }
             }
         }
-        cJSON_Delete(json);
         SG_LOG(SG_GENERAL, SG_INFO, "Loaded SharedModelsManifest.json with " << _sharedModelsManifest.size() << " entries");
     }
 
