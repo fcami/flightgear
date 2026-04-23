@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
 	httpd.cxx
@@ -35,4 +34,4 @@ set(HEADERS
     SimpleDOM.hxx
 	)
 
-flightgear_component(Http "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

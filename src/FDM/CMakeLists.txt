@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 if(SP_FDMS)
 set(SP_FDM_SOURCES
@@ -51,7 +50,7 @@ set(HEADERS
 	ls_matrix.h
 	)
 
-flightgear_component(FDM "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 
 if(ENABLE_YASIM)
 	add_subdirectory(YASim)

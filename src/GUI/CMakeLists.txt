@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2010 James Turner <james@flightgear.org>
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES
     AirportListModel.cxx
@@ -247,7 +246,7 @@ if (HAVE_QT)
 endif()
 
 
-flightgear_component(GUI "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 
 if (APPLE)
     # PCH doesn't work for Objective-C++

@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
   canvas_mgr.cxx
@@ -14,4 +13,5 @@ set(HEADERS
 )
 
 # gui_mgr.cxx is compiled differently for testing
-flightgear_component(Canvas "${SOURCES}" "${HEADERS}"  gui_mgr.cxx)
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gui_mgr.cxx")

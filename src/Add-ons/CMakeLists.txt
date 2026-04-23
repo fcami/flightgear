@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2017 Florent Rougon
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES Addon.cxx
             AddonManager.cxx
@@ -23,4 +22,4 @@ set(HEADERS addon_fwd.hxx
             pointer_traits.hxx
             )
 
-flightgear_component(AddonManagement "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

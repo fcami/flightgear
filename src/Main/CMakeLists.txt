@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # CMake module includes.
-include(FlightGearComponent)
 include(SetupFGFSBundle)
 include(SetupFGFSEmbeddedResources)
 include(SetupFGFSIncludes)
@@ -57,7 +56,8 @@ set(HEADERS
     sentryIntegration.hxx
 )
 
-flightgear_component(Main "${SOURCES}" "${HEADERS}" sentryIntegration.cxx)
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/sentryIntegration.cxx")
 
 # the main() function
 set(MAIN_SOURCE

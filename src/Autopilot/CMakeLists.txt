@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
 	analogcomponent.cxx
@@ -30,4 +29,4 @@ set(HEADERS
 	route_mgr.hxx
 	)
     	
-flightgear_component(Autopilot "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

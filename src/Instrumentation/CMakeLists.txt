@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
     AbstractInstrument.cxx
@@ -71,4 +70,4 @@ set(HEADERS
 )
 
 
-flightgear_component(Instruments "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

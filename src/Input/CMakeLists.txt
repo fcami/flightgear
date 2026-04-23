@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
-include(FlightGearComponent)
 
 IF(APPLE)
 	# no Mac implementation, use HID
@@ -96,4 +95,4 @@ if (ENABLE_HID_INPUT)
 	endif()
 endif()
 
-flightgear_component(Input "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
-include(FlightGearComponent)
 
 set(SOURCES
         AirportGroundRadar.cxx
@@ -35,4 +34,4 @@ set(HEADERS
         QuadTree.hxx
 	)
 
-flightgear_component(ATC "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

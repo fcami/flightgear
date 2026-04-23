@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
 	swift_connection.cxx
@@ -29,4 +28,4 @@ set(HEADERS
 	SwiftAircraftManager.h
 	)
     	
-flightgear_component(Swift "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(COMMON
 	Airplane.cpp
@@ -36,7 +35,7 @@ set(SOURCES
 	FGGround.cpp
 	)
 
-flightgear_component(YASim  "${SOURCES}")
+target_sources(fgfsObjects PRIVATE ${SOURCES})
 
 add_executable(yasim yasim-test.cpp ${COMMON})
 add_executable(yasim-proptest proptest.cpp ${COMMON})

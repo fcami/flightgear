@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
-include(FlightGearComponent)
 
 set(SOURCES
 	SchedFlight.cxx
@@ -15,4 +14,4 @@ set(HEADERS
 )
 
 
-flightgear_component(Traffic "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

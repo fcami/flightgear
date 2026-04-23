@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
 	SceneryPager.cxx
@@ -23,4 +22,4 @@ set(HEADERS
 	marker.hxx
 	)
 
-flightgear_component(Scenery "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

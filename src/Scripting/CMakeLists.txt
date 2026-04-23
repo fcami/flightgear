@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES
   nasal-props.cxx
@@ -66,4 +65,5 @@ endif()
 # NasalSys.cxx is passed as TEST_SOURCES since we need to compile it
 # separately when building the test_suite
 
-flightgear_component(Scripting "${SOURCES}" "${HEADERS}"  NasalSys.cxx)
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/NasalSys.cxx")

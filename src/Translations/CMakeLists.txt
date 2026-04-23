@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Florent Rougon
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES DefaultTranslationParser.cxx
             FGTranslate.cxx
@@ -21,4 +20,4 @@ set(HEADERS DefaultTranslationParser.hxx
             XLIFFParser.hxx
             )
 
-flightgear_component(Translations "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

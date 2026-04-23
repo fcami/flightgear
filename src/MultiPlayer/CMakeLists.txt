@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
 	multiplaymgr.cxx
@@ -17,4 +16,4 @@ set(HEADERS
 	mpmessages.hxx
 	)
     	
-flightgear_component(MultiPlayer "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(HEADERS
     FGFDMExec.h

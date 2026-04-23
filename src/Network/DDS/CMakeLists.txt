@@ -1,4 +1,3 @@
-include(FlightGearComponent)
 
 set(SOURCES
         dds_ctrls.c
@@ -31,4 +30,4 @@ add_executable(fg_dds_prop
 setup_fgfs_libraries(fg_dds_prop)
 
 
-flightgear_component(Network "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

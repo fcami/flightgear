@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
-include(FlightGearComponent)
 
 set(SOURCES
 	audioident.cxx
@@ -30,7 +29,7 @@ set(HEADERS
 	flitevoice.hxx
 	)
 
-flightgear_component(Sound "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 
 add_library(fgvoicesynth STATIC VoiceSynthesizer.cxx flitevoice.cxx)
 target_link_libraries(fgvoicesynth PRIVATE flightgear_flite_hts SimGearScene)

@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
-include(FlightGearComponent)
 
 set(SOURCES
 	acmodel.cxx
@@ -15,4 +14,4 @@ set(HEADERS
 	validateSharedModels.hxx
 	)
 
-flightgear_component(Model "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
