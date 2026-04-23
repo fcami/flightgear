@@ -182,7 +182,7 @@ void ItemModelTests::testPropertyModel()
     m->setLabelPath("legend");
     m->setValuePath("shelf");
 
-    CPPUNIT_ASSERT_EQUAL(m->count(), 3UL);
+    CPPUNIT_ASSERT_EQUAL(m->count(), size_t{3});
     CPPUNIT_ASSERT_EQUAL(std::any_cast<std::string>(m->dataAt(2, "label")), "Lime"s);
     CPPUNIT_ASSERT_EQUAL(std::any_cast<int>(m->dataAt(1, "value")), 42);
 
@@ -195,7 +195,7 @@ void ItemModelTests::testPropertyModel()
     });
 
     props->setStringValue("fruit[1]/legend", "Grape");
-    CPPUNIT_ASSERT_EQUAL(obs.events.size(), 3UL);
+    CPPUNIT_ASSERT_EQUAL(obs.events.size(), size_t{3});
     const auto ev0 = obs.events.at(0);
     CPPUNIT_ASSERT_EQUAL(ev0.change, ItemModel::Change::RowsWillBeAdded);
     CPPUNIT_ASSERT_EQUAL(ev0.row, 1);
@@ -206,7 +206,7 @@ void ItemModelTests::testPropertyModel()
     CPPUNIT_ASSERT_EQUAL(ev1.row, 1);
     CPPUNIT_ASSERT_EQUAL(ev1.count, 1);
 
-    CPPUNIT_ASSERT_EQUAL(m->count(), 4UL);
+    CPPUNIT_ASSERT_EQUAL(m->count(), size_t{4});
     obs.events.clear();
 
     props->setIntValue("fruit[1]/shelf", 99);
@@ -480,7 +480,7 @@ void ItemModelTests::testAirportListModelSearch()
 
     // A term shorter than 3 characters should leave the model empty without crashing.
     m->setSearchTerm("ED");
-    CPPUNIT_ASSERT_EQUAL(0UL, m->count());
+    CPPUNIT_ASSERT_EQUAL(size_t{0}, m->count());
 
     // Partial ICAO prefix "EDD" should match the family of German airports
     // (EDDF Frankfurt, EDDM Munich, EDDL Düsseldorf, …).
@@ -558,7 +558,7 @@ void ItemModelTests::testAirportListModelRecents()
     SGSharedPtr<AirportListModel> m(new AirportListModel);
 
     // No search term, no recents: model should be empty.
-    CPPUNIT_ASSERT_EQUAL(0UL, m->count());
+    CPPUNIT_ASSERT_EQUAL(size_t{0}, m->count());
 
     // Populate recents.
     FGAirportRef egnt = FGAirport::findByIdent("EGNT"); // Newcastle
@@ -580,7 +580,7 @@ void ItemModelTests::testAirportListModelRecents()
     });
 
     m->setSearchTerm("");
-    CPPUNIT_ASSERT_EQUAL(2UL, m->count());
+    CPPUNIT_ASSERT_EQUAL(size_t{2}, m->count());
 
     // The recents callback must have fired a Reset.
     CPPUNIT_ASSERT(!obs.events.empty());

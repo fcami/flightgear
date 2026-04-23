@@ -208,6 +208,10 @@ public:
 
 
     struct AirportDesc {
+        AirportDesc(const std::string& name, const std::string& icao, PositionedID id)
+            : name(name), icao(icao), id(id) {
+              };
+
         std::string name;
         std::string icao;
         PositionedID id; ///< positioned DB row id
