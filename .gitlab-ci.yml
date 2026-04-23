@@ -8,15 +8,14 @@ spec:
       default: false
       description: "Clear the 'ccache' cache before starting the builds"
 
-    simgear_ref:
-      type: string
+    simgear-ref:
       default: next
       description: "Git ref of the 'simgear' artifacts to fetch"
 
-    fgdata_ref:
-      type: string
+    fgdata-ref:
       default: next
-      description: "Git ref of the 'fgdata' artifacts to fetch"
+      description: >
+        Git ref of the 'fgdata' artifacts to fetch for running the test suite
 ---
 
 variables:
@@ -142,7 +141,7 @@ linux-build:
     - project: flightgear/simgear
       job: linux-build
       artifacts: true
-      ref: $[[ inputs.simgear_ref ]]
+      ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
@@ -177,7 +176,7 @@ linux-qt5-build:
     - project: flightgear/simgear
       job: linux-qt5-build
       artifacts: true
-      ref: $[[ inputs.simgear_ref ]]
+      ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
       ref: $OSG_REF
@@ -255,7 +254,7 @@ windows-build:
   needs:
     - project: flightgear/simgear
       job: windows-build
-      ref: $[[ inputs.simgear_ref ]]
+      ref: $[[ inputs.simgear-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: windows_build
@@ -304,7 +303,7 @@ macos-build:
   needs:
     - project: flightgear/simgear
       job: macos-build
-      ref: $[[ inputs.simgear_ref ]]
+      ref: $[[ inputs.simgear-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: macos-build
@@ -334,7 +333,7 @@ test:
       artifacts: true
     - project: flightgear/fgdata
       job: create-test-data
-      ref: $[[ inputs.fgdata_ref ]]
+      ref: $[[ inputs.fgdata-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: linux-build
