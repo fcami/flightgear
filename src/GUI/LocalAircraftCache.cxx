@@ -147,6 +147,7 @@ bool AircraftItem::initFromFile(QDir dir, QString filePath)
     homepageUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/home-page")));
     supportUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/support")));
     wikipediaUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/wikipedia")));
+    communityUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/community")));
 
     _localized.push_front(ls);
     readLocalizedStrings(sim);
@@ -230,7 +231,7 @@ void AircraftItem::fromDataStream(QDataStream& ds)
     ds >> thumbnailPath;
     ds >> declaredCompatible;
     ds >> needsMaintenance >> usesHeliports >> usesSeaports;
-    ds >> homepageUrl >> supportUrl >> wikipediaUrl;
+    ds >> homepageUrl >> supportUrl >> wikipediaUrl >> communityUrl;
     ds >> tags;
     ds >> _localized;
 
@@ -250,7 +251,7 @@ void AircraftItem::toDataStream(QDataStream& ds) const
     ds << thumbnailPath;
     ds << declaredCompatible;
     ds << needsMaintenance << usesHeliports << usesSeaports;
-    ds << homepageUrl << supportUrl << wikipediaUrl;
+    ds << homepageUrl << supportUrl << wikipediaUrl << communityUrl;
     ds << tags;
     ds << _localized;
 }

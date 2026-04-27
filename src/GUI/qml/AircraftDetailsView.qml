@@ -147,6 +147,12 @@ Rectangle {
                     }
 
                     Weblink {
+                        visible: aircraft.communityUrl != ""
+                        label: qsTr("Community")
+                        link: aircraft.communityUrl
+                    }
+
+                    Weblink {
                         visible: aircraft.wikipediaUrl != ""
                         label: qsTr("Wikipedia")
                         link: aircraft.wikipediaUrl

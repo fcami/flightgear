@@ -536,6 +536,18 @@ QUrl QmlAircraftInfo::wikipediaUrl() const
     return {};
 }
 
+QUrl QmlAircraftInfo::communityUrl() const
+{
+    if (_item) {
+        return resolveItem()->communityUrl;
+    } else if (_package) {
+        const auto u = _package->getLocalisedProp("urls/community");
+        return QUrl(QString::fromStdString(u));
+    }
+
+    return {};
+}
+
 QString QmlAircraftInfo::packageId() const
 {
     if (_package) {
