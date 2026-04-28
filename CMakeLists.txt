@@ -305,7 +305,8 @@ find_package(OpenSceneGraph 3.6.0 REQUIRED
 ##############################################################################
 ## Sentry.io setup
 if (ENABLE_SENTRY)
-    find_package(sentry QUIET)
+    # logging API needs sentry-native >= 0.11.1
+    find_package(sentry 0.11.1 QUIET)
 
     # Worth nothing that while this *looks* sketchy, DSNs are fundamentally public ingestion
     # endpoints and not truly protectable secrets.
@@ -315,7 +316,7 @@ if (ENABLE_SENTRY)
         message(STATUS "Sentry.io crash reporting enabled")
         set(HAVE_SENTRY 1)
     else()
-        message(STATUS "Sentry.io crash reporting disabled, Sentry SDK not found")
+        message(STATUS "Sentry.io crash reporting disabled, Sentry SDK not found (required version is 0.11.1 or higher)")
     endif()
 else()
     message(STATUS "Sentry.io crash reporting disabled")
@@ -374,7 +375,7 @@ if (ENABLE_QT)
     # short-circuit the check in FindWrapOpenGL.cmake, to avoid looking for
     # AGL.frameowkr, which is removed from the Apple SDKs now
     set(WrapOpenGL_AGL "-framework OpenGL")
-    
+
     find_package(QT NAMES ${qtNames} COMPONENTS Core)
     if (QT_FOUND)
         if (${QT_VERSION_MAJOR} EQUAL "5")
@@ -385,7 +386,7 @@ if (ENABLE_QT)
         if (NOT Qt${QT_VERSION_MAJOR}Widgets_FOUND)
             message(FATAL_ERROR "Qt support enabled, Qt was found but some required packages are missing, stopping.")
         endif()
-    
+
         set(HAVE_QT 1)
         include (Translations)
 
@@ -397,7 +398,7 @@ if (ENABLE_QT)
         endif()
 
         set(CMAKE_AUTOMOC OFF)
-        
+
         message(STATUS "Qt GUI enabled, found Qt at: ${FG_QT_ROOT_DIR}")
     else()
         message(STATUS "Qt support disabled, Qt/qmake not found in PATH/CMAKE_PREFIX_PATH")
@@ -425,7 +426,7 @@ message(STATUS "Min Simgear version is ${MIN_SIMGEAR_VERSION}")
 if (TARGET SimGearCore)
     message(STATUS "Simgear targets exist, assuming superbuild")
 
-    # since we don't find(SimGear), we need to 
+    # since we don't find(SimGear), we need to
     # find a few dependencies directly
     if (SG_SOUND_USES_OPENALSOFT)
         message((STATUS "Finding OpenAL"))
@@ -468,7 +469,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS_RELWITHDEBINFO  "-O3 -g -DNDEBUG")
 
     if(HAVE_QT)
-        # if Qt is built with reduce-relocations, applicatino code 
+        # if Qt is built with reduce-relocations, applicatino code
         # needs to be compiled with -fPIC to match
         set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     endif()
