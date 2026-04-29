@@ -53,6 +53,7 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testDoublePress);
     CPPUNIT_TEST(testLongPress);
     CPPUNIT_TEST(testRepeatableWithLongPress);
+    CPPUNIT_TEST(testNasalDevice);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -70,6 +71,7 @@ public:
     void testDoublePress();
     void testLongPress();
     void testRepeatableWithLongPress();
+    void testNasalDevice();
 
 private:
     TestCommandHandler _simpleCmd;

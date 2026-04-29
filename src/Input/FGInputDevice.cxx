@@ -7,10 +7,12 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/debug_types.h>
 #include <simgear/misc/strutils.hxx>
+#include <simgear/nasal/cppbind/Ghost.hxx>
 #include <simgear/structure/exception.hxx>
 
 #include <Main/fg_props.hxx>
@@ -53,6 +55,15 @@ FGInputDevice::~FGInputDevice()
         debug->removeChangeListener(_configListener.get());
     }
 }
+
+static naRef createNasalGhost(FGInputDevice_ptr ref, naContext c)
+{
+    using NasalInputDevice = nasal::Ghost<FGInputDevice_ptr>;
+
+    // We need a non-const shared pointer for the ghost system
+    return NasalInputDevice::makeGhost(c, ref);
+}
+
 
 void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
 {
@@ -101,13 +112,28 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
     lastEventValue->setDoubleValue(0.0);
 
     SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
-    if (nasal) {
+    auto nas = globals->get_subsystem<FGNasalSys>();
+
+    if (nasal && nas) {
+        // pre-create the module hash, so device property is available
+        // immediately, eg during <open> code
+        naContext c = naNewContext();
+        naRef module = nas->getModule(nasalModule, true /*create*/);
+        naRef ghost = createNasalGhost(this, c);
+        nasal::Hash moduleHash(module, c);
+        moduleHash.set("device", ghost);
+        naFreeContext(c);
+
         SGPropertyNode_ptr open = nasal->getNode("open");
         if (open) {
             const string s = open->getStringValue();
-            auto nas = globals->get_subsystem<FGNasalSys>();
-            if (nas)
-                nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            bool ok = nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            if (!ok) {
+                simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                                       simgear::ErrorCode::InputDeviceConfig,
+                                       "Failed to load device Nasal",
+                                       sg_location(open));
+            }
         }
     }
 

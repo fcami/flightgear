@@ -54,19 +54,31 @@ public:
         _lastOutputReportData = data;
     }
 
+    void SendFeatureReport(unsigned int reportId, const simgear::UInt8Vector& data) override
+    {
+        _lastFeatureReportId = reportId;
+        _lastFeatureReportData = data;
+    }
+
     void clearReport()
     {
         _lastOutputReportId = 0;
         _lastOutputReportData.clear();
+        _lastFeatureReportId = 0;
+        _lastFeatureReportData.clear();
     }
 
     unsigned int getLastOutputReportId() const { return _lastOutputReportId; }
     const simgear::UInt8Vector& getLastOutputReportData() const { return _lastOutputReportData; }
+    unsigned int getLastFeatureReportId() const { return _lastFeatureReportId; }
+    const simgear::UInt8Vector& getLastFeatureReportData() const { return _lastFeatureReportData; }
 
 private:
     std::string _translatedName;
     unsigned int _lastOutputReportId = 0;
     simgear::UInt8Vector _lastOutputReportData;
+    unsigned int _lastFeatureReportId = 0;
+    simgear::UInt8Vector _lastFeatureReportData;
 };
 
 // ---------------------------------------------------------------------------
@@ -77,14 +89,14 @@ private:
 static SGSharedPtr<TestInputDevice> makeDevice(const std::string& name,
                                                const std::string& xmlSnippet)
 {
-    auto* device = new TestInputDevice(name);
+    SGSharedPtr<TestInputDevice> device = new TestInputDevice(name);
     device->SetUniqueName(name);
 
     // Parse the XML snippet into a fresh, standalone property node
     SGPropertyNode_ptr node = FGTestApi::propsFromString(xmlSnippet);
 
     device->Configure(node);
-    return SGSharedPtr<TestInputDevice>(device);
+    return device;
 }
 
 // ---------------------------------------------------------------------------
@@ -986,6 +998,53 @@ void InputDeviceTests::testRepeatableWithLongPress()
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
     CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
     CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // still only from scenario 1
+}
+
+// ---------------------------------------------------------------------------
+// testNasalDevice
+//
+// Verify that sendFeatureReport() can be called from inside the <nasal><open>
+// block of a device XML config, and that the call reaches the device's
+// SendFeatureReport override.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testNasalDevice()
+{
+    // Initialize Nasal for this test (same setup as ReportSettingTests)
+    fgInitAllowedPaths();
+    globals->get_props()->getNode("nasal", true);
+    globals->get_subsystem_mgr()->add<FGInterpolator>();
+    globals->get_subsystem_mgr()->bind();
+    globals->get_subsystem_mgr()->init();
+
+    global_nasalMinimalInit = false;
+    globals->get_subsystem_mgr()->add<FGNasalSys>();
+    globals->get_subsystem_mgr()->postinit();
+
+    auto device = makeDevice("nasal-test-device", R"(
+        <PropertyList>
+          <nasal>
+            <open>
+              <![CDATA[
+                logprint(LOG_INFO, "In nasal open block");
+                device.sendFeatureReport(42, [10, 20, 30]);
+                logprint(LOG_INFO, "After sendFeatureReport in nasal open block");
+              ]]>
+            </open>
+          </nasal>
+        </PropertyList>
+    )");
+
+    // The <nasal><open> block is evaluated during Configure(), so
+    // SendFeatureReport should have been called already.
+    CPPUNIT_ASSERT_EQUAL(42u, device->getLastFeatureReportId());
+    auto bytes = device->getLastFeatureReportData();
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(10), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(20), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
+
+    // Clean up Nasal
+    global_nasalMinimalInit = false;
 }
 
 // ReportSettingTests setUp / tearDown
