@@ -16,12 +16,15 @@ spec:
       default: next
       description: >
         Git ref of the 'fgdata' artifacts to fetch for running the test suite
+
+    openscenegraph-ref:
+      default: next
+      description: "Git ref of the 'openscenegraph' artifacts to fetch"
 ---
 
 variables:
   BUILD_DIR: "$CI_PROJECT_DIR/build"
   PREFIX_DIR: "$CI_PROJECT_DIR/dist"
-  OSG_REF: next
   # cache:key is not allowed to contain '/' characters
   BRANCH_REF_SLUG: next
   # create a root dir *above* the Simgear checkout, otherwise CMake
@@ -144,7 +147,7 @@ linux-build:
       ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
     key: linux-amd64-$BRANCH_REF_SLUG
@@ -179,7 +182,7 @@ linux-qt5-build:
       ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
     key: linux-amd64-qt5-$BRANCH_REF_SLUG
@@ -258,7 +261,7 @@ windows-build:
       artifacts: true
     - project: flightgear/openscenegraph
       job: windows_build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
     - project: flightgear/windows-3rd-party
       job: windows_build_msvc140
@@ -307,7 +310,7 @@ macos-build:
       artifacts: true
     - project: flightgear/openscenegraph
       job: macos-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
     - project: flightgear/macos-3rd-party
       job: macos-build
@@ -337,7 +340,7 @@ test:
       artifacts: true
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   artifacts:
     # Note that the artifacts in artifacts:reports are _always_ uploaded,
