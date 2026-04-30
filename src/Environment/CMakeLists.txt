@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	atmosphere.cxx
 	environment.cxx
 	environment_ctrl.cxx
@@ -20,9 +20,6 @@ set(SOURCES
 	presets.cxx
 	gravity.cxx
     magvarmanager.cxx
-	)
-
-set(HEADERS
 	atmosphere.hxx
 	environment.hxx
 	environment_ctrl.hxx
@@ -40,6 +37,4 @@ set(HEADERS
 	presets.hxx
 	gravity.hxx
 	magvarmanager.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

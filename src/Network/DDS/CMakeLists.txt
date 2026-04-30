@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2020 Erik Hofman
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(SOURCES
         dds_ctrls.c

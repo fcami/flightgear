@@ -2,16 +2,11 @@
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	acmodel.cxx
 	modelmgr.cxx
 	validateSharedModels.cxx
-	)
-
-set(HEADERS
 	acmodel.hxx
 	modelmgr.hxx
 	validateSharedModels.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

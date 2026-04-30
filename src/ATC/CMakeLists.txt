@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
         AirportGroundRadar.cxx
 	atc_mgr.cxx
 	trafficcontrol.cxx
@@ -15,9 +15,6 @@ set(SOURCES
         GroundController.cxx
         StartupController.cxx
         TowerController.cxx
-	)
-
-set(HEADERS
         AirportGroundRadar.hxx
 	atc_mgr.hxx
 	trafficcontrol.hxx
@@ -32,6 +29,4 @@ set(HEADERS
         StartupController.hxx
         TowerController.hxx
         QuadTree.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

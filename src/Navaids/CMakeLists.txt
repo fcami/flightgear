@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	airways.cxx
 	fixlist.cxx
 	markerbeacon.cxx
@@ -21,9 +21,6 @@ set(SOURCES
     PositionedOctree.cxx
     PolyLine.cxx
     SHPParser.cxx
-	)
-
-set(HEADERS
     airways.hxx
 	fixlist.hxx
 	markerbeacon.hxx
@@ -43,6 +40,4 @@ set(HEADERS
     PolyLine.hxx
     SHPParser.hxx
     CacheSchema.h
-    )
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

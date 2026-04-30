@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	audioident.cxx
 	soundgenerator.cxx
 	beacon.cxx
@@ -12,10 +12,6 @@ set(SOURCES
 	voice.cxx
 	voiceplayer.cxx
 	soundmanager.cxx
-
-	)
-
-set(HEADERS
 	audioident.hxx
 	soundgenerator.hxx
 	beacon.hxx
@@ -27,9 +23,7 @@ set(HEADERS
 	soundmanager.hxx
 	VoiceSynthesizer.hxx
 	flitevoice.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)
 
 add_library(fgvoicesynth STATIC VoiceSynthesizer.cxx flitevoice.cxx)
 target_link_libraries(fgvoicesynth PRIVATE flightgear_flite_hts SimGearScene)

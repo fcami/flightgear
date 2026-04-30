@@ -2,21 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	electrical.cxx
 	pitot.cxx
 	static.cxx
 	system_mgr.cxx
 	vacuum.cxx
-	)
-
-set(HEADERS
 	electrical.hxx
 	pitot.hxx
 	static.hxx
 	system_mgr.hxx
 	vacuum.hxx
-	)
-
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)

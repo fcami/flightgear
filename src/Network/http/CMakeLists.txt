@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2014 Torsten Dreyer
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	httpd.cxx
 	ScreenshotUriHandler.cxx
 	PropertyUriHandler.cxx
@@ -13,9 +15,6 @@ set(SOURCES
 	PropertyChangeObserver.cxx
 	jsonprops.cxx
 	SimpleDOM.cxx
-	)
-
-set(HEADERS
 	urihandler.hxx
 	httpd.hxx
 	ScreenshotUriHandler.hxx
@@ -32,6 +31,4 @@ set(HEADERS
 	MirrorPropertyTreeWebsocket.hxx
 	jsonprops.hxx
     SimpleDOM.hxx
-	)
-
-target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
+)
