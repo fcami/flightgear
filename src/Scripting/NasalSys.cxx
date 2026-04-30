@@ -62,6 +62,8 @@
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
 
+#include <GUI/new_gui.hxx>
+
 using std::map;
 using std::string;
 using std::vector;
@@ -1121,6 +1123,8 @@ void FGNasalSys::init()
         initNasalCondition(d->_globals, d->_context);
         initNasalHTTP(d->_globals, d->_context);
         initNasalSGPath(d->_globals, d->_context);
+
+        NewGUI::registerNasalBindings(this);
     }
 
     NasalTimerObj::init("Timer")
@@ -1155,6 +1159,7 @@ void FGNasalSys::init()
     loadScriptDirectory(nasalDir,
                         globals->get_props()->getNode("/sim/nasal-load-priority"),
                         fgGetBool("/sim/gui/startup"));
+
 
     // Add modules in Nasal subdirectories to property tree
     simgear::PathList directories = nasalDir.children(simgear::Dir::TYPE_DIR+
@@ -1519,6 +1524,7 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
     if (naIsNil(d->_globals))
         return false;
 
+    bool didCreateModule = false;
     if (!naHash_get(d->_globals, modname, &locals)) {
         // if we are re-creating the module for canvas, ensure the C++
         // pieces are re-defined first. As far as I can see, Canvas is the only
@@ -1530,6 +1536,7 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
         } else {
             locals = naNewHash(ctx);
         }
+        didCreateModule = true;
     }
 
     // store the filename in the module hash, so we could reload it
@@ -1542,7 +1549,10 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
 
     d->_cmdArg = (SGPropertyNode*)cmdarg;
     callWithContext(ctx, code, argc, args, locals);
-    hashset(d->_globals, moduleName, locals);
+
+    if (didCreateModule) {
+        hashset(d->_globals, moduleName, locals);
+    }
 
     naFreeContext(ctx);
     return true;
@@ -1621,10 +1631,8 @@ naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 {
     naRef mod = naHash_cget(d->_globals, (char*)moduleName.c_str());
     if (naIsNil(mod) && create) {
-        naContext ctx = naNewContext();
-        mod = naNewHash(ctx);
+        mod = naNewHash(d->_context);
         naHash_cset(d->_globals, (char*)moduleName.c_str(), mod);
-        naFreeContext(ctx);
     }
     return mod;
 }
@@ -2141,4 +2149,9 @@ naRef FGNasalSys::nasalGlobals() const
 nasal::Hash FGNasalSys::getGlobals() const
 {
     return nasal::Hash(d->_globals, d->_context);
+}
+
+nasal::Hash FGNasalSys::getModuleHash(const std::string& s, bool create) const
+{
+    return nasal::Hash(getModule(s, create), d->_context);
 }

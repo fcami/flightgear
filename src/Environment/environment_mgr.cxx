@@ -70,7 +70,6 @@ FGEnvironmentMgr::~FGEnvironmentMgr()
     remove_subsystem("magvar");
 
     delete fgClouds;
-    delete _3dCloudsEnableListener;
     delete _environment;
 }
 

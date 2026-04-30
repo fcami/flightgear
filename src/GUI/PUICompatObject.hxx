@@ -156,10 +156,6 @@ protected:
 
     void valueChanged(SGPropertyNode* node) override;
 
-    // temporary solution to decide which SGPropertyNode children of an
-    // object, are children
-    static bool isNodeAChildObject(const std::string& nm, int uiVersion);
-
     SGPropertyNode_ptr _config;
 
 private:

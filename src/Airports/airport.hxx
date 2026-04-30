@@ -298,14 +298,6 @@ public:
     static FGAirportRef findByIdent(const std::string& aIdent);
 
     /**
-      * Specialised helper to implement the AirportList dialog. Performs a
-      * case-insensitive search on airport names and ICAO codes, and returns
-      * matches in a format suitable for use by a puaList.
-      */
-    static char** searchNamesAndIdents(const std::string& aFilter);
-
-
-    /**
      * Sort an FGPositionedList of airports by size (number of runways + length)
      * this is meant to prioritise more important airports.
      */

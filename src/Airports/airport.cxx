@@ -490,11 +490,6 @@ FGAirportRef FGAirport::getByIdent(const std::string& aIdent)
   return r;
 }
 
-char** FGAirport::searchNamesAndIdents(const std::string& aFilter)
-{
-  return NavDataCache::instance()->searchAirportNamesAndIdents(aFilter);
-}
-
 // find basic airport location info from airport database
 const FGAirport *fgFindAirportID( const std::string& id)
 {

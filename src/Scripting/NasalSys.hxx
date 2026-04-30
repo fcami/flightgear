@@ -95,6 +95,11 @@ public:
 
     naRef getModule(const std::string& moduleName, bool create = false) const;
 
+    /**
+     * @brief overloaded version taking a cppbind context and returning a Hash
+     */
+    nasal::Hash getModuleHash(const std::string& s, bool create) const;
+
     bool addCommand(naRef func, const std::string& name);
     bool removeCommand(const std::string& name);
 

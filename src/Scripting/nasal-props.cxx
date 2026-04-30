@@ -48,8 +48,17 @@ naRef FGNasalSys::propNodeGhost(SGPropertyNode* handle)
 
 SGPropertyNode* ghostToPropNode(naRef ref)
 {
-  if (!naIsGhost(ref) || (naGhost_type(ref) != &PropNodeGhostType))
-    return NULL;
+    if (naIsHash(ref)) {
+        naRef g = naHash_cget(ref, const_cast<char*>("_g"));
+        if (naIsNil(g)) {
+            return nullptr;
+        }
+        ref = g;
+    }
+
+    if (!naIsGhost(ref) || (naGhost_type(ref) != &PropNodeGhostType)) {
+        return nullptr;
+    }
 
   return static_cast<SGPropertyNode*>(naGhost_ptr(ref));
 }

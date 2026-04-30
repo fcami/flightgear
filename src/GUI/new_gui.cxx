@@ -3,6 +3,7 @@
  * SPDX-FileComment: implementation of XML-configurable GUI support.
  * SPDX-FileCopyrightText: 2002 David Megginson
  * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: 2002 David Megginson
  */
 
 /**
@@ -12,6 +13,7 @@
 
 #include <config.h>
 
+#include "GUI/NasalItemView.hxx"
 #include "new_gui.hxx"
 
 #include <cstring>
@@ -39,9 +41,12 @@
 #include "FGWindowsMenuBar.hxx"
 #endif
 
+#include "AirportListModel.hxx"
 #include "CanvasWidget.hxx"
 #include "FGNasalMenuBar.hxx"
 #include "FGPUICompatDialog.hxx"
+#include "ItemModel.hxx"
+#include "NasalItemView.hxx"
 #include "PUICompatObject.hxx"
 
 #include "FGColor.hxx"
@@ -257,19 +262,22 @@ NewGUI::unbind ()
 
 void NewGUI::postinit()
 {
-    auto nas = globals->get_subsystem<FGNasalSys>();
-    nasal::Context ctx;
-    nasal::Hash guiModule{nas->getModule("gui"), ctx};
+    if (_menubar) {
+        _menubar->postinit();
+    }
+}
+
+void NewGUI::registerNasalBindings(FGNasalSys* nas)
+{
+    nasal::Hash guiModule = nas->getGlobals().createHash("gui");
     nasal::Hash compatModule = guiModule.createHash("xml");
 
     FGPUICompatDialog::setupGhost(compatModule);
     PUICompatObject::setupGhost(compatModule);
     CanvasWidget::setupGhost(compatModule);
     FGNasalMenuBar::setupGhosts(compatModule);
-
-    if (_menubar) {
-        _menubar->postinit();
-    }
+    ItemModel::setupGhosts(guiModule);
+    NasalItemView::setupGhost(guiModule);
 }
 
 void

@@ -32,9 +32,6 @@ namespace strutils = simgear::strutils;
 
 ////////////////////////////////////////////////////////////
 
-// should really be exposed properly
-extern naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
-
 class FGPUICompatDialog::DialogPeer : public nasal::Object
 {
 public:
