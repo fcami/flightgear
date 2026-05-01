@@ -153,6 +153,8 @@ FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*) : FGInputDe
     SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " " << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " " << "release " << devInfo->release_number << " " << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") " << "ifn " << devInfo->interface_number << " " << GetName());
 }
 
+#if defined (BUILDING_TESTSUITE)
+
 FGHIDDevice::FGHIDDevice(const std::string& testName, const simgear::UInt8Vector& rawDescriptor)
     : FGInputDevice(testName),
       _rawXMLDescriptor(rawDescriptor)
@@ -188,6 +190,8 @@ uint8_t FGHIDDevice::reportIdForItem(const std::string& name) const
         return 0;
     return r.first->number;
 }
+
+#endif
 
 FGHIDDevice::~FGHIDDevice()
 {
