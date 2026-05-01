@@ -75,6 +75,11 @@ private:
         {
             uint32_t size = 0;
             for (auto i : items) {
+                if (i->isHatX || i->isHatY) {
+                    // these are virtual items, they don't take up bits in the report
+                    continue;
+                }
+
                 size += i->bitSize;
             }
             return size;
