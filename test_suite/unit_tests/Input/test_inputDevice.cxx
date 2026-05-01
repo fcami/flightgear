@@ -1105,7 +1105,7 @@ void ReportSettingTests::testNasalCodeArgs()
     naGC();
 
     device->clearReport();
-    globals->get_props()->setStringValue("/test-report/watch-val", "trigger");
+    globals->get_props()->setStringValue("/test-report/watch-val", "trigger2");
     globals->get_props()->setIntValue("/test-report/foo", 44);
     device->update(0.0);
 
