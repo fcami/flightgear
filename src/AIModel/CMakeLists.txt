@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (C) 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES
 	AIAircraft.cxx
@@ -60,4 +59,4 @@ if(ENABLE_SWIFT)
 	list(APPEND SOURCES AISwiftAircraft.cpp)
 endif()
 
-flightgear_component(AIModel "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	airways.cxx
 	fixlist.cxx
 	markerbeacon.cxx
@@ -22,9 +21,6 @@ set(SOURCES
     PositionedOctree.cxx
     PolyLine.cxx
     SHPParser.cxx
-	)
-
-set(HEADERS
     airways.hxx
 	fixlist.hxx
 	markerbeacon.hxx
@@ -44,6 +40,4 @@ set(HEADERS
     PolyLine.hxx
     SHPParser.hxx
     CacheSchema.h
-    )
-
-flightgear_component(Navaids "${SOURCES}" "${HEADERS}")
+)

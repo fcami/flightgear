@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	atmosphere.cxx
 	environment.cxx
 	environment_ctrl.cxx
@@ -21,9 +20,6 @@ set(SOURCES
 	presets.cxx
 	gravity.cxx
     magvarmanager.cxx
-	)
-
-set(HEADERS
 	atmosphere.hxx
 	environment.hxx
 	environment_ctrl.hxx
@@ -41,6 +37,4 @@ set(HEADERS
 	presets.hxx
 	gravity.hxx
 	magvarmanager.hxx
-	)
-
-flightgear_component(Environment "${SOURCES}" "${HEADERS}")
+)

@@ -1,6 +1,7 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
     AbstractInstrument.cxx
     adf.cxx
     airspeed_indicator.cxx
@@ -33,9 +34,6 @@ set(SOURCES
     transponder.cxx
     turn_indicator.cxx
     vertical_speed_indicator.cxx
-    )
-
-set(HEADERS
     AbstractInstrument.hxx
     adf.hxx
     airspeed_indicator.hxx
@@ -69,6 +67,3 @@ set(HEADERS
     turn_indicator.hxx
     vertical_speed_indicator.hxx
 )
-
-
-flightgear_component(Instruments "${SOURCES}" "${HEADERS}")

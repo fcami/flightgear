@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2010 James Turner <james@flightgear.org>
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
 set(SOURCES
 	controls.cxx
@@ -26,4 +25,4 @@ set(HEADERS
 	)
 
 
-flightgear_component(Aircraft "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

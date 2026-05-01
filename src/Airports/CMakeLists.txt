@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2010 James Turner
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-include(FlightGearComponent)
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	apt_loader.cxx
 	dynamicloader.cxx
 	dynamics.cxx
@@ -20,9 +19,6 @@ set(SOURCES
 	xmlloader.cxx
 	airportdynamicsmanager.cxx
 	AirportBuilder.cxx
-	)
-
-set(HEADERS
 	airports_fwd.hxx
 	apt_loader.hxx
 	dynamicloader.hxx
@@ -40,6 +36,4 @@ set(HEADERS
 	xmlloader.hxx
 	airportdynamicsmanager.hxx
 	AirportBuilder.hxx
-	)
-
-flightgear_component(Airports "${SOURCES}" "${HEADERS}")
+)

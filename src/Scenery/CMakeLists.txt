@@ -1,4 +1,5 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(SOURCES
 	SceneryPager.cxx
@@ -23,4 +24,4 @@ set(HEADERS
 	marker.hxx
 	)
 
-flightgear_component(Scenery "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
