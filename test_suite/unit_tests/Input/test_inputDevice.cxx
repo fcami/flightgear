@@ -1071,7 +1071,7 @@ void ReportSettingTests::testNasalCodeArgs()
           <nasal>
           <open>
             <![CDATA[
-              var testFunc = func(a, b) { return [a, b, 30]; };
+              var testFunc = func(a, b) { return [a, b, 30, getprop('/test-report/foo')]; };
             ]]>
         </open>
           </nasal>
@@ -1088,15 +1088,34 @@ void ReportSettingTests::testNasalCodeArgs()
     CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
     device->clearReport();
 
+    globals->get_props()->setIntValue("/test-report/foo", 42);
+
     globals->get_props()->setStringValue("/test-report/watch-val", "trigger");
     device->update(0.0);
 
     CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
     auto bytes = device->getLastOutputReportData();
-    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(size_t(4), bytes.size());
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(11), bytes[0]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(22), bytes[1]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(42), bytes[3]);
+
+    // force a GC cycle
+    naGC();
+
+    device->clearReport();
+    globals->get_props()->setStringValue("/test-report/watch-val", "trigger2");
+    globals->get_props()->setIntValue("/test-report/foo", 44);
+    device->update(0.0);
+
+    CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
+    bytes = device->getLastOutputReportData();
+    CPPUNIT_ASSERT_EQUAL(size_t(4), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(11), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(22), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(44), bytes[3]);
 }
 
 // ---------------------------------------------------------------------------

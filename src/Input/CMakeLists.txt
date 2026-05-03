@@ -12,8 +12,12 @@ else()
 endif()
 
 if (ENABLE_HID_INPUT)
-	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx FGHIDDevice.cxx)
+	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx )
 	list(APPEND EVENT_INPUT_HEADERS FGHIDEventInput.hxx FGHIDUsage.hxx FGHIDDevice.hxx)
+
+	# depends on BUILDING_TESTSUITE
+	set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/FGHIDDevice.cxx")
+
 endif()
 
 set(SOURCES

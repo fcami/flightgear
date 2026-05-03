@@ -26,6 +26,13 @@ public:
     FGHIDDevice(hid_device_info* devInfo,
                 FGHIDEventInput* subsys);
 
+    /// Test-only constructor: creates a device with a known raw HID descriptor
+    /// without requiring access to physical hardware. If rawDescriptor is empty,
+    /// the descriptor must be supplied later via Configure() before calling
+    /// parseDescriptorForTesting().
+    explicit FGHIDDevice(const std::string& name,
+                         const simgear::UInt8Vector& rawDescriptor = {});
+
     virtual ~FGHIDDevice();
 
     bool Open() override;
@@ -61,6 +68,21 @@ public:
         bool zeroIsCenter = false; // is 0 the center, or North?
     };
 
+    /// Parse the raw descriptor that was either supplied at construction time or
+    /// stored by Configure() via hid-raw-descriptor.  Intended for use in unit
+    /// tests where Open() cannot be called because there is no real hardware.
+    /// Returns true on success.
+    bool parseDescriptorForTesting();
+
+    /// Return a const pointer to the named item across all reports, or nullptr.
+    const Item* findItem(const std::string& name) const;
+
+    /// Return the report type (In / Out / Feature) of the named item, or Invalid.
+    HID::ReportType reportTypeForItem(const std::string& name) const;
+
+    /// Return the report ID of the named item, or 0 if not found.
+    uint8_t reportIdForItem(const std::string& name) const;
+
 private:
     class Report
     {
@@ -75,6 +97,11 @@ private:
         {
             uint32_t size = 0;
             for (auto i : items) {
+                if (i->isHatX || i->isHatY) {
+                    // these are virtual items, they don't take up bits in the report
+                    continue;
+                }
+
                 size += i->bitSize;
             }
             return size;
