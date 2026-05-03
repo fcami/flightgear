@@ -19,11 +19,11 @@
 #include <Navaids/positioned.hxx>
 #include <Navaids/procedure.hxx>
 
+#include <Environment/fgmetar.hxx>
 #include "airports_fwd.hxx"
 #include "runways.hxx"
 
 class FGGroundNetwork;
-class FGMetar;
 
 
 /***************************************************************************************
