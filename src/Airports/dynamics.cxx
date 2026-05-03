@@ -583,8 +583,11 @@ std::string FGAirportDynamics::fallbackGetActiveRunway(int action, double headin
     }
 
     if (updateNeeded) {
-        double windSpeed = fgGetInt("/environment/metar/base-wind-speed-kt");
-        double windHeading = fgGetInt("/environment/metar/base-wind-dir-deg");
+        auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
+
+        double windSpeed = env.get_wind_speed_kt();
+        double windHeading = env.get_wind_from_heading_deg();
 
         // discount runways based on cross / tail-wind
         WindExclusionCheck windCheck(windHeading, windSpeed);
@@ -700,16 +703,12 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         takeoff.clear();
         lastUpdate = dayStart;
         prevTrafficType = trafficType;
-        /*
-        FGEnvironment
-            stationweather =
-            globals->get_subsystem<FGEnvironmentMgr>()
-            ->getEnvironment(getLatitude(), getLongitude(),
-                             getElevation());
-        */
-        double windSpeed = fgGetInt("/environment/metar/base-wind-speed-kt"); //stationweather.get_wind_speed_kt();
-        double windHeading = fgGetInt("/environment/metar/base-wind-dir-deg");
-        //stationweather.get_wind_from_heading_deg();
+
+        auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
+
+        double windSpeed = env.get_wind_speed_kt();
+        double windHeading = env.get_wind_from_heading_deg();
         std::string scheduleName;
         //cerr << "finding active Runway for : " << _ap->getId() << endl;
         //cerr << "Wind Heading              : " << windHeading << endl;
