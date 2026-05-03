@@ -90,6 +90,7 @@ LiveMetarProperties::~LiveMetarProperties()
 
 void LiveMetarProperties::update( double dt )
 {
+
     _timeToLive -= dt;
     _pollingTimer -= dt;
     if( _timeToLive <= 0.0 ) {
@@ -97,6 +98,7 @@ void LiveMetarProperties::update( double dt )
         invalidate();
         std::string stationId = getStationId();
         if( stationId.empty() ) return;
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "LiveMetarProperties::update() for " << getStationId() << ": timeToLive=" << _timeToLive << " pollingTimer=" << _pollingTimer);
         if( _pollingTimer > 0.0 ) return;
         _metarRequester->requestMetar( this, stationId );
         _pollingTimer = MAX_POLLING_INTERVAL_SECONDS;
@@ -172,6 +174,7 @@ public:
 
 protected:
     void checkNearbyMetar();
+    void populateMetarCache();
 
     long getMetarMaxAgeMin() const { return _max_age_n == NULL ? 0 : _max_age_n->getLongValue(); }
 
@@ -295,6 +298,8 @@ void BasicRealWxController::unbind()
 
 void BasicRealWxController::update( double dt )
 {
+    populateMetarCache();
+    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "BasicRealWxController::update() enabled: " << _enabled << ", wasEnabled: " << _wasEnabled << ", metar properties count: " << _metarProperties.size());
     if (_enabled) {
         bool firstIteration = !_wasEnabled;
         // clock tick for every METAR in stock
@@ -385,6 +390,44 @@ void BasicRealWxController::checkNearbyMetar()
     }
     catch( sg_exception & ) {
       return;
+    }
+}
+
+void BasicRealWxController::populateMetarCache()
+{
+    try {
+        auto metarNodes = fgGetNode("/environment", true)->getChildren("metar");
+        FGAirport* nearestAirport;
+        for (auto n : metarNodes) {
+            // check for duplicate entries
+            MetarPropertiesList::iterator it = findMetarAtPath(n->getPath());
+            auto pos = SGGeod::fromDeg(n->getDoubleValue("longitude-deg"), n->getDoubleValue("latitude-deg"));
+            if (pos.getLatitudeDeg() == 0.0 && pos.getLongitudeDeg() == 0.0) {
+                // Non cached legacy entry without position, skip
+                continue;
+            }
+            nearestAirport = FGAirport::findClosest(pos, 10000.0, MetarAirportFilter::instance());
+            if (it != _metarProperties.end()) {
+//                SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reusing metar properties at " << n->getPath());
+                if ((*it)->getStationId() != nearestAirport->ident()) {
+                    SG_LOG(SG_ENVIRONMENT, SG_INFO, "Updating station ID for metar properties at " << n->getPath() << " to " << nearestAirport->ident());
+                    (*it)->setStationId(nearestAirport->ident());
+                    (*it)->resetTimeToLive();
+                }
+                continue;
+            }
+
+            SGPropertyNode_ptr metarNode = fgGetNode(n->getPath(), true);
+            LiveMetarProperties_ptr p(new LiveMetarProperties(metarNode, _requester, getMetarMaxAgeMin()));
+            _metarProperties.push_back(p);
+            p->setStationId(nearestAirport ? nearestAirport->ident() : "");
+            p->resetTimeToLive();
+            SG_LOG(SG_ENVIRONMENT, SG_INFO, "Adding metar properties at " << n->getPath() << " for " << nearestAirport->ident());
+        }
+    }
+    catch (sg_exception& e) {
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "RealWxController::populateMetarCache() failed to populate METAR cache: " << e.what());
+        return;
     }
 }
 

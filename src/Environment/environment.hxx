@@ -44,6 +44,8 @@ public:
   virtual void setGeod(const SGGeod& geod)
   {
 	  mPosition = geod;
+      set_latitude_deg(geod.getLatitudeDeg());
+      set_longitude_deg(geod.getLongitudeDeg());
   }
 
   virtual const SGGeod& geod() const
@@ -92,6 +94,12 @@ public:
 
   virtual void set_turbulence_magnitude_norm (double t);
   virtual void set_turbulence_rate_hz (double t);
+
+  virtual void set_latitude_deg(double lat);
+  virtual void set_longitude_deg(double lon);
+
+  virtual double get_latitude_deg() const;
+  virtual double get_longitude_deg() const;
 
   virtual double get_elevation_ft () const;
   virtual void set_elevation_ft (double elevation_ft);
