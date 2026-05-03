@@ -349,6 +349,11 @@ FGTaxiRoute FGAIFlightPlan::findBestTaxiRouteToRunway(const FGAIAircraft* ac, co
     // After rotation, we still need to accelerate to the take-off speed.
     const double t = d + accelDistance(vRotateMetric, vTakeoffMetric, accelMetric);
 
+    if(!node) {
+        SG_LOG(SG_AI, SG_DEV_WARN, "No taxi node provided for " << apt->getId() << "/" << rwy->ident());
+        return FGTaxiRoute();
+    }
+
     FGTaxiRoute taxiRoute;
     int lastId = -1;
     const double scanLength = std::min((rwy->lengthM() - t), 500.0);
@@ -373,12 +378,12 @@ FGTaxiRoute FGAIFlightPlan::findBestTaxiRouteToRunway(const FGAIAircraft* ac, co
             auto tr = gn->findShortestRoute(node, runwayNode);
             if (taxiRoute.empty() || (!tr.empty() && tr < taxiRoute)) {
                 taxiRoute = tr;
-                SG_LOG(SG_AI, SG_BULK, "Found better taxi route to " << apt->getId() << "/" << rwy->ident() << " with length " << tr.getDistance() << " at " << distanceDownRunway);
+                SG_LOG(SG_AI, SG_DEBUG, "Found better taxi route from " << node->getIndex() << " to " << apt->getId() << "/" << rwy->ident() << " with length " << tr.getDistance() << " at " << distanceDownRunway);
             }
         }
     }
     if (taxiRoute.empty()) {
-        SG_LOG(SG_AI, SG_DEV_WARN, "Could not find taxi route to " << apt->getId() << "/" << rwy->ident() << " falling back to using shortest route.");
+        SG_LOG(SG_AI, SG_DEV_WARN, "Could not find taxi route from " << node->getIndex() << " to " << apt->getId() << "/" << rwy->ident() << " falling back to using shortest route.");
         FGTaxiNodeRef runwayNode;
         SGGeod runwayTakeoff = rwy->pointOnCenterline(5.0);
         if (gn->getVersion() > 0) {
