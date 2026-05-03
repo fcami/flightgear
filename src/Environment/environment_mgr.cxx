@@ -11,6 +11,7 @@
 
 #include <simgear/constants.h>
 #include <simgear/debug/logstream.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <simgear/scene/model/particles.hxx>
 #include <simgear/scene/sky/sky.hxx>
@@ -18,6 +19,7 @@
 
 #include <Main/fg_props.hxx>
 #include <Main/main.hxx>
+#include <Main/globals.hxx>
 #include <Viewer/ViewPropertyEvaluator.hxx>
 #include <Viewer/renderer.hxx>
 
@@ -370,17 +372,54 @@ const FGEnvironment* FGEnvironmentMgr::getAircraftEnvironment() const
 FGEnvironment
 FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
 {
+    const double cacheSize = fgGetDouble("/sim/environment/metar/cache-size", 16);
+    auto old = [&](FGEnvironment* a, FGEnvironment* b) {
+        if (!a) {
+            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "a environment is null");
+        };
+        if (!b) {
+            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "b environment is null");
+        };
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Comparing environments for eviction: " << a->geod() << " last requested at " << a->getLastRequestTime() << " vs " << b->geod() << " last requested at " << b->getLastRequestTime());
+        return a->getLastRequestTime() < b->getLastRequestTime();
+        };
+
     auto near = [&](FGEnvironment* e) { return SGGeodesy::distanceM(e->geod(), aPos) < 10000; };
+
+    auto nearestAirport = FGAirport::findClosest(aPos, 100.0);
 
     auto it = std::find_if(environmentCache.begin(), environmentCache.end(), near);
     if (it == environmentCache.end()) {
-        // cache miss; create a new environment for this position
-        FGEnvironment* env = new FGEnvironment();
-        env->set_elevation_ft(aPos.getElevationFt());
-        env->setGeod(aPos);
-        env->Tie(fgGetNode("/environment", true));
-        environmentCache.push_back(env);
-        return *env;
+        if (environmentCache.size() >= cacheSize) {
+            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Environment cache is full. Evicting the oldest environment.");
+            auto oldest = std::min_element(environmentCache.begin(), environmentCache.end(), old);
+            if (oldest != environmentCache.end()) {
+                SG_LOG(SG_ENVIRONMENT, SG_BULK, "Evicting environment for position " << (*oldest)->geod() << " last requested at " << (*oldest)->getLastRequestTime());
+                (*oldest)->set_elevation_ft(nearestAirport ? nearestAirport->geod().getElevationFt() : aPos.getElevationFt());
+                (*oldest)->set_latitude_deg(nearestAirport ? nearestAirport->geod().getLatitudeDeg() : aPos.getLatitudeDeg());
+                (*oldest)->set_longitude_deg(nearestAirport ? nearestAirport->geod().getLongitudeDeg() : aPos.getLongitudeDeg());
+                (*oldest)->setLastRequestTime(globals->get_time_params()->get_cur_time());
+                return **oldest;
+            } else {
+                SG_LOG(SG_ENVIRONMENT, SG_WARN, "Environment cache is full but no environment to evict found. This should not happen.");
+            }
+        } else {
+            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Creating new environment for position " << aPos << " Cache Size: " << environmentCache.size() << " " << fgGetNode("/environment/metar", true)->nChildren());
+            // cache miss; create a new environment for this position
+            FGEnvironment* env = new FGEnvironment(*_environment);
+            env->set_elevation_ft(aPos.getElevationFt());
+            env->setGeod(aPos);
+            env->Tie(fgGetNode("/environment", true)->addChild("metar"));
+
+            env->setLastRequestTime(globals->get_time_params()->get_cur_time());
+            environmentCache.push_back(env);
+            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Created new environment for position " << aPos << " Cache Size: " << environmentCache.size() << " " << fgGetNode("/environment/metar", true)->nChildren());
+            return *env;
+        }
+    } else {
+        // cache hit; return the cached environment
+        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Cache hit for position " << aPos);
+        return **it;
     }
     // Always returns the same environment
     // for now; we'll make it interesting
