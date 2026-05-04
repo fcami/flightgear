@@ -123,7 +123,8 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
     SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
     auto nas = globals->get_subsystem<FGNasalSys>();
     const bool haveUpdate = nasal && nasal->hasChild("update");
-    if (nas && (haveUpdate || nasal->hasChild("open") || nasal->hasChild("close"))) {
+    const bool haveOpenOrClose = nasal && (nasal->hasChild("open") || nasal->hasChild("close"));
+    if (nas && (haveUpdate || haveOpenOrClose)) {
         // pre-create the module hash, so device property is available
         // immediately, eg during <open> code
         naContext c = naNewContext();

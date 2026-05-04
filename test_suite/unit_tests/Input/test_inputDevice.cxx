@@ -1047,8 +1047,10 @@ void InputDeviceTests::testNasalDevice()
         </PropertyList>
     )");
 
-    // The <nasal><open> block is evaluated during Configure(), so
-    // SendFeatureReport should have been called already.
+    CPPUNIT_ASSERT_EQUAL(0u, device->getLastFeatureReportId());
+    device->Open();
+    device->postOpen();
+
     CPPUNIT_ASSERT_EQUAL(42u, device->getLastFeatureReportId());
     auto bytes = device->getLastFeatureReportData();
     CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
@@ -1217,6 +1219,9 @@ void ReportSettingTests::testNasalCodeArgs()
         </PropertyList>
     )");
 
+    device->Open();
+    device->postOpen();
+
     // will trigger, reports are initially dirty
     device->update(0.0);
     CPPUNIT_ASSERT_EQUAL(4u, device->getLastOutputReportId());
@@ -1276,6 +1281,9 @@ void ReportSettingTests::testNasalFunction()
         </report>
         </PropertyList>
     )");
+
+    device->Open();
+    device->postOpen();
 
     // will trigger, reports are initially dirty
     device->update(0.0);
@@ -1401,6 +1409,9 @@ void ReportSettingTests::testNasalUpdateCallback()
         </PropertyList>
     )");
 
+    device->Open();
+    device->postOpen();
+
     // First update(): both reports are dirty → both sent → callback fires once.
     device->update(0.0);
     CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
@@ -1439,6 +1450,9 @@ void ReportSettingTests::testNasalUpdateCallback()
         </PropertyList>
     )");
 
+    device2->Open();
+    device2->postOpen();
+
     // First update: both reports initially dirty → callback fires once.
     device2->update(0.0);
     CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
@@ -1453,4 +1467,105 @@ void ReportSettingTests::testNasalUpdateCallback()
     globals->get_props()->setStringValue("/test-report/trigger", "go");
     device2->update(0.0);
     CPPUNIT_ASSERT_EQUAL(2, globals->get_props()->getIntValue("/test-report/update-count"));
+}
+
+// ---------------------------------------------------------------------------
+// testBadNasalCodeReport
+//
+// Regression test for https://gitlab.com/flightgear/flightgear/-/work_items/3434
+//
+// A <report> whose <nasal> expression causes a Nasal runtime error (e.g.
+// calling an undefined symbol) must not crash.  The expected behaviour is:
+//
+//   1. The first update() attempt is gracefully handled: no report data is
+//      sent and the report setting is permanently disabled (hasError() == true)
+//      so that subsequent updates skip it without re-running the bad code.
+//   2. The Nasal runtime error is surfaced to the caller (the report setting
+//      must throw sg_exception so that FGInputDevice::update() can catch it
+//      and call markAsError()).
+//
+// Both <nasal> inline-expression and <nasal-function> forms are tested because
+// the original bug report observed failures in both paths.
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testBadNasalCodeReport()
+{
+    auto* nas = globals->get_subsystem<FGNasalSys>();
+    CPPUNIT_ASSERT(nas != nullptr);
+
+    // ---- inline <nasal> expression with an undefined symbol ----
+    {
+        auto device = makeDevice("bad-nasal-device", R"(
+            <PropertyList>
+              <report>
+                <report-id type="int">7</report-id>
+                <nasal>undefined_sym()</nasal>
+                <watch>/test-report/bad-trigger</watch>
+              </report>
+            </PropertyList>
+        )");
+
+        device->Open();
+        device->postOpen();
+
+        // First update: report is initially dirty; the bad Nasal code runs,
+        // produces a runtime error, and the report must be disabled — no data
+        // sent, no crash.
+        device->update(0.0);
+        CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
+
+        // The Nasal error must have been recorded in the test-suite error list.
+        auto errs = nas->getAndClearErrorList();
+        CPPUNIT_ASSERT(!errs.empty());
+
+        // Re-dirty the report and update again: the report must be skipped
+        // entirely (markAsError was called), so neither a new Nasal call nor a
+        // new send should occur.
+        nas->getAndClearErrorList(); // clear any residual
+        globals->get_props()->setStringValue("/test-report/bad-trigger", "retrigger");
+        device->update(0.0);
+        CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
+        // No new Nasal error on the second update — the report was skipped.
+        CPPUNIT_ASSERT(nas->getAndClearErrorList().empty());
+    }
+
+    // ---- <nasal-function> form: the function name itself refers to a
+    //      non-existent symbol (analogous to the original bug report's
+    //      `bad.vibro` example) ----
+    {
+        auto device = makeDevice("bad-nasal-func-device", R"(
+            <PropertyList>
+              <nasal>
+                <open>
+                  <![CDATA[
+                    # Intentionally do NOT define badFunc — we want the
+                    # nasal-function reference below to fail at call time.
+                  ]]>
+                </open>
+              </nasal>
+              <report>
+                <report-id type="int">8</report-id>
+                <nasal-function>nonExistentFunc</nasal-function>
+                <watch>/test-report/bad-func-trigger</watch>
+              </report>
+            </PropertyList>
+        )");
+
+        device->Open();
+        device->postOpen();
+
+        nas->getAndClearErrorList(); // reset
+
+        // First update: bad function call → error, no send, no crash.
+        device->update(0.0);
+        CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
+
+        auto errs = nas->getAndClearErrorList();
+        CPPUNIT_ASSERT(!errs.empty());
+
+        // Second update: report is disabled; no Nasal call, no new error.
+        globals->get_props()->setStringValue("/test-report/bad-func-trigger", "retrigger");
+        device->update(0.0);
+        CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
+        CPPUNIT_ASSERT(nas->getAndClearErrorList().empty());
+    }
 }
