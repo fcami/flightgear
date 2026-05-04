@@ -753,6 +753,7 @@ bool finalizeMetar()
             return true;
         }
 
+        //FIXME get via environment mgr
         if (!fgGetBool("/environment/metar/valid")) {
             return false;
         }
