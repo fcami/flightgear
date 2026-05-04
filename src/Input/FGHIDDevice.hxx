@@ -36,7 +36,6 @@ public:
     virtual ~FGHIDDevice();
 
     bool Open() override;
-    void Close() override;
     void Configure(SGPropertyNode_ptr node) override;
 
     void update(double dt) override;
@@ -84,6 +83,8 @@ public:
     uint8_t reportIdForItem(const std::string& name) const;
 
 private:
+    void Close() override;
+
     class Report
     {
     public:

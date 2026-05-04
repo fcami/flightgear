@@ -22,6 +22,25 @@ static simgear::UInt8Vector dataFromString(const std::string& str)
         reinterpret_cast<const uint8_t*>(str.data() + str.size()));
 }
 
+static simgear::UInt8Vector dataFromArg(const nasal::CallContext& ctx, size_t index)
+{
+    if (ctx.isString(index)) {
+        std::string str = ctx.getArg<std::string>(index);
+        return dataFromString(str);
+    } else if (ctx.isVector(index)) {
+        std::vector<int> ints = ctx.getArg<std::vector<int>>(index);
+        simgear::UInt8Vector data;
+        data.reserve(ints.size());
+        for (int v : ints) {
+            data.push_back(static_cast<uint8_t>(v));
+        }
+        return data;
+    } else {
+        ctx.runtimeError("data argument must be a string or a vector of integers");
+        return {};
+    }
+}
+
 static naRef f_sendFeatureReport(FGInputDevice& device, const nasal::CallContext& ctx)
 {
     if (ctx.argc < 2) {
@@ -29,25 +48,23 @@ static naRef f_sendFeatureReport(FGInputDevice& device, const nasal::CallContext
     }
 
     unsigned int reportId = ctx.requireArg<unsigned int>(0);
-    simgear::UInt8Vector data;
-
-    if (ctx.isString(1)) {
-        std::string str = ctx.getArg<std::string>(1);
-        data = dataFromString(str);
-    } else if (ctx.isVector(1)) {
-        std::vector<int> ints = ctx.getArg<std::vector<int>>(1);
-        data.reserve(ints.size());
-        for (int v : ints) {
-            data.push_back(static_cast<uint8_t>(v));
-        }
-    } else {
-        ctx.runtimeError("data argument must be a string or a vector of integers");
-    }
-
+    simgear::UInt8Vector data = dataFromArg(ctx, 1);
     device.SendFeatureReport(reportId, data);
     return naNil();
 }
 
+static naRef f_sendOutputReport(FGInputDevice& device, const nasal::CallContext& ctx)
+{
+    if (ctx.argc < 2) {
+        ctx.runtimeError("sendOutputReport(reportId, data) requires 2 arguments");
+    }
+
+    unsigned int reportId = ctx.requireArg<unsigned int>(0);
+    simgear::UInt8Vector data = dataFromArg(ctx, 1);
+
+    device.SendOutputReport(reportId, data);
+    return naNil();
+}
 
 //------------------------------------------------------------------------------
 naRef initNasalInput(naRef globals, naContext c)
@@ -56,7 +73,8 @@ naRef initNasalInput(naRef globals, naContext c)
     using NasalInputDevice = nasal::Ghost<InputDeviceRef>;
 
     NasalInputDevice::init("FGInputDevice")
-        .method("sendFeatureReport", &f_sendFeatureReport);
+        .method("sendFeatureReport", &f_sendFeatureReport)
+        .method("sendOutputReport", &f_sendOutputReport);
 
     return naNil();
 }

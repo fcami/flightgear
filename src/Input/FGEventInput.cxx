@@ -144,6 +144,9 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     inputDevices[deviceNode->getIndex()] = inputDevice;
 
+    // Run Nasal <open> code for the device, now it's open
+    inputDevice->postOpen();
+
     SG_LOG(SG_INPUT, SG_INFO, inputDevice->class_id << "::AddDevice '" << inputDevice->GetUniqueName() << "' s/n: " << inputDevice->GetSerialNumber());
     return deviceNode->getIndex();
 }
@@ -158,7 +161,7 @@ void FGEventInput::RemoveDevice(unsigned index)
     FGInputDevice* inputDevice = inputDevices[index];
     if (inputDevice) {
         SG_LOG(SG_INPUT, SG_DEBUG, "\tremoving (" << index << ") " << inputDevice->GetUniqueName());
-        inputDevice->Close();
+        inputDevice->doClose();
         inputDevices.erase(index);
         delete inputDevice;
     }

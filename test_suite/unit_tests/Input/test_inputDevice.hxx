@@ -54,6 +54,7 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testLongPress);
     CPPUNIT_TEST(testRepeatableWithLongPress);
     CPPUNIT_TEST(testNasalDevice);
+    CPPUNIT_TEST(testNasalClose);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -72,6 +73,7 @@ public:
     void testLongPress();
     void testRepeatableWithLongPress();
     void testNasalDevice();
+    void testNasalClose();
 
 private:
     TestCommandHandler _simpleCmd;
@@ -104,6 +106,7 @@ class ReportSettingTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testWatchDirtyTracking);
     CPPUNIT_TEST(testReportType);
     CPPUNIT_TEST(testNasalCodeArgs);
+    CPPUNIT_TEST(testNasalUpdateCallback);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -117,4 +120,5 @@ public:
     void testWatchDirtyTracking();
     void testReportType();
     void testNasalCodeArgs();
+    void testNasalUpdateCallback();
 };

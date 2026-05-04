@@ -35,7 +35,15 @@ public:
     explicit TestInputDevice(const std::string& name) : FGInputDevice(name) {}
 
     bool Open() override { return true; }
-    void Close() override {}
+
+    void Close() override
+    {
+        _closeCalled = true;
+        // Record whether the feature report was already populated when Close()
+        // was invoked — used by testNasalClose to verify ordering.
+        _reportSetAtCloseTime = (_lastFeatureReportId != 0);
+    }
+
     void Send(const char* /*eventName*/, double /*value*/) override {}
 
     const char* TranslateEventName(FGEventData& /*eventData*/) override
@@ -73,12 +81,17 @@ public:
     unsigned int getLastFeatureReportId() const { return _lastFeatureReportId; }
     const simgear::UInt8Vector& getLastFeatureReportData() const { return _lastFeatureReportData; }
 
+    bool wasCloseCalled() const { return _closeCalled; }
+    bool wasReportSetAtCloseTime() const { return _reportSetAtCloseTime; }
+
 private:
     std::string _translatedName;
     unsigned int _lastOutputReportId = 0;
     simgear::UInt8Vector _lastOutputReportData;
     unsigned int _lastFeatureReportId = 0;
     simgear::UInt8Vector _lastFeatureReportData;
+    bool _closeCalled = false;
+    bool _reportSetAtCloseTime = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -1047,6 +1060,68 @@ void InputDeviceTests::testNasalDevice()
     global_nasalMinimalInit = false;
 }
 
+// ---------------------------------------------------------------------------
+// testNasalClose
+//
+// Verify that the <nasal><close> callback fires *before* the virtual Close()
+// method.  The nasal block calls device.sendFeatureReport(), which updates
+// the TestInputDevice's internal state.  Close() records whether that state
+// was already populated when it ran.  If nasal fired first the flag will be
+// true; if Close() ran first it would be false.
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testNasalClose()
+{
+    // Initialize Nasal (same sequence as testNasalDevice)
+    fgInitAllowedPaths();
+    globals->get_props()->getNode("nasal", true);
+    globals->get_subsystem_mgr()->add<FGInterpolator>();
+    globals->get_subsystem_mgr()->bind();
+    globals->get_subsystem_mgr()->init();
+
+    global_nasalMinimalInit = false;
+    globals->get_subsystem_mgr()->add<FGNasalSys>();
+    globals->get_subsystem_mgr()->postinit();
+
+    auto device = makeDevice("nasal-close-device", R"(
+        <PropertyList>
+          <nasal>
+            <close>
+              <![CDATA[
+                # This executes before the virtual Close() call.
+                # Calling sendFeatureReport() here verifies the device API is
+                # still available (i.e. Close() has not yet severed the link).
+                device.sendFeatureReport(13, [0xAA, 0xBB, 0xCC]);
+              ]]>
+            </close>
+          </nasal>
+        </PropertyList>
+    )");
+
+    // Sanity: no report sent yet, Close() not yet called
+    CPPUNIT_ASSERT_EQUAL(0u, device->getLastFeatureReportId());
+    CPPUNIT_ASSERT(!device->wasCloseCalled());
+
+    device->doClose();
+
+    // The nasal <close> block called sendFeatureReport(13, ...), so the
+    // report must have been captured.
+    CPPUNIT_ASSERT_EQUAL(13u, device->getLastFeatureReportId());
+    auto bytes = device->getLastFeatureReportData();
+    CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(0xAA), bytes[0]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(0xBB), bytes[1]);
+    CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(0xCC), bytes[2]);
+
+    // Close() must have been called (proves doClose() invoked it)
+    CPPUNIT_ASSERT(device->wasCloseCalled());
+
+    // The ordering assertion: Close() recorded that the feature report was
+    // already populated when it ran, proving nasal executed first.
+    CPPUNIT_ASSERT(device->wasReportSetAtCloseTime());
+
+    global_nasalMinimalInit = false;
+}
+
 // ReportSettingTests setUp / tearDown
 // ---------------------------------------------------------------------------
 void ReportSettingTests::setUp()
@@ -1289,4 +1364,93 @@ void ReportSettingTests::testReportType()
         FGReportSetting rs(base);
         CPPUNIT_ASSERT_EQUAL(FGReportSetting::Type::Output, rs.getReportType());
     }
+}
+
+// ---------------------------------------------------------------------------
+// testNasalUpdateCallback
+//
+// The <nasal><update> block fires after update() when at least one report
+// was sent during that update.  With two initially-dirty reports, the callback
+// must fire exactly once (not once per report).  On a subsequent update where
+// no reports are dirty the callback must NOT fire.
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalUpdateCallback()
+{
+    globals->get_props()->setIntValue("/test-report/update-count", 0);
+
+    // Two <report> blocks that are initially dirty.  The <nasal><update>
+    // block increments a property counter each time it is called.
+    auto device = makeDevice("nasal-update-device", R"(
+        <PropertyList>
+          <nasal>
+            <update>
+              <![CDATA[
+                setprop('/test-report/update-count',
+                        getprop('/test-report/update-count') + 1);
+              ]]>
+            </update>
+          </nasal>
+          <report>
+            <report-id type="int">1</report-id>
+            <nasal>[11, 22]</nasal>
+          </report>
+          <report>
+            <report-id type="int">2</report-id>
+            <nasal>[33, 44]</nasal>
+          </report>
+        </PropertyList>
+    )");
+
+    // First update(): both reports are dirty → both sent → callback fires once.
+    device->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
+
+    // Reports are now clean.  A second update() must not send anything and
+    // therefore must not fire the callback.
+    device->clearReport();
+    device->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
+
+    // Re-dirty one report via a watched property and confirm the callback fires
+    // once more (not twice, even though another report could theoretically be
+    // dirtied at the same time).
+    globals->get_props()->setIntValue("/test-report/update-count", 0);
+
+    auto device2 = makeDevice("nasal-update-device2", R"(
+        <PropertyList>
+          <nasal>
+            <update>
+              <![CDATA[
+                setprop('/test-report/update-count',
+                        getprop('/test-report/update-count') + 1);
+              ]]>
+            </update>
+          </nasal>
+          <report>
+            <report-id type="int">3</report-id>
+            <nasal>[55]</nasal>
+            <watch>/test-report/trigger</watch>
+          </report>
+          <report>
+            <report-id type="int">4</report-id>
+            <nasal>[66]</nasal>
+            <watch>/test-report/trigger</watch>
+          </report>
+        </PropertyList>
+    )");
+
+    // First update: both reports initially dirty → callback fires once.
+    device2->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
+
+    // No change → no callback.
+    device2->clearReport();
+    device2->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(1, globals->get_props()->getIntValue("/test-report/update-count"));
+
+    // Changing the watched property dirties both reports simultaneously;
+    // the callback should still fire only once.
+    globals->get_props()->setStringValue("/test-report/trigger", "go");
+    device2->update(0.0);
+    CPPUNIT_ASSERT_EQUAL(2, globals->get_props()->getIntValue("/test-report/update-count"));
 }

@@ -31,7 +31,6 @@ public:
     virtual ~FGLinuxInputDevice();
 
     bool Open() override;
-    void Close() override;
     void Send( const char * eventName, double value ) override;
     const char * TranslateEventName( FGEventData & eventData ) override;
 
@@ -43,6 +42,8 @@ public:
 
     double Normalize( struct input_event & event );
 private:
+    void Close() override;
+
     std::string devfile;
     std::string devpath;
     int fd {-1};

@@ -37,6 +37,14 @@ void FGInputDevice::PrivateListener::valueChanged(SGPropertyNode* node)
 
 FGInputDevice::~FGInputDevice()
 {
+    auto debug = deviceNode->getNode("debug-events");
+    if (debug) {
+        debug->removeChangeListener(_configListener.get());
+    }
+}
+
+void FGInputDevice::doClose()
+{
     auto nas = globals->get_subsystem<FGNasalSys>();
     if (nas && deviceNode) {
         SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
@@ -50,10 +58,8 @@ FGInputDevice::~FGInputDevice()
         nas->deleteModule(nasalModule.c_str());
     }
 
-    auto debug = deviceNode->getNode("debug-events");
-    if (debug) {
-        debug->removeChangeListener(_configListener.get());
-    }
+    // call our virtual methdpd
+    Close();
 }
 
 static naRef createNasalGhost(FGInputDevice_ptr ref, naContext c)
@@ -111,10 +117,13 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
     lastEventValue = deviceNode->getNode("last-event")->getNode("value", true);
     lastEventValue->setDoubleValue(0.0);
 
+    auto node = deviceNode->getNode("debug-events", true);
+    node->addChangeListener(_configListener.get());
+
     SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
     auto nas = globals->get_subsystem<FGNasalSys>();
-
-    if (nasal && nas) {
+    const bool haveUpdate = nasal && nasal->hasChild("update");
+    if (nas && (haveUpdate || nasal->hasChild("open") || nasal->hasChild("close"))) {
         // pre-create the module hash, so device property is available
         // immediately, eg during <open> code
         naContext c = naNewContext();
@@ -123,7 +132,28 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
         nasal::Hash moduleHash(module, c);
         moduleHash.set("device", ghost);
         naFreeContext(c);
+    }
 
+    if (nas && haveUpdate) {
+        const auto updateCode = nasal->getChild("update");
+        const auto loc = updateCode->getLocation();
+        _postUpdateCallback = nas->createCode(updateCode->getStringValue(), loc.getPath(), loc.getLine());
+        if (_postUpdateCallback.getErrors().size() > 0) {
+            simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "Failed to compile update callback for device"s + _postUpdateCallback.getErrors().front(),
+                                   sg_location(loc));
+            _postUpdateCallback = {};
+        }
+    }
+}
+
+void FGInputDevice::postOpen()
+{
+    SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
+    auto nas = globals->get_subsystem<FGNasalSys>();
+
+    if (nasal && nas) {
         SGPropertyNode_ptr open = nasal->getNode("open");
         if (open) {
             const string s = open->getStringValue();
@@ -136,9 +166,6 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
             }
         }
     }
-
-    auto node = deviceNode->getNode("debug-events", true);
-    node->addChangeListener(_configListener.get());
 }
 
 void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
@@ -151,9 +178,11 @@ void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
 
 void FGInputDevice::update(double dt)
 {
-    for (map<string, FGInputEvent_ptr>::iterator it = handledEvents.begin(); it != handledEvents.end(); it++)
-        (*it).second->update(dt);
+    for (auto it : handledEvents) {
+        it.second->update(dt);
+    }
 
+    bool didSend = false;
     for (auto r : reportSettings) {
         if (r->hasError()) {
             continue;
@@ -170,6 +199,8 @@ void FGInputDevice::update(double dt)
                 } else {
                     SendOutputReport(r->getReportId(), reportData);
                 }
+
+                didSend = true;
             }
         } catch (sg_exception& e) {
             r->markAsError();
@@ -179,6 +210,20 @@ void FGInputDevice::update(double dt)
                                    e.getLocation());
         }
     } // of report setting iteration
+
+    if (didSend && _postUpdateCallback.isValid()) {
+        try {
+            _postUpdateCallback.call();
+        } catch (sg_exception& e) {
+            simgear::reportFailure(simgear::LoadFailure::Unknown,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "Failed to execute post-update callback:"s + e.getMessage(),
+                                   e.getLocation());
+
+            // FIXME
+            //_postUpdateCallback.reset();
+        }
+    }
 }
 
 void FGInputDevice::HandleEvent(FGEventData& eventData)
