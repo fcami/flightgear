@@ -26,7 +26,7 @@
 
 #include <Environment/environment_mgr.hxx>
 #include <Environment/environment.hxx>
-#include <Environment/FGMetar.hxx>
+#include <Environment/fgmetar.hxx>
 #include <Main/fg_props.hxx>
 #include <Airports/runways.hxx>
 #include <Airports/pavement.hxx>
