@@ -20,7 +20,7 @@
 #include <simgear/timing/sg_time.hxx>
 #include <simgear/structure/event_mgr.hxx>
 #include <simgear/structure/commands.hxx>
-#include <simgear/structure/SgSharedPtr.hxx>
+#include <simgear/structure/SGSharedPtr.hxx>
 
 #include "metarproperties.hxx"
 #include "metarairportfilter.hxx"
