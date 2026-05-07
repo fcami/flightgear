@@ -36,6 +36,7 @@ TurnIndicator::TurnIndicator ( SGPropertyNode *node) :
     SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
     _gyro_spin_up = gyro_cfg->getDoubleValue("spin-up-sec", 4.0);
     _gyro_spin_down = gyro_cfg->getDoubleValue("spin-down-sec", 180.0);
+    _gyro_spin_valid_from = gyro_cfg->getDoubleValue("gyro-spin-valid-norm", 0.93);
 
     readConfig(node, "turn-indicator");
 }
@@ -53,14 +54,18 @@ TurnIndicator::init ()
     _roll_rate_node = fgGetNode("/orientation/roll-rate-degps", true);
     _yaw_rate_node = fgGetNode("/orientation/yaw-rate-degps", true);
     _rate_out_node = node->getChild("indicated-turn-rate", 0, true);
+    _is_valid_node = node->getChild("is-valid", 0, true);
     SGPropertyNode* gyro_node = node->getChild("gyro", 0, true);
     _spin_node = gyro_node->getChild("spin", 0.0, true);
     _gyro_spin_up_node = gyro_node->getChild("spin-up-sec", 0, true);
     _gyro_spin_down_node = gyro_node->getChild("spin-down-sec", 0, true);
+    _gyro_spin_valid_from_node = gyro_node->getChild("gyro-spin-valid-norm", 0, true);
     if (!_gyro_spin_up_node->hasValue())
         _gyro_spin_up_node->setDoubleValue(_gyro_spin_up);
     if (!_gyro_spin_down_node->hasValue())
         _gyro_spin_down_node->setDoubleValue(_gyro_spin_down);
+    if (!_gyro_spin_valid_from_node->hasValue())
+        _gyro_spin_valid_from_node->setDoubleValue(_gyro_spin_valid_from);
 
     initServicePowerProperties(node);
 
@@ -77,7 +82,7 @@ TurnIndicator::reinit ()
 void
 TurnIndicator::update (double dt)
 {
-                                // Get the spin from the gyro
+    // Get the spin from the gyro
     _gyro.set_power_norm(isServiceableAndPowered());
     _gyro.set_spin_up(_gyro_spin_up_node->getDoubleValue());
     _gyro.set_spin_down(_gyro_spin_down_node->getDoubleValue());
@@ -86,23 +91,28 @@ TurnIndicator::update (double dt)
     double spin = _gyro.get_spin_norm();
     _spin_node->setDoubleValue( spin );
 
-                                // Calculate the indicated rate
+    if (spin >= _gyro_spin_valid_from_node->getDoubleValue())
+        _is_valid_node->setBoolValue(1);
+    else
+        _is_valid_node->setBoolValue(0);
+
+    // Calculate the indicated rate
     double factor = 1.0 - ((1.0 - spin) * (1.0 - spin) * (1.0 - spin));
     double rate = ((_roll_rate_node->getDoubleValue() / 20.0) +
                    (_yaw_rate_node->getDoubleValue() / 3.0));
 
-                                // Clamp the rate
+    // Clamp the rate
     if (rate < -2.5)
         rate = -2.5;
     else if (rate > 2.5)
         rate = 2.5;
 
-                                // Lag left, based on gyro spin
+    // Lag left, based on gyro spin
     rate = -2.5 + (factor * (rate + 2.5));
     rate = fgGetLowPass(_last_rate, rate, dt*RESPONSIVENESS);
     _last_rate = rate;
 
-                                // Publish the indicated rate
+    // Publish the indicated rate
     _rate_out_node->setDoubleValue(rate);
 }
 
