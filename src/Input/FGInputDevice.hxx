@@ -137,6 +137,8 @@ protected:
     std::unique_ptr<PrivateListener> _configListener;
 
     nasal::NasalCode _postUpdateCallback;
+
+    naRef getModule();
 };
 
 typedef SGSharedPtr<FGInputDevice> FGInputDevice_ptr;

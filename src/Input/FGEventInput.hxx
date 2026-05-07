@@ -41,10 +41,10 @@ protected:
     const char* filePath;
     const char* propertyRoot;
 
-    unsigned AddDevice(FGInputDevice* inputDevice);
+    unsigned AddDevice(FGInputDevice_ptr inputDevice);
     void RemoveDevice(unsigned index);
 
-    std::map<int, FGInputDevice*> inputDevices;
+    std::map<int, FGInputDevice_ptr> inputDevices;
     FGDeviceConfigurationMap configMap;
 
     SGPropertyNode_ptr nasalClose;

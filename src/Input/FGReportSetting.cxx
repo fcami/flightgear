@@ -103,15 +103,9 @@ bool FGReportSetting::Test()
     return d;
 }
 
-simgear::UInt8Vector FGReportSetting::reportBytes(const std::string& moduleName) const
+simgear::UInt8Vector FGReportSetting::reportBytes(naRef module) const
 {
-    auto nas = globals->get_subsystem<FGNasalSys>();
-    if (!nas) {
-        return {};
-    }
-
-    naRef locals = nas->getModule(moduleName, true /*create*/);
-    naRef result = nasalCode.callWithLocals(locals);
+    naRef result = nasalCode.callWithLocals(module);
 
     if (naIsString(result)) {
         size_t len = naStr_len(result);

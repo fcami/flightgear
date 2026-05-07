@@ -177,11 +177,23 @@ void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
     }
 }
 
+naRef FGInputDevice::getModule()
+{
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    if (!nas) {
+        return naRef();
+    }
+
+    return nas->getModule(nasalModule, false /*don't create*/);
+}
+
 void FGInputDevice::update(double dt)
 {
     for (auto it : handledEvents) {
         it.second->update(dt);
     }
+
+    naRef module = naNil();
 
     bool didSend = false;
     for (auto r : reportSettings) {
@@ -191,7 +203,11 @@ void FGInputDevice::update(double dt)
 
         try {
             if (r->Test()) {
-                auto reportData = r->reportBytes(nasalModule);
+                if (naIsNil(module)) {
+                    module = getModule();
+                }
+
+                auto reportData = r->reportBytes(module);
                 if (debugEvents) {
                     SG_LOG(SG_INPUT, SG_INFO, class_id << " " << GetUniqueName() << ": Sending report " << r->getReportId() << simgear::strutils::encodeHex(reportData));
                 }
@@ -214,7 +230,11 @@ void FGInputDevice::update(double dt)
 
     if (didSend && _postUpdateCallback.isValid()) {
         try {
-            _postUpdateCallback.call();
+            if (naIsNil(module)) {
+                module = getModule();
+            }
+
+            _postUpdateCallback.callWithLocals(module);
         } catch (sg_exception& e) {
             simgear::reportFailure(simgear::LoadFailure::Unknown,
                                    simgear::ErrorCode::InputDeviceConfig,

@@ -1165,7 +1165,7 @@ void ReportSettingTests::testNasalInlineCodeString()
     FGReportSetting rs(base);
     CPPUNIT_ASSERT(!rs.hasError());
 
-    auto bytes = rs.reportBytes("test-module");
+    auto bytes = rs.reportBytes(naNil());
     CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>('A'), bytes[0]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>('B'), bytes[1]);
@@ -1187,7 +1187,7 @@ void ReportSettingTests::testNasalInlineCodeVector()
     FGReportSetting rs(base);
     CPPUNIT_ASSERT(!rs.hasError());
 
-    auto bytes = rs.reportBytes("test-module");
+    auto bytes = rs.reportBytes(naNil());
     CPPUNIT_ASSERT_EQUAL(size_t(3), bytes.size());
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(1), bytes[0]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(2), bytes[1]);
