@@ -53,8 +53,8 @@ TurnIndicator::init ()
     _roll_rate_node = fgGetNode("/orientation/roll-rate-degps", true);
     _yaw_rate_node = fgGetNode("/orientation/yaw-rate-degps", true);
     _rate_out_node = node->getChild("indicated-turn-rate", 0, true);
-    _spin_node = node->getChild("spin", 0, true);
     SGPropertyNode* gyro_node = node->getChild("gyro", 0, true);
+    _spin_node = gyro_node->getChild("spin", 0.0, true);
     _gyro_spin_up_node = gyro_node->getChild("spin-up-sec", 0, true);
     _gyro_spin_down_node = gyro_node->getChild("spin-down-sec", 0, true);
     if (!_gyro_spin_up_node->hasValue())
