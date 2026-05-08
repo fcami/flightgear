@@ -17,6 +17,7 @@
 
 #include <simgear/scene/model/SGPickAnimation.hxx>
 #include <simgear/scene/util/SGPickCallback.hxx>
+#include <simgear/structure/SGExpression.hxx>
 #include <simgear/structure/commands.hxx>
 #include <simgear/timing/timestamp.hxx>
 #include <simgear/structure/commands.hxx>
@@ -115,6 +116,9 @@ struct mouse_mode {
     SGBindingList x_bindings[KEYMOD_MAX];
     SGBindingList y_bindings[KEYMOD_MAX];
     SGConditionRef cursor3DCondition;
+    SGSharedPtr<SGExpressionf> _constrainX;
+    SGSharedPtr<SGExpressionf> _constrainY;
+    SGSharedPtr<SGExpressionf> _constrainRange;
 };
 
 
@@ -184,9 +188,15 @@ public:
 
     void centerMouseCursor(mouse& m)
     {
+        float cx = 0.5f, cy = 0.5f;
+        assert(m.current_mode >= 0 && m.current_mode < m.nModes);
+        if (m.modes[m.current_mode]._constrainX.valid())
+            cx = m.modes[m.current_mode]._constrainX->getValue();
+        if (m.modes[m.current_mode]._constrainY.valid())
+            cy = m.modes[m.current_mode]._constrainY->getValue();
         // center the cursor
-        m.x = (xSizeNode ? xSizeNode->getIntValue() : 800) / 2;
-        m.y = (ySizeNode ? ySizeNode->getIntValue() : 600) / 2;
+        m.x = (xSizeNode ? xSizeNode->getIntValue() : 800) * cx;
+        m.y = (ySizeNode ? ySizeNode->getIntValue() : 600) * cy;
         fgWarpMouse(m.x, m.y);
         haveWarped = true;
     }
@@ -197,15 +207,27 @@ public:
         int xsize = xSizeNode ? xSizeNode->getIntValue() : 800;
         int ysize = ySizeNode ? ySizeNode->getIntValue() : 600;
 
+        float cx = 0.5f, cy = 0.5f, cr = 0.25f;
+        const auto& m = mice[0];
+        assert(m.current_mode >= 0 && m.current_mode < m.nModes);
+        if (m.modes[m.current_mode]._constrainX.valid())
+            cx = m.modes[m.current_mode]._constrainX->getValue();
+        if (m.modes[m.current_mode]._constrainY.valid())
+            cy = m.modes[m.current_mode]._constrainY->getValue();
+        if (m.modes[m.current_mode]._constrainRange.valid())
+            cr = m.modes[m.current_mode]._constrainRange->getValue();
+
         bool need_warp = false;
-        if (x <= (xsize * .25) || x >= (xsize * .75)) {
-            new_x = int(xsize * .5);
-            need_warp = true;
+        if (x <= (xsize * (cx - cr)) || x >= (xsize * (cx + cr))) {
+            new_x = int(xsize * cx);
+            if (new_x != x)
+                need_warp = true;
         }
 
-        if (y <= (ysize * .25) || y >= (ysize * .75)) {
-            new_y = int(ysize * .5);
-            need_warp = true;
+        if (y <= (ysize * (cy - cr)) || y >= (ysize * (cy + cr))) {
+            new_y = int(ysize * cy);
+            if (new_y != y)
+                need_warp = true;
         }
 
         if (need_warp) {
@@ -471,6 +493,15 @@ void FGMouseInput::init()
             m.modes[j].constrained = mode_node->getBoolValue("constrained", false);
             m.modes[j].pass_through = mode_node->getBoolValue("pass-through", false);
             m.modes[j]._passThrough3D = mode_node->getBoolValue("vr-cursor/pass-through", false);
+
+            // Constrain expressions
+            SGPropertyNode* e;
+            if ((e = mode_node->getChild("constrain-x")))
+                m.modes[j]._constrainX = SGReadFloatExpression(fgGetNode("/"), e->getChild(0));
+            if ((e = mode_node->getChild("constrain-y")))
+                m.modes[j]._constrainY = SGReadFloatExpression(fgGetNode("/"), e->getChild(0));
+            if ((e = mode_node->getChild("constrain-range")))
+                m.modes[j]._constrainRange = SGReadFloatExpression(fgGetNode("/"), e->getChild(0));
 
             // 3D pass-through needs similar code paths to 2D pass-through in
             // this class
