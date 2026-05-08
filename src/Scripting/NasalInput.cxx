@@ -32,6 +32,10 @@ static simgear::UInt8Vector dataFromArg(const nasal::CallContext& ctx, size_t in
         simgear::UInt8Vector data;
         data.reserve(ints.size());
         for (int v : ints) {
+            if (v < 0 || v > 255) {
+                ctx.runtimeError("data vector contains out-of-range value: %d, (must be 0-255)", v);
+            }
+
             data.push_back(static_cast<uint8_t>(v));
         }
         return data;

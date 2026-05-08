@@ -1532,7 +1532,6 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
     if (naIsNil(d->_globals))
         return false;
 
-    bool didCreateModule = false;
     if (!naHash_get(d->_globals, modname, &locals)) {
         // if we are re-creating the module for canvas, ensure the C++
         // pieces are re-defined first. As far as I can see, Canvas is the only
@@ -1544,7 +1543,6 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
         } else {
             locals = naNewHash(ctx);
         }
-        didCreateModule = true;
     }
 
     // store the filename in the module hash, so we could reload it
@@ -1645,13 +1643,11 @@ naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 {
     naRef mod = naHash_cget(d->_globals, (char*)moduleName.c_str());
     if (naIsNil(mod) && create) {
-        naContext ctx = naNewContext();
-        naRef modname = naNewString(ctx);
+        naRef modname = naNewString(d->_context);
         naStr_fromdata(modname, moduleName.data(), moduleName.size());
 
-        mod = naNewHash(ctx);
+        mod = naNewHash(d->_context);
         naHash_set(d->_globals, modname, mod);
-        naFreeContext(ctx);
     }
     return mod;
 }

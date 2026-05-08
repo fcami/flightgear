@@ -37,6 +37,10 @@ void FGInputDevice::PrivateListener::valueChanged(SGPropertyNode* node)
 
 FGInputDevice::~FGInputDevice()
 {
+    if (!deviceNode) {
+        return;
+    }
+
     auto debug = deviceNode->getNode("debug-events");
     if (debug) {
         debug->removeChangeListener(_configListener.get());
@@ -58,7 +62,7 @@ void FGInputDevice::doClose()
         nas->deleteModule(nasalModule.c_str());
     }
 
-    // call our virtual methdpd
+    // call our virtual method
     Close();
 }
 

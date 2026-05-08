@@ -95,6 +95,23 @@ private:
 };
 
 // ---------------------------------------------------------------------------
+// Helper to initialize the full Nasal subsystem for tests that need it.
+// Callers should reset global_nasalMinimalInit in their tearDown if needed.
+// ---------------------------------------------------------------------------
+static void initNasalForTest()
+{
+    fgInitAllowedPaths();
+    globals->get_props()->getNode("nasal", true);
+    globals->get_subsystem_mgr()->add<FGInterpolator>();
+    globals->get_subsystem_mgr()->bind();
+    globals->get_subsystem_mgr()->init();
+
+    global_nasalMinimalInit = false;
+    globals->get_subsystem_mgr()->add<FGNasalSys>();
+    globals->get_subsystem_mgr()->postinit();
+}
+
+// ---------------------------------------------------------------------------
 // Helpers to build a device property node from an XML snippet and configure
 // a TestInputDevice with it.  The device node lives in a detached property
 // tree so tests don't pollute the global tree.
@@ -150,6 +167,7 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-double-press-cmd");
     cmds->removeCommand("test-long-press-cmd");
 
+    global_nasalMinimalInit = true;
     FGTestApi::tearDown::shutdownTestGlobals();
 }
 
@@ -1022,30 +1040,21 @@ void InputDeviceTests::testRepeatableWithLongPress()
 // ---------------------------------------------------------------------------
 void InputDeviceTests::testNasalDevice()
 {
-    // Initialize Nasal for this test (same setup as ReportSettingTests)
-    fgInitAllowedPaths();
-    globals->get_props()->getNode("nasal", true);
-    globals->get_subsystem_mgr()->add<FGInterpolator>();
-    globals->get_subsystem_mgr()->bind();
-    globals->get_subsystem_mgr()->init();
-
-    global_nasalMinimalInit = false;
-    globals->get_subsystem_mgr()->add<FGNasalSys>();
-    globals->get_subsystem_mgr()->postinit();
+    initNasalForTest();
 
     auto device = makeDevice("nasal-test-device", R"(
-        <PropertyList>
-          <nasal>
-            <open>
-              <![CDATA[
+         <PropertyList>
+           <nasal>
+             <open>
+               <![CDATA[
                 logprint(LOG_INFO, "In nasal open block");
                 device.sendFeatureReport(42, [10, 20, 30]);
                 logprint(LOG_INFO, "After sendFeatureReport in nasal open block");
-              ]]>
-            </open>
-          </nasal>
-        </PropertyList>
-    )");
+               ]]>
+             </open>
+           </nasal>
+         </PropertyList>
+     )");
 
     CPPUNIT_ASSERT_EQUAL(0u, device->getLastFeatureReportId());
     device->Open();
@@ -1057,9 +1066,6 @@ void InputDeviceTests::testNasalDevice()
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(10), bytes[0]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(20), bytes[1]);
     CPPUNIT_ASSERT_EQUAL(static_cast<uint8_t>(30), bytes[2]);
-
-    // Clean up Nasal
-    global_nasalMinimalInit = false;
 }
 
 // ---------------------------------------------------------------------------
@@ -1073,16 +1079,7 @@ void InputDeviceTests::testNasalDevice()
 // ---------------------------------------------------------------------------
 void InputDeviceTests::testNasalClose()
 {
-    // Initialize Nasal (same sequence as testNasalDevice)
-    fgInitAllowedPaths();
-    globals->get_props()->getNode("nasal", true);
-    globals->get_subsystem_mgr()->add<FGInterpolator>();
-    globals->get_subsystem_mgr()->bind();
-    globals->get_subsystem_mgr()->init();
-
-    global_nasalMinimalInit = false;
-    globals->get_subsystem_mgr()->add<FGNasalSys>();
-    globals->get_subsystem_mgr()->postinit();
+    initNasalForTest();
 
     auto device = makeDevice("nasal-close-device", R"(
         <PropertyList>
@@ -1120,8 +1117,6 @@ void InputDeviceTests::testNasalClose()
     // The ordering assertion: Close() recorded that the feature report was
     // already populated when it ran, proving nasal executed first.
     CPPUNIT_ASSERT(device->wasReportSetAtCloseTime());
-
-    global_nasalMinimalInit = false;
 }
 
 // ReportSettingTests setUp / tearDown
