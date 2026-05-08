@@ -77,7 +77,10 @@ TurnIndicator::reinit ()
 void
 TurnIndicator::update (double dt)
 {
-                                // Get the spin from the gyro
+    const double kMax_Out_degsec = 6.0;  // clamp max output to this value
+    const double norm_factor = 1.0 / ( 1.0/20.0 + 1.0/3.0);
+
+    // Get the spin from the gyro
     _gyro.set_power_norm(isServiceableAndPowered());
     _gyro.set_spin_up(_gyro_spin_up_node->getDoubleValue());
     _gyro.set_spin_down(_gyro_spin_down_node->getDoubleValue());
@@ -86,23 +89,28 @@ TurnIndicator::update (double dt)
     double spin = _gyro.get_spin_norm();
     _spin_node->setDoubleValue( spin );
 
-                                // Calculate the indicated rate
+    if (spin >= _gyro_spin_valid_from_node->getDoubleValue())
+        _is_valid_node->setBoolValue(1);
+    else
+        _is_valid_node->setBoolValue(0);
+
+    // Calculate the indicated rate
     double factor = 1.0 - ((1.0 - spin) * (1.0 - spin) * (1.0 - spin));
-    double rate = ((_roll_rate_node->getDoubleValue() / 20.0) +
-                   (_yaw_rate_node->getDoubleValue() / 3.0));
+    double rate = norm_factor * ((_roll_rate_node->getDoubleValue() / 20.0) +
+                                 (_yaw_rate_node->getDoubleValue() / 3.0));
 
-                                // Clamp the rate
-    if (rate < -2.5)
-        rate = -2.5;
-    else if (rate > 2.5)
-        rate = 2.5;
+    // Clamp the rate
+    if (rate < -kMax_Out_degsec)
+        rate = -kMax_Out_degsec;
+    else if (rate > kMax_Out_degsec)
+        rate = kMax_Out_degsec;
 
-                                // Lag left, based on gyro spin
-    rate = -2.5 + (factor * (rate + 2.5));
+    // Lag left, based on gyro spin
+    rate = -kMax_Out_degsec + (factor * (rate + kMax_Out_degsec));
     rate = fgGetLowPass(_last_rate, rate, dt*RESPONSIVENESS);
     _last_rate = rate;
 
-                                // Publish the indicated rate
+    // Publish the indicated rate
     _rate_out_node->setDoubleValue(rate);
 }
 
