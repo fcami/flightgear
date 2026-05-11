@@ -111,8 +111,12 @@ pre-commit:
     # Shows how much of the configurable cache size is used
     - ccache --show-stats
 
+.UTF-8-locale_non-windows:
+  variables:
+    LC_CTYPE: C.UTF-8
+
 linux-build:
-  extends: .ccache-variables
+  extends: [.ccache-variables, .UTF-8-locale_non-windows]
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
   stage: build
   before_script:
@@ -155,7 +159,7 @@ linux-build:
       - $CCACHE_DIR
 
 linux-qt5-build:
-  extends: .ccache-variables
+  extends: [.ccache-variables, .UTF-8-locale_non-windows]
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear-qt5:latest
   stage: build
   before_script:
@@ -190,6 +194,7 @@ linux-qt5-build:
       - $CCACHE_DIR
 
 canvas-pi-build:
+  extends: .UTF-8-locale_non-windows
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/fgqcanvas-raspbian:latest
   stage: build
   script:
@@ -277,7 +282,7 @@ windows-build:
 
 macos-build:
   stage: build
-  extends: .ccache-variables
+  extends: [.ccache-variables, .UTF-8-locale_non-windows]
   tags:
     - saas-macos-medium-m1
   image: $MAC_IMAGE
@@ -325,6 +330,7 @@ macos-build:
       - $CCACHE_DIR
 
 test:
+  extends: .UTF-8-locale_non-windows
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear:latest
   stage: test
   script:
