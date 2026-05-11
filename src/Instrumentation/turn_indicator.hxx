@@ -75,6 +75,7 @@ public:
 private:
     Gyro _gyro;
     double _last_rate;
+    double _max_out_degsec;
     double _gyro_spin_up, _gyro_spin_down, _gyro_spin_valid_from;
 
     SGPropertyNode_ptr _roll_rate_node;
