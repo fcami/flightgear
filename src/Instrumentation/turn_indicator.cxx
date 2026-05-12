@@ -124,7 +124,7 @@ TurnIndicator::update (double dt)
     indicated_turn_rate = std::clamp(indicated_turn_rate, -_max_out_degsec, _max_out_degsec);
 
     // Lag left, based on gyro spin
-    indicated_turn_rate = -_max_out_degsec + (gyro_responsiveness_factor * (indicated_turn_rate + _max_out_degsec));
+    indicated_turn_rate = indicated_turn_rate - (1.0 - gyro_responsiveness_factor) * _max_out_degsec;
 
     // Dampen instrument response
     indicated_turn_rate = fgGetLowPass(_last_rate, indicated_turn_rate, dt*RESPONSIVENESS);
