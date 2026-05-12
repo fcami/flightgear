@@ -102,8 +102,6 @@ TurnIndicator::update (double dt)
     double gyro_responsiveness_factor = 1.0 - pow((1.0 - spin), 3);
 
     // Calculate the indicated turn rate
-    // using alternative math - vector addition
-
     const double instrument_yaw_sensitivity  = 1.0;     // TODO: make it configurable?
     const double instrument_roll_sensitivity = 0.15;    // TODO: make it configurable?
 
@@ -111,7 +109,7 @@ TurnIndicator::update (double dt)
     double roll_rate = instrument_roll_sensitivity * _roll_rate_node->getDoubleValue();
 
     // Get sign of the dominant vector
-    bool sign = ((abs(roll_rate) > abs(yaw_rate)) ? std::signbit(roll_rate) : std::signbit(yaw_rate));
+    double sign = (fabs(roll_rate) > fabs(yaw_rate) ? roll_rate : yaw_rate);
 
     // Add vectors (always perpendicular)
     double indicated_turn_rate = sqrt(
@@ -120,7 +118,7 @@ TurnIndicator::update (double dt)
         pow(gyro_responsiveness_factor * roll_rate, 2)
     );
 
-    if(sign) indicated_turn_rate = -indicated_turn_rate;
+    indicated_turn_rate = std::copysign(indicated_turn_rate, sign);
 
     // Clamp the output
     indicated_turn_rate = std::clamp(indicated_turn_rate, -_max_out_degsec, _max_out_degsec);
