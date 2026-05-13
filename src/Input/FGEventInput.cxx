@@ -69,7 +69,7 @@ std::string FGEventInput::computeDeviceIndexName(FGInputDevice* dev) const
     return os.str();
 }
 
-unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
+unsigned FGEventInput::AddDevice(FGInputDevice_ptr inputDevice)
 {
     SGPropertyNode_ptr baseNode = fgGetNode(propertyRoot, true);
     SGPropertyNode_ptr deviceNode = nullptr;
@@ -108,7 +108,6 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
             configNode = configMap.configurationForDeviceName(deviceName);
         } else {
             SG_LOG(SG_INPUT, SG_INFO, "No configuration found for device " << deviceName);
-            delete inputDevice;
             return INVALID_DEVICE_INDEX;
         }
         inputDevice->SetUniqueName(nameWithIndex);
@@ -124,7 +123,6 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     if (index == MAX_DEVICES) {
         SG_LOG(SG_INPUT, SG_WARN, "To many event devices - ignoring " << inputDevice->GetUniqueName());
-        delete inputDevice;
         return INVALID_DEVICE_INDEX;
     }
 
@@ -138,11 +136,13 @@ unsigned FGEventInput::AddDevice(FGInputDevice* inputDevice)
 
     bool ok = inputDevice->Open();
     if (!ok) {
-        delete inputDevice;
         return INVALID_DEVICE_INDEX;
     }
 
     inputDevices[deviceNode->getIndex()] = inputDevice;
+
+    // Run Nasal <open> code for the device, now it's open
+    inputDevice->postOpen();
 
     SG_LOG(SG_INPUT, SG_INFO, inputDevice->class_id << "::AddDevice '" << inputDevice->GetUniqueName() << "' s/n: " << inputDevice->GetSerialNumber());
     return deviceNode->getIndex();
@@ -158,9 +158,8 @@ void FGEventInput::RemoveDevice(unsigned index)
     FGInputDevice* inputDevice = inputDevices[index];
     if (inputDevice) {
         SG_LOG(SG_INPUT, SG_DEBUG, "\tremoving (" << index << ") " << inputDevice->GetUniqueName());
-        inputDevice->Close();
+        inputDevice->doClose();
         inputDevices.erase(index);
-        delete inputDevice;
     }
     deviceNode = baseNode->removeChild("device", index);
 }

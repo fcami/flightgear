@@ -7,10 +7,12 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/debug_types.h>
 #include <simgear/misc/strutils.hxx>
+#include <simgear/nasal/cppbind/Ghost.hxx>
 #include <simgear/structure/exception.hxx>
 
 #include <Main/fg_props.hxx>
@@ -35,6 +37,18 @@ void FGInputDevice::PrivateListener::valueChanged(SGPropertyNode* node)
 
 FGInputDevice::~FGInputDevice()
 {
+    if (!deviceNode) {
+        return;
+    }
+
+    auto debug = deviceNode->getNode("debug-events");
+    if (debug) {
+        debug->removeChangeListener(_configListener.get());
+    }
+}
+
+void FGInputDevice::doClose()
+{
     auto nas = globals->get_subsystem<FGNasalSys>();
     if (nas && deviceNode) {
         SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
@@ -48,11 +62,18 @@ FGInputDevice::~FGInputDevice()
         nas->deleteModule(nasalModule.c_str());
     }
 
-    auto debug = deviceNode->getNode("debug-events");
-    if (debug) {
-        debug->removeChangeListener(_configListener.get());
-    }
+    // call our virtual method
+    Close();
 }
+
+static naRef createNasalGhost(FGInputDevice_ptr ref, naContext c)
+{
+    using NasalInputDevice = nasal::Ghost<FGInputDevice_ptr>;
+
+    // We need a non-const shared pointer for the ghost system
+    return NasalInputDevice::makeGhost(c, ref);
+}
+
 
 void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
 {
@@ -100,19 +121,56 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
     lastEventValue = deviceNode->getNode("last-event")->getNode("value", true);
     lastEventValue->setDoubleValue(0.0);
 
+    auto node = deviceNode->getNode("debug-events", true);
+    node->addChangeListener(_configListener.get());
+
     SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
-    if (nasal) {
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    const bool haveUpdate = nasal && nasal->hasChild("update");
+    const bool haveOpenOrClose = nasal && (nasal->hasChild("open") || nasal->hasChild("close"));
+    if (nas && (haveUpdate || haveOpenOrClose)) {
+        // pre-create the module hash, so device property is available
+        // immediately, eg during <open> code
+        naContext c = naNewContext();
+        naRef module = nas->getModule(nasalModule, true /*create*/);
+        naRef ghost = createNasalGhost(this, c);
+        nasal::Hash moduleHash(module, c);
+        moduleHash.set("device", ghost);
+        naFreeContext(c);
+    }
+
+    if (nas && haveUpdate) {
+        const auto updateCode = nasal->getChild("update");
+        const auto loc = updateCode->getLocation();
+        _postUpdateCallback = nas->createCode(updateCode->getStringValue(), loc.getPath(), loc.getLine());
+        if (_postUpdateCallback.getErrors().size() > 0) {
+            simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "Failed to compile update callback for device"s + _postUpdateCallback.getErrors().front(),
+                                   sg_location(loc));
+            _postUpdateCallback = {};
+        }
+    }
+}
+
+void FGInputDevice::postOpen()
+{
+    SGPropertyNode_ptr nasal = deviceNode->getNode("nasal");
+    auto nas = globals->get_subsystem<FGNasalSys>();
+
+    if (nasal && nas) {
         SGPropertyNode_ptr open = nasal->getNode("open");
         if (open) {
             const string s = open->getStringValue();
-            auto nas = globals->get_subsystem<FGNasalSys>();
-            if (nas)
-                nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            bool ok = nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            if (!ok) {
+                simgear::reportFailure(simgear::LoadFailure::Misconfigured,
+                                       simgear::ErrorCode::InputDeviceConfig,
+                                       "Failed to load device Nasal",
+                                       sg_location(open));
+            }
         }
     }
-
-    auto node = deviceNode->getNode("debug-events", true);
-    node->addChangeListener(_configListener.get());
 }
 
 void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
@@ -123,11 +181,25 @@ void FGInputDevice::AddHandledEvent(FGInputEvent_ptr event)
     }
 }
 
+naRef FGInputDevice::getModule()
+{
+    auto nas = globals->get_subsystem<FGNasalSys>();
+    if (!nas) {
+        return naRef();
+    }
+
+    return nas->getModule(nasalModule, false /*don't create*/);
+}
+
 void FGInputDevice::update(double dt)
 {
-    for (map<string, FGInputEvent_ptr>::iterator it = handledEvents.begin(); it != handledEvents.end(); it++)
-        (*it).second->update(dt);
+    for (auto it : handledEvents) {
+        it.second->update(dt);
+    }
 
+    naRef module = naNil();
+
+    bool didSend = false;
     for (auto r : reportSettings) {
         if (r->hasError()) {
             continue;
@@ -135,7 +207,11 @@ void FGInputDevice::update(double dt)
 
         try {
             if (r->Test()) {
-                auto reportData = r->reportBytes(nasalModule);
+                if (naIsNil(module)) {
+                    module = getModule();
+                }
+
+                auto reportData = r->reportBytes(module);
                 if (debugEvents) {
                     SG_LOG(SG_INPUT, SG_INFO, class_id << " " << GetUniqueName() << ": Sending report " << r->getReportId() << simgear::strutils::encodeHex(reportData));
                 }
@@ -144,6 +220,8 @@ void FGInputDevice::update(double dt)
                 } else {
                     SendOutputReport(r->getReportId(), reportData);
                 }
+
+                didSend = true;
             }
         } catch (sg_exception& e) {
             r->markAsError();
@@ -153,6 +231,24 @@ void FGInputDevice::update(double dt)
                                    e.getLocation());
         }
     } // of report setting iteration
+
+    if (didSend && _postUpdateCallback.isValid()) {
+        try {
+            if (naIsNil(module)) {
+                module = getModule();
+            }
+
+            _postUpdateCallback.callWithLocals(module);
+        } catch (sg_exception& e) {
+            simgear::reportFailure(simgear::LoadFailure::Unknown,
+                                   simgear::ErrorCode::InputDeviceConfig,
+                                   "Failed to execute post-update callback:"s + e.getMessage(),
+                                   e.getLocation());
+
+            // FIXME
+            //_postUpdateCallback.reset();
+        }
+    }
 }
 
 void FGInputDevice::HandleEvent(FGEventData& eventData)

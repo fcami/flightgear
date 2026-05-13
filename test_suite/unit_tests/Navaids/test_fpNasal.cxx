@@ -27,10 +27,12 @@ using namespace flightgear;
 using namespace std::string_literals;
 
 static bool static_haveProcedures = false;
+extern bool global_nasalMinimalInit;
 
 // Set up function for each test.
 void FPNasalTests::setUp()
 {
+    global_nasalMinimalInit = false;
     FGTestApi::setUp::initTestGlobals("flightplan");
     FGTestApi::setUp::initNavDataCache();
 

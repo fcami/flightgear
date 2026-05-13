@@ -515,7 +515,7 @@ void FGLinuxEventInput::update( double dt )
   // the pollfd array by filling in the file descriptor
   struct pollfd fds[inputDevices.size()];
   std::map<int,FGLinuxInputDevice*> devicesByFd;
-  std::map<int,FGInputDevice*>::const_iterator it;
+  std::map<int, FGInputDevice_ptr>::const_iterator it;
   int i;
   for( i=0, it = inputDevices.begin(); it != inputDevices.end(); ++it, i++ ) {
     FGInputDevice* p = (*it).second;
