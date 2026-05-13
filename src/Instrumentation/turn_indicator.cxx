@@ -33,7 +33,7 @@ TurnIndicator::TurnIndicator ( SGPropertyNode *node) :
        setDefaultPowerSupplyPath("/systems/electrical/outputs/turn-coordinator");
     }
 
-    _max_out_degsec = node->getDoubleValue("max-out-degsec", 6.0);
+    _max_out_degsec = node->getDoubleValue("max-indicated-degsec", 6.0);
 
     SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
     _gyro_spin_up = gyro_cfg->getDoubleValue("spin-up-sec", 4.0);
@@ -93,10 +93,8 @@ TurnIndicator::update (double dt)
     double spin = _gyro.get_spin_norm();
     _spin_node->setDoubleValue( spin );
 
-    if (spin >= _gyro_spin_valid_from_node->getDoubleValue())
-        _is_valid_node->setBoolValue(1);
-    else
-        _is_valid_node->setBoolValue(0);
+    //Set 'indication is valid'
+    _is_valid_node->setBoolValue(spin >= _gyro_spin_valid_from_node->getDoubleValue());
 
     // Calculate gyro responsiveness
     double gyro_responsiveness_factor = 1.0 - pow((1.0 - spin), 3);
