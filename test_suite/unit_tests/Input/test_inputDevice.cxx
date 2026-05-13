@@ -167,7 +167,6 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-double-press-cmd");
     cmds->removeCommand("test-long-press-cmd");
 
-    global_nasalMinimalInit = true;
     FGTestApi::tearDown::shutdownTestGlobals();
 }
 
