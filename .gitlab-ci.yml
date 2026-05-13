@@ -23,6 +23,7 @@ spec:
 ---
 
 variables:
+  LC_CTYPE: C.UTF-8
   BUILD_DIR: "$CI_PROJECT_DIR/build"
   PREFIX_DIR: "$CI_PROJECT_DIR/dist"
   # cache:key is not allowed to contain '/' characters
