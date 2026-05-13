@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear 1.0
 import FlightGear.Launcher 1.0
@@ -139,7 +142,7 @@ Item {
                 spacing: Style.margin
 
                 // hide if there's no parking locations defined for this carrier
-                visible: _location.carrierParkings.length > 0
+                visible: !_location.carrierParkings.empty
 
                 RadioButton {
                     id: parkingRadio

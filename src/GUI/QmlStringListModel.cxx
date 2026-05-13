@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileName: QmlStringListModel.cxx
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: Copyright (C) 2025 James Turner
+ */
+
 #include "QmlStringListModel.hxx"
 
 #include <algorithm>
@@ -41,4 +47,16 @@ QVariant QmlStringListModel::data(const QModelIndex& m, int role) const
     }
 
     return {};
+}
+
+void QmlStringListModel::clear()
+{
+    beginResetModel();
+    m_values.clear();
+    endResetModel();
+}
+
+bool QmlStringListModel::empty() const
+{
+    return m_values.isEmpty();
 }

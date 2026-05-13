@@ -1,25 +1,10 @@
-// LocationController.hxx - GUI launcher dialog using Qt5
-//
-// Written by James Turner, started October 2015.
-//
-// Copyright (C) 2015 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: 2015 James Turner
+ */
 
-#ifndef LOCATION_CONTROLLER_HXX
-#define LOCATION_CONTROLLER_HXX
+
+#pragma once
 
 #include <QObjectList>
 
@@ -35,10 +20,13 @@
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 Q_MOC_INCLUDE("NavaidSearchModel.hxx")
 Q_MOC_INCLUDE("QmlPositionedModel.hxx")
+Q_MOC_INCLUDE("QmlStringListModel.hxx")
 #endif
 
 class NavaidSearchModel;
 class QmlPositionedModel;
+class QmlStringListModel;
+
 class LocationController : public QObject
 {
     Q_OBJECT
@@ -78,7 +66,7 @@ class LocationController : public QObject
 
     Q_PROPERTY(bool isCarrier READ isCarrier NOTIFY baseLocationChanged)
     Q_PROPERTY(QString carrier READ carrierName WRITE setCarrierLocation NOTIFY baseLocationChanged)
-    Q_PROPERTY(QStringList carrierParkings READ carrierParkings NOTIFY baseLocationChanged)
+    Q_PROPERTY(QmlStringListModel* carrierParkings READ carrierParkings CONSTANT)
     Q_PROPERTY(bool useCarrierFLOLS READ useCarrierFLOLS WRITE setUseCarrierFLOLS NOTIFY configChanged)
     Q_PROPERTY(QString carrierParking READ carrierParking WRITE setCarrierParking NOTIFY configChanged)
     Q_PROPERTY(bool abeam READ abeam WRITE setAbeam NOTIFY configChanged)
@@ -201,7 +189,7 @@ public:
         return m_locationIsCarrier;
     }
 
-    QStringList carrierParkings() const;
+    QmlStringListModel* carrierParkings() const;
 
     bool useCarrierFLOLS() const
     {
@@ -298,7 +286,5 @@ private:
 
     bool m_useCarrierFLOLS = false;
     QString m_carrierParking;
-    QStringList m_carrierParkings;
+    QmlStringListModel* m_carrierParkingsModel = nullptr;
 };
-
-#endif // LOCATION_CONTROLLER_HXX
