@@ -33,9 +33,12 @@ TurnIndicator::TurnIndicator ( SGPropertyNode *node) :
        setDefaultPowerSupplyPath("/systems/electrical/outputs/turn-coordinator");
     }
 
+    _max_out_degsec = node->getDoubleValue("max-indicated-degsec", 6.0);
+
     SGPropertyNode* gyro_cfg = node->getChild("gyro", 0, true);
     _gyro_spin_up = gyro_cfg->getDoubleValue("spin-up-sec", 4.0);
     _gyro_spin_down = gyro_cfg->getDoubleValue("spin-down-sec", 180.0);
+    _gyro_spin_valid_from = gyro_cfg->getDoubleValue("gyro-spin-valid-norm", 0.93);
 
     readConfig(node, "turn-indicator");
 }
@@ -53,14 +56,18 @@ TurnIndicator::init ()
     _roll_rate_node = fgGetNode("/orientation/roll-rate-degps", true);
     _yaw_rate_node = fgGetNode("/orientation/yaw-rate-degps", true);
     _rate_out_node = node->getChild("indicated-turn-rate", 0, true);
-    _spin_node = node->getChild("spin", 0, true);
+    _is_valid_node = node->getChild("is-valid", 0, true);
     SGPropertyNode* gyro_node = node->getChild("gyro", 0, true);
+    _spin_node = gyro_node->getChild("spin", 0.0, true);
     _gyro_spin_up_node = gyro_node->getChild("spin-up-sec", 0, true);
     _gyro_spin_down_node = gyro_node->getChild("spin-down-sec", 0, true);
+    _gyro_spin_valid_from_node = gyro_node->getChild("gyro-spin-valid-norm", 0, true);
     if (!_gyro_spin_up_node->hasValue())
         _gyro_spin_up_node->setDoubleValue(_gyro_spin_up);
     if (!_gyro_spin_down_node->hasValue())
         _gyro_spin_down_node->setDoubleValue(_gyro_spin_down);
+    if (!_gyro_spin_valid_from_node->hasValue())
+        _gyro_spin_valid_from_node->setDoubleValue(_gyro_spin_valid_from);
 
     initServicePowerProperties(node);
 
@@ -77,9 +84,6 @@ TurnIndicator::reinit ()
 void
 TurnIndicator::update (double dt)
 {
-    const double kMax_Out_degsec = 6.0;  // clamp max output to this value
-    const double norm_factor = 1.0 / ( 1.0/20.0 + 1.0/3.0);
-
     // Get the spin from the gyro
     _gyro.set_power_norm(isServiceableAndPowered());
     _gyro.set_spin_up(_gyro_spin_up_node->getDoubleValue());
@@ -89,29 +93,40 @@ TurnIndicator::update (double dt)
     double spin = _gyro.get_spin_norm();
     _spin_node->setDoubleValue( spin );
 
-    if (spin >= _gyro_spin_valid_from_node->getDoubleValue())
-        _is_valid_node->setBoolValue(1);
-    else
-        _is_valid_node->setBoolValue(0);
+    //Set 'indication is valid'
+    _is_valid_node->setBoolValue(spin >= _gyro_spin_valid_from_node->getDoubleValue());
 
-    // Calculate the indicated rate
-    double factor = 1.0 - ((1.0 - spin) * (1.0 - spin) * (1.0 - spin));
-    double rate = norm_factor * ((_roll_rate_node->getDoubleValue() / 20.0) +
-                                 (_yaw_rate_node->getDoubleValue() / 3.0));
+    // Calculate gyro responsiveness
+    double gyro_responsiveness_factor = 1.0 - pow((1.0 - spin), 3);
 
-    // Clamp the rate
-    if (rate < -kMax_Out_degsec)
-        rate = -kMax_Out_degsec;
-    else if (rate > kMax_Out_degsec)
-        rate = kMax_Out_degsec;
+    // Calculate the indicated turn rate
+    const double instrument_yaw_sensitivity = 1.0;   // TODO: make it configurable?
+    const double instrument_roll_sensitivity = 0.15; // TODO: make it configurable?
+
+    double yaw_rate = instrument_yaw_sensitivity * _yaw_rate_node->getDoubleValue();
+    double roll_rate = instrument_roll_sensitivity * _roll_rate_node->getDoubleValue();
+
+    // Get sign of the dominant vector
+    double sign = (fabs(roll_rate) > fabs(yaw_rate) ? roll_rate : yaw_rate);
+
+    // Add vectors (always perpendicular)
+    double indicated_turn_rate = sqrt(
+        pow(gyro_responsiveness_factor * yaw_rate, 2) +
+        pow(gyro_responsiveness_factor * roll_rate, 2));
+
+    indicated_turn_rate = std::copysign(indicated_turn_rate, sign);
+
+    // Clamp the output
+    indicated_turn_rate = std::clamp(indicated_turn_rate, -_max_out_degsec, _max_out_degsec);
 
     // Lag left, based on gyro spin
-    rate = -kMax_Out_degsec + (factor * (rate + kMax_Out_degsec));
-    rate = fgGetLowPass(_last_rate, rate, dt*RESPONSIVENESS);
-    _last_rate = rate;
+    indicated_turn_rate = indicated_turn_rate - (1.0 - gyro_responsiveness_factor) * _max_out_degsec;
 
-    // Publish the indicated rate
-    _rate_out_node->setDoubleValue(rate);
+    // Dampen instrument response
+    indicated_turn_rate = fgGetLowPass(_last_rate, indicated_turn_rate, dt * RESPONSIVENESS);
+
+    _last_rate = indicated_turn_rate;
+    _rate_out_node->setDoubleValue(indicated_turn_rate);
 }
 
 // end of turn_indicator.cxx
