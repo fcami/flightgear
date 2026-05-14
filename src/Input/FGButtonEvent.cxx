@@ -23,6 +23,8 @@ FGButtonEvent::FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode
             _outputMode = OutputMode::Button;
         } else if (s == "switch") {
             _outputMode = OutputMode::Switch;
+        } else if (s == "selector") {
+            _outputMode = OutputMode::Selector;
         } else {
             throw sg_io_exception("Invalid output mode:" + s, sg_location(eventNode));
         }
@@ -32,6 +34,10 @@ FGButtonEvent::FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode
         if (repeatable) {
             throw sg_io_exception("Switch mode doesn't support repeatable events", sg_location(eventNode));
         }
+    }
+
+    if (_outputMode == OutputMode::Selector) {
+        _settingValue = eventNode->getDoubleValue("setting", 0.0);
     }
 
     _invert = eventNode->getBoolValue("invert", false);
@@ -65,6 +71,15 @@ void FGButtonEvent::fire(FGEventData& eventData)
         SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been " << (pressed ? "pressed" : "released"));
         eventData.value = pressed ? 1.0 : 0.0;
         FGInputEvent::fire(eventData);
+    } else if (_outputMode == OutputMode::Selector) {
+        // In selector mode, fire with the stored setting value on press
+        if (pressed) {
+            if (!lastState || repeatable) {
+                SG_LOG(SG_INPUT, SG_DEBUG, "Selector '" << this->name << "' has been pressed (setting=" << _settingValue << ")");
+                eventData.value = _settingValue;
+                FGInputEvent::fire(eventData);
+            }
+        }
     }
 
     lastState = pressed;
@@ -169,6 +184,38 @@ void FGExtendedButtonEvent::fire(FGEventData& eventData)
         SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been " << (pressed ? "pressed" : "released"));
         eventData.value = pressed ? 1.0 : 0.0;
         FGInputEvent::fire(eventData);
+    } else if (_outputMode == OutputMode::Selector) {
+        // In selector mode, fire with the stored setting value on press
+        if (pressed) {
+            _pressHeldTime = 0.0;
+            _longPressFired = false;
+
+            if (!lastState || repeatable) {
+                if (_waitingForDoublePress && !_doublePressBind.empty()) {
+                    // Second press within the double-press window: fire double-press bindings
+                    // and suppress the normal press bindings
+                    SG_LOG(SG_INPUT, SG_DEBUG, "Selector '" << this->name << "' double-pressed");
+                    for (auto& b : _doublePressBind)
+                        FGButtonEvent::fire(b.get(), eventData);
+                    _timeSinceFirstPress = 0.0;
+                } else {
+                    SG_LOG(SG_INPUT, SG_DEBUG, "Selector '" << this->name << "' has been pressed (setting=" << _settingValue << ")");
+                    eventData.value = _settingValue;
+                    FGInputEvent::fire(eventData);
+                    if (!_doublePressBind.empty()) {
+                        _waitingForDoublePress = true;
+                        _timeSinceFirstPress = 0.0;
+                    }
+                }
+            }
+        } else {
+            if (lastState) {
+                SG_LOG(SG_INPUT, SG_DEBUG, "Selector '" << this->name << "' has been released");
+                eventData.modifiers |= KEYMOD_RELEASED;
+                FGInputEvent::fire(eventData);
+                _pressHeldTime = 0.0;
+            }
+        }
     }
 
     lastState = pressed;

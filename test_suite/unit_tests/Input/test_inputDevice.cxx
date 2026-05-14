@@ -783,6 +783,54 @@ void InputDeviceTests::testButtonSwitchMode()
 }
 
 // ---------------------------------------------------------------------------
+// testSelector
+//
+// In selector output-mode the binding fires only on press, using the
+// configured <setting> value as the event value.  Release events do NOT
+// fire any binding.
+//
+// Config: setting=3.0 → press fires binding with lastSetting=3.0;
+// release is silently ignored (no mod-up binding fires).
+// ---------------------------------------------------------------------------
+void InputDeviceTests::testSelector()
+{
+    auto device = makeDevice("test-device", R"(
+         <PropertyList>
+           <event>
+             <name>button-selector</name>
+             <output-mode>selector</output-mode>
+             <setting type="double">3.0</setting>
+             <binding>
+               <command>test-switch-cmd</command>
+             </binding>
+           </event>
+         </PropertyList>
+     )");
+
+    device->setEventName("button-selector");
+
+    // --- 1. Press: binding fires with the stored setting value ---
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _switchCmd.lastSetting, 1e-9);
+
+    // --- 2. Release: no binding should fire ---
+    FGEventData release{0.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount); // unchanged
+
+    // --- 3. Second press: fires again with the same setting value ---
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _switchCmd.lastSetting, 1e-9);
+
+    // --- 4. Another release: still no binding fires ---
+    device->HandleEvent(release);
+    CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount); // unchanged
+}
+
+// ---------------------------------------------------------------------------
 // testDoublePress
 //
 // FGExtendedButtonEvent with a <mod-double-press> binding:
