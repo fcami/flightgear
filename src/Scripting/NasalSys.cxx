@@ -49,10 +49,12 @@
 #include "NasalCondition.hxx"
 #include "NasalFlightPlan.hxx"
 #include "NasalHTTP.hxx"
+#include "NasalInput.hxx"
 #include "NasalPositioned.hxx"
 #include "NasalSGPath.hxx"
 #include "NasalString.hxx"
 #include "NasalSys.hxx"
+
 #include "NasalSys_private.hxx"
 #include "NasalTranslations.hxx"
 #include "NasalUnitTesting.hxx"
@@ -1127,6 +1129,8 @@ void FGNasalSys::init()
         NewGUI::registerNasalBindings(this);
     }
 
+    initNasalInput(d->_globals, d->_context);
+
     NasalTimerObj::init("Timer")
       .method("start", &TimerObj::start)
       .method("stop", &TimerObj::stop)
@@ -1146,6 +1150,10 @@ void FGNasalSys::init()
     if (global_nasalMinimalInit) {
         d->_inited = true;
         return;
+    }
+
+    if (fgGetString("/sim/nasal-load-priority/file[0]") != "props.nas") {
+        SG_LOG(SG_NASAL, SG_DEV_ALERT, "Nasal loadpriority.xml not included, Nasal loading will fail");
     }
 
     flightgear::initNasalTranslations(d->_globals, d->_context);
@@ -1524,7 +1532,6 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
     if (naIsNil(d->_globals))
         return false;
 
-    bool didCreateModule = false;
     if (!naHash_get(d->_globals, modname, &locals)) {
         // if we are re-creating the module for canvas, ensure the C++
         // pieces are re-defined first. As far as I can see, Canvas is the only
@@ -1536,7 +1543,6 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
         } else {
             locals = naNewHash(ctx);
         }
-        didCreateModule = true;
     }
 
     // store the filename in the module hash, so we could reload it
@@ -1550,9 +1556,15 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
     d->_cmdArg = (SGPropertyNode*)cmdarg;
     callWithContext(ctx, code, argc, args, locals);
 
-    if (didCreateModule) {
-        hashset(d->_globals, moduleName, locals);
+    if (const char* error = naGetError(ctx)) {
+        int line = naGetLine(ctx, 0);
+        char* file = naStr_data(naGetSourceFile(ctx, 0));
+        SG_LOG(SG_NASAL, SG_ALERT, "Error loading module '" << moduleName << "': " << error << " (at " << file << ":" << line << ")");
+
+        return false;
     }
+
+    hashset(d->_globals, moduleName, locals);
 
     naFreeContext(ctx);
     return true;
@@ -1631,8 +1643,11 @@ naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 {
     naRef mod = naHash_cget(d->_globals, (char*)moduleName.c_str());
     if (naIsNil(mod) && create) {
+        naRef modname = naNewString(d->_context);
+        naStr_fromdata(modname, moduleName.data(), moduleName.size());
+
         mod = naNewHash(d->_context);
-        naHash_cset(d->_globals, (char*)moduleName.c_str(), mod);
+        naHash_set(d->_globals, modname, mod);
     }
     return mod;
 }

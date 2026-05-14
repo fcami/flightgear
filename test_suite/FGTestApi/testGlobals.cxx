@@ -78,6 +78,10 @@ void initTestGlobals(const std::string& testName, const std::string& language,
 
     fgSetDefaults();
 
+    // load Nasal load priority, which is needed for 'full' NasalSys init
+    auto nasalLoadPriority = globals->get_props()->getNode("/sim/nasal-load-priority", true);
+    readProperties(globals->get_fg_root() / "Nasal/loadpriority.xml", nasalLoadPriority);
+
     auto t = globals->get_subsystem_mgr()->add<TimeManager>();
     t->bind();
     t->init(); // establish mag-var data

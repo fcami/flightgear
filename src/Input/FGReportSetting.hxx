@@ -66,7 +66,7 @@ public:
     }
 
     bool Test();
-    simgear::UInt8Vector reportBytes(const std::string& moduleName) const;
+    simgear::UInt8Vector reportBytes(naRef module) const;
     virtual void valueChanged(SGPropertyNode* node);
 
 protected:
