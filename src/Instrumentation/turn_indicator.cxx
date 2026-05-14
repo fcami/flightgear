@@ -100,10 +100,10 @@ TurnIndicator::update (double dt)
     double gyro_responsiveness_factor = 1.0 - pow((1.0 - spin), 3);
 
     // Calculate the indicated turn rate
-    const double instrument_yaw_sensitivity  = 1.0;     // TODO: make it configurable?
-    const double instrument_roll_sensitivity = 0.15;    // TODO: make it configurable?
+    const double instrument_yaw_sensitivity = 1.0;   // TODO: make it configurable?
+    const double instrument_roll_sensitivity = 0.15; // TODO: make it configurable?
 
-    double yaw_rate  = instrument_yaw_sensitivity  * _yaw_rate_node->getDoubleValue();
+    double yaw_rate = instrument_yaw_sensitivity * _yaw_rate_node->getDoubleValue();
     double roll_rate = instrument_roll_sensitivity * _roll_rate_node->getDoubleValue();
 
     // Get sign of the dominant vector
@@ -111,10 +111,8 @@ TurnIndicator::update (double dt)
 
     // Add vectors (always perpendicular)
     double indicated_turn_rate = sqrt(
-        pow(gyro_responsiveness_factor * yaw_rate, 2) 
-        + 
-        pow(gyro_responsiveness_factor * roll_rate, 2)
-    );
+        pow(gyro_responsiveness_factor * yaw_rate, 2) +
+        pow(gyro_responsiveness_factor * roll_rate, 2));
 
     indicated_turn_rate = std::copysign(indicated_turn_rate, sign);
 
@@ -125,7 +123,7 @@ TurnIndicator::update (double dt)
     indicated_turn_rate = indicated_turn_rate - (1.0 - gyro_responsiveness_factor) * _max_out_degsec;
 
     // Dampen instrument response
-    indicated_turn_rate = fgGetLowPass(_last_rate, indicated_turn_rate, dt*RESPONSIVENESS);
+    indicated_turn_rate = fgGetLowPass(_last_rate, indicated_turn_rate, dt * RESPONSIVENESS);
 
     _last_rate = indicated_turn_rate;
     _rate_out_node->setDoubleValue(indicated_turn_rate);
