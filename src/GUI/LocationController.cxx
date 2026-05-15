@@ -1,22 +1,7 @@
-// LocationController.cxx - GUI launcher dialog using Qt5
-//
-// Written by James Turner, started October 2015.
-//
-// Copyright (C) 2015 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+/*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: 2015 James Turner
+ */
 
 #include "LocationController.hxx"
 
@@ -38,6 +23,7 @@
 #include "NavaidDiagram.hxx"
 #include "NavaidSearchModel.hxx"
 #include "QmlPositionedModel.hxx"
+#include "QmlStringListModel.hxx"
 #include "SettingsWrapper.hxx"
 
 #include <Airports/airport.hxx>
@@ -110,6 +96,8 @@ LocationController::LocationController(QObject *parent) :
     m_defaultHeading = QuantityValue{Units::DegreesTrue, 0};
     m_defaultOffsetDistance = QuantityValue{Units::NauticalMiles, 1.0};
     m_defaultOffsetRadial = QuantityValue{Units::DegreesTrue, 90};
+
+    m_carrierParkingsModel = new QmlStringListModel(this);
 
     // chain location and offset updated to description
     connect(this, &LocationController::baseLocationChanged,
@@ -225,7 +213,7 @@ void LocationController::setCarrierLocation(QString name)
     m_locationIsCarrier = true;
     m_carrierName = name;
     m_geodLocation = m_carriersModel->geodForIndex(cIndex);
-    m_carrierParkings = m_carriersModel->parkingsForIndex(cIndex);
+    m_carrierParkingsModel->setValues(m_carriersModel->parkingsForIndex(cIndex));
 
     emit baseLocationChanged();
 }
@@ -241,7 +229,7 @@ void LocationController::clearLocation()
     m_detailLocation.clear();
     m_detailQml->setGuid(0);
     m_baseQml->setGuid(0);
-    m_carrierParkings.clear();
+    m_carrierParkingsModel->clear();
     m_carrierParking.clear();
     m_runwaysModel->clear();
     m_helipadsModel->clear();
@@ -408,7 +396,7 @@ void LocationController::setCarrierParking(QString name)
     if (m_carrierParking == name)
         return;
 
-    if (!m_carrierParkings.contains(name)) {
+    if (!m_carrierParkingsModel->values().contains(name)) {
         qWarning() << "parking '" << name << "' not found in carrier parking list";
         return;
     }
@@ -428,9 +416,9 @@ QmlPositioned *LocationController::baseLocation() const
     return m_baseQml;
 }
 
-QStringList LocationController::carrierParkings() const
+QmlStringListModel* LocationController::carrierParkings() const
 {
-    return m_carrierParkings;
+    return m_carrierParkingsModel;
 }
 
 void LocationController::setOffsetRadial(QuantityValue offsetRadial)
