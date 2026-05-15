@@ -37,10 +37,14 @@ FGButtonEvent::FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode
     }
 
     if (_outputMode == OutputMode::Selector) {
-        _settingValue = eventNode->getDoubleValue("setting", 0.0);
+        _settingValue = eventNode->getDoubleValue("value", 0.0);
     }
 
     _invert = eventNode->getBoolValue("invert", false);
+
+    if (_outputName.empty()) {
+        _outputName = "value";
+    }
 }
 
 void FGButtonEvent::fire(FGEventData& eventData)
@@ -97,7 +101,11 @@ void FGButtonEvent::update(double dt)
 void FGButtonEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
 {
     SGPropertyNode_ptr args(new SGPropertyNode);
-    args->setBoolValue("value", eventData.value > 0.0);
+    if (_outputMode == OutputMode::Selector) {
+        args->setDoubleValue(_outputName, eventData.value);
+    } else {
+        args->setBoolValue(_outputName, eventData.value > 0.0);
+    }
     binding->fire(args);
 }
 

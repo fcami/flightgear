@@ -162,7 +162,8 @@ void FGInputDevice::postOpen()
         SGPropertyNode_ptr open = nasal->getNode("open");
         if (open) {
             const string s = open->getStringValue();
-            bool ok = nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            const auto loc = open->getLocation();
+            bool ok = nas->createModule(nasalModule.c_str(), loc.getPath(), s.c_str(), s.length(), deviceNode, 0, nullptr, loc.getLine());
             if (!ok) {
                 simgear::reportFailure(simgear::LoadFailure::Misconfigured,
                                        simgear::ErrorCode::InputDeviceConfig,

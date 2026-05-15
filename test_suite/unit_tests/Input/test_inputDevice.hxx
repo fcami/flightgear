@@ -35,6 +35,28 @@ struct TestCommandHandler {
     }
 };
 
+struct TestSelectorHandler {
+    int callCount = 0;
+    double lastFoobar = 0.0;
+    double lastValue = false;
+
+    void reset()
+    {
+        callCount = 0;
+        lastFoobar = 0.0;
+        lastValue = 0.0;
+    }
+
+    bool handle(const SGPropertyNode* arg, SGPropertyNode* /*root*/)
+    {
+        ++callCount;
+        lastValue = arg->getDoubleValue("value", 0.0);
+        lastFoobar = arg->getDoubleValue("foobar", 0.0);
+        return true;
+    }
+};
+
+
 /**
  * Unit tests for FGInputDevice and related event classes (FGButtonEvent,
  * FGAbsAxisEvent, FGRelAxisEvent).
@@ -51,6 +73,7 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testAxesOutputMode);
     CPPUNIT_TEST(testButtonSwitchMode);
     CPPUNIT_TEST(testSelector);
+    CPPUNIT_TEST(testNamedOutputSelector);
     CPPUNIT_TEST(testDoublePress);
     CPPUNIT_TEST(testLongPress);
     CPPUNIT_TEST(testRepeatableWithLongPress);
@@ -71,6 +94,7 @@ public:
     void testAxesOutputMode();
     void testButtonSwitchMode();
     void testSelector();
+    void testNamedOutputSelector();
     void testDoublePress();
     void testLongPress();
     void testRepeatableWithLongPress();
@@ -90,6 +114,8 @@ private:
     TestCommandHandler _switchCmd;
     TestCommandHandler _doublePressCmd;
     TestCommandHandler _longPressCmd;
+
+    TestSelectorHandler _selectorCmd;
 };
 
 /**

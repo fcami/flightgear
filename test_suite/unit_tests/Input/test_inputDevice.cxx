@@ -149,6 +149,8 @@ void InputDeviceTests::setUp()
     cmds->addCommand("test-switch-cmd", &_switchCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-double-press-cmd", &_doublePressCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-long-press-cmd", &_longPressCmd, &TestCommandHandler::handle);
+
+    cmds->addCommand("test-selector-cmd", &_selectorCmd, &TestSelectorHandler::handle);
 }
 
 void InputDeviceTests::tearDown()
@@ -166,6 +168,8 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-switch-cmd");
     cmds->removeCommand("test-double-press-cmd");
     cmds->removeCommand("test-long-press-cmd");
+
+    cmds->removeCommand("test-selector-cmd");
 
     FGTestApi::tearDown::shutdownTestGlobals();
 }
@@ -799,9 +803,9 @@ void InputDeviceTests::testSelector()
            <event>
              <name>button-selector</name>
              <output-mode>selector</output-mode>
-             <setting type="double">3.0</setting>
+             <value type="double">3.0</value>
              <binding>
-               <command>test-switch-cmd</command>
+               <command>test-selector-cmd</command>
              </binding>
            </event>
          </PropertyList>
@@ -812,22 +816,48 @@ void InputDeviceTests::testSelector()
     // --- 1. Press: binding fires with the stored setting value ---
     FGEventData press{1.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(press);
-    CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _switchCmd.lastSetting, 1e-9);
+    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastValue, 1e-9);
 
     // --- 2. Release: no binding should fire ---
     FGEventData release{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(release);
-    CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount); // unchanged
+    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount); // unchanged
 
     // --- 3. Second press: fires again with the same setting value ---
     device->HandleEvent(press);
-    CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _switchCmd.lastSetting, 1e-9);
+    CPPUNIT_ASSERT_EQUAL(2, _selectorCmd.callCount);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastValue, 1e-9);
 
     // --- 4. Another release: still no binding fires ---
     device->HandleEvent(release);
-    CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount); // unchanged
+    CPPUNIT_ASSERT_EQUAL(2, _selectorCmd.callCount); // unchanged
+}
+
+
+void InputDeviceTests::testNamedOutputSelector()
+{
+    auto device = makeDevice("test-device", R"(
+         <PropertyList>
+           <event>
+             <name>button-selector</name>
+             <output-mode>selector</output-mode>
+             <output-name>foobar</output-name>
+             <value type="double">3.0</value>
+             <binding>
+               <command>test-selector-cmd</command>
+             </binding>
+           </event>
+         </PropertyList>
+     )");
+
+    device->setEventName("button-selector");
+
+    // --- 1. Press: binding fires with the stored setting value ---
+    FGEventData press{1.0, 0.016, KEYMOD_NONE};
+    device->HandleEvent(press);
+    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount);
+    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastFoobar, 1e-9);
 }
 
 // ---------------------------------------------------------------------------
@@ -1559,6 +1589,7 @@ void ReportSettingTests::testBadNasalCodeReport()
         auto errs = nas->getAndClearErrorList();
         CPPUNIT_ASSERT(!errs.empty());
 
+        CPPUNIT_ASSERT_EQUAL(errs.front(), "undefined symbol: undefined_sym"s);
         // Re-dirty the report and update again: the report must be skipped
         // entirely (markAsError was called), so neither a new Nasal call nor a
         // new send should occur.

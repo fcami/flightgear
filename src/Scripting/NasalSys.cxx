@@ -1471,6 +1471,7 @@ void FGNasalSys::logError(naContext context)
 
     string_list nasalStack;
     logNasalStack(context, nasalStack);
+
     flightgear::sentryReportNasalError(errorMessage, nasalStack);
 #endif
 }
@@ -1512,11 +1513,12 @@ bool FGNasalSys::loadModule(SGPath file, const char* module)
 bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
                               const char* src, int len,
                               const SGPropertyNode* cmdarg,
-                              int argc, naRef* args)
+                              int argc, naRef* args,
+                              int sourceLineOffset)
 {
     naContext ctx = naNewContext();
     std::string errors;
-    naRef code = parse(ctx, fileName, src, len, errors);
+    naRef code = parse(ctx, fileName, src, len, errors, sourceLineOffset);
     if(naIsNil(code)) {
         naFreeContext(ctx);
         return false;
