@@ -40,7 +40,21 @@ void sentryReportException(const std::string& msg, const std::string& location =
 
 void sentryReportFatalError(const std::string& msg, const std::string& more = {});
 
-void sentryReportUserError(const std::string& aggregate, const std::string& parameter, const std::string& details);
+/**
+ * information about a specific error / failure, to be sent as part of a user-facing
+ * error.
+ */
+struct SentryExceptionData {
+    SentryExceptionData(const std::string& type, const std::string& value, const std::string& location)
+        : type(type), value(value), location(location) {}
+
+    std::string type;
+    std::string value;
+    std::string location;
+};
+
+void sentryReportUserError(const std::string& aggregate, const std::string& parameter,
+                           const std::vector<SentryExceptionData>& exceptions);
 
 
 } // namespace flightgear

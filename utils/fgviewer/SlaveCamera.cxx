@@ -1,20 +1,7 @@
 // Viewer.hxx -- alternative flightgear viewer application
 //
-// Copyright (C) 2009 - 2012  Mathias Froehlich
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2009 Mathias Froehlich
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -25,11 +12,6 @@
 #include <simgear/scene/util/OsgMath.hxx>
 
 #include "Viewer.hxx"
-
-#if FG_HAVE_HLA
-#include "HLAViewerFederate.hxx"    
-#include "HLAPerspectiveViewer.hxx"    
-#endif
 
 namespace fgviewer  {
 
@@ -115,32 +97,32 @@ SlaveCamera::setRelativeFrustum(const std::string names[2], const SlaveCamera& r
     // S a scale matrix and T is a translation matrix.
     // We need to determine T and S so that the reference points in the parents
     // projection space match the two reference points in this cameras projection space.
-    
+
     // Starting from the parents camera projection space, we get into this cameras
     // projection space by the transform matrix:
     //  P*R*inv(pP*pR) = T2*S*T*P0*R*inv(pP*pR)
     // So, at first compute that matrix without T2*S*T and determine S and T* from that
-    
-    // The initial projeciton matrix to build upon
+
+    // The initial projection matrix to build upon
     osg::Matrix P = Frustum(getAspectRatio()).getMatrix();
 
     osg::Matrix R = getViewOffset();
     osg::Matrix pP = referenceCameraData.getFrustum().getMatrix();
     osg::Matrix pR = referenceCameraData.getViewOffset();
-    
+
     // Transform from the reference cameras projection space into this cameras eye space.
     osg::Matrix pPtoEye = osg::Matrix::inverse(pR*pP)*R;
-    
+
     osg::Vec2 pRef[2] = {
         referenceCameraData.getProjectionReferencePoint(referenceNames[0]),
         referenceCameraData.getProjectionReferencePoint(referenceNames[1])
     };
-    
+
     // The first reference point transformed to this cameras projection space
     osg::Vec3d pRefInThis0 = P.preMult(pPtoEye.preMult(osg::Vec3d(pRef[0], 1)));
-    // Translate this proejction matrix so that the first reference point is at the origin
+    // Translate this projection matrix so that the first reference point is at the origin
     P.postMultTranslate(-pRefInThis0);
-    
+
     // Transform the second reference point and get the scaling correct.
     osg::Vec3d pRefInThis1 = P.preMult(pPtoEye.preMult(osg::Vec3d(pRef[1], 1)));
     double s = osg::Vec2d(pRefInThis1[0], pRefInThis1[1]).length();
@@ -152,15 +134,15 @@ SlaveCamera::setRelativeFrustum(const std::string names[2], const SlaveCamera& r
     };
     s = (ref[0] - ref[1]).length()/s;
     P.postMultScale(osg::Vec3d(s, s, 1));
-    
+
     // The first reference point still maps to the origin in this projection space.
     // Translate the origin to the desired first reference point.
     P.postMultTranslate(osg::Vec3d(ref[0], 1));
-    
+
     // Now osg::Matrix::inverse(pR*pP)*R*P should map pRef[i] exactly onto ref[i] for i = 0, 1.
     // Note that osg::Matrix::inverse(pR*pP)*R*P should exactly map pRef[0] at the near plane
     // to ref[0] at the near plane. The far plane is not taken care of.
-    
+
     Frustum frustum;
     if (!frustum.setMatrix(P))
         return false;
@@ -190,7 +172,7 @@ SlaveCamera::setMonitorProjectionReferences(double width, double height,
 {
     double left = 1 + 2*bezelLeft/width;
     double right = 1 + 2*bezelRight/width;
-    
+
     double bottom = 1 + 2*bezelBottom/height;
     double top = 1 + 2*bezelTop/height;
 
@@ -199,53 +181,23 @@ SlaveCamera::setMonitorProjectionReferences(double width, double height,
     setProjectionReferencePoint("upperRight", osg::Vec2(right, top));
     setProjectionReferencePoint("upperLeft", osg::Vec2(-left, top));
 }
-   
+
 osg::Vec3
 SlaveCamera::getLeftEyeOffset(const Viewer& viewer) const
 {
-#if FG_HAVE_HLA
-    const HLAViewerFederate* viewerFederate = viewer.getViewerFederate();
-    if (!viewerFederate)
-        return osg::Vec3(0, 0, 0);
-    const HLAPerspectiveViewer* perspectiveViewer = viewerFederate->getViewer();
-    if (!perspectiveViewer)
-        return osg::Vec3(0, 0, 0);
-    return toOsg(perspectiveViewer->getLeftEyeOffset());
-#else
     return osg::Vec3(0, 0, 0);
-#endif
 }
 
 osg::Vec3
 SlaveCamera::getRightEyeOffset(const Viewer& viewer) const
 {
-#if FG_HAVE_HLA
-    const HLAViewerFederate* viewerFederate = viewer.getViewerFederate();
-    if (!viewerFederate)
-        return osg::Vec3(0, 0, 0);
-    const HLAPerspectiveViewer* perspectiveViewer = viewerFederate->getViewer();
-    if (!perspectiveViewer)
-        return osg::Vec3(0, 0, 0);
-    return toOsg(perspectiveViewer->getRightEyeOffset());
-#else
     return osg::Vec3(0, 0, 0);
-#endif
 }
 
 double
 SlaveCamera::getZoomFactor(const Viewer& viewer) const
 {
-#if FG_HAVE_HLA
-    const HLAViewerFederate* viewerFederate = viewer.getViewerFederate();
-    if (!viewerFederate)
-        return 1;
-    const HLAPerspectiveViewer* perspectiveViewer = viewerFederate->getViewer();
-    if (!perspectiveViewer)
-        return 1;
-    return perspectiveViewer->getZoomFactor();
-#else
     return 1;
-#endif
 }
 
 osg::Matrix
@@ -256,7 +208,7 @@ SlaveCamera::getEffectiveViewOffset(const Viewer& viewer) const
 
     // Transform the eye offset into this slaves coordinates
     eyeOffset = eyeOffset*getViewOffset();
-    
+
     // The slaves view matrix is composed of the master matrix
     osg::Matrix viewOffset = viewer.getCamera()->getViewMatrix();
     // ... its view offset ...
@@ -272,14 +224,14 @@ SlaveCamera::getEffectiveFrustum(const Viewer& viewer) const
 {
     // The eye offset in the master cameras coordinates.
     osg::Vec3 eyeOffset = getLeftEyeOffset(viewer);
-    
+
     // Transform the eye offset into this slaves coordinates
     eyeOffset = eyeOffset*getViewOffset();
-    
+
     /// FIXME read that from external
     osg::Vec3 zoomScaleCenter(0, 0, -1);
     double zoomFactor = getZoomFactor(viewer);
-    
+
     /// Transform into the local cameras orientation.
     zoomScaleCenter = getViewOffset().preMult(zoomScaleCenter);
 
@@ -294,7 +246,7 @@ SlaveCamera::getEffectiveFrustum(const Viewer& viewer) const
 
     // Scale the whole geometric extent of the projection surfaces by the zoom factor
     frustum.scale(1/zoomFactor, zoomScaleCenter);
-    
+
     return frustum;
 }
 
@@ -306,13 +258,13 @@ SlaveCamera::realize(Viewer& viewer)
     _camera = _realizeImplementation(viewer);
     return _camera.valid();
 }
-    
+
 bool
 SlaveCamera::update(Viewer& viewer)
 {
     return _updateImplementation(viewer);
 }
-    
+
 osg::Camera*
 SlaveCamera::_realizeImplementation(Viewer& viewer)
 {
@@ -328,13 +280,13 @@ SlaveCamera::_realizeImplementation(Viewer& viewer)
     camera->setGraphicsContext(graphicsContext);
     camera->setViewport(_viewport.get());
     camera->setReferenceFrame(osg::Camera::ABSOLUTE_RF);
-    
-    // Not seriously consider someting different
+
+    // Not seriously consider something different
     camera->setDrawBuffer(GL_BACK);
     camera->setReadBuffer(GL_BACK);
 
     camera->setUpdateCallback(new NoUpdateCallback);
-    
+
     return camera;
 }
 

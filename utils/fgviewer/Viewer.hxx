@@ -1,20 +1,7 @@
 // Viewer.hxx -- alternative flightgear viewer application
 //
-// Copyright (C) 2009 - 2012  Mathias Froehlich
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2009 Mathias Froehlich
 
 #ifndef _FGVIEWER_VIEWER_HXX
 #define _FGVIEWER_VIEWER_HXX
@@ -31,10 +18,6 @@
 #include "Renderer.hxx"
 #include "SlaveCamera.hxx"
 #include "ArgumentParser.hxx"
-
-#if FG_HAVE_HLA
-#include "HLAViewerFederate.hxx"    
-#endif
 
 namespace fgviewer  {
 
@@ -105,13 +88,6 @@ public:
     /// Helper to create an new graphics context from traits.
     osg::GraphicsContext* createGraphicsContext(osg::GraphicsContext::Traits* traits);
 
-#if FG_HAVE_HLA
-    /// The federate if configured, can only be set once
-    const HLAViewerFederate* getViewerFederate() const;
-    HLAViewerFederate* getViewerFederate();
-    void setViewerFederate(HLAViewerFederate* viewerFederate);
-#endif
-
 private:
     Viewer(const Viewer&);
     Viewer& operator=(const Viewer&);
@@ -137,7 +113,7 @@ private:
 
     /// The top level options struct
     osg::ref_ptr<simgear::SGReaderWriterOptions> _readerWriterOptions;
-  
+
     /// The top level scenegraph structure that is used for drawing
     osg::ref_ptr<osg::Group> _sceneDataGroup;
 
@@ -146,11 +122,6 @@ private:
     SGTimeStamp _timeIncrement;
     /// The current simulation time of the viewer
     SGTimeStamp _simTime;
-
-#if FG_HAVE_HLA
-    /// The federate if configured
-    SGSharedPtr<HLAViewerFederate> _viewerFederate;
-#endif
 };
 
 } // namespace fgviewer

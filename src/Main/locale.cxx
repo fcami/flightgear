@@ -495,8 +495,7 @@ void FGLocale::loadResourceForDefaultTranslation(
     auto resourcePtr = domainPtr->getOrCreateResource(resource);
     DefaultTranslationParser visitor(resourcePtr.get());
 
-    SG_LOG(SG_GENERAL, SG_INFO, "Reading the default translation for " <<
-           domain << "/" << resource << " from '" << xmlFile.utf8Str() << "'");
+    SG_LOG(SG_GENERAL, SG_DEBUG, "Reading the default translation for " << domain << "/" << resource << " from '" << xmlFile.utf8Str() << "'");
 
     try {
         readXML(xmlFile, visitor);

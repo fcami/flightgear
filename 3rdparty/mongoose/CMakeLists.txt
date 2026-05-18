@@ -1,11 +1,1 @@
-include(FlightGearComponent)
-
-set(SOURCES
-	mongoose.c
-	)
-
-set(HEADERS
-	mongoose.h
-	)
-
-flightgear_component(Mongoose "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE mongoose.c mongoose.h)

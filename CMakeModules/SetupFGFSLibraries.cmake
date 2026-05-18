@@ -1,12 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: James Turner <james@flightgear.org>
 function(setup_fgfs_libraries target)
-    if(RTI_FOUND)
-        set(HLA_LIBRARIES ${RTI_LDFLAGS})
-    else()
-        set(HLA_LIBRARIES "")
-    endif()
-
     if(ENABLE_JSBSIM)
         target_link_libraries(${target} PRIVATE JSBSim)
     endif()
@@ -34,7 +28,6 @@ function(setup_fgfs_libraries target)
         SimGearScene
         Boost::boost
         ${EVENT_INPUT_LIBRARIES}
-        ${HLA_LIBRARIES}
         ${OPENGL_LIBRARIES}
         ${OPENSCENEGRAPH_LIBRARIES}
         ${PLATFORM_LIBS}

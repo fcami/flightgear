@@ -1,17 +1,13 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2013 Thomas Geymayer
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
   canvas_mgr.cxx
   FGCanvasSystemAdapter.cxx
   texture_replace.cxx
-)
-
-set(HEADERS
   canvas_mgr.hxx
   FGCanvasSystemAdapter.hxx
   gui_mgr.hxx
   texture_replace.hxx
 )
-
-# gui_mgr.cxx is compiled differently for testing
-flightgear_component(Canvas "${SOURCES}" "${HEADERS}"  gui_mgr.cxx)
+set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gui_mgr.cxx")

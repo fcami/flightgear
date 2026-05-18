@@ -49,10 +49,12 @@
 #include "NasalCondition.hxx"
 #include "NasalFlightPlan.hxx"
 #include "NasalHTTP.hxx"
+#include "NasalInput.hxx"
 #include "NasalPositioned.hxx"
 #include "NasalSGPath.hxx"
 #include "NasalString.hxx"
 #include "NasalSys.hxx"
+
 #include "NasalSys_private.hxx"
 #include "NasalTranslations.hxx"
 #include "NasalUnitTesting.hxx"
@@ -61,6 +63,8 @@
 #include <Main/globals.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
+
+#include <GUI/new_gui.hxx>
 
 using std::map;
 using std::string;
@@ -353,11 +357,11 @@ FGNasalSys::~FGNasalSys()
     nasalSys = nullptr;
 }
 
-bool FGNasalSys::parseAndRunWithOutput(const std::string& source, std::string& output, std::string& errors)
+bool FGNasalSys::parseAndRunWithOutput(const std::string& source, std::string& output, std::string& errors, int lineOffset)
 {
     naContext ctx = naNewContext();
     naRef code = parse(ctx, "FGNasalSys::parseAndRun()", source.c_str(),
-                       source.size(), errors);
+                       source.size(), errors, lineOffset);
     if(naIsNil(code)) {
         naFreeContext(ctx);
         return false;
@@ -1121,7 +1125,11 @@ void FGNasalSys::init()
         initNasalCondition(d->_globals, d->_context);
         initNasalHTTP(d->_globals, d->_context);
         initNasalSGPath(d->_globals, d->_context);
+
+        NewGUI::registerNasalBindings(this);
     }
+
+    initNasalInput(d->_globals, d->_context);
 
     NasalTimerObj::init("Timer")
       .method("start", &TimerObj::start)
@@ -1144,6 +1152,10 @@ void FGNasalSys::init()
         return;
     }
 
+    if (fgGetString("/sim/nasal-load-priority/file[0]") != "props.nas") {
+        SG_LOG(SG_NASAL, SG_DEV_ALERT, "Nasal loadpriority.xml not included, Nasal loading will fail");
+    }
+
     flightgear::initNasalTranslations(d->_globals, d->_context);
     flightgear::addons::initAddonClassesForNasal(d->_globals, d->_context);
 
@@ -1155,6 +1167,7 @@ void FGNasalSys::init()
     loadScriptDirectory(nasalDir,
                         globals->get_props()->getNode("/sim/nasal-load-priority"),
                         fgGetBool("/sim/gui/startup"));
+
 
     // Add modules in Nasal subdirectories to property tree
     simgear::PathList directories = nasalDir.children(simgear::Dir::TYPE_DIR+
@@ -1542,6 +1555,15 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
 
     d->_cmdArg = (SGPropertyNode*)cmdarg;
     callWithContext(ctx, code, argc, args, locals);
+
+    if (const char* error = naGetError(ctx)) {
+        int line = naGetLine(ctx, 0);
+        char* file = naStr_data(naGetSourceFile(ctx, 0));
+        SG_LOG(SG_NASAL, SG_ALERT, "Error loading module '" << moduleName << "': " << error << " (at " << file << ":" << line << ")");
+
+        return false;
+    }
+
     hashset(d->_globals, moduleName, locals);
 
     naFreeContext(ctx);
@@ -1621,22 +1643,23 @@ naRef FGNasalSys::getModule(const std::string& moduleName, bool create) const
 {
     naRef mod = naHash_cget(d->_globals, (char*)moduleName.c_str());
     if (naIsNil(mod) && create) {
-        naContext ctx = naNewContext();
-        mod = naNewHash(ctx);
-        naHash_cset(d->_globals, (char*)moduleName.c_str(), mod);
-        naFreeContext(ctx);
+        naRef modname = naNewString(d->_context);
+        naStr_fromdata(modname, moduleName.data(), moduleName.size());
+
+        mod = naNewHash(d->_context);
+        naHash_set(d->_globals, modname, mod);
     }
     return mod;
 }
 
 naRef FGNasalSys::parse(naContext ctx, const char* filename,
                         const char* buf, int len,
-                        std::string& errors)
+                        std::string& errors, int lineOffset)
 {
     int errLine = -1;
     naRef srcfile = naNewString(ctx);
     naStr_fromdata(srcfile, (char*)filename, strlen(filename));
-    naRef code = naParseCode(ctx, srcfile, 1, (char*)buf, len, &errLine);
+    naRef code = naParseCode(ctx, srcfile, lineOffset, (char*)buf, len, &errLine);
     if(naIsNil(code)) {
         std::ostringstream errorMessageStream;
         errorMessageStream << "Nasal parse error: " << naGetError(ctx) <<
@@ -2141,4 +2164,9 @@ naRef FGNasalSys::nasalGlobals() const
 nasal::Hash FGNasalSys::getGlobals() const
 {
     return nasal::Hash(d->_globals, d->_context);
+}
+
+nasal::Hash FGNasalSys::getModuleHash(const std::string& s, bool create) const
+{
+    return nasal::Hash(getModule(s, create), d->_context);
 }

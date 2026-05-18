@@ -357,7 +357,7 @@ int hid_parse_is_relative(hid_item* item)
 
 
 typedef struct {
-    uint8_t allocated, count;
+    uint8_t allocated, count, read_index;
     uint32_t* d;
     uint32_t minimum, maximum, step;
 } local_data_array;
@@ -409,16 +409,19 @@ uint32_t pop_local_item(uint8_t tag)
         if (arr->maximum && (result > arr->maximum)) {
             fprintf(stderr, "hidparse.c:pop_local_item: range exceeded for tag %d", tag);
         }
-        
+
         return result;
     }
 
     if (arr->count == 0)
         return 0;
 
-    uint32_t result = arr->d[arr->count - 1];
-    if (arr->count > 1)
-        --arr->count; /* pop off the back */
+    uint32_t result = arr->d[arr->read_index];
+    /* Advance the read cursor (FIFO), but clamp to the last entry so it
+       repeats for any remaining items when fewer usages than report count,
+       as required by the HID spec.  Array data is never modified. */
+    if (arr->read_index < arr->count - 1)
+        ++arr->read_index;
     return result;
 }
 

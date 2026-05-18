@@ -78,6 +78,10 @@ void initTestGlobals(const std::string& testName, const std::string& language,
 
     fgSetDefaults();
 
+    // load Nasal load priority, which is needed for 'full' NasalSys init
+    auto nasalLoadPriority = globals->get_props()->getNode("/sim/nasal-load-priority", true);
+    readProperties(globals->get_fg_root() / "Nasal/loadpriority.xml", nasalLoadPriority);
+
     auto t = globals->get_subsystem_mgr()->add<TimeManager>();
     t->bind();
     t->init(); // establish mag-var data
@@ -446,9 +450,9 @@ void writePointToKML(const std::string& ident, const SGGeod& pos)
     global_kmlStream << "</Placemark>\n";
 }
 
-bool executeNasal(const std::string& code)
+bool executeNasal(const std::string& code, int lineOffset)
 {
-    auto runtimeErrors = executeNasalExpectRuntimeErrors(code);
+    auto runtimeErrors = executeNasalExpectRuntimeErrors(code, lineOffset);
 
     if (!runtimeErrors) {
         // parse error
@@ -481,7 +485,7 @@ std::string parseNasalExpectError(const std::string& code)
     return parseErrors;
 }
 
-std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& code)
+std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& code, int lineOffset)
 {
     auto nasal = globals->get_subsystem<FGNasalSys>();
     if (!nasal) {
@@ -490,7 +494,7 @@ std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& co
 
     nasal->getAndClearErrorList();
     std::string output, parseErrors;
-    bool ok = nasal->parseAndRunWithOutput(code, output, parseErrors);
+    bool ok = nasal->parseAndRunWithOutput(code, output, parseErrors, lineOffset);
     if (!ok) {
         SG_LOG(SG_NASAL, SG_ALERT, "Nasal parse errors:" << parseErrors);
         return {};

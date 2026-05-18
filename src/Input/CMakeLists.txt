@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # SPDX-FileCopyrightText: 2011 James Turner <james@flightgear.org>
 
-include(FlightGearComponent)
 
 IF(APPLE)
 	# no Mac implementation, use HID
@@ -13,8 +12,12 @@ else()
 endif()
 
 if (ENABLE_HID_INPUT)
-	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx FGHIDDevice.cxx)
+	list(APPEND EVENT_INPUT_SOURCES FGHIDEventInput.cxx FGHIDUsage.cxx )
 	list(APPEND EVENT_INPUT_HEADERS FGHIDEventInput.hxx FGHIDUsage.hxx FGHIDDevice.hxx)
+
+	# depends on BUILDING_TESTSUITE
+	set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/FGHIDDevice.cxx")
+
 endif()
 
 set(SOURCES
@@ -96,4 +99,4 @@ if (ENABLE_HID_INPUT)
 	endif()
 endif()
 
-flightgear_component(Input "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

@@ -1,6 +1,7 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	analogcomponent.cxx
 	autopilot.cxx
 	autopilotgroup.cxx
@@ -13,9 +14,6 @@ set(SOURCES
 	pisimplecontroller.cxx
 	predictor.cxx
 	route_mgr.cxx
-	)
-	
-set(HEADERS
 	analogcomponent.hxx
 	autopilot.hxx
 	autopilotgroup.hxx
@@ -28,6 +26,4 @@ set(HEADERS
 	pisimplecontroller.hxx
 	predictor.hxx
 	route_mgr.hxx
-	)
-    	
-flightgear_component(Autopilot "${SOURCES}" "${HEADERS}")
+)

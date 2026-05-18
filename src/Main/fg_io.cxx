@@ -52,10 +52,6 @@
 #include <simgear/io/SGDataDistributionService.hxx>
 #include <Network/dds_props.hxx>
 #endif
-#if FG_HAVE_HLA
-#include <Network/HLA/hla.hxx>
-#endif
-
 #include "globals.hxx"
 #include "fg_io.hxx"
 
@@ -194,29 +190,7 @@ FGIO::parse_port_config( const string_list& tokens, bool& o_ok )
             }
             o_ok = true;
             return NULL;
-        }
-#if FG_HAVE_HLA
-        else if ( protocol == "hla" ) {
-            o_ok = true;
-            return new FGHLA(tokens);
-        }
-        else if ( protocol == "hla-local" ) {
-            // This is just about to bring up some defaults
-            if (tokens.size() != 2) {
-                SG_LOG( SG_IO, SG_ALERT, "Ignoring invalid --hla-local option "
-                        "(one argument expected: --hla-local=<federationname>" );
-                return NULL;
-            }
-            std::vector<std::string> HLA_tokens (tokens);
-            HLA_tokens.insert(HLA_tokens.begin(), "");
-            HLA_tokens.insert(HLA_tokens.begin(), "60");
-            HLA_tokens.insert(HLA_tokens.begin(), "bi");
-            HLA_tokens.push_back("fg-local.xml");
-            o_ok = true;
-            return new FGHLA(HLA_tokens);
-        }
-#endif
-        else {
+        } else {
             return NULL;
         }
     }

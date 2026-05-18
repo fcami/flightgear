@@ -249,7 +249,6 @@ void fgSetDefaults ()
     v->setValueReadOnly("openscenegraph", osgGetVersion());
     v->setValueReadOnly("revision", REVISION);
     v->setValueReadOnly("build-date", BUILD_DATE);
-    v->setValueReadOnly("hla-support", bool(FG_HAVE_HLA));
     v->setValueReadOnly("build-type", FG_BUILD_TYPE);
 
     char* envp = ::getenv( "http_proxy" );
@@ -1936,10 +1935,6 @@ const std::initializer_list<OptionDesc> fgOptionArray = {
     {"proxy",                        ParamType::REGULAR,  OptionType::OPT_FUNC,    "", false, "", fgSetupProxy },
     {"callsign",                     ParamType::REGULAR,  OptionType::OPT_FUNC,    "", false, "", fgOptCallSign},
     {"multiplay",                    ParamType::REGULAR,  OptionType::OPT_CHANNEL | OPTION_MULTI, "", false, "", 0 },
-#if FG_HAVE_HLA
-    {"hla",                          ParamType::REGULAR,  OptionType::OPT_CHANNEL, "", false, "", 0 },
-    {"hla-local",                    ParamType::REGULAR,  OptionType::OPT_CHANNEL, "", false, "", 0 },
-#endif
     {"trace-read",                   ParamType::REGULAR,  OptionType::OPT_FUNC | OPTION_MULTI, "", false, "", fgOptTraceRead },
     {"trace-write",                  ParamType::REGULAR,  OptionType::OPT_FUNC | OPTION_MULTI, "", false, "", fgOptTraceWrite },
     {"log-level",                    ParamType::REGULAR,  OptionType::OPT_FUNC,    "", false, "", fgOptLogLevel },

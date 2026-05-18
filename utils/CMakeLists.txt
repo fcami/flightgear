@@ -1,7 +1,5 @@
-# win32 is just excluded because of not having argument parsing there ...
-if(RTI_FOUND AND NOT WIN32)
-    add_subdirectory(fgai)
-endif()
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: 2010 James Turner <james@flightgear.org>
 
 if(ENABLE_FGELEV)
     add_subdirectory(fgelev)

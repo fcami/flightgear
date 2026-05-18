@@ -7,13 +7,25 @@ spec:
       type: boolean
       default: false
       description: "Clear the 'ccache' cache before starting the builds"
+
+    simgear-ref:
+      default: next
+      description: "Git ref of the 'simgear' artifacts to fetch"
+
+    fgdata-ref:
+      default: next
+      description: >
+        Git ref of the 'fgdata' artifacts to fetch for running the test suite
+
+    openscenegraph-ref:
+      default: next
+      description: "Git ref of the 'openscenegraph' artifacts to fetch"
 ---
 
 variables:
+  LC_CTYPE: C.UTF-8
   BUILD_DIR: "$CI_PROJECT_DIR/build"
   PREFIX_DIR: "$CI_PROJECT_DIR/dist"
-  OSG_REF: next
-  BRANCH_REF: next
   # cache:key is not allowed to contain '/' characters
   BRANCH_REF_SLUG: next
   # create a root dir *above* the Simgear checkout, otherwise CMake
@@ -133,10 +145,10 @@ linux-build:
     - project: flightgear/simgear
       job: linux-build
       artifacts: true
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
     key: linux-amd64-$BRANCH_REF_SLUG
@@ -168,10 +180,10 @@ linux-qt5-build:
     - project: flightgear/simgear
       job: linux-qt5-build
       artifacts: true
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
     key: linux-amd64-qt5-$BRANCH_REF_SLUG
@@ -246,11 +258,11 @@ windows-build:
   needs:
     - project: flightgear/simgear
       job: windows-build
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: windows_build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
     - project: flightgear/windows-3rd-party
       job: windows_build_msvc140
@@ -295,11 +307,11 @@ macos-build:
   needs:
     - project: flightgear/simgear
       job: macos-build
-      ref: $BRANCH_REF
+      ref: $[[ inputs.simgear-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: macos-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
     - project: flightgear/macos-3rd-party
       job: macos-build
@@ -325,11 +337,11 @@ test:
       artifacts: true
     - project: flightgear/fgdata
       job: create-test-data
-      ref: $BRANCH_REF
+      ref: $[[ inputs.fgdata-ref ]]
       artifacts: true
     - project: flightgear/openscenegraph
       job: linux-build
-      ref: $OSG_REF
+      ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   artifacts:
     # Note that the artifacts in artifacts:reports are _always_ uploaded,

@@ -28,11 +28,6 @@
 #include "Renderer.hxx"
 #include "Viewer.hxx"
 
-#if FG_HAVE_HLA
-#include "HLACameraManipulator.hxx"
-#include "HLAViewerFederate.hxx"
-#endif
-
 
 int
 main(int argc, char** argv)
@@ -92,14 +87,6 @@ main(int argc, char** argv)
 
     std::string renderer;
     while (arguments.read("--renderer", renderer));
-
-    if (arguments.read("--hla")) {
-        props->setStringValue("hla/federate/federation", "rti:///FlightGear");
-    }
-    std::string federation;
-    if (arguments.read("--federation", federation)) {
-        props->setStringValue("hla/federate/federation", federation);
-    }
 
     /// Start setting up the viewer windows and start feeding them.
 
@@ -196,38 +183,6 @@ main(int argc, char** argv)
     arguments.reportRemainingOptionsAsUnrecognized();
     arguments.writeErrorMessages(std::cerr);
 
-    if (props->getNode("hla/federate/federation")) {
-#if FG_HAVE_HLA
-        const SGPropertyNode* federateNode = props->getNode("hla/federate");
-
-        SGSharedPtr<fgviewer::HLAViewerFederate> viewerFederate;
-        viewerFederate = new fgviewer::HLAViewerFederate;
-        viewerFederate->setVersion(federateNode->getStringValue("version", "RTI13"));
-        // viewerFederate->setConnectArguments(federateNode->getStringValue("connect-arguments", ""));
-        viewerFederate->setFederateType(federateNode->getStringValue("type", "ViewerFederate"));
-        viewerFederate->setFederateName(federateNode->getStringValue("name", ""));
-        viewerFederate->setFederationExecutionName(federateNode->getStringValue("federation", ""));
-        std::string objectModel;
-        objectModel = federateNode->getStringValue("federation-object-model", "HLA/fg-local-fom.xml");
-        if (SGPath(objectModel).isRelative()) {
-            SGPath path = fg_root;
-            path.append(objectModel);
-            objectModel = path.str();
-        }
-        viewerFederate->setFederationObjectModel(objectModel);
-
-        if (!viewerFederate->init()) {
-            SG_LOG(SG_NETWORK, SG_ALERT, "Got error from federate init!");
-        } else {
-            viewer.setViewerFederate(viewerFederate.get());
-            viewer.setCameraManipulator(new fgviewer::HLACameraManipulator(viewerFederate->getViewer()));
-        }
-
-#else
-        SG_LOG(SG_GENERAL, SG_ALERT, "Unable to enter HLA/RTI viewer mode: HLA/RTI disabled at compile time.");
-#endif
-    }
-
     /// Read the model files that are configured.
 
     osg::ref_ptr<osg::Node> loadedModel;
@@ -250,7 +205,7 @@ main(int argc, char** argv)
     // pass the loaded scene graph to the viewer.
     viewer.insertSceneData(loadedModel.get());
 
-    // Note that this does not affect the hla camera manipulator
+    // Note that this does not affect the camera manipulator
     viewer.home();
 
     return viewer.run();

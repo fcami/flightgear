@@ -14,7 +14,10 @@ include(SetupFGFSLibraries)
 #   u  unit tests,  s  system tests,  m  simgear unit tests
 function(fg_add_test_suite SUITE_NAME TYPE)
     add_test(NAME "${SUITE_NAME}"
-             COMMAND fgfs_test_suite --ctest -${TYPE} "${SUITE_NAME}")
+             COMMAND fgfs_test_suite --ctest -${TYPE} "${SUITE_NAME}" --fg-root ${FG_DATA_DIR}
+    )
+
+
 endfunction()
 
 # The test suite output directory.

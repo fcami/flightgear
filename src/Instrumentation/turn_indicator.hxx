@@ -22,7 +22,7 @@
  * Input properties:
  *
  * /instrumentation/"name"/serviceable
- * /instrumentation/"name"/spin
+ * /instrumentation/"name"/gyro/spin
  * /orientation/roll-rate-degps
  * /orientation/yaw-rate-degps
  * /systems/electrical/outputs/turn-coordinator (see below)
@@ -30,6 +30,7 @@
  * Output properties:
  *
  * /instrumentation/"name"/indicated-turn-rate
+ * /instrumentation/"name"/is-valid
  *
  * Configuration:
  *
@@ -40,8 +41,10 @@
  *                           supply path (not used when power-supply is set)
  *   power-supply
  *   minimum-supply-volts
- *   gyro-spin-up-sec        If given, seconds to spin up until power-norm (from 0->100%)
- *   gyro-spin-down-sec      If given, seconds the gyro will loose spin without power (from 100%->0)
+ *   gyro-spin-up-sec        If given, seconds to spin up until power-norm (from 0->100%). Defaults to 4s
+ *   gyro-spin-down-sec      If given, seconds the gyro will loose spin without power (from 100%->0). Defaults to 180s
+ *   gyro-spin-valid-norm    If given, 'is-valid' turns to 'true' from this norm. gyro rotation value. Defaults to 0.93
+ *
  *
  * Notes on the power supply path:
  *
@@ -72,10 +75,11 @@ public:
 private:
     Gyro _gyro;
     double _last_rate;
-    double _gyro_spin_up, _gyro_spin_down;
+    double _max_out_degsec;
+    double _gyro_spin_up, _gyro_spin_down, _gyro_spin_valid_from;
 
     SGPropertyNode_ptr _roll_rate_node;
     SGPropertyNode_ptr _yaw_rate_node;
-    SGPropertyNode_ptr _rate_out_node;
-    SGPropertyNode_ptr _spin_node, _gyro_spin_up_node, _gyro_spin_down_node;
+    SGPropertyNode_ptr _rate_out_node, _is_valid_node;
+    SGPropertyNode_ptr _spin_node, _gyro_spin_up_node, _gyro_spin_down_node, _gyro_spin_valid_from_node;
 };

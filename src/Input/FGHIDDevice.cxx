@@ -153,6 +153,46 @@ FGHIDDevice::FGHIDDevice(hid_device_info* devInfo, FGHIDEventInput*) : FGInputDe
     SG_LOG(SG_INPUT, SG_DEBUG, "HID device " << _hidPath << " " << "0x" << std::hex << devInfo->vendor_id << ":0x" << std::hex << devInfo->product_id << " " << "release " << devInfo->release_number << " " << "usage " << _usage << "(0x" << std::hex << devInfo->usage_page << ":0x" << std::hex << devInfo->usage << ") " << "ifn " << devInfo->interface_number << " " << GetName());
 }
 
+#if defined(BUILDING_TESTSUITE)
+
+FGHIDDevice::FGHIDDevice(const std::string& testName, const simgear::UInt8Vector& rawDescriptor)
+    : FGInputDevice(testName),
+      _rawXMLDescriptor(rawDescriptor)
+{
+    class_id = "FGHIDDevice";
+    // Provide a valid deviceNode so the FGInputDevice destructor does not
+    // dereference a null pointer when there is no active HID session.
+    deviceNode = new SGPropertyNode;
+}
+
+bool FGHIDDevice::parseDescriptorForTesting()
+{
+    return parseUSBHIDDescriptor();
+}
+
+const FGHIDDevice::Item* FGHIDDevice::findItem(const std::string& name) const
+{
+    return itemWithName(name).second;
+}
+
+HID::ReportType FGHIDDevice::reportTypeForItem(const std::string& name) const
+{
+    const auto r = itemWithName(name);
+    if (!r.first)
+        return HID::ReportType::Invalid;
+    return r.first->type;
+}
+
+uint8_t FGHIDDevice::reportIdForItem(const std::string& name) const
+{
+    const auto r = itemWithName(name);
+    if (!r.first)
+        return 0;
+    return r.first->number;
+}
+
+#endif
+
 FGHIDDevice::~FGHIDDevice()
 {
     if (_device) {

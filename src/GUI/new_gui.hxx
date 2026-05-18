@@ -2,6 +2,7 @@
  * SPDX-FileName: new_gui.hxx
  * SPDX-FileComment: XML-configured GUI subsystem.
  * SPDX-License-Identifier: GPL-2.0-or-later
+ * SPDX-FileCopyrightText: 2002 David Megginson
  */
 
 #pragma once
@@ -17,6 +18,7 @@
 class FGMenuBar;
 class FGDialog;
 class FGColor;
+class FGNasalSys;
 
 /**
  * XML-configured GUI subsystem.
@@ -95,7 +97,7 @@ public:
 
 
     /**
-     * Close the currenty active dialog.  This function is intended to
+     * Close the currently active dialog. This function is intended to
      * be called from code (pui callbacks, for instance) that registers
      * its dialog object as active via setActiveDialog().  Other
      * user-level code should use the closeDialog(name) API.
@@ -156,6 +158,8 @@ public:
         _citt_t it = _colors.find(name.c_str());
         return (it != _colors.end()) ? it->second : NULL;
     }
+
+    static void registerNasalBindings(FGNasalSys* nas);
 
 protected:
     /**
@@ -223,7 +227,7 @@ private:
     // translations of text elements of the dialog (labels, etc.).
     DialogMetadataDict _dialog_metadata;
 
-    // cache of loaded dialog proeprties
+    // cache of loaded dialog properties
     typedef std::map<std::string,SGPropertyNode_ptr> NameDialogDict;
     NameDialogDict _dialog_props;
 };

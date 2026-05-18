@@ -1,20 +1,7 @@
 // Viewer.cxx -- alternative flightgear viewer application
 //
-// Copyright (C) 2009 - 2012  Mathias Froehlich
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2009 Mathias Froehlich
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -55,12 +42,6 @@ Viewer::Viewer(ArgumentParser& arguments) :
 Viewer::~Viewer()
 {
     stopThreading();
-
-#if FG_HAVE_HLA
-    if (_viewerFederate.valid())
-        _viewerFederate->shutdown();
-    _viewerFederate = 0;
-#endif
 }
 
 bool
@@ -460,7 +441,7 @@ void
 Viewer::advance(double)
 {
     if (_timeIncrement == SGTimeStamp::fromSec(0)) {
-        // Flightgears current scheme - could be improoved
+        // Flightgears current scheme - could be improved
         _simTime = SGTimeStamp::now();
     } else {
         // Giving an explicit time increment makes sense in presence
@@ -477,26 +458,6 @@ Viewer::advance(double)
 void
 Viewer::updateTraversal()
 {
-#if FG_HAVE_HLA
-    if (_viewerFederate.valid()) {
-        if (_timeIncrement == SGTimeStamp::fromSec(0)) {
-            if (!_viewerFederate->timeAdvanceAvailable()) {
-                SG_LOG(SG_NETWORK, SG_ALERT, "Got error from federate update!");
-                _viewerFederate->shutdown();
-                _viewerFederate = 0;
-            }
-        } else {
-            osg::FrameStamp* frameStamp = getViewerFrameStamp();
-            SGTimeStamp timeStamp = SGTimeStamp::fromSec(frameStamp->getSimulationTime());
-            if (!_viewerFederate->timeAdvance(timeStamp)) {
-                SG_LOG(SG_NETWORK, SG_ALERT, "Got error from federate update!");
-                _viewerFederate->shutdown();
-                _viewerFederate = 0;
-            }
-        }
-    }
-#endif
-
     osgViewer::Viewer::updateTraversal();
 
     if (!_renderer->update(*this)) {
@@ -575,7 +536,7 @@ public:
     { }
     virtual ~_PurgeLevelOfDetailNodesVisitor()
     { }
-  
+
     virtual void apply(osg::ProxyNode& node)
     {
         for (unsigned i = 0; i < node.getNumChildren(); ++i) {
@@ -633,7 +594,7 @@ Viewer::getScreenIdentifier(const std::string& display)
         screenIdentifier.displayNum = defaultScreenIdentifier.displayNum;
     if (screenIdentifier.screenNum < 0)
         screenIdentifier.screenNum = defaultScreenIdentifier.screenNum;
-    
+
     return screenIdentifier;
 }
 
@@ -665,7 +626,7 @@ Viewer::getTraits(const osg::GraphicsContext::ScreenIdentifier& screenIdentifier
     traits->hostName = screenIdentifier.hostName;
     traits->displayNum = screenIdentifier.displayNum;
     traits->screenNum = screenIdentifier.screenNum;
-            
+
     // not seriously consider something different
     traits->doubleBuffer = true;
 
@@ -733,34 +694,5 @@ Viewer::createGraphicsContext(osg::GraphicsContext::Traits* traits)
 
     return graphicsContext;
 }
-
-#if FG_HAVE_HLA
-const HLAViewerFederate*
-Viewer::getViewerFederate() const
-{
-    return _viewerFederate.get();
-}
-
-HLAViewerFederate*
-Viewer::getViewerFederate()
-{
-    return _viewerFederate.get();
-}
-
-void
-Viewer::setViewerFederate(HLAViewerFederate* viewerFederate)
-{
-    if (!viewerFederate) {
-        SG_LOG(SG_VIEW, SG_ALERT, "Viewer::setViewerFederate(): Setting the viewer federate to zero is not supported!");
-        return;
-    }
-    if (_viewerFederate.valid()) {
-        SG_LOG(SG_VIEW, SG_ALERT, "Viewer::setViewerFederate(): Setting the viewer federate twice is not supported!");
-        return;
-    }
-    _viewerFederate = viewerFederate;
-    _viewerFederate->attachToViewer(this);
-}
-#endif
 
 } // namespace fgviewer

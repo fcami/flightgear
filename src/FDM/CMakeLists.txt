@@ -1,4 +1,5 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 if(SP_FDMS)
 set(SP_FDM_SOURCES
@@ -18,7 +19,7 @@ set (SP_FDM_HEADERS
 	SP/AISim.hpp
 	)
 endif()
-	
+
 set(SOURCES
 	NullFDM.cxx
 	UFO.cxx
@@ -51,7 +52,7 @@ set(HEADERS
 	ls_matrix.h
 	)
 
-flightgear_component(FDM "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 
 if(ENABLE_YASIM)
 	add_subdirectory(YASim)
@@ -61,4 +62,3 @@ endif()
 if(ENABLE_JSBSIM)
     add_subdirectory(JSBSim)
 endif()
-

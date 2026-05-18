@@ -23,6 +23,8 @@
 #include <Main/sentryIntegration.hxx>
 
 #include <simgear/misc/ResourceManager.hxx>
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
@@ -145,6 +147,7 @@ bool AircraftItem::initFromFile(QDir dir, QString filePath)
     homepageUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/home-page")));
     supportUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/support")));
     wikipediaUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/wikipedia")));
+    communityUrl = QUrl(QString::fromStdString(sim->getStringValue("urls/community")));
 
     _localized.push_front(ls);
     readLocalizedStrings(sim);
@@ -228,7 +231,7 @@ void AircraftItem::fromDataStream(QDataStream& ds)
     ds >> thumbnailPath;
     ds >> declaredCompatible;
     ds >> needsMaintenance >> usesHeliports >> usesSeaports;
-    ds >> homepageUrl >> supportUrl >> wikipediaUrl;
+    ds >> homepageUrl >> supportUrl >> wikipediaUrl >> communityUrl;
     ds >> tags;
     ds >> _localized;
 
@@ -248,7 +251,7 @@ void AircraftItem::toDataStream(QDataStream& ds) const
     ds << thumbnailPath;
     ds << declaredCompatible;
     ds << needsMaintenance << usesHeliports << usesSeaports;
-    ds << homepageUrl << supportUrl << wikipediaUrl;
+    ds << homepageUrl << supportUrl << wikipediaUrl << communityUrl;
     ds << tags;
     ds << _localized;
 }
@@ -324,6 +327,11 @@ public:
         _currentAircraftPath = p;
     }
 
+    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        return {};
+    }
+
 private:
     SGPath _currentScanPath;
     SGPath _currentAircraftPath;
@@ -354,6 +362,11 @@ public:
         }
 
         return SGPath{};
+    }
+
+    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    {
+        return {};
     }
 };
 

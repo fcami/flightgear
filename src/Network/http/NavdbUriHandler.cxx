@@ -1,22 +1,8 @@
 // NavdbUriHandler.cxx -- Access the nav database
 //
-// Written by Torsten Dreyer, started April 2014.
-//
-// Copyright (C) 2014  Torsten Dreyer
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2014  Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 
 #include "NavdbUriHandler.hxx"
 #include "Navaids/positioned.hxx"
@@ -259,7 +245,7 @@ bool NavdbUriHandler::handleRequest(const HTTPRequest & request, HTTPResponse & 
     response.Header["Allow"] = "OPTIONS, GET";
     response.StatusCode = 405;
     response.Content = "{}";
-    return true; 
+    return true;
   }
 
   bool indent = request.RequestVariables.get("i") == "y";
@@ -294,13 +280,11 @@ bool NavdbUriHandler::handleRequest(const HTTPRequest & request, HTTPResponse & 
 
     result = FGPositioned::findWithinRange(pos, range, &filter);
   } else if (query == "airports") {
-      njson results;
-      for (char** airports = FGAirport::searchNamesAndIdents(""); *airports; airports++) {
-          results.push_back(std::string{*airports});
-      }
-      response.Content = results.dump(indent ? 2 : -1);
+      // until we decide if re-implementing this API makes sense on the NavDB,
+      // let's return a 404 to avoid confusion.
+      response.StatusCode = 404;
+      response.Content = "{\"error\": \"currently unimplemented\"}"; // valid JSON
       return true;
-
   } else if (query == "airport") {
     FGAirportRef airport = FGAirport::findByIdent(request.RequestVariables.get("id"));
     if( airport.valid() )
@@ -336,4 +320,3 @@ bool NavdbUriHandler::handleRequest(const HTTPRequest & request, HTTPResponse & 
 
 } // namespace http
 } // namespace flightgear
-

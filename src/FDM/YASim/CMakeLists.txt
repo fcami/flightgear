@@ -1,4 +1,5 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2010 James Turner
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(COMMON
 	Airplane.cpp
@@ -36,7 +37,7 @@ set(SOURCES
 	FGGround.cpp
 	)
 
-flightgear_component(YASim  "${SOURCES}")
+target_sources(fgfsObjects PRIVATE ${SOURCES})
 
 add_executable(yasim yasim-test.cpp ${COMMON})
 add_executable(yasim-proptest proptest.cpp ${COMMON})

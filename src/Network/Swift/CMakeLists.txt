@@ -1,6 +1,7 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2019 Lars Toenning
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SOURCES
+target_sources(fgfsObjects PRIVATE
 	swift_connection.cxx
 	dbusconnection.cpp
 	dbusobject.cpp
@@ -12,9 +13,6 @@ set(SOURCES
 	service.cpp
 	traffic.cpp
 	SwiftAircraftManager.cpp
-	)
-
-set(HEADERS
 	swift_connection.hxx
 	dbusconnection.h
 	dbusobject.h
@@ -27,6 +25,4 @@ set(HEADERS
 	service.h
 	traffic.h
 	SwiftAircraftManager.h
-	)
-    	
-flightgear_component(Swift "${SOURCES}" "${HEADERS}")
+)

@@ -57,8 +57,9 @@ public:
     bool parseAndRun(const std::string& source);
 
     bool parseAndRunWithOutput(const std::string& source,
-                     std::string& output,
-                     std::string& errors);
+                               std::string& output,
+                               std::string& errors,
+                               int lineOffset = 1);
 
     // Implementation of the settimer extension function
     void setTimer(naContext c, int argc, naRef* args);
@@ -93,6 +94,11 @@ public:
     void deleteModule(const char* moduleName);
 
     naRef getModule(const std::string& moduleName, bool create = false) const;
+
+    /**
+     * @brief overloaded version taking a cppbind context and returning a Hash
+     */
+    nasal::Hash getModuleHash(const std::string& s, bool create) const;
 
     bool addCommand(naRef func, const std::string& name);
     bool removeCommand(const std::string& name);
@@ -190,7 +196,7 @@ private:
     void addModule(std::string moduleName, simgear::PathList scripts);
     static void logError(naContext);
     naRef parse(naContext ctx, const char* filename, const char* buf, int len,
-               std::string& errors);
+                std::string& errors, int lineOffset = 1);
     naRef genPropsModule();
 
     friend TimerObj;

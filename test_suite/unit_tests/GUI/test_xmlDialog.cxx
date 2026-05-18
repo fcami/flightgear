@@ -80,6 +80,7 @@ void XMLDialogTests::testParseVersion1()
     CPPUNIT_ASSERT(dlg->init());
 
     auto hbox = dlg->widgetByName("main-hbox");
+    CPPUNIT_ASSERT(hbox);
     CPPUNIT_ASSERT_EQUAL(hbox->type(), "group"s);
 
     auto cb = dlg->widgetByName("cancel-button");
@@ -98,7 +99,7 @@ void XMLDialogTests::testParseVersion2()
     CPPUNIT_ASSERT(dlg->init());
 
     auto rb = dlg->widgetByName("radio1");
-
+    CPPUNIT_ASSERT(rb);
     CPPUNIT_ASSERT_EQUAL(rb->radioGroupIdent(), "myGroupA"s);
 }
 
@@ -121,7 +122,7 @@ void XMLDialogTests::testTranslation()
 void XMLDialogTests::testNasalAPI()
 {
     bool ok = FGTestApi::executeNasal(R"(
-        
+
     )");
     CPPUNIT_ASSERT(ok);
 }

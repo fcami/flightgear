@@ -13,6 +13,7 @@
 #include <string>
 
 #include <simgear/io/lowlevel.hxx>
+#include <simgear/nasal/cppbind/NasalCode.hxx>
 #include <simgear/props/props.hxx>
 #include <simgear/structure/SGReferenced.hxx>
 #include <simgear/structure/SGSharedPtr.hxx>
@@ -29,7 +30,6 @@ public:
     virtual ~FGInputDevice();
 
     virtual bool Open() = 0;
-    virtual void Close() = 0;
 
     virtual void Send(const char* eventName, double value) = 0;
 
@@ -81,8 +81,13 @@ public:
 
     void SetDebugEvents(bool debug);
 
+    void postOpen();
+    void doClose();
+
 protected:
     FGInputDevice(std::string aName, std::string aSerial = {});
+
+    virtual void Close() = 0;
 
     // A map of events, this device handles
     std::map<std::string, FGInputEvent_ptr> handledEvents;
@@ -130,6 +135,10 @@ protected:
     };
 
     std::unique_ptr<PrivateListener> _configListener;
+
+    nasal::NasalCode _postUpdateCallback;
+
+    naRef getModule();
 };
 
 typedef SGSharedPtr<FGInputDevice> FGInputDevice_ptr;

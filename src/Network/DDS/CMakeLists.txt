@@ -1,4 +1,5 @@
-include(FlightGearComponent)
+# SPDX-FileCopyrightText: 2020 Erik Hofman
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 set(SOURCES
         dds_ctrls.c
@@ -31,4 +32,4 @@ add_executable(fg_dds_prop
 setup_fgfs_libraries(fg_dds_prop)
 
 
-flightgear_component(Network "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})

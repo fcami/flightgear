@@ -1,4 +1,6 @@
-include(FlightGearComponent)
+# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-FileCopyrightText: 2010 James Turner <james@flightgear.org>
+
 
 set(SOURCES
 	ATC-Inputs.cxx
@@ -77,14 +79,10 @@ if(ENABLE_IAX)
     list(APPEND HEADERS fgcom.hxx)
 endif()
 
-flightgear_component(Network "${SOURCES}" "${HEADERS}")
+target_sources(fgfsObjects PRIVATE ${SOURCES} ${HEADERS})
 
 if (CycloneDDS_FOUND)
   add_subdirectory(DDS)
-endif()
-
-if(RTI_FOUND)
-  add_subdirectory(HLA)
 endif()
 
 add_subdirectory(http)
