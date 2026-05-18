@@ -149,8 +149,6 @@ void InputDeviceTests::setUp()
     cmds->addCommand("test-switch-cmd", &_switchCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-double-press-cmd", &_doublePressCmd, &TestCommandHandler::handle);
     cmds->addCommand("test-long-press-cmd", &_longPressCmd, &TestCommandHandler::handle);
-
-    cmds->addCommand("test-selector-cmd", &_selectorCmd, &TestSelectorHandler::handle);
 }
 
 void InputDeviceTests::tearDown()
@@ -168,8 +166,6 @@ void InputDeviceTests::tearDown()
     cmds->removeCommand("test-switch-cmd");
     cmds->removeCommand("test-double-press-cmd");
     cmds->removeCommand("test-long-press-cmd");
-
-    cmds->removeCommand("test-selector-cmd");
 
     FGTestApi::tearDown::shutdownTestGlobals();
 }
@@ -284,14 +280,14 @@ void InputDeviceTests::testButtonPressRelease()
     FGEventData press{1.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _buttonPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _buttonPressCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _buttonReleaseCmd.callCount);
 
     // Release
     FGEventData release{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // A second press should fire again
     device->HandleEvent(press);
@@ -444,7 +440,7 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData high{900.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(high);
     CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _highBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _highBtnCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _highBtnReleaseCmd.callCount);
     CPPUNIT_ASSERT_EQUAL(0, _lowBtnCmd.callCount);
 
@@ -452,7 +448,7 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData backCenter{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(backCenter);
     CPPUNIT_ASSERT_EQUAL(1, _highBtnReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _highBtnReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _highBtnReleaseCmd.lastState);
     // High press count unchanged
     CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
 
@@ -460,14 +456,14 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData low{-900.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(low);
     CPPUNIT_ASSERT_EQUAL(1, _lowBtnCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _lowBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _lowBtnCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _lowBtnReleaseCmd.callCount);
 
     // --- 5. Return to center: low button should release ---
     FGEventData backCenter2{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(backCenter2);
     CPPUNIT_ASSERT_EQUAL(1, _lowBtnReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _lowBtnReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _lowBtnReleaseCmd.lastState);
 
     // --- 6. Cross high threshold again: should fire a second press ---
     FGEventData high2{950.0, 0.016, KEYMOD_NONE};
@@ -761,103 +757,29 @@ void InputDeviceTests::testButtonSwitchMode()
     FGEventData press{1.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 
     // --- 2. Release: same binding fires with value=false (not a mod-up binding) ---
     FGEventData release{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastState);
 
     // --- 3. Second press: fires again with value=true ---
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(3, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 
     // --- 4. Second release: fires again with value=false ---
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(4, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastState);
 
     // --- 5. Non-zero values > 1 are still treated as press ---
     FGEventData pressHigh{255.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(pressHigh);
     CPPUNIT_ASSERT_EQUAL(5, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
-}
-
-// ---------------------------------------------------------------------------
-// testSelector
-//
-// In selector output-mode the binding fires only on press, using the
-// configured <setting> value as the event value.  Release events do NOT
-// fire any binding.
-//
-// Config: setting=3.0 → press fires binding with lastSetting=3.0;
-// release is silently ignored (no mod-up binding fires).
-// ---------------------------------------------------------------------------
-void InputDeviceTests::testSelector()
-{
-    auto device = makeDevice("test-device", R"(
-         <PropertyList>
-           <event>
-             <name>button-selector</name>
-             <output-mode>selector</output-mode>
-             <value type="double">3.0</value>
-             <binding>
-               <command>test-selector-cmd</command>
-             </binding>
-           </event>
-         </PropertyList>
-     )");
-
-    device->setEventName("button-selector");
-
-    // --- 1. Press: binding fires with the stored setting value ---
-    FGEventData press{1.0, 0.016, KEYMOD_NONE};
-    device->HandleEvent(press);
-    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastValue, 1e-9);
-
-    // --- 2. Release: no binding should fire ---
-    FGEventData release{0.0, 0.016, KEYMOD_NONE};
-    device->HandleEvent(release);
-    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount); // unchanged
-
-    // --- 3. Second press: fires again with the same setting value ---
-    device->HandleEvent(press);
-    CPPUNIT_ASSERT_EQUAL(2, _selectorCmd.callCount);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastValue, 1e-9);
-
-    // --- 4. Another release: still no binding fires ---
-    device->HandleEvent(release);
-    CPPUNIT_ASSERT_EQUAL(2, _selectorCmd.callCount); // unchanged
-}
-
-
-void InputDeviceTests::testNamedOutputSelector()
-{
-    auto device = makeDevice("test-device", R"(
-         <PropertyList>
-           <event>
-             <name>button-selector</name>
-             <output-mode>selector</output-mode>
-             <output-name>foobar</output-name>
-             <value type="double">3.0</value>
-             <binding>
-               <command>test-selector-cmd</command>
-             </binding>
-           </event>
-         </PropertyList>
-     )");
-
-    device->setEventName("button-selector");
-
-    // --- 1. Press: binding fires with the stored setting value ---
-    FGEventData press{1.0, 0.016, KEYMOD_NONE};
-    device->HandleEvent(press);
-    CPPUNIT_ASSERT_EQUAL(1, _selectorCmd.callCount);
-    CPPUNIT_ASSERT_DOUBLES_EQUAL(3.0, _selectorCmd.lastFoobar, 1e-9);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 }
 
 // ---------------------------------------------------------------------------
@@ -915,7 +837,7 @@ void InputDeviceTests::testDoublePress()
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount); // unchanged: suppressed
     CPPUNIT_ASSERT_EQUAL(1, _doublePressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _doublePressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _doublePressCmd.lastState);
 
     // --- 4. Release after the double-press fires the regular mod-up binding ---
     device->HandleEvent(release);
@@ -984,7 +906,7 @@ void InputDeviceTests::testLongPress()
     // Advance past the threshold (cumulative 1.1 s): long-press fires exactly once
     device->update(0.6);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastState);
 
     // Further updates while still pressed must not fire it a second time
     device->update(0.5);
@@ -993,7 +915,7 @@ void InputDeviceTests::testLongPress()
     // Release after a long-press: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // --- Scenario 2: short press (released before threshold) fires mod-up normally ---
 
@@ -1006,7 +928,7 @@ void InputDeviceTests::testLongPress()
     // Release before threshold: mod-up fires
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(2, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount); // still just the one from scenario 1
 }
 
@@ -1074,7 +996,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // fires exactly once; the same update also triggers one more repeatable fire
     device->update(1.1);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastState);
     const int repeatCountAfterLongPress = _buttonPressCmd.callCount;
     CPPUNIT_ASSERT(repeatCountAfterLongPress > 3); // at least one more repeatable fire
 
@@ -1086,7 +1008,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // Release after long-press: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // --- Scenario 2: short hold (released before threshold) ---
     _buttonPressCmd.reset();
@@ -1104,7 +1026,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // Release before threshold: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // still only from scenario 1
 }
 

@@ -15,14 +15,14 @@ struct TestCommandHandler {
     int callCount = 0;
     double lastSetting = 0.0;
     double lastOffset = 0.0;
-    bool lastValue = false;
+    bool lastState = false;
 
     void reset()
     {
         callCount = 0;
         lastSetting = 0.0;
         lastOffset = 0.0;
-        lastValue = false;
+        lastState = false;
     }
 
     bool handle(const SGPropertyNode* arg, SGPropertyNode* /*root*/)
@@ -30,32 +30,10 @@ struct TestCommandHandler {
         ++callCount;
         lastSetting = arg->getDoubleValue("setting", 0.0);
         lastOffset = arg->getDoubleValue("offset", 0.0);
-        lastValue = arg->getBoolValue("value", false);
+        lastState = arg->getBoolValue("state", false);
         return true;
     }
 };
-
-struct TestSelectorHandler {
-    int callCount = 0;
-    double lastFoobar = 0.0;
-    double lastValue = false;
-
-    void reset()
-    {
-        callCount = 0;
-        lastFoobar = 0.0;
-        lastValue = 0.0;
-    }
-
-    bool handle(const SGPropertyNode* arg, SGPropertyNode* /*root*/)
-    {
-        ++callCount;
-        lastValue = arg->getDoubleValue("value", 0.0);
-        lastFoobar = arg->getDoubleValue("foobar", 0.0);
-        return true;
-    }
-};
-
 
 /**
  * Unit tests for FGInputDevice and related event classes (FGButtonEvent,
@@ -72,8 +50,6 @@ class InputDeviceTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testHighLowThreshold);
     CPPUNIT_TEST(testAxesOutputMode);
     CPPUNIT_TEST(testButtonSwitchMode);
-    CPPUNIT_TEST(testSelector);
-    CPPUNIT_TEST(testNamedOutputSelector);
     CPPUNIT_TEST(testDoublePress);
     CPPUNIT_TEST(testLongPress);
     CPPUNIT_TEST(testRepeatableWithLongPress);
@@ -93,8 +69,6 @@ public:
     void testHighLowThreshold();
     void testAxesOutputMode();
     void testButtonSwitchMode();
-    void testSelector();
-    void testNamedOutputSelector();
     void testDoublePress();
     void testLongPress();
     void testRepeatableWithLongPress();
@@ -114,8 +88,6 @@ private:
     TestCommandHandler _switchCmd;
     TestCommandHandler _doublePressCmd;
     TestCommandHandler _longPressCmd;
-
-    TestSelectorHandler _selectorCmd;
 };
 
 /**

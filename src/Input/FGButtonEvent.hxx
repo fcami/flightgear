@@ -19,9 +19,8 @@ public:
     void update(double dt) override;
 
     enum class OutputMode {
-        Button,  ///< fire on press, do mod-up binding on release
-        Switch,  ///< fire with value=true on press, value=false on release
-        Selector ///< fire on press using a stored setting value
+        Button, ///< fire on press, do mod-up binding on release
+        Switch, ///< fire with value=true on press, value=false on release
     };
 
 protected:
@@ -32,9 +31,6 @@ protected:
 
     bool _invert = false;
     OutputMode _outputMode = OutputMode::Button;
-
-    /// Stored setting value for Selector output mode
-    double _settingValue = 0.0;
 };
 
 using ButtonEvent_ptr = SGSharedPtr<FGButtonEvent>;
