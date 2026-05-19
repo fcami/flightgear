@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2017 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear.Launcher 1.0
 import FlightGear 1.0
@@ -114,7 +117,7 @@ Item {
             onSelect: function doSelect(index) {
                 root.select(index);
             }
-            
+
             displayRole: root.displayRole
         }
     }
