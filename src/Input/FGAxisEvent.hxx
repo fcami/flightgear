@@ -69,6 +69,8 @@ protected:
     OutputMode _outputMode = OutputMode::SignedNormalized;
 
     ButtonEvent_ptr _lowButton, _highButton;
+
+    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
 };
 
 /// TODO: document
@@ -76,17 +78,11 @@ class FGRelAxisEvent : public FGAxisEvent
 {
 public:
     FGRelAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
-
-protected:
-    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
 };
 
 /// TODO: document
 class FGAbsAxisEvent : public FGAxisEvent
 {
 public:
-    FGAbsAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGAxisEvent(device, eventNode) {}
-
-protected:
-    void fire(SGAbstractBinding* binding, FGEventData& eventData) override;
+    FGAbsAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode);
 };

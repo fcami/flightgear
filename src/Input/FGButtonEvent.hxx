@@ -20,7 +20,7 @@ public:
 
     enum class OutputMode {
         Button, ///< fire on press, do mod-up binding on release
-        Switch  ///< fire with value=true on press, value=false on release
+        Switch, ///< fire with value=true on press, value=false on release
     };
 
 protected:

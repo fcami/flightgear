@@ -48,6 +48,10 @@ FGInputEvent::FGInputEvent(FGInputDevice* aDevice, SGPropertyNode_ptr eventNode)
 
     for (auto child : eventNode->getChildren("setting"))
         settings.push_back(new FGEventSetting(child));
+
+    if (eventNode->hasChild("output-name")) {
+        _outputName = eventNode->getStringValue("output-name");
+    }
 }
 
 FGInputEvent::~FGInputEvent() = default;
