@@ -31,6 +31,8 @@ bool capturedIO::doProcessEntry(const simgear::LogEntry& e)
         return false;
     }
 
+    std::lock_guard<std::mutex> lock(log_capture_lock);
+
     if (_split) {
         std::ostringstream* streamPtr = nullptr;
         // split the message into the appropriate stream
