@@ -15,14 +15,14 @@ struct TestCommandHandler {
     int callCount = 0;
     double lastSetting = 0.0;
     double lastOffset = 0.0;
-    bool lastValue = false;
+    bool lastState = false;
 
     void reset()
     {
         callCount = 0;
         lastSetting = 0.0;
         lastOffset = 0.0;
-        lastValue = false;
+        lastState = false;
     }
 
     bool handle(const SGPropertyNode* arg, SGPropertyNode* /*root*/)
@@ -30,7 +30,7 @@ struct TestCommandHandler {
         ++callCount;
         lastSetting = arg->getDoubleValue("setting", 0.0);
         lastOffset = arg->getDoubleValue("offset", 0.0);
-        lastValue = arg->getBoolValue("value", false);
+        lastState = arg->getBoolValue("state", false);
         return true;
     }
 };

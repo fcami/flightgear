@@ -87,6 +87,13 @@ protected:
     double lastDt = std::nan("");
     double intervalSec = std::nan("");
     double lastSettingValue = std::nan("");
+
+    /**
+     * Name of the value to pass when firing bindings. Defaults to 'setting' for
+     * axes and 'value' for buttons, for compatibility with property-scale and
+     * property-assign commands.
+     */
+    std::string _outputName;
 };
 
 typedef class SGSharedPtr<FGInputEvent> FGInputEvent_ptr;
