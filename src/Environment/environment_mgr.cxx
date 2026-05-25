@@ -42,12 +42,14 @@
 
 FGEnvironmentMgr::FGEnvironmentMgr() : _environment(new FGEnvironment()),
                                        _multiplayerListener(nullptr),
-                                       _sky(globals->get_renderer()->getSky()),
+                                       _sky(globals->get_renderer()?globals->get_renderer()->getSky():nullptr),
                                        nearestCarrier(nullptr),
                                        nearestAirport(nullptr)
 {
     fgClouds = new FGClouds;
-    _sky->getPreRoot()->addChild(fgClouds->getCloudUpdateNode());
+    if (_sky) {
+        _sky->getPreRoot()->addChild(fgClouds->getCloudUpdateNode());
+    }
     set_subsystem("controller", Environment::LayerInterpolateController::createInstance(fgGetNode("/environment/config", true)));
 
     set_subsystem("climate", new FGClimate);
