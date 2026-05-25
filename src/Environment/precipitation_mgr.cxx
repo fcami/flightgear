@@ -63,6 +63,11 @@ void FGPrecipitationMgr::init()
 void FGPrecipitationMgr::bind ()
 {
   _tiedProperties.setRoot( fgGetNode("/sim/rendering", true ) );
+  if (precipitation == NULL) {
+      SG_LOG(SG_ENVIRONMENT, SG_DEV_WARN, "Unable to bind precipitation properties");
+      return;
+  }
+
   _tiedProperties.Tie("precipitation-enable", precipitation.get(),
           &SGPrecipitation::getEnabled,
           &SGPrecipitation::setEnabled);
@@ -77,6 +82,11 @@ void FGPrecipitationMgr::unbind ()
 void FGPrecipitationMgr::setupSceneGraph(void)
 {
     FGScenery* scenery = globals->get_scenery();
+    //FIXME
+    if (scenery == NULL) {
+        SG_LOG(SG_ENVIRONMENT, SG_DEV_WARN, "Unable to get scenery for precipitation manager");
+        return;
+    }
     osg::Group* group = scenery->get_precipitation_branch();
     transform = new osg::MatrixTransform();
     precipitation = new SGPrecipitation();

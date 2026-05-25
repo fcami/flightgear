@@ -90,6 +90,11 @@ LiveMetarProperties::~LiveMetarProperties()
 
 void LiveMetarProperties::update( double dt )
 {
+    SGCommandMgr* cmd = globals->get_commands();
+    if (cmd->getCommand("canvas-message-box") != NULL) {
+        throw sg_exception();
+    }
+
 
     _timeToLive -= dt;
     _pollingTimer -= dt;

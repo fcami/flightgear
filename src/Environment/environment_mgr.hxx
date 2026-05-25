@@ -22,9 +22,35 @@ class SGSky;
 struct FGEnvironmentMgrMultiplayerListener;
 
 /**
+* Base class for environment information management to enable mocking.
+*/
+
+class EnvironmentManager : public SGSubsystemGroup
+{
+public:
+    virtual ~EnvironmentManager() = default;
+    // Subsystem API.
+    void bind() = 0;
+    InitStatus incrementalInit() = 0;
+    void reinit() = 0;
+    void shutdown() = 0;
+    void unbind() = 0;
+    void update(double dt) = 0;
+    // Subsystem identification.
+    static const char* staticSubsystemClassId() { return "environment"; }
+
+    virtual FGEnvironment getEnvironment() const = 0;
+
+    virtual const FGEnvironment* getAircraftEnvironment() const = 0;
+
+    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) = 0;
+
+};
+
+/**
  * Manage environment information.
  */
-class FGEnvironmentMgr : public SGSubsystemGroup
+class FGEnvironmentMgr : public EnvironmentManager
 {
 public:
     enum {
@@ -41,10 +67,6 @@ public:
     void shutdown() override;
     void unbind() override;
     void update(double dt) override;
-
-    // Subsystem identification.
-    static const char* staticSubsystemClassId() { return "environment"; }
-
     /**
      * Get the environment information for the plane's current position.
      */
