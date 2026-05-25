@@ -583,7 +583,7 @@ std::string FGAirportDynamics::fallbackGetActiveRunway(int action, double headin
     }
 
     if (updateNeeded) {
-        auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+        auto envMgr = globals->get_subsystem<EnvironmentManager>();
         auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
 
         double windSpeed = env.get_wind_speed_kt();
