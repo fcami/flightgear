@@ -18,8 +18,8 @@
 #include <simgear/structure/event_mgr.hxx>
 
 #include <Main/fg_props.hxx>
-#include <Main/main.hxx>
 #include <Main/globals.hxx>
+#include <Main/main.hxx>
 #include <Viewer/ViewPropertyEvaluator.hxx>
 #include <Viewer/renderer.hxx>
 
@@ -42,7 +42,7 @@
 
 FGEnvironmentMgr::FGEnvironmentMgr() : _environment(new FGEnvironment()),
                                        _multiplayerListener(nullptr),
-                                       _sky(globals->get_renderer()?globals->get_renderer()->getSky():nullptr),
+                                       _sky(globals->get_renderer() ? globals->get_renderer()->getSky() : nullptr),
                                        nearestCarrier(nullptr),
                                        nearestAirport(nullptr)
 {
@@ -384,7 +384,7 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
         };
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Comparing environments for eviction: " << a->geod() << " last requested at " << a->getLastRequestTime() << " vs " << b->geod() << " last requested at " << b->getLastRequestTime());
         return a->getLastRequestTime() < b->getLastRequestTime();
-        };
+    };
 
     auto near = [&](FGEnvironment* e) { return SGGeodesy::distanceM(e->geod(), aPos) < 10000; };
 
