@@ -262,13 +262,13 @@ void FGEnvironment::Tie( SGPropertyNode_ptr base, bool archivable )
                       &FGEnvironment::set_visibility_m);
 
   _tiedProperties.Tie("latitude-deg",
-      this,
-          &FGEnvironment::get_latitude_deg,
-          &FGEnvironment::set_latitude_deg);
+                      this,
+                      &FGEnvironment::get_latitude_deg,
+                      &FGEnvironment::set_latitude_deg);
   _tiedProperties.Tie("longitude-deg",
-      this,
-          &FGEnvironment::get_longitude_deg,
-          &FGEnvironment::set_longitude_deg);
+                      this,
+                      &FGEnvironment::get_longitude_deg,
+                      &FGEnvironment::set_longitude_deg);
   _tiedProperties.Tie("elevation-ft", this,
                       &FGEnvironment::get_elevation_ft,
                       &FGEnvironment::set_elevation_ft);
@@ -478,15 +478,15 @@ FGEnvironment::get_turbulence_rate_hz () const
 }
 
 double
-FGEnvironment::get_latitude_deg () const
+FGEnvironment::get_latitude_deg() const
 {
     return mPosition.getLatitudeDeg();
 }
 
 double
-FGEnvironment::get_longitude_deg () const
+FGEnvironment::get_longitude_deg() const
 {
-  return mPosition.getLongitudeDeg();
+    return mPosition.getLongitudeDeg();
 }
 
 double

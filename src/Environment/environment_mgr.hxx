@@ -44,7 +44,6 @@ public:
     virtual const FGEnvironment* getAircraftEnvironment() const = 0;
 
     virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) = 0;
-
 };
 
 /**
@@ -75,6 +74,7 @@ public:
     const FGEnvironment* getAircraftEnvironment() const;
 
     virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos);
+
 private:
     friend FGEnvironmentMgrMultiplayerListener;
     void updateClosestAirport();
