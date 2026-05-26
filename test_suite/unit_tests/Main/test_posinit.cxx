@@ -13,8 +13,8 @@
 #include "test_suite/FGTestApi/scene_graph.hxx"
 #include "test_suite/FGTestApi/testGlobals.hxx"
 
-#include "Environment/environment_mgr.hxx"
 #include "Environment/environment.hxx"
+#include "Environment/environment_mgr.hxx"
 #include <AIModel/AIManager.hxx>
 #include <simgear/props/props_io.hxx>
 
@@ -36,7 +36,8 @@
 using namespace std::string_literals;
 using namespace flightgear;
 
-class MockEnvironmentMgr : public EnvironmentManager {
+class MockEnvironmentMgr : public EnvironmentManager
+{
 public:
     MockEnvironmentMgr() : EnvironmentManager() {}
 
@@ -51,7 +52,8 @@ public:
     // Subsystem identification.
     static const char* staticSubsystemClassId() { return "environment"; }
     // Override methods as needed for your tests
-    FGEnvironment getEnvironment() const override {
+    FGEnvironment getEnvironment() const override
+    {
         // Return a default or test-specific FGEnvironment
         return FGEnvironment();
     }
@@ -95,13 +97,11 @@ void PosInitTests::setUp()
     globals->get_subsystem_mgr()->add<FGAIManager>();
     globals->get_subsystem_mgr()->add<MockEnvironmentMgr>();
     // Replace FGEnvironmentMgr with the mock
-// Enable mocking and register the mock environment subsystem
+    // Enable mocking and register the mock environment subsystem
     SGSubsystemMgr::test_allowSubsystemMocks();
     globals->get_subsystem_mgr()->mockSubsystem(
         "environment",
-        []() { return new MockEnvironmentMgr(); }
-    );
-
+        []() { return new MockEnvironmentMgr(); });
 }
 
 

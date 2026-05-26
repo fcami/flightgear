@@ -44,14 +44,14 @@ public:
 
   virtual void setGeod(const SGGeod& geod)
   {
-	  mPosition = geod;
+      mPosition = geod;
       set_latitude_deg(geod.getLatitudeDeg());
       set_longitude_deg(geod.getLongitudeDeg());
   }
 
   virtual const SGGeod& geod() const
   {
-	  return mPosition;
+      return mPosition;
   }
   virtual double get_visibility_m () const;
 

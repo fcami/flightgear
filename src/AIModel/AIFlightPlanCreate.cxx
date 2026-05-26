@@ -349,7 +349,7 @@ FGTaxiRoute FGAIFlightPlan::findBestTaxiRouteToRunway(const FGAIAircraft* ac, co
     // After rotation, we still need to accelerate to the take-off speed.
     const double t = d + accelDistance(vRotateMetric, vTakeoffMetric, accelMetric);
 
-    if(!node) {
+    if (!node) {
         SG_LOG(SG_AI, SG_DEV_WARN, "No taxi node provided for " << apt->getId() << "/" << rwy->ident());
         return FGTaxiRoute();
     }

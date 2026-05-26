@@ -19,9 +19,9 @@
 #include <Navaids/positioned.hxx>
 #include <Navaids/procedure.hxx>
 
-#include <Environment/fgmetar.hxx>
 #include "airports_fwd.hxx"
 #include "runways.hxx"
+#include <Environment/fgmetar.hxx>
 
 class FGGroundNetwork;
 
@@ -91,7 +91,7 @@ public:
 
     SGGeod getTowerLocation() const;
 
-//    void setMetar(bool value) { _has_metar = value; }
+    //    void setMetar(bool value) { _has_metar = value; }
 
     FGAirportDynamicsRef getDynamics() const;
 

@@ -13,14 +13,14 @@
 #include <algorithm>
 #include <cctype>
 
-#include <simgear/structure/exception.hxx>
+#include <simgear/io/HTTPMemoryRequest.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/props/tiedpropertylist.hxx>
-#include <simgear/io/HTTPMemoryRequest.hxx>
-#include <simgear/timing/sg_time.hxx>
-#include <simgear/structure/event_mgr.hxx>
-#include <simgear/structure/commands.hxx>
 #include <simgear/structure/SGSharedPtr.hxx>
+#include <simgear/structure/commands.hxx>
+#include <simgear/structure/event_mgr.hxx>
+#include <simgear/structure/exception.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include "metarproperties.hxx"
 #include "metarairportfilter.hxx"
@@ -413,7 +413,7 @@ void BasicRealWxController::populateMetarCache()
             }
             nearestAirport = FGAirport::findClosest(pos, 10000.0, MetarAirportFilter::instance());
             if (it != _metarProperties.end()) {
-//                SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reusing metar properties at " << n->getPath());
+                //                SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reusing metar properties at " << n->getPath());
                 if ((*it)->getStationId() != nearestAirport->ident()) {
                     SG_LOG(SG_ENVIRONMENT, SG_INFO, "Updating station ID for metar properties at " << n->getPath() << " to " << nearestAirport->ident());
                     (*it)->setStationId(nearestAirport->ident());
@@ -429,8 +429,7 @@ void BasicRealWxController::populateMetarCache()
             p->resetTimeToLive();
             SG_LOG(SG_ENVIRONMENT, SG_INFO, "Adding metar properties at " << n->getPath() << " for " << nearestAirport->ident());
         }
-    }
-    catch (sg_exception& e) {
+    } catch (sg_exception& e) {
         SG_LOG(SG_ENVIRONMENT, SG_WARN, "RealWxController::populateMetarCache() failed to populate METAR cache: " << e.what());
         return;
     }

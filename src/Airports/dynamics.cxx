@@ -844,7 +844,7 @@ void FGAirportDynamics::getActiveRunway(const std::string& trafficType,
                                         int action, std::string& runway,
                                         double heading)
 {
-  // Fetch the subsystem manager.
+    // Fetch the subsystem manager.
     auto mgr = globals->get_subsystem_mgr();
     auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
     if (envMgr) {

@@ -45,7 +45,7 @@ FGGroundNetXMLLoader::FGGroundNetXMLLoader(FGGroundNetwork* net) : XMLVisitor(),
 void FGGroundNetXMLLoader::startXML()
 {
     SG_LOG(SG_NAVAID, SG_DEV_WARN,
-        _groundNetwork->airport()->getId() << " Start XML");
+           _groundNetwork->airport()->getId() << " Start XML");
 }
 
 void FGGroundNetXMLLoader::endXML()
@@ -70,7 +70,7 @@ void FGGroundNetXMLLoader::endXML()
 
     for (const FGTaxiNodeRef& node : _unreferencedNodes) {
         SG_LOG(SG_NAVAID, SG_DEV_WARN,
-            _groundNetwork->airport()->getId() << " unreferenced groundnet node: " << node->getIndex());
+               _groundNetwork->airport()->getId() << " unreferenced groundnet node: " << node->getIndex());
     }
 }
 
