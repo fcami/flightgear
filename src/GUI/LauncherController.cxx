@@ -18,6 +18,7 @@
 #include <QPushButton>
 #include <QQmlComponent>
 #include <QQuickWindow>
+#include <QRegularExpressionValidator>
 #include <QSettings>
 
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 1, 0))
@@ -245,9 +246,11 @@ void LauncherController::initQML(int& styleTypeId)
     qmlRegisterType<ModelDataExtractor>("FlightGear", 1, 0, "ModelDataExtractor");
     qmlRegisterType<QmlStringListModel>("FlightGear", 1, 0, "StringListModel");
 
+    qmlRegisterType<QRegularExpressionValidator>("FlightGear", 1, 0, "FGRegExpValidator");
 
-    qmlRegisterSingletonType(QUrl("qrc:/qml/OverlayShared.qml"), "FlightGear", 1, 0, "OverlayShared");
-    styleTypeId = qmlRegisterSingletonType(QUrl("qrc:/qml/Style.qml"), "FlightGear", 1, 0, "Style");
+
+    qmlRegisterSingletonType(QUrl("qrc:/qt/qml/OverlayShared.qml"), "FlightGear", 1, 0, "OverlayShared");
+    styleTypeId = qmlRegisterSingletonType(QUrl("qrc:/qt/qml/Style.qml"), "FlightGear", 1, 0, "Style");
 
     qmlRegisterType<GettingStartedScope>("FlightGear", 1, 0, "GettingStartedScope");
     qmlRegisterType<GettingStartedTipsController>("FlightGear", 1, 0, "GettingStartedController");

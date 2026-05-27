@@ -233,7 +233,7 @@ Item {
 
                         // between one and seven alphanumerics, underscores and/or hyphens
                         // spaces not permitted
-                        validation: RegExpValidator { regExp: /[\w-]{1,7}/ }
+                        validation: FGRegExpValidator { regularExpression: /[\w-]{1,7}/ }
                         setting: "callsign"
                     },
 
@@ -385,7 +385,7 @@ Item {
                         label: qsTr("Custom DNS Server")
                         advanced: true
                         description: qsTr("Enter a custom DNS server IP address, for example '8.8.8.8'")
-                       // validation: RegExpValidator { regExp: /[\d]{1,7}[\s]*x[\s]*[\d]{1,7}$/ }
+                        validation: FGRegExpValidator { regularExpression: /[\d]{1,7}[\s]*x[\s]*[\d]{1,7}$/ }
                         suggestedWidthString: "255.255.255.255"
                         setting: "terrasync-dns-custom-server"
                     },
@@ -462,7 +462,7 @@ Item {
                         option: "fullscreen"
                     // always set, so launcher overrides autosave.xml
                     // https://gitlab.com/flightgear/flightgear/-/issues/3079
-                        setIfDefault: true 
+                        setIfDefault: true
                     },
 
                     SettingsComboBox {
@@ -485,7 +485,7 @@ Item {
                         label: qsTr("Custom size")
                         advanced: true
                         description: qsTr("Enter a custom window size in the form 'WWWWW x HHHHH', for example '1280 x 900'")
-                        validation: RegExpValidator { regExp: /[\d]{1,7}[\s]*x[\s]*[\d]{1,7}$/ }
+                        validation: FGRegExpValidator { regularExpression: /[\d]{1,7}[\s]*x[\s]*[\d]{1,7}$/ }
                         setting: "custom-size"
                         suggestedWidthString: "0000000 x 0000000"
 

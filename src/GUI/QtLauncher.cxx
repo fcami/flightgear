@@ -406,7 +406,7 @@ void initApp(int& argc, char** argv, bool doInitQSettings)
 
         // log to simgear instead of the console from Qt, so we go to
         // whichever log locations SimGear has configured
-        qInstallMessageHandler(simgearMessageOutput);
+        //     qInstallMessageHandler(simgearMessageOutput);
 
         // ensure we use desktop OpenGL, don't even fall back to ANGLE, since
         // this gets into a knot on Optimus setups (since we export the magic

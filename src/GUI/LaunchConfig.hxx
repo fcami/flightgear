@@ -71,7 +71,7 @@ public:
 
     Q_INVOKABLE bool loadConfigFromFile(QString path);
 
-    Q_INVOKABLE QVariant getValueForKey(QString group, QString key, QVariant defaultValue = QVariant()) const;
+    Q_INVOKABLE QVariant getValueForKey(QString group, QString key, QVariant defaultValue) const;
     Q_INVOKABLE void setValueForKey(QString group, QString key, QVariant var);
 
     QString defaultDownloadDir() const;
@@ -85,11 +85,11 @@ public:
 
 signals:
     void collect();
-    
+
     void save();
 
     void restore();
-    
+
     void postRestore();
 private:
 	std::set<std::string> extraArgNames() const;
