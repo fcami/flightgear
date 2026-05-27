@@ -27,7 +27,7 @@ class NasalSysTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testNullishChain);
     CPPUNIT_TEST(testFindComm);
     CPPUNIT_TEST(testHashDeclarationError);
-
+    CPPUNIT_TEST(testFirstLineOffsetComments);
     CPPUNIT_TEST_SUITE_END();
 
     bool checkNoNasalErrors();
@@ -54,4 +54,5 @@ public:
     void testNullishChain();
     void testFindComm();
     void testHashDeclarationError();
+    void testFirstLineOffsetComments();
 };
