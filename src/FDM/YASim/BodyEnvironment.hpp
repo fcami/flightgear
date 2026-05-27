@@ -88,6 +88,15 @@ struct State {
         setupOrientationFromAoa(aoa);
         setupSpeedAndPosition(speed, gla);
     }
+
+    bool isValid() const
+    {
+        if (!std::isfinite(pos[0]) || !std::isfinite(pos[1]) || !std::isfinite(pos[2])) {
+            return false;
+        }
+
+        return true;
+    }
 };
 
 //
