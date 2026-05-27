@@ -1,1 +1,5 @@
 singleton Style 1.0 Style.qml
+
+
+SearchButton 1.0 SearchButton.qml
+StyledText 1.0 StyledText.qml

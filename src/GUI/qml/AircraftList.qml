@@ -266,8 +266,8 @@ FocusScope
     Loader {
         id: aircraftContent
         // we use gridModeToggle vis to mean enabled, effectively
-        source: (gridModeToggle.visible && _launcher.aircraftGridMode) ? "qrc:///qml/AircraftGridView.qml"
-                                           : "qrc:///qml/AircraftListView.qml"
+        source: (gridModeToggle.visible && _launcher.aircraftGridMode) ? "qrc:/qt/qml/AircraftGridView.qml"
+                                           : "qrc:/qt/qml/AircraftListView.qml"
 
         anchors {
             left: parent.left

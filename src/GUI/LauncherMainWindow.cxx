@@ -1,4 +1,4 @@
-#include "config.h" 
+#include "config.h"
 
 #include "LauncherMainWindow.hxx"
 
@@ -122,15 +122,15 @@ LauncherMainWindow::LauncherMainWindow(bool inSimMode) : QQuickView()
 #endif
 
     setResizeMode(QQuickView::SizeRootObjectToView);
-    engine()->addImportPath("qrc:///");
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
+    engine()->addImportPath("qrc:/qt/qml");
+#endif
 
     // allow selecting different QML files based on the Qt version we are
     // compiled against
     auto selector = new QQmlFileSelector(engine(), this);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    selector->setExtraSelectors({"qt6"});
-#endif
-
+    Q_UNUSED(selector);
 
     QQmlContext* ctx = rootContext();
     ctx->setContextProperty("_launcher", m_controller);
@@ -155,7 +155,7 @@ LauncherMainWindow::LauncherMainWindow(bool inSimMode) : QQuickView()
     auto weatherScenariosModel = new flightgear::WeatherScenariosModel(this);
     ctx->setContextProperty("_weatherScenarios", weatherScenariosModel);
 
-    setSource(QUrl("qrc:///qml/Launcher.qml"));
+    setSource(QUrl("qrc:/qt/qml/Launcher.qml"));
 }
 
 void LauncherMainWindow::onQuickStatusChanged(QQuickView::Status status)
@@ -211,7 +211,7 @@ bool LauncherMainWindow::event(QEvent *event)
 bool LauncherMainWindow::execInApp()
 {
 	m_controller->setInAppMode();
-    
+
     show();
 
     while (m_controller->keepRunningInAppMode()) {

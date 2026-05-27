@@ -10,11 +10,11 @@ Item {
     // order of this model sets the order of buttons in the sidebar
     ListModel {
         id: startupPagesModel
-        ListElement { title: qsTr("Summary"); pageSource: "qrc:///qml/Summary.qml"; iconPath: "image://colored-icon/toolbox-summary"; state:"loader" }
-        ListElement { title: qsTr("Aircraft"); pageSource: "qrc:///qml/AircraftList.qml"; iconPath: "image://colored-icon/toolbox-aircraft"; state:"loader" }
+        ListElement { title: qsTr("Summary"); pageSource: "qrc:/qt/qml/Summary.qml"; iconPath: "image://colored-icon/toolbox-summary"; state:"loader" }
+        ListElement { title: qsTr("Aircraft"); pageSource: "qrc:/qt/qml/AircraftList.qml"; iconPath: "image://colored-icon/toolbox-aircraft"; state:"loader" }
 
         ListElement {
-            title: qsTr("Location"); pageSource: "qrc:///qml/Location.qml";
+            title: qsTr("Location"); pageSource: "qrc:/qt/qml/Location.qml";
             iconPath: "image://colored-icon/toolbox-location"; state:"loader"
             buttonDisabled: false
             disabledText: qsTr("Location page disabled due to conflicting user arguments (in Settings)");
@@ -27,18 +27,18 @@ Item {
         ListElement { title: qsTr("Environment"); pageSource: ""; iconPath: "image://colored-icon/toolbox-environment"; state:"environment"  }
         ListElement { title: qsTr("Settings"); pageSource: ""; iconPath: "image://colored-icon/toolbox-settings"; state:"settings" }
 
-        ListElement { title: qsTr("Add-ons"); pageSource: "qrc:///qml/AddOns.qml"; iconPath: "image://colored-icon/toolbox-addons"; state:"loader" }
-        ListElement { title: qsTr("Help"); pageSource: "qrc:///qml/HelpSupport.qml"; iconPath: "image://colored-icon/toolbox-help"; state:"loader" }
+        ListElement { title: qsTr("Add-ons"); pageSource: "qrc:/qt/qml/AddOns.qml"; iconPath: "image://colored-icon/toolbox-addons"; state:"loader" }
+        ListElement { title: qsTr("Help"); pageSource: "qrc:/qt/qml/HelpSupport.qml"; iconPath: "image://colored-icon/toolbox-help"; state:"loader" }
 
     }
 
     ListModel {
         id: inAppPagesModel
-        ListElement { title: qsTr("Summary"); pageSource: "qrc:///qml/Summary.qml"; iconPath: "image://colored-icon/toolbox-summary"; state:"loader" }
-        ListElement { title: qsTr("Aircraft"); pageSource: "qrc:///qml/AircraftList.qml"; iconPath: "image://colored-icon/toolbox-aircraft"; state:"loader" }
+        ListElement { title: qsTr("Summary"); pageSource: "qrc:/qt/qml/Summary.qml"; iconPath: "image://colored-icon/toolbox-summary"; state:"loader" }
+        ListElement { title: qsTr("Aircraft"); pageSource: "qrc:/qt/qml/AircraftList.qml"; iconPath: "image://colored-icon/toolbox-aircraft"; state:"loader" }
 
         ListElement {
-            title: qsTr("Location"); pageSource: "qrc:///qml/Location.qml";
+            title: qsTr("Location"); pageSource: "qrc:/qt/qml/Location.qml";
             iconPath: "image://colored-icon/toolbox-location"; state:"loader"
         }
     }
@@ -103,7 +103,7 @@ Item {
         target: _launcher
         function onViewCommandLine() {
             sidebar.selectedPage = -1;
-            pageLoader.source = "qrc:///qml/ViewCommandLine.qml"
+            pageLoader.source = "qrc:/qt/qml/ViewCommandLine.qml"
             root.state = "loader";
         }
     }
@@ -111,7 +111,7 @@ Item {
     function enterFlightPlan()
     {
         sidebar.selectedPage = -1;
-        pageLoader.source = "qrc:///qml/FlightPlan.qml"
+        pageLoader.source = "qrc:/qt/qml/FlightPlan.qml"
         root.state = "loader";
     }
 
@@ -168,7 +168,7 @@ Item {
             right: parent.right
         }
 
-        source: "qrc:///qml/Summary.qml"
+        source: "qrc:/qt/qml/Summary.qml"
     }
 
     NotificationArea {

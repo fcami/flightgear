@@ -147,7 +147,7 @@ public:
     /**
      * @brief setup the QNetworkRequest to do a resume download, by specifying
      * a byte-range in the HTTP request.
-     * 
+     *
      * @param req : the request to modify
      * @return qint64 : the number of bytes of overlap we will read
      */
@@ -259,7 +259,11 @@ public:
         m_resumeOverlapBytes = resumeDownload(req);
         if (!m_readResumeFile) {
             // if we're not resuming, empty the file and open it write-only
-            m_resumeData.open(QIODevice::WriteOnly | QIODevice::Truncate);
+            bool ok = m_resumeData.open(QIODevice::WriteOnly | QIODevice::Truncate);
+            if (!ok) {
+                flightgear::addSentryBreadcrumb("InstallFGDataThread: failed to open resume data file", "error");
+                // continue, this doesn't prevent us from downloading
+            }
         }
 
         m_download = m_networkManager->get(req);
@@ -310,7 +314,7 @@ public:
             fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
             fullPathStr.erase(0, m_pathPrefixLength);
         }
-         
+
         emit installProgress(QString::fromStdString(fullPathStr), percent);
     }
 
@@ -367,7 +371,9 @@ public:
                 // take at most 1MB
                 localBytes = m_buffer.left(0x100000);
                 m_buffer.remove(0, localBytes.length());
-                m_resumeData.write(localBytes);
+                if (m_resumeData.isOpen()) {
+                    m_resumeData.write(localBytes);
+                }
             }
 
             if (!localBytes.isEmpty()) {
@@ -412,6 +418,7 @@ public:
             }
 
             // remove the resume-data file from disk, now we succeeded.
+            m_resumeData.close();
             m_resumeData.remove();
             flightgear::addSentryBreadcrumb("InstallFGData finshed successfully", "info");
 
@@ -451,7 +458,11 @@ public:
                 m_resumeOverlapBytes = 0;
                 m_buffer.clear();
                 m_resumeData.close();
-                m_resumeData.open(QIODevice::WriteOnly | QIODevice::Truncate);
+                bool ok = m_resumeData.open(QIODevice::WriteOnly | QIODevice::Truncate);
+                if (!ok) {
+                    flightgear::addSentryBreadcrumb("InstallFGDataThread: failed to open resume data file when abandoning resume", "error");
+                    // continue, this doesn't prevent us from downloading
+                }
                 m_readResumeFile = false;
                 qWarning() << "Server can't resume, reverting to full download";
             }
@@ -567,10 +578,9 @@ QString SetupRootDialog::rootPathKey()
     return QString("fg-root-%1-%2").arg(FLIGHTGEAR_MAJOR_VERSION).arg(FLIGHTGEAR_MINOR_VERSION);
 }
 
-SetupRootDialog::SetupRootDialog(PromptState prompt, const SGPath& checked) : 
-    QDialog(),
-    m_promptState(prompt),
-    m_checkedPath(checked)
+SetupRootDialog::SetupRootDialog(PromptState prompt, const SGPath& checked) : QDialog(),
+                                                                              m_promptState(prompt),
+                                                                              m_checkedPath(checked)
 {
     auto exLock = flightgear::ExclusiveInstanceLock::instance();
     if (exLock) {
@@ -597,7 +607,7 @@ SetupRootDialog::SetupRootDialog(PromptState prompt, const SGPath& checked) :
         m_ui->changeDownloadLocation->setEnabled(false);
         m_ui->defaultDownloadLocation->hide();
     }
-    
+
     m_ui->versionLabel->setText(tr("<h1>FlightGear %1</h1>").arg(FLIGHTGEAR_VERSION));
     m_ui->bigIcon->setPixmap(QPixmap(":/app-icon-large"));
     m_ui->contentsPages->setCurrentIndex(0);
@@ -705,7 +715,7 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
 
             // assume update worked, fall through
         }
-        
+
         const auto pkgData = options->platformDefaultRoot();
         if (flightgear::Options::isFGData(pkgData)) {
             const auto pkgDataQt = QString::fromStdString(pkgData.utf8Str());
@@ -779,7 +789,7 @@ bool SetupRootDialog::validatePath(QString path)
 /**
  * @brief Ensure the base pakcage at 'path' is the same or more recent than our
  * specified base package minimum version.
- * 
+ *
  * @param path : candidate base pakcage folder
 
  */
@@ -1017,7 +1027,7 @@ void SetupRootDialog::onUpdate()
 
     m_ui->contentsPages->setCurrentIndex(1);
     m_ui->installProgress->setMaximum(0); // show a 'unknown amount' progress
-    
+
     auto updateThread = new UpdateFGData(this);
     connect(updateThread, &UpdateFGData::downloadProgress, this, [this](quint64 cur, quint64 total) {
         m_ui->downloadProgress->setValue(cur);
