@@ -9,6 +9,8 @@ Rectangle {
     width: height
     height: Style.baseFontPixelSize + Style.margin * 2
     color: mouse.containsMouse ? Style.minorFrameColor : Style.backgroundColor
+    // Lift the hovered button and its tooltip above the toolbar indicator group.
+    z: mouse.containsMouse ? 200 : 0
 
     property bool gridMode: false
 
@@ -32,13 +34,11 @@ Rectangle {
         anchors.fill: parent
     }
 
-    Text {
+    Tooltip {
         anchors.left: root.right
         anchors.leftMargin: Style.margin
         anchors.verticalCenter: root.verticalCenter
         visible: mouse.containsMouse
-        color: Style.baseTextColor
-        font.pixelSize: Style.baseFontPixelSize
         text: root.gridMode ? qsTr("Switch to grid view")
                             : qsTr("Switch to list view")
     }

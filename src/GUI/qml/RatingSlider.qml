@@ -12,7 +12,7 @@ Slider {
     max: 5
 
     value: ratings[ratingIndex]
-    width: editRatingsPanel.width - Style.strutSize
+    width: parent.width - Style.strutSize
     anchors.horizontalCenter: parent.horizontalCenter
     sliderWidth: width / 2
 

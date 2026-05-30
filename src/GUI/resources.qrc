@@ -26,6 +26,10 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="airport-closed-icon">assets/airport-closed-icon.png</file>
         <file>qml/AircraftList.qml</file>
         <file>qml/AircraftRating.qml</file>
+        <file>qml/StarRating.qml</file>
+        <file>qml/RatingsFilterIndicator.qml</file>
+        <file>qml/ToolbarButton.qml</file>
+        <file>qml/Tooltip.qml</file>
         <file>qml/ArrowButton.qml</file>
         <file>qml/AircraftDownloadPanel.qml</file>
         <file>qml/Button.qml</file>
@@ -176,5 +180,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="toolbox-fly-heli">assets/icons8-helicopter.svg</file>
 
         <file alias="aircraft-carrier">assets/aircraft-carrier-icon.svg</file>
+
+        <file alias="tab-installed">assets/installed.svg</file>
+        <file alias="tab-browse">assets/browse.svg</file>
+        <file alias="tab-updates">assets/updates.svg</file>
     </qresource>
 </RCC>

@@ -96,13 +96,26 @@ Item {
                 }
             }
 
+            StarRating {
+                id: ratingStars
+                visible: model.hasRatings
+                anchors {
+                    right: parent.right
+                    verticalCenter: parent.verticalCenter
+                }
+                // Average the four community ratings into a single score.
+                value: (model.ratingFDM + model.ratingSystems
+                        + model.ratingCockpit + model.ratingExterior) / 4.0
+            }
+
             AircraftVariantChoice {
                 id: titleBox
 
                 anchors {
                     left: favourite.right
                     leftMargin: Style.margin
-                    right: parent.right
+                    right: ratingStars.visible ? ratingStars.left : parent.right
+                    rightMargin: ratingStars.visible ? Style.margin : 0
                 }
 
                 aircraft: model.uri;
@@ -136,11 +149,22 @@ Item {
 
 
         StyledText {
+            id: authors
+            width: parent.width
+            visible: !root.__showAlternateText && (model.authors !== undefined) && (model.authors !== "")
+            text: qsTr("by %1").arg(model.authors)
+            color: Style.disabledTextColor
+            maximumLineCount: 1
+            elide: Text.ElideRight
+            height: visible ? implicitHeight : 0
+        }
+
+        StyledText {
             id: description
             width: parent.width
             text: root.__showAlternateText ? root.alternateText()
                                            : model.description
-            maximumLineCount: 3
+            maximumLineCount: 2
             wrapMode: Text.WordWrap
             elide: Text.ElideRight
             height: implicitHeight

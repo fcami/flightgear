@@ -119,6 +119,16 @@ int AircraftProxyModel::count() const
     return rowCount();
 }
 
+void AircraftProxyModel::setSortMode(int mode)
+{
+    if (mode == m_sortMode)
+        return;
+
+    m_sortMode = mode;
+    invalidate(); // re-sorts; dynamicSortFilter is enabled
+    emit sortModeChanged();
+}
+
 void AircraftProxyModel::setInstalledFilterEnabled(bool e)
 {
     if (e == m_onlyShowInstalled) {
@@ -281,19 +291,39 @@ void AircraftProxyModel::saveCompatibilityAndRatingsSettings()
 /// \return 0 when the items are equal, < 0 or > 0 when they differs
 bool AircraftProxyModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
+    // Name (variant description) is the primary key for SortByName, and the
+    // secondary key for SortByRating.
     const QString variantLeft = left.data(AircraftVariantDescriptionRole).toString();
     const QString variantRight = right.data(AircraftVariantDescriptionRole).toString();
+    const int nameCompare = QString::compare(variantLeft, variantRight, Qt::CaseInsensitive);
 
-    // we're comparing by default by variantDescriptionRole but when the variantDescriptionRole
-    // is equal (e.g. two of the same aircraft installed from different sources - fgaddon + git)
-    // we sort them by the AircraftURIRole. This ensures that the order of the same
-    // items in the view is consistent
-    const int c = QString::compare(variantLeft, variantRight, Qt::CaseInsensitive);
-    if (c == 0) {
-        const QString uriLeft = left.data(AircraftURIRole).toString();
-        const QString uriRight = right.data(AircraftURIRole).toString();
-        return QString::localeAwareCompare(uriLeft, uriRight) < 0;
-    } else {
-        return c < 0;
+    if (m_sortMode == SortByRating) {
+        // Overall rating is the sum of the four ratings (FDM, systems, cockpit,
+        // model). The sum avoids floating-point comparison and orders identically
+        // to the average. Unrated aircraft sum to zero, so sort to the bottom.
+        const auto overallRating = [](const QModelIndex& idx) {
+            int total = 0;
+            for (int i = 0; i < 4; ++i) {
+                total += idx.data(AircraftRatingRole + i).toInt();
+            }
+            return total;
+        };
+
+        const int ratingLeft = overallRating(left);
+        const int ratingRight = overallRating(right);
+        if (ratingLeft != ratingRight) {
+            return ratingLeft > ratingRight; // highest rating first
+        }
+        // Equal rating: fall through to name ordering below.
     }
+
+    if (nameCompare != 0) {
+        return nameCompare < 0;
+    }
+
+    // Tie-break: identical names (e.g. the same aircraft from fgaddon and git)
+    // sort by AircraftURIRole, to keep the order of identical items stable.
+    const QString uriLeft = left.data(AircraftURIRole).toString();
+    const QString uriRight = right.data(AircraftURIRole).toString();
+    return QString::localeAwareCompare(uriLeft, uriRight) < 0;
 }
