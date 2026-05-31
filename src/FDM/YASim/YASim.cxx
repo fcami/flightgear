@@ -1,7 +1,8 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
+
 
 #include <cstdlib>
 #include <cstdio>
@@ -212,7 +213,7 @@ void YASim::init()
 
         node->setDoubleValue("spring", g->getSpring());
         node->setDoubleValue("damping", g->getDamping());
-        
+
         _gearProps.push_back(GearProps(node));
     }
 
