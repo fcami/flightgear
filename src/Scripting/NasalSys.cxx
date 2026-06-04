@@ -1203,6 +1203,7 @@ void FGNasalSys::shutdown()
     shutdownNasalPositioned();
     shutdownNasalFlightPlan();
     shutdownNasalUnitTestInSim();
+    NewGUI::shutdownNasalBindings();
 
     for (auto l : d->_listener)
         delete l.second;
