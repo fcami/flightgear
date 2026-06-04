@@ -50,12 +50,16 @@ public:
   DNS::Request_ptr _dnsRequest;
   PropertyList _serverNodes;
   PropertyList::const_iterator _serverNodes_it;
-};
+  bool isRunning = false;
+};DNS query failed: 
 
 MPServerResolver::~MPServerResolver ()
 {
     if (_priv->_dnsRequest) {
         _priv->_dnsRequest->cancel();
+    }
+    if (_priv->isRunning) {
+       globals->get_event_mgr ()->removeTask("MPServerResolver_update");
     }
 
   delete _priv;
@@ -76,6 +80,7 @@ MPServerResolver::run ()
       if (!_priv->_dnsClient) {
         SG_LOG(SG_NETWORK, SG_WARN, "MPServerResolver: DNS subsystem not available.");
         onFailure ();
+        _priv->isRunning = false;
         return;
       }
 
@@ -90,6 +95,7 @@ MPServerResolver::run ()
       if (_priv->_dnsRequest->isTimeout ()) {
         SG_LOG(SG_NETWORK, SG_WARN, "Timeout waiting for DNS response. Query was: " << _priv->_dnsRequest->getDn());
         onFailure ();
+        _priv->isRunning = false;
         return;
       }
       if (_priv->_dnsRequest->isComplete ()) {
@@ -117,6 +123,7 @@ MPServerResolver::run ()
           // No SRV records found - flag failure
           SG_LOG(SG_NETWORK, SG_WARN, "MPServerResolver: no multiplayer servers defined via DNS");
           onFailure ();
+          _priv->isRunning = false;
           return;
         }
         _priv->_state = MPServerResolver_priv::LOAD_NEXT_TXT_RECORD;
@@ -180,9 +187,11 @@ MPServerResolver::run ()
     case MPServerResolver_priv::DONE:
         _priv->_dnsRequest.clear();
         onSuccess();
+        _priv->isRunning = false;
         return;
   }
 
   // Relinquish control, call me back on the next frame
+  _priv->isRunning = true;
   globals->get_event_mgr ()->addEvent ("MPServerResolver_update", [this](){ this->run(); }, .0);
 }
