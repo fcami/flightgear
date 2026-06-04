@@ -169,10 +169,10 @@ void NasalMenuTests::testBasicStructure()
         unitTest.assert_equal(size(helpItems),     1,            "help menu item count");
         unitTest.assert_equal(helpItems[0].name,   "test-about", "help item[0].name");
 
-        # MenuChangeKind constants must be exposed on gui.Menu.
-        unitTest.assert_equal(gui.Menu.ChildAdded,   0, "gui.Menu.ChildAdded");
-        unitTest.assert_equal(gui.Menu.ChildRemoved, 1, "gui.Menu.ChildRemoved");
-        unitTest.assert_equal(gui.Menu.Updated,      2, "gui.Menu.Updated");
+        # MenuChangeKind constants must be exposed on xml.gui.Menu.
+        unitTest.assert_equal(gui.xml.Menu.ChildAdded,   0, "gui.Menu.ChildAdded");
+        unitTest.assert_equal(gui.xml.Menu.ChildRemoved, 1, "gui.Menu.ChildRemoved");
+        unitTest.assert_equal(gui.xml.Menu.Updated,      2, "gui.Menu.Updated");
     )");
     CPPUNIT_ASSERT(ok);
 }
@@ -222,7 +222,7 @@ void NasalMenuTests::testUpdateCallback()
         itemNode.getNode("enabled").setBoolValue(0);
 
         unitTest.assert_equal(itemCallCount, 1,                "item callback fire count");
-        unitTest.assert_equal(itemLastKind,  gui.Menu.Updated, "item callback kind");
+        unitTest.assert_equal(itemLastKind,  gui.xml.Menu.Updated, "item callback kind");
 
         # The ghost accessor must reflect the new state.
         unitTest.assert_equal(resetItem.enabled, 0, "item.enabled after disable");

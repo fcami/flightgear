@@ -147,6 +147,9 @@ public:
         flightgear::LanguageInfo::intType cardinalNumber,
         const std::string& key, const std::string& resource = {},
         const std::string& domain = {}) const;
+
+    static void shutdownGhost();
+
 protected:
     PUICompatObject(naRef impl, const std::string& type);
 

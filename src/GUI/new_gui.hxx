@@ -160,6 +160,7 @@ public:
     }
 
     static void registerNasalBindings(FGNasalSys* nas);
+    static void shutdownNasalBindings();
 
 protected:
     /**

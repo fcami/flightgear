@@ -177,6 +177,8 @@ public:
 
     void initFromNode(SGPropertyNode_ptr config);
 
+    void addChildItem(SGPropertyNode* itemNode);
+
 protected:
     void valueChanged(SGPropertyNode* prop) override;
     void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override;
@@ -210,8 +212,6 @@ void NasalMenuItem::initFromNode(SGPropertyNode_ptr config)
         SG_LOG(SG_GUI, SG_DEV_WARN, "menu item without <name> element:" << config->getLocation());
     } else {
         _name = n->getStringValue();
-        n->addChangeListener(this);
-
         if (n->getBoolValue("separator") || nameIsSeparator(_name)) {
             _isSeparator = true;
         }
@@ -270,8 +270,8 @@ void NasalMenuItem::valueChanged(SGPropertyNode* n)
         _checked = _checkedNode->getBoolValue();
     } else if (n == _labelNode) {
         _label = FGMenuBar::getLocalizedLabel(_labelNode->getParent());
-    } else if (n->getNameString() == "name") {
-        _name = n->getStringValue();
+    } else {
+        return;
     }
 
     // allow Nasal to respond to changes
@@ -305,6 +305,9 @@ void NasalMenu::initFromNode(SGPropertyNode_ptr config)
     config->addChangeListener(this);
 
     const auto name = config->getStringValue("name");
+    if (name.empty()) {
+        SG_LOG(SG_GUI, SG_DEV_WARN, "menu without name:" << config->getLocation());
+    }
     _name = name;
 
     _enabledNode = config->getChild("enabled");
@@ -342,25 +345,58 @@ void NasalMenu::valueChanged(SGPropertyNode* n)
         _enabled = n->getBoolValue();
     } else if (n == _labelNode) {
         _label = FGMenuBar::getLocalizedLabel(n->getParent());
+    } else if ((n->getNameString() == "name") && (n->getParent()->getParent() == _config)) {
+        n->removeChangeListener(this);
+        addChildItem(n->getParent());
+        return;
+    } else {
+        return;
     }
+
     runChangedCallbacks(MenuChangeKind::Updated, -1);
 }
 
-void NasalMenu::childAdded(SGPropertyNode* parent, SGPropertyNode* child)
+void NasalMenu::addChildItem(SGPropertyNode* itemNode)
 {
-    if (parent != _config) return;
-    if (child->getNameString() != "item") return;
-
     auto newItem = new NasalMenuItem;
-    newItem->initFromNode(child);
+    newItem->initFromNode(itemNode);
 
     // Insert in index order; indices may be non-contiguous so compare directly
-    const int newIndex = child->getIndex();
+    const int newIndex = itemNode->getIndex();
     auto insertPos = std::find_if(_items.begin(), _items.end(), [newIndex](const NasalMenuItemPtr& item) {
         return item->configNode()->getIndex() > newIndex;
     });
     _items.insert(insertPos, newItem);
     runChangedCallbacks(MenuChangeKind::ChildAdded, newIndex);
+}
+
+void NasalMenu::childAdded(SGPropertyNode* parent, SGPropertyNode* child)
+{
+    // deferred set of menu->item->name
+    if (child->getNameString() == "name") {
+        if ((parent->getNameString() == "item") && (parent->getParent() == _config)) {
+            // this is the name of an item, which we treat as immutable, so we need to defer processing until it has a name
+            if (child->getStringValue().empty()) {
+                child->addChangeListener(this);
+            } else {
+                // we have the name now, so we can process this item
+                addChildItem(parent);
+            }
+        }
+
+        return;
+    }
+
+    if (parent != _config) return;
+    if (child->getNameString() != "item") return;
+
+    // if the item has no name set yet, skip until it does have one, since
+    // we treat names as immutable
+    if (child->getStringValue("name").empty()) {
+        return;
+    }
+
+    addChildItem(child);
 }
 
 void NasalMenu::childRemoved(SGPropertyNode* parent, SGPropertyNode* child)
@@ -401,21 +437,45 @@ public:
     SGPropertyNode_ptr config;
 
 protected:
-    void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
+    void addMenu(SGPropertyNode* menuNode)
     {
-        if (parent != config) return;
-        if (child->getNameString() != "menu") return;
-
         auto newMenu = new NasalMenu;
-        newMenu->initFromNode(child);
+        newMenu->initFromNode(menuNode);
 
         // Insert in index order; indices may be non-contiguous so compare directly
-        const int newIndex = child->getIndex();
+        const int newIndex = menuNode->getIndex();
         auto insertPos = std::find_if(menus.begin(), menus.end(), [newIndex](const NasalMenuPtr& m) {
             return m->configNode()->getIndex() > newIndex;
         });
         menus.insert(insertPos, newMenu);
         runChangedCallbacks(MenuChangeKind::ChildAdded, newIndex);
+    }
+
+    void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
+    {
+        // deferred set of menubar->menu->name
+        if (child->getNameString() == "name") {
+            if ((parent->getNameString() == "menu") && (parent->getParent() == config)) {
+                // this is the name of a menu, which we treat as immutable, so we need to defer processing until it has a name
+                if (child->getStringValue().empty()) {
+                    child->addChangeListener(this);
+                } else {
+                    // we have the name now, so we can process this menu
+                    addMenu(parent);
+                }
+            }
+
+            return;
+        }
+
+        if (parent != config) return;
+        if (child->getNameString() != "menu") return;
+        if (child->getStringValue("name").empty()) {
+            // Menu has no valid name yet, don't add it yet
+            return;
+        }
+
+        addMenu(child);
     }
 
     void childRemoved(SGPropertyNode* parent, SGPropertyNode* child) override
@@ -430,6 +490,15 @@ protected:
         if (it != menus.end()) {
             runChangedCallbacks(MenuChangeKind::ChildRemoved, removedIndex);
             menus.erase(it);
+        }
+    }
+
+    void valueChanged(SGPropertyNode* n) override
+    {
+        // child item now has a valid name, we can add it
+        if ((n->getNameString() == "name") && (n->getParent()->getParent() == config)) {
+            n->removeChangeListener(this);
+            addMenu(n->getParent());
         }
     }
 
