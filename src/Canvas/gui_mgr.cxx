@@ -650,6 +650,18 @@ bool DesktopGroup::handleMouse(const osgEA& ea, bool fromVR)
         case osgEA::SCROLL_DOWN:
             event->delta.y() = -1;
             break;
+        case osgEA::SCROLL_LEFT:
+            event->delta.x() = 1;
+            break;
+        case osgEA::SCROLL_RIGHT:
+            event->delta.x() = -1;
+            break;
+        case osgEA::SCROLL_2D:
+            if (ea.getScrollingDeltaY() != 0)
+                event->delta.y() = ea.getScrollingDeltaY();
+            if (ea.getScrollingDeltaX() != 0)
+                event->delta.x() = ea.getScrollingDeltaX();
+            break;
         default:
             return false;
         }
