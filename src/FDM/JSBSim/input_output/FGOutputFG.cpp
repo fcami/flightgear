@@ -217,7 +217,7 @@ void FGOutputFG::SocketDataFill(FGNetFDM* net)
   net->num_engines = min(FGNetFDM::FG_MAX_ENGINES,Propulsion->GetNumEngines()); // Number of valid engines
 
   for (i=0; i<net->num_engines; i++) {
-    FGEngine* engine = Propulsion->GetEngine(i);
+    auto engine = Propulsion->GetEngine(i);
     if (engine->GetRunning())
       net->eng_state[i] = 2;       // Engine state running
     else if (engine->GetCranking())
@@ -230,7 +230,7 @@ void FGOutputFG::SocketDataFill(FGNetFDM* net)
       break;
     case (FGEngine::etPiston):
       {
-        FGPiston* piston_engine = static_cast<FGPiston*>(engine);
+        auto piston_engine = static_pointer_cast<FGPiston>(engine);
         net->rpm[i]       = (float)(piston_engine->getRPM());
         net->fuel_flow[i] = (float)(piston_engine->getFuelFlow_gph());
         net->fuel_px[i]   = 0; // Fuel pressure, psi  (N/A in current model)
@@ -247,7 +247,7 @@ void FGOutputFG::SocketDataFill(FGNetFDM* net)
     case (FGEngine::etTurboprop):
       break;
     case (FGEngine::etElectric):
-      net->rpm[i] = static_cast<float>(static_cast<FGElectric*>(engine)->getRPM());
+      net->rpm[i] = static_cast<float>(static_pointer_cast<FGElectric>(engine)->getRPM());
       break;
     case (FGEngine::etUnknown):
       break;
@@ -257,7 +257,7 @@ void FGOutputFG::SocketDataFill(FGNetFDM* net)
   net->num_tanks = min(FGNetFDM::FG_MAX_TANKS, Propulsion->GetNumTanks());   // Max number of fuel tanks
 
   for (i=0; i<net->num_tanks; i++) {
-    net->fuel_quantity[i] = (float)(((FGTank *)Propulsion->GetTank(i))->GetContents());
+    net->fuel_quantity[i] = static_cast<float>(Propulsion->GetTank(i)->GetContents());
   }
 
   net->num_wheels  = min(FGNetFDM::FG_MAX_WHEELS, GroundReactions->GetNumGearUnits());
@@ -280,7 +280,7 @@ void FGOutputFG::SocketDataFill(FGNetFDM* net)
     // Default to sending constant dummy value to ensure backwards-compatibility
     net->cur_time = 1234567890u;
   }
-  
+
   net->warp        = 0;                       // offset in seconds to unix time
   net->visibility  = 25000.0;                 // visibility in meters (for env. effects)
 

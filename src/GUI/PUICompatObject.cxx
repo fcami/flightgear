@@ -218,6 +218,11 @@ void PUICompatObject::setupGhost(nasal::Hash& compatModule)
     objectHash.set("clearClassInfo", &f_clearObjectClassInfo);
 }
 
+void PUICompatObject::shutdownGhost()
+{
+    static_nasalClassInfo.clear();
+}
+
 PUICompatObjectRef PUICompatObject::createForType(const std::string& type, SGPropertyNode_ptr config)
 {
     auto nas = globals->get_subsystem<FGNasalSys>();

@@ -431,14 +431,19 @@ void NasalSysTests::testNullAccess()
 {
     bool ok = FGTestApi::executeNasal(R"(
         var s =  {
-           bar: 42
+           bar: 42,
+          f: func() { return 99;}
         };
 
         unitTest.assert_equal(s?.bar, 42);
+        unitTest.assert_equal(s?.f(), 99);
 
         var t = nil;
         var z = t?.bar;
         unitTest.assert_equal(z, nil);
+
+        # TODO: need to detect a null-ish inside a member-func access
+        #  unitTest.assert_equal(z?.f(), nil);
     )");
     CPPUNIT_ASSERT(ok);
 }
@@ -487,4 +492,19 @@ void NasalSysTests::testHashDeclarationError()
     CPPUNIT_ASSERT(!perror.empty());
     CPPUNIT_ASSERT(perror.find("bad hash/object initializer") != std::string::npos);
     CPPUNIT_ASSERT(perror.find(", line 5") != std::string::npos);
+}
+
+void NasalSysTests::testFirstLineOffsetComments()
+{
+    std::string code = R"(
+        # this is a comment
+        # another comment
+        var x = 42;
+        setprop("/foo", x);
+        return x;
+    )";
+
+    bool ok = FGTestApi::executeNasal(code, 999);
+    CPPUNIT_ASSERT(ok);
+    CPPUNIT_ASSERT_EQUAL(42, fgGetInt("/foo"));
 }

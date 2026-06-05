@@ -99,8 +99,7 @@ public:
 
 protected:
   FGFCS* fcs;
-  FGPropertyManager* PropertyManager;
-  std::vector <FGPropertyNode_ptr> OutputNodes;
+  std::vector <SGPropertyNode_ptr> OutputNodes;
   FGParameter_ptr ClipMin, ClipMax;
   std::vector <FGPropertyValue_ptr> InitNodes;
   std::vector <FGPropertyValue_ptr> InputNodes;
@@ -118,7 +117,7 @@ protected:
   void Delay(void);
   void Clip(void);
   void CheckInputNodes(size_t MinNodes, size_t MaxNodes, Element* el);
-  virtual void bind(Element* el);
+  virtual void bind(Element* el, FGPropertyManager* pm);
   virtual void Debug(int from);
 };
 

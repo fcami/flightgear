@@ -77,7 +77,7 @@ FGKinemat::FGKinemat(FGFCS* fcs, Element* element)
     throw BaseException(s.str());
   }
 
-  bind(element);
+  bind(element, fcs->GetPropertyManager().get());
 
   Debug(0);
 }

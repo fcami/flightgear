@@ -161,7 +161,7 @@ bool FGMassBalance::Load(Element* document)
   }
 
   double ChildFDMWeight = 0.0;
-  for (int fdm=0; fdm<FDMExec->GetFDMCount(); fdm++) {
+  for (size_t fdm=0; fdm<FDMExec->GetFDMCount(); fdm++) {
     if (FDMExec->GetChildFDM(fdm)->mated) ChildFDMWeight += FDMExec->GetChildFDM(fdm)->exec->GetMassBalance()->GetWeight();
   }
 
@@ -189,7 +189,7 @@ bool FGMassBalance::Run(bool Holding)
   RunPreFunctions();
 
   double ChildFDMWeight = 0.0;
-  for (int fdm=0; fdm<FDMExec->GetFDMCount(); fdm++) {
+  for (size_t fdm=0; fdm<FDMExec->GetFDMCount(); fdm++) {
     if (FDMExec->GetChildFDM(fdm)->mated) ChildFDMWeight += FDMExec->GetChildFDM(fdm)->exec->GetMassBalance()->GetWeight();
   }
 
@@ -315,7 +315,7 @@ void FGMassBalance::AddPointMass(Element* el)
     pm->SetPointMassMoI(ReadInertiaMatrix(el));
   }
 
-  pm->bind(PropertyManager, PointMasses.size());
+  pm->bind(PropertyManager.get(), PointMasses.size());
   PointMasses.push_back(pm);
 }
 
@@ -396,34 +396,20 @@ FGColumnVector3 FGMassBalance::StructuralToBody(const FGColumnVector3& r) const
 
 void FGMassBalance::bind(void)
 {
-  typedef double (FGMassBalance::*PMF)(int) const;
-  PropertyManager->Tie("inertia/mass-slugs", this,
-                       &FGMassBalance::GetMass);
-  PropertyManager->Tie("inertia/weight-lbs", this,
-                       &FGMassBalance::GetWeight);
-  PropertyManager->Tie("inertia/empty-weight-lbs", this,
-                       &FGMassBalance::GetEmptyWeight);
-  PropertyManager->Tie("inertia/cg-x-in", this,1,
-                       (PMF)&FGMassBalance::GetXYZcg);
-  PropertyManager->Tie("inertia/cg-y-in", this,2,
-                       (PMF)&FGMassBalance::GetXYZcg);
-  PropertyManager->Tie("inertia/cg-z-in", this,3,
-                       (PMF)&FGMassBalance::GetXYZcg);
-  PropertyManager->Tie("inertia/ixx-slugs_ft2", this,
-                       &FGMassBalance::GetIxx);
-  PropertyManager->Tie("inertia/iyy-slugs_ft2", this,
-                       &FGMassBalance::GetIyy);
-  PropertyManager->Tie("inertia/izz-slugs_ft2", this,
-                       &FGMassBalance::GetIzz);
-  PropertyManager->Tie("inertia/ixy-slugs_ft2", this,
-                       &FGMassBalance::GetIxy);
-  PropertyManager->Tie("inertia/ixz-slugs_ft2", this,
-                       &FGMassBalance::GetIxz);
-  PropertyManager->Tie("inertia/iyz-slugs_ft2", this,
-                       &FGMassBalance::GetIyz);
-  typedef int (FGMassBalance::*iOPV)() const;
-  PropertyManager->Tie("inertia/print-mass-properties", this, (iOPV)0,
-                       &FGMassBalance::GetMassPropertiesReport);
+  PropertyManager->Tie("inertia/mass-slugs", this, &FGMassBalance::GetMass);
+  PropertyManager->Tie("inertia/weight-lbs", this, &FGMassBalance::GetWeight);
+  PropertyManager->Tie("inertia/empty-weight-lbs", this, &FGMassBalance::GetEmptyWeight);
+  PropertyManager->Tie("inertia/cg-x-in", this, eX, &FGMassBalance::GetXYZcg);
+  PropertyManager->Tie("inertia/cg-y-in", this, eY, &FGMassBalance::GetXYZcg);
+  PropertyManager->Tie("inertia/cg-z-in", this, eZ, &FGMassBalance::GetXYZcg);
+  PropertyManager->Tie("inertia/ixx-slugs_ft2", this, &FGMassBalance::GetIxx);
+  PropertyManager->Tie("inertia/iyy-slugs_ft2", this, &FGMassBalance::GetIyy);
+  PropertyManager->Tie("inertia/izz-slugs_ft2", this, &FGMassBalance::GetIzz);
+  PropertyManager->Tie("inertia/ixy-slugs_ft2", this, &FGMassBalance::GetIxy);
+  PropertyManager->Tie("inertia/ixz-slugs_ft2", this, &FGMassBalance::GetIxz);
+  PropertyManager->Tie("inertia/iyz-slugs_ft2", this, &FGMassBalance::GetIyz);
+  PropertyManager->Tie<FGMassBalance, int>("inertia/print-mass-properties", this,
+                                            nullptr, &FGMassBalance::GetMassPropertiesReport);
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -459,7 +445,7 @@ void FGMassBalance::GetMassPropertiesReport(int i)
        << "         Ixy         Ixz         Iyz" << underoff << endl;
   cout.precision(1);
   cout << highint << setw(34) << left << "    Base Vehicle " << normint
-       << right << setw(10) << EmptyWeight
+       << right << setw(12) << EmptyWeight
        << setw(8) << vbaseXYZcg(eX) << setw(8) << vbaseXYZcg(eY) << setw(8) << vbaseXYZcg(eZ)
        << setw(12) << baseJ(1,1) << setw(12) << baseJ(2,2) << setw(12) << baseJ(3,3)
        << setw(12) << baseJ(1,2) << setw(12) << baseJ(1,3) << setw(12) << baseJ(2,3) << endl;
@@ -468,7 +454,7 @@ void FGMassBalance::GetMassPropertiesReport(int i)
     PointMass* pm = PointMasses[i];
     double pmweight = pm->GetPointMassWeight();
     cout << highint << left << setw(4) << i << setw(30) << pm->GetName() << normint
-         << right << setw(10) << pmweight << setw(8) << pm->GetLocation()(eX)
+         << right << setw(12) << pmweight << setw(8) << pm->GetLocation()(eX)
          << setw(8) << pm->GetLocation()(eY) << setw(8) << pm->GetLocation()(eZ)
          << setw(12) << pm->GetPointMassMoI(1,1) << setw(12) << pm->GetPointMassMoI(2,2) << setw(12) << pm->GetPointMassMoI(3,3)
          << setw(12) << pm->GetPointMassMoI(1,2) << setw(12) << pm->GetPointMassMoI(1,3) << setw(12) << pm->GetPointMassMoI(2,3) << endl;

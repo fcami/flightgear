@@ -11,6 +11,11 @@
 
 FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGInputEvent(device, eventNode)
 {
+    // hat axes should return 0..8, no normalization
+    if (eventNode->getStringValue("name") == "abs-hat") {
+        _outputMode = OutputMode::Direct;
+    }
+
     tolerance = eventNode->getDoubleValue("tolerance", 0.002);
     minRange = eventNode->getDoubleValue("min-range", 0.0);
     maxRange = eventNode->getDoubleValue("max-range", 0.0);

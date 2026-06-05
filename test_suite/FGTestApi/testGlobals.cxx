@@ -503,11 +503,11 @@ std::optional<string_list> executeNasalExpectRuntimeErrors(const std::string& co
     return std::optional(nasal->getAndClearErrorList());
 }
 
-SGPropertyNode_ptr propsFromString(const std::string& s)
+SGPropertyNode_ptr propsFromString(const std::string& s, size_t lineOffset)
 {
     SGPropertyNode_ptr m = new SGPropertyNode;
     std::istringstream iss(s);
-    readProperties(iss, m);
+    readProperties(iss, m, {}, 0, false, lineOffset);
     return m;
 }
 

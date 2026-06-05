@@ -376,6 +376,11 @@ static naRef f_layoutItemSetVisible(sc::LayoutItem& item,
   return ctx.me;
 }
 
+static naRef f_layoutIsEmpty(sc::Layout& layout, naContext)
+{
+    return naNum(layout.count() == 0);
+}
+
 static naRef f_boxLayoutAddItem( sc::BoxLayout& box,
                                  const nasal::CallContext& ctx )
 {
@@ -683,15 +688,16 @@ naRef initNasalCanvas(naRef globals, naContext c)
   sc::NasalWidget::setupGhost(canvas_module);
 
   NasalLayout::init("canvas.Layout")
-    .bases<NasalLayoutItem>()
-    .method("addItem", &sc::Layout::addItem)
-    .method("setSpacing", &sc::Layout::setSpacing)
-    .method("spacing", &sc::Layout::spacing)
-    .method("count", &sc::Layout::count)
-    .method("itemAt", &sc::Layout::itemAt)
-    .method("takeAt", &sc::Layout::takeAt)
-    .method("removeItem", &sc::Layout::removeItem)
-    .method("clear", &sc::Layout::clear);
+      .bases<NasalLayoutItem>()
+      .member("empty", f_layoutIsEmpty)
+      .method("addItem", &sc::Layout::addItem)
+      .method("setSpacing", &sc::Layout::setSpacing)
+      .method("spacing", &sc::Layout::spacing)
+      .method("count", &sc::Layout::count)
+      .method("itemAt", &sc::Layout::itemAt)
+      .method("takeAt", &sc::Layout::takeAt)
+      .method("removeItem", &sc::Layout::removeItem)
+      .method("clear", &sc::Layout::clear);
 
   NasalBoxLayout::init("canvas.BoxLayout")
       .bases<NasalLayout>()

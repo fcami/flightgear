@@ -160,9 +160,8 @@ FGJSBsim::FGJSBsim( double dt )
         break;
     }
 
-
-    PropertyManager = new FGPropertyManager( (FGPropertyNode*)globals->get_props() );
-    fdmex = new FGFDMExec( PropertyManager );
+    auto PropertyManager = std::make_unique<FGPropertyManager>((SGPropertyNode*)globals->get_props());
+    fdmex = std::make_unique<FGFDMExec>(PropertyManager.get());
     fdmex->Hold();
 
     Atmosphere      = fdmex->GetAtmosphere();
@@ -237,7 +236,7 @@ FGJSBsim::FGJSBsim( double dt )
     for (unsigned int i = 0; i < Propulsion->GetNumTanks(); i++) {
       double d;
       SGPropertyNode * node = fgGetNode("/consumables/fuel/tank", i, true);
-      FGTank* tank = Propulsion->GetTank(i);
+      auto tank = Propulsion->GetTank(i);
       SGPropertyNode * prop = node->getNode( "density-ppg", true );
 
       d = prop->getDoubleValue();
@@ -353,20 +352,12 @@ FGJSBsim::FGJSBsim( double dt )
                             fdmex->GetModelName());
 
     // Trim once to initialize all output parameters
-    FGTrim *fgtrim = new FGTrim(fdmex,tFull);
+    auto fgtrim = std::make_unique<FGTrim>(fdmex.get(), tFull);
     fgtrim->DoTrim();
-    delete fgtrim;
 
     std::string directive_file = fgGetString("/sim/jsbsim/output-directive-file");
     if (!directive_file.empty())
       fdmex->SetOutputDirectives(directive_file);
-}
-
-/******************************************************************************/
-FGJSBsim::~FGJSBsim(void)
-{
-  delete fdmex;
-  delete PropertyManager;
 }
 
 /******************************************************************************/
@@ -409,7 +400,7 @@ void FGJSBsim::init()
     if (fgGetBool("/sim/presets/running")) {
       Propulsion->InitRunning(-1);
       for (unsigned int i = 0; i < Propulsion->GetNumEngines(); i++) {
-        FGPiston* eng = (FGPiston*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGPiston*>(Propulsion->GetEngine(i).get());
         globals->get_controls()->set_magnetos(i, eng->GetMagnetos());
         globals->get_controls()->set_mixture(i, FCS->GetMixtureCmd(i));
       }
@@ -541,30 +532,6 @@ void FGJSBsim::update( double dt )
       update_external_forces(fdmex->GetSimTime() + i * fdmex->GetDeltaT());
     }
 
-    FGJSBBase::Message* msg;
-    while ((msg = fdmex->ProcessNextMessage()) != NULL) {
-//      msg = fdmex->ProcessNextMessage();
-      switch (msg->type) {
-      case FGJSBBase::Message::eText:
-        if (msg->text == "Crash Detected: Simulation FREEZE.")
-          crashed = true;
-        SG_LOG( SG_FLIGHT, SG_INFO, msg->messageId << ": " << msg->text );
-        break;
-      case FGJSBBase::Message::eBool:
-        SG_LOG( SG_FLIGHT, SG_INFO, msg->messageId << ": " << msg->text << " " << msg->bVal );
-        break;
-      case FGJSBBase::Message::eInteger:
-        SG_LOG( SG_FLIGHT, SG_INFO, msg->messageId << ": " << msg->text << " " << msg->iVal );
-        break;
-      case FGJSBBase::Message::eDouble:
-        SG_LOG( SG_FLIGHT, SG_INFO, msg->messageId << ": " << msg->text << " " << msg->dVal );
-        break;
-      default:
-        SG_LOG( SG_FLIGHT, SG_INFO, "Unrecognized message type." );
-        break;
-      }
-    }
-
     reset_wake_group();
 
     // translate JSBsim back to FG structure so that the
@@ -640,13 +607,13 @@ bool FGJSBsim::copy_to_JSBsim()
       switch (Propulsion->GetEngine(i)->GetType()) {
       case FGEngine::etPiston:
         { // FGPiston code block
-        FGPiston* eng = (FGPiston*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGPiston*>(Propulsion->GetEngine(i).get());
         eng->SetMagnetos( globals->get_controls()->get_magnetos(i) );
         break;
         } // end FGPiston code block
       case FGEngine::etTurbine:
         { // FGTurbine code block
-        FGTurbine* eng = (FGTurbine*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGTurbine*>(Propulsion->GetEngine(i).get());
         eng->SetAugmentation( globals->get_controls()->get_augmentation(i) );
         eng->SetReverse( globals->get_controls()->get_reverser(i) );
         //eng->SetInjection( globals->get_controls()->get_water_injection(i) );
@@ -661,7 +628,7 @@ bool FGJSBsim::copy_to_JSBsim()
         } // end FGRocket code block
       case FGEngine::etTurboprop:
         { // FGTurboProp code block
-        FGTurboProp* eng = (FGTurboProp*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGTurboProp*>(Propulsion->GetEngine(i).get());
         eng->SetReverse( globals->get_controls()->get_reverser(i) );
         eng->SetCutoff( globals->get_controls()->get_cutoff(i) );
         // eng->SetIgnition( globals->get_controls()->get_ignition(i) );
@@ -675,7 +642,7 @@ bool FGJSBsim::copy_to_JSBsim()
       }
 
       { // FGEngine code block
-      FGEngine* eng = Propulsion->GetEngine(i);
+      auto eng = Propulsion->GetEngine(i);
 
       eng->SetStarter( globals->get_controls()->get_starter(i) );
       eng->SetRunning( node->getBoolValue("running") );
@@ -684,8 +651,18 @@ bool FGJSBsim::copy_to_JSBsim()
 
     Atmosphere->SetTemperature(temperature->getDoubleValue(), get_Altitude(), FGAtmosphere::eCelsius);
     Atmosphere->SetPressureSL(FGAtmosphere::eInchesHg, pressureSL->getDoubleValue());
-    static_cast<FGStandardAtmosphere*>(Atmosphere)->SetDewPoint(FGAtmosphere::eCelsius,
-                                                                dew_point->getDoubleValue());
+
+    // work-around for broken FlightGear dew-point calculation at altitude
+    // see https://gitlab.com/flightgear/flightgear/-/issues/3267
+    const double humidity_cutoff_altitude = 140000; // feet
+    auto fgAtmosphere = static_cast<FGStandardAtmosphere*>(Atmosphere.get());
+    if (get_Altitude() < humidity_cutoff_altitude) {
+      fgAtmosphere->SetDewPoint(FGAtmosphere::eCelsius, dew_point->getDoubleValue());
+    } else {
+      // Force humidity to zero.
+      fgAtmosphere->SetVaporMassFractionPPM(0.0);
+    }
+
 
     Winds->SetTurbType((FGWinds::tType)TURBULENCE_TYPE_NAMES[turbulence_model->getStringValue()]);
     switch( Winds->GetTurbType() ) {
@@ -722,7 +699,7 @@ bool FGJSBsim::copy_to_JSBsim()
 
     for (i = 0; i < Propulsion->GetNumTanks(); i++) {
       SGPropertyNode * node = fgGetNode("/consumables/fuel/tank", i, true);
-      FGTank * tank = Propulsion->GetTank(i);
+      auto tank = Propulsion->GetTank(i);
       double fuelDensity = node->getDoubleValue("density-ppg");
 
       if (fuelDensity < 0.1)
@@ -848,7 +825,7 @@ bool FGJSBsim::copy_from_JSBsim()
       switch (Propulsion->GetEngine(i)->GetType()) {
       case FGEngine::etPiston:
         { // FGPiston code block
-        FGPiston* eng = (FGPiston*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGPiston*>(Propulsion->GetEngine(i).get());
         node->setDoubleValue("egt-degf", eng->getExhaustGasTemp_degF());
         node->setDoubleValue("oil-temperature-degf", eng->getOilTemp_degF());
         node->setDoubleValue("oil-pressure-psi", eng->getOilPressure_psi());
@@ -868,7 +845,7 @@ bool FGJSBsim::copy_from_JSBsim()
         break;
       case FGEngine::etTurbine:
         { // FGTurbine code block
-        FGTurbine* eng = (FGTurbine*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGTurbine*>(Propulsion->GetEngine(i).get());
         node->setDoubleValue("n1", eng->GetN1());
         node->setDoubleValue("n2", eng->GetN2());
         node->setDoubleValue("egt-degf", 32 + eng->GetEGT()*9/5);
@@ -889,7 +866,7 @@ bool FGJSBsim::copy_from_JSBsim()
         break;
       case FGEngine::etTurboprop:
         { // FGTurboProp code block
-        FGTurboProp* eng = (FGTurboProp*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGTurboProp*>(Propulsion->GetEngine(i).get());
         node->setDoubleValue("n1", eng->GetN1());
         //node->setDoubleValue("n2", eng->GetN2());
         node->setDoubleValue("itt_degf", 32 + eng->GetITT()*9/5);
@@ -911,7 +888,7 @@ bool FGJSBsim::copy_from_JSBsim()
         break;
       case FGEngine::etElectric:
         { // FGElectric code block
-        FGElectric* eng = (FGElectric*)Propulsion->GetEngine(i);
+        auto eng = static_cast<FGElectric*>(Propulsion->GetEngine(i).get());
         node->setDoubleValue("rpm", eng->getRPM());
         } // end FGElectric code block
         break;
@@ -920,7 +897,7 @@ bool FGJSBsim::copy_from_JSBsim()
       }
 
       { // FGEngine code block
-      FGEngine* eng = Propulsion->GetEngine(i);
+      auto eng = Propulsion->GetEngine(i);
       node->setDoubleValue("fuel-flow-gph", eng->getFuelFlow_gph());
       node->setDoubleValue("thrust_lb", thruster->GetThrust());
       node->setDoubleValue("fuel-flow_pph", eng->getFuelFlow_pph());
@@ -963,7 +940,7 @@ bool FGJSBsim::copy_from_JSBsim()
     if ( ! Propulsion->GetFuelFreeze() ) {
       for (i = 0; i < Propulsion->GetNumTanks(); i++) {
         SGPropertyNode * node = fgGetNode("/consumables/fuel/tank", i, true);
-        FGTank* tank = Propulsion->GetTank(i);
+        auto tank = Propulsion->GetTank(i);
         double contents = tank->GetContents();
         double temp = tank->GetTemperature_degC();
         double fuelDensity = tank->GetDensity();
@@ -1083,7 +1060,7 @@ void FGJSBsim::set_V_calibrated_kts(double vc)
     fgic->SetVcalibratedKtsIC(vc);
   else {
     double p=pressure->getDoubleValue();
-    double mach = FGJSBBase::MachFromVcalibrated(vc, p);
+    double mach = Auxiliary->MachFromVcalibrated(vc, p);
     double temp = 1.8*(temperature->getDoubleValue()+273.15);
     double soundSpeed = sqrt(1.4*1716.0*temp);
     FGColumnVector3 vUVW = Propagate->GetUVW();
@@ -1226,11 +1203,11 @@ void FGJSBsim::set_Gamma_vert_rad( double gamma)
 
 void FGJSBsim::init_gear(void )
 {
-    FGGroundReactions* gr=fdmex->GetGroundReactions();
+    auto gr=fdmex->GetGroundReactions();
     int Ngear=GroundReactions->GetNumGearUnits();
     double max = 1.0;
     for (int i=0;i<Ngear;i++) {
-      FGLGear *gear = gr->GetGearUnit(i);
+      auto gear = gr->GetGearUnit(i);
       SGPropertyNode * node = fgGetNode("gear/gear", i, true);
       // coordinates are in feet so convert
       node->setDoubleValue("xoffset-in", gear->GetBodyLocation()(1) * 12);
@@ -1262,11 +1239,11 @@ void FGJSBsim::init_gear(void )
 
 void FGJSBsim::update_gear(void)
 {
-    FGGroundReactions* gr=fdmex->GetGroundReactions();
+    auto gr=fdmex->GetGroundReactions();
     int Ngear=GroundReactions->GetNumGearUnits();
     double max = 1.0;
     for (int i=0;i<Ngear;i++) {
-      FGLGear *gear = gr->GetGearUnit(i);
+      auto gear = gr->GetGearUnit(i);
       SGPropertyNode * node = fgGetNode("gear/gear", i, true);
       node->getChild("wow", 0, true)->setBoolValue( gear->GetWOW());
       node->getChild("rollspeed-ms", 0, true)->setDoubleValue(gear->GetWheelRollVel() * SG_FEET_TO_METER);
@@ -1288,13 +1265,13 @@ void FGJSBsim::update_gear(void)
 
 void FGJSBsim::do_trim(void)
 {
-  FGTrim *fgtrim;
+  std::unique_ptr<FGTrim> fgtrim;
 
   if ( fgGetBool("/sim/presets/onground") )
   {
-    fgtrim = new FGTrim(fdmex,tGround);
+    fgtrim = std::make_unique<FGTrim>(fdmex.get(), tGround);
   } else {
-    fgtrim = new FGTrim(fdmex,tFull);
+    fgtrim = std::make_unique<FGTrim>(fdmex.get(), tFull);
   }
 
   if ( !fgtrim->DoTrim() ) {
@@ -1303,7 +1280,6 @@ void FGJSBsim::do_trim(void)
   } else {
     trimmed->setBoolValue(true);
   }
-  delete fgtrim;
 
   pitch_trim->setDoubleValue( FCS->GetPitchTrimCmd() );
   throttle_trim->setDoubleValue( FCS->GetThrottleCmd(0) );

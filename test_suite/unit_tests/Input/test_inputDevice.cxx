@@ -116,18 +116,21 @@ static void initNasalForTest()
 // a TestInputDevice with it.  The device node lives in a detached property
 // tree so tests don't pollute the global tree.
 // ---------------------------------------------------------------------------
-static SGSharedPtr<TestInputDevice> makeDevice(const std::string& name,
-                                               const std::string& xmlSnippet)
+static SGSharedPtr<TestInputDevice> _makeDevice(const std::string& name,
+                                                size_t lineOffset,
+                                                const std::string& xmlSnippet)
 {
     SGSharedPtr<TestInputDevice> device = new TestInputDevice(name);
     device->SetUniqueName(name);
 
     // Parse the XML snippet into a fresh, standalone property node
-    SGPropertyNode_ptr node = FGTestApi::propsFromString(xmlSnippet);
+    SGPropertyNode_ptr node = FGTestApi::propsFromString(xmlSnippet, lineOffset);
 
     device->Configure(node);
     return device;
 }
+
+#define makeDevice(name, xml) _makeDevice(name, __LINE__, xml)
 
 // ---------------------------------------------------------------------------
 // Test fixture setUp / tearDown
@@ -1563,4 +1566,62 @@ void ReportSettingTests::testBadNasalCodeReport()
         CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
         CPPUNIT_ASSERT(nas->getAndClearErrorList().empty());
     }
+}
+
+// ---------------------------------------------------------------------------
+// testNasalFunctionCallback
+//
+
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalFunctionCallback()
+{
+    // Two <report> blocks that are initially dirty.  The <nasal><update>
+    // block increments a property counter each time it is called.
+    auto device = makeDevice("nasal-update-device", R"nasal(
+        <PropertyList>
+          <nasal>
+          <open>
+            <![CDATA[
+              # some comment
+             print("WINCTRL ECAM Nasal (event) open");
+
+                var ecam32 = {
+                  foo: 'apples',
+                  leds: {
+                    panel: { update: func { print("Updating panel LEDs"); return [1]; } },
+                    emer: { update: func { print("Updating emer LEDs"); return [2]; } },
+                    eng: { update: func { print("Updating eng LEDs"); return [3]; } }
+                  }
+                };
+
+                var panelLED = func() { return ecam32.leds.panel.update(); }
+                var emerLED = func() { return ecam32.leds.emer.update(); }
+                var engLED = func() { return ecam32.leds.eng.update(); }
+
+                print("WINCTRL ECAM Nasal (event) open done");
+            ]]>
+           </open>
+          </nasal>
+          <report>
+            <report-id type="int">1</report-id>
+        <nasal-function>panelLED</nasal-function>
+          </report>
+          <report>
+            <report-id type="int">2</report-id>
+            <nasal-function>emerLED</nasal-function>
+          </report>
+          <report>
+            <report-id type="int">3</report-id>
+            <nasal-function>engLED</nasal-function>
+          </report>
+        </PropertyList>
+    )nasal");
+
+    device->Open();
+    device->postOpen();
+
+    // First update(): all reports are dirty → all sent → callback fires once.
+    device->update(0.0);
+
+    CPPUNIT_ASSERT_EQUAL(3u, device->getLastOutputReportId());
 }

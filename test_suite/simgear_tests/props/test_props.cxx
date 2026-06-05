@@ -138,4 +138,23 @@ void SimgearPropsTests::testPropsXMLSourceLocation()
     SGPropertyNode* count = root->getNode("parent/count");
     CPPUNIT_ASSERT(count != nullptr);
     CPPUNIT_ASSERT(!count->getLocation().isValid());
+
+    /////////////// source location offset
+    SGPropertyNode_ptr root2(new SGPropertyNode);
+    std::istringstream iss2(xml);
+    readProperties(iss2, root2, xmlPath, 0, false, 42);
+
+    parent = root2->getNode("parent");
+    CPPUNIT_ASSERT(parent != nullptr);
+    const SGSourceLocation parentLoc2 = parent->getLocation();
+    CPPUNIT_ASSERT(parentLoc2.isValid());
+    CPPUNIT_ASSERT_EQUAL(xmlPath, std::string(parentLoc2.getPath()));
+    CPPUNIT_ASSERT_EQUAL(45, parentLoc2.getLine());
+
+    multiline = root2->getNode("parent/multiline");
+    CPPUNIT_ASSERT(multiline != nullptr);
+    const SGSourceLocation mlLoc2 = multiline->getLocation();
+    CPPUNIT_ASSERT(mlLoc2.isValid());
+    CPPUNIT_ASSERT_EQUAL(xmlPath, std::string(mlLoc2.getPath()));
+    CPPUNIT_ASSERT_EQUAL(46, mlLoc2.getLine());
 }

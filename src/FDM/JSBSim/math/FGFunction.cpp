@@ -29,8 +29,6 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include <iomanip>
-#include <random>
-#include <chrono>
 #include <memory>
 
 #include "simgear/misc/strutils.hxx"
@@ -40,6 +38,7 @@ INCLUDES
 #include "FGRealValue.h"
 #include "input_output/FGXMLElement.h"
 #include "math/FGFunctionValue.h"
+#include "input_output/string_utilities.h"
 
 
 using namespace std;
@@ -55,19 +54,19 @@ constexpr unsigned int MaxArgs = 9999;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-class WrongNumberOfArguments : public runtime_error
+class WrongNumberOfArguments : public BaseException
 {
 public:
   WrongNumberOfArguments(const string &msg, const vector<FGParameter_ptr> &p,
                          Element* el)
-    : runtime_error(msg), Parameters(p), element(el) {}
+    : BaseException(msg), Parameters(p), element(el) {}
   size_t NumberOfArguments(void) const { return Parameters.size(); }
   FGParameter* FirstParameter(void) const { return *(Parameters.cbegin()); }
   const Element* GetElement(void) const { return element; }
 
 private:
   const vector<FGParameter_ptr> Parameters;
-  const Element* element;
+  const Element_ptr element;
 };
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -109,7 +108,7 @@ template<typename func_t>
 class aFunc<func_t, 0>: public FGFunction
 {
 public:
-  aFunc(const func_t& _f, FGPropertyManager* pm, Element* el,
+  aFunc(const func_t& _f, std::shared_ptr<FGPropertyManager> pm, Element* el,
         const string& Prefix)
     : FGFunction(pm), f(_f)
   {
@@ -160,7 +159,7 @@ bool GetBinary(double val, const string &ctxMsg)
     cerr << ctxMsg << FGJSBBase::fgred << FGJSBBase::highint
          << "Malformed conditional check in function definition."
          << FGJSBBase::reset << endl;
-    throw("Fatal Error.");
+    throw BaseException("Fatal Error.");
   }
 }
 
@@ -199,7 +198,7 @@ FGParameter_ptr VarArgsFn(const func_t& _f, FGFDMExec* fdmex, Element* el,
       return e.FirstParameter();
     }
     else
-      throw e.what();
+      throw e;
   }
 }
 
@@ -274,7 +273,7 @@ void FGFunction::CheckOddOrEvenArguments(Element* el, OddEven odd_even)
       cerr << el->ReadFrom() << fgred << highint
            << "<" << el->GetName() << "> must have an even number of arguments."
            << reset << endl;
-      throw("Fatal Error");
+      throw BaseException("Fatal Error");
     }
     break;
   case OddEven::Odd:
@@ -282,7 +281,7 @@ void FGFunction::CheckOddOrEvenArguments(Element* el, OddEven odd_even)
       cerr << el->ReadFrom() << fgred << highint
            << "<" << el->GetName() << "> must have an odd number of arguments."
            << reset << endl;
-      throw("Fatal Error");
+      throw BaseException("Fatal Error");
     }
     break;
   default:
@@ -292,17 +291,17 @@ void FGFunction::CheckOddOrEvenArguments(Element* el, OddEven odd_even)
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-shared_ptr<default_random_engine> makeRandomEngine(Element *el, FGFDMExec* fdmex)
+shared_ptr<RandomNumberGenerator> makeRandomGenerator(Element *el, FGFDMExec* fdmex)
 {
   string seed_attr = el->GetAttributeValue("seed");
-  unsigned int seed;
   if (seed_attr.empty())
-    return fdmex->GetRandomEngine();
+    return fdmex->GetRandomGenerator();
   else if (seed_attr == "time_now")
-    seed = chrono::system_clock::now().time_since_epoch().count();
-  else
-    seed = atoi(seed_attr.c_str());
-  return make_shared<default_random_engine>(seed);
+    return make_shared<RandomNumberGenerator>();
+  else {
+    unsigned int seed = atoi(seed_attr.c_str());
+    return make_shared<RandomNumberGenerator>(seed);
+  }
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -312,7 +311,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
 {
   Name = el->GetAttributeValue("name");
   Element* element = el->GetElement();
-      
+
   auto sum = [](const decltype(Parameters)& Parameters)->double {
                double temp = 0.0;
 
@@ -321,7 +320,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
 
                return temp;
              };
-  
+
   while (element) {
     string operation = element->GetName();
 
@@ -340,16 +339,16 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
             cerr << element->ReadFrom()
                  << fgred << "Illegal use of the special character '#'"
                  << reset << endl;
-            throw("Fatal Error.");
+            throw BaseException("Fatal Error.");
           }
         }
 
         if (element->HasAttribute("apply")) {
           string function_str = element->GetAttributeValue("apply");
-          FGTemplateFunc* f = fdmex->GetTemplateFunc(function_str);
+          auto f = fdmex->GetTemplateFunc(function_str);
           if (f)
             Parameters.push_back(new FGFunctionValue(property_name,
-                                                     PropertyManager, f));
+                                                     PropertyManager, f, element));
           else {
             cerr << element->ReadFrom()
                  << fgred << highint << "  No function by the name "
@@ -360,13 +359,20 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
         }
         else
           Parameters.push_back(new FGPropertyValue(property_name,
-                                                   PropertyManager));
+                                                   PropertyManager, element));
       }
     } else if (operation == "value" || operation == "v") {
       Parameters.push_back(new FGRealValue(element->GetDataAsNumber()));
     } else if (operation == "pi") {
       Parameters.push_back(new FGRealValue(M_PI));
     } else if (operation == "table" || operation == "t") {
+      string call_type = element->GetAttributeValue("type");
+      if (call_type == "internal") {
+        std::cerr << el->ReadFrom()
+                  << "An internal table cannot be nested within a function."
+                  << endl;
+        throw BaseException("An internal table cannot be nested within a function.");
+      }
       Parameters.push_back(new FGTable(PropertyManager, element, Prefix));
       // operations
     } else if (operation == "product") {
@@ -522,6 +528,16 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                  return y != 0.0 ? fmod(p[0]->GetValue(), y) : HUGE_VAL;
                };
       Parameters.push_back(new aFunc<decltype(f), 2>(f, fdmex, element, Prefix, var));
+    } else if (operation == "roundmultiple") {
+      if (element->GetNumElements() == 1)
+        Parameters.push_back(make_MathFn(round, fdmex, element, Prefix, var));
+      else {
+        auto f = [](const decltype(Parameters)& p)->double {
+                   double multiple = p[1]->GetValue();
+                   return round((p[0]->GetValue() / multiple)) * multiple;
+                 };
+        Parameters.push_back(new aFunc<decltype(f), 1>(f, fdmex, element, Prefix, var, 2));
+      }
     } else if (operation == "atan2") {
       auto f = [](const decltype(Parameters)& p)->double {
                  return atan2(p[0]->GetValue(), p[1]->GetValue());
@@ -595,14 +611,26 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
       double stddev = 1.0;
       string mean_attr = element->GetAttributeValue("mean");
       string stddev_attr = element->GetAttributeValue("stddev");
-      if (!mean_attr.empty())
-        mean = atof(mean_attr.c_str());
-      if (!stddev_attr.empty())
-        stddev = atof(stddev_attr.c_str());
-      auto distribution = make_shared<normal_distribution<double>>(mean, stddev);
-      auto generator(makeRandomEngine(element, fdmex));
-      auto f = [generator, distribution]()->double {
-                 return (*distribution.get())(*generator);
+      if (!mean_attr.empty()) {
+        try {
+          mean = atof_locale_c(mean_attr);
+        } catch (InvalidNumber& e) {
+          cerr << element->ReadFrom() << e.what() << endl;
+          throw e;
+        }
+      }
+      if (!stddev_attr.empty()) {
+        try {
+          stddev = atof_locale_c(stddev_attr);
+        } catch (InvalidNumber& e) {
+          cerr << element->ReadFrom() << e.what() << endl;
+          throw e;
+        }
+      }
+      auto generator(makeRandomGenerator(element, fdmex));
+      auto f = [generator, mean, stddev]()->double {
+                 double value = generator->GetNormalRandomNumber();
+                 return value*stddev + mean;
                };
       Parameters.push_back(new aFunc<decltype(f), 0>(f, PropertyManager, element,
                                                      Prefix));
@@ -611,14 +639,28 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
       double upper = 1.0;
       string lower_attr = element->GetAttributeValue("lower");
       string upper_attr = element->GetAttributeValue("upper");
-      if (!lower_attr.empty())
-        lower = atof(lower_attr.c_str());
-      if (!upper_attr.empty())
-        upper = atof(upper_attr.c_str());
-      auto distribution = make_shared<uniform_real_distribution<double>>(lower, upper);
-      auto generator(makeRandomEngine(element, fdmex));
-      auto f = [generator, distribution]()->double {
-                 return (*distribution.get())(*generator);
+      if (!lower_attr.empty()) {
+        try {
+          lower = atof_locale_c(lower_attr);
+        } catch (InvalidNumber &e) {
+          cerr << element->ReadFrom() << e.what() << endl;
+          throw e;
+        }
+      }
+      if (!upper_attr.empty()) {
+        try {
+          upper = atof_locale_c(upper_attr);
+        } catch (InvalidNumber &e) {
+          cerr << element->ReadFrom() << e.what() << endl;
+          throw e;
+        }
+      }
+      auto generator(makeRandomGenerator(element, fdmex));
+      double a = 0.5*(upper-lower);
+      double b = 0.5*(upper+lower);
+      auto f = [generator, a, b]()->double {
+                 double value = generator->GetUniformRandomNumber();
+                 return value*a + b;
                };
       Parameters.push_back(new aFunc<decltype(f), 0>(f, PropertyManager, element,
                                                      Prefix));
@@ -630,7 +672,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                    cerr << ctxMsg << fgred << highint
                         << "The switch function index (" << temp
                         << ") is negative." << reset << endl;
-                   throw("Fatal error");
+                   throw BaseException("Fatal error");
                  }
                  size_t n = p.size()-1;
                  size_t i = static_cast<size_t>(temp+0.5);
@@ -643,7 +685,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                         << ") selected a value above the range of supplied values"
                         << "[0:" << n-1 << "]"
                         << " - not enough values were supplied." << reset << endl;
-                   throw("Fatal error");
+                   throw BaseException("Fatal error");
                  }
                };
       Parameters.push_back(new aFunc<decltype(f), 2>(f, fdmex, element, Prefix,
@@ -732,10 +774,10 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                  double sina = sin(alpha_local);
                  double cosb;
 
-                 if (fabs(cosa) > fabs(sina)) 
+                 if (fabs(cosa) > fabs(sina))
                    cosb = wind_local(eX) / cosa;
                  else
-                   cosb = wind_local(eZ) / sina;  
+                   cosb = wind_local(eZ) / sina;
 
                  return atan2(wind_local(eY), cosb)*radtodeg;
                };
@@ -804,7 +846,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                    cerr << ctxMsg << fgred << highint
                         << "The index must be one of the integer value 1, 2 or 3."
                         << reset << endl;
-                   throw("Fatal error");
+                   throw BaseException("Fatal error");
                  }
 
                  FGQuaternion qa(eY, -alpha), qb(eZ, beta), qc(eX, -gamma);
@@ -832,7 +874,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
                    cerr << ctxMsg << fgred << highint
                         << "The index must be one of the integer value 1, 2 or 3."
                         << reset << endl;
-                   throw("Fatal error");
+                   throw BaseException("Fatal error");
                  }
 
                  FGQuaternion qa(eY, -alpha), qb(eZ, beta), qc(eX, -gamma);
@@ -857,7 +899,7 @@ void FGFunction::Load(Element* el, FGPropertyValue* var, FGFDMExec* fdmex,
 
       if (p && p->IsConstant()) {
         double constant = p->GetValue();
-        FGPropertyNode_ptr node = p->pNode;
+        SGPropertyNode_ptr node = p->pNode;
         string pName = p->GetName();
 
         Parameters.pop_back();
@@ -919,7 +961,7 @@ void FGFunction::cacheValue(bool cache)
     cached = true;
   }
 }
-  
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 double FGFunction::GetValue(void) const
@@ -972,7 +1014,7 @@ string FGFunction::CreateOutputNode(Element* el, const string& Prefix)
     if (pNode->isTied()) {
       cerr << el->ReadFrom()
            << "Property " << nName << " has already been successfully bound (late)." << endl;
-      throw("Failed to bind the property to an existing already tied node.");
+      throw BaseException("Failed to bind the property to an existing already tied node.");
     }
   }
 

@@ -108,6 +108,7 @@ class ReportSettingTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testNasalCodeArgs);
     CPPUNIT_TEST(testNasalUpdateCallback);
     CPPUNIT_TEST(testBadNasalCodeReport);
+    CPPUNIT_TEST(testNasalFunctionCallback);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -123,4 +124,5 @@ public:
     void testNasalCodeArgs();
     void testNasalUpdateCallback();
     void testBadNasalCodeReport();
+    void testNasalFunctionCallback();
 };

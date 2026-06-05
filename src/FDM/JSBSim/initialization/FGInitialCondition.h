@@ -47,6 +47,8 @@ SENTRY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
+#include <memory>
+
 #include "math/FGLocation.h"
 #include "math/FGQuaternion.h"
 #include "simgear/misc/sg_path.hxx"
@@ -60,8 +62,8 @@ namespace JSBSim {
 class FGFDMExec;
 class FGMatrix33;
 class FGColumnVector3;
-class FGAtmosphere;
 class FGAircraft;
+class FGAuxiliary;
 class FGPropertyManager;
 class Element;
 
@@ -221,7 +223,7 @@ CLASS DOCUMENTATION
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGInitialCondition : public FGJSBBase
+class JSBSIM_API FGInitialCondition : public FGJSBBase
 {
 public:
   /// Constructor
@@ -442,6 +444,10 @@ public:
   void SetWindNEDFpsIC(double wN, double wE, double wD);
 
   /** Sets the initial total wind speed.
+      @param mag Initial wind velocity magnitude in feet/second */
+  void SetWindMagFpsIC(double mag) { SetWindMagKtsIC(mag * fpstokts); }
+
+  /** Sets the initial total wind speed.
       @param mag Initial wind velocity magnitude in knots */
   void SetWindMagKtsIC(double mag);
 
@@ -487,27 +493,23 @@ public:
 
   /** Gets the initial wind velocity in the NED local frame
       @return Initial wind velocity in NED frame in feet/second */
-  const FGColumnVector3 GetWindNEDFpsIC(void) const {
-    const FGMatrix33& Tb2l = orientation.GetTInv();
-    FGColumnVector3 _vt_NED = Tb2l * Tw2b * FGColumnVector3(vt, 0., 0.);
-    return _vt_NED - vUVW_NED;
-  }
+  FGColumnVector3 GetWindNEDFpsIC(void) const;
 
   /** Gets the initial wind velocity in local frame.
       @return Initial wind velocity toward north in feet/second */
-  double GetWindNFpsIC(void) const { return GetNEDWindFpsIC(eX); }
+  double GetWindNFpsIC(void) const { return GetWindNEDFpsIC()(eX); }
 
   /** Gets the initial wind velocity in local frame.
       @return Initial wind velocity eastwards in feet/second */
-  double GetWindEFpsIC(void) const { return GetNEDWindFpsIC(eY); }
+  double GetWindEFpsIC(void) const { return GetWindNEDFpsIC()(eY); }
 
   /** Gets the initial wind velocity in local frame.
       @return Initial wind velocity downwards in feet/second */
-  double GetWindDFpsIC(void) const { return GetNEDWindFpsIC(eZ); }
+  double GetWindDFpsIC(void) const { return GetWindNEDFpsIC()(eZ); }
 
   /** Gets the initial total wind velocity in feet/sec.
       @return Initial wind velocity in feet/second */
-  double GetWindFpsIC(void)  const;
+  double GetWindMagFpsIC(void) const;
 
   /** Gets the initial wind direction.
       @return Initial wind direction in feet/second */
@@ -669,15 +671,15 @@ public:
 
   /** Loads the initial conditions.
       @param rstname The name of an initial conditions file
-      @param useStoredPath true if the stored path to the IC file should be used
+      @param useAircraftPath true if path is given relative to the aircraft path.
       @return true if successful */
-  bool Load(const SGPath& rstname, bool useStoredPath = true );
+  bool Load(const SGPath& rstname, bool useAircraftPath = true );
 
   /** Is an engine running ?
       @param index of the engine to be checked
       @return true if the engine is running. */
   bool IsEngineRunning(unsigned int n) const { return (enginesRunning & (1 << n)) != 0; }
-  
+
   /** Does initialization file call for trim ?
       @return Trim type, if any requested (version 1). */
   int TrimRequested(void) const { return trimRequested; }
@@ -707,8 +709,8 @@ private:
   int trimRequested;
 
   FGFDMExec *fdmex;
-  FGAtmosphere* Atmosphere;
-  FGAircraft* Aircraft;
+  std::shared_ptr<FGAircraft> Aircraft;
+  std::shared_ptr<FGAuxiliary> Auxiliary;
 
   bool Load_v1(Element* document);
   bool Load_v2(Element* document);
@@ -717,7 +719,6 @@ private:
   void SetBodyVelFpsIC(int idx, double vel);
   void SetNEDVelFpsIC(int idx, double vel);
   double GetBodyWindFpsIC(int idx) const;
-  double GetNEDWindFpsIC(int idx) const;
   double GetBodyVelFpsIC(int idx) const;
   void calcAeroAngles(const FGColumnVector3& _vt_BODY);
   void calcThetaBeta(double alfa, const FGColumnVector3& _vt_NED);

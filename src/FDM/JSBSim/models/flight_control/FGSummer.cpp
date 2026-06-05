@@ -38,6 +38,7 @@ INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include "FGSummer.h"
+#include "models/FGFCS.h"
 #include "input_output/FGXMLElement.h"
 
 using namespace std;
@@ -55,7 +56,7 @@ FGSummer::FGSummer(FGFCS* fcs, Element* element) : FGFCSComponent(fcs, element)
   if (element->FindElement("bias"))
     Bias = element->FindElementValueAsNumber("bias");
 
-  bind(element);
+  bind(element, fcs->GetPropertyManager().get());
   Debug(0);
 }
 
@@ -113,7 +114,7 @@ void FGSummer::Debug(int from)
         cout << "       " << node->GetNameWithSign() << endl;
       if (Bias != 0.0) cout << "       Bias: " << Bias << endl;
       for (auto node: OutputNodes)
-        cout << "      OUTPUT: " << node->GetName() << endl;
+        cout << "      OUTPUT: " << node->getNameString() << endl;
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification
@@ -133,4 +134,3 @@ void FGSummer::Debug(int from)
 }
 
 } //namespace JSBSim
-
