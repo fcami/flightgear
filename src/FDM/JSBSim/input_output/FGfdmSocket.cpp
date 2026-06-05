@@ -51,13 +51,26 @@ INCLUDES
 #include <unistd.h>
 #endif
 #include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <cstring>
+#include <assert.h>
+
 #include "FGfdmSocket.h"
+#include "input_output/string_utilities.h"
 
 using std::cout;
 using std::cerr;
 using std::endl;
 using std::string;
+
+// Defines that make BSD/Unix sockets and Windows sockets syntax look alike.
+#ifndef _WIN32
+#define closesocket close
+#define INVALID_SOCKET -1
+#define SOCKET_ERROR -1
+#define SD_BOTH SHUT_RDWR
+#endif
 
 namespace JSBSim {
 
@@ -65,7 +78,7 @@ namespace JSBSim {
 CLASS IMPLEMENTATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef _WIN32
 static bool LoadWinSockDLL(int debug_lvl)
 {
   WSADATA wsaData;
@@ -83,15 +96,15 @@ static bool LoadWinSockDLL(int debug_lvl)
 
 FGfdmSocket::FGfdmSocket(const string& address, int port, int protocol, int precision)
 {
-  sckt = sckt_in = 0;
+  sckt = sckt_in = INVALID_SOCKET;
   Protocol = (ProtocolType)protocol;
   connected = false;
   struct addrinfo *addr = nullptr;
   this->precision = precision;
 
-  #if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef _WIN32
   if (!LoadWinSockDLL(debug_lvl)) return;
-  #endif
+#endif
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -130,7 +143,7 @@ FGfdmSocket::FGfdmSocket(const string& address, int port, int protocol, int prec
       cout << "Creating TCP socket on port " << port << endl;
   }
 
-  if (sckt >= 0) {  // successful
+  if (sckt != INVALID_SOCKET) {  // successful
     int len = sizeof(struct sockaddr_in);
     memcpy(&scktName, addr->ai_addr, len);
     scktName.sin_port = htons(port);
@@ -153,24 +166,25 @@ FGfdmSocket::FGfdmSocket(const string& address, int port, int protocol, int prec
 // assumes TCP or UDP socket on localhost, for inbound datagrams
 FGfdmSocket::FGfdmSocket(int port, int protocol, int precision)
 {
-  sckt = -1;
+  sckt = INVALID_SOCKET;
   connected = false;
   Protocol = (ProtocolType)protocol;
   string ProtocolName;
   this->precision = precision;
 
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef _WIN32
   if (!LoadWinSockDLL(debug_lvl)) return;
 #endif
 
   if (Protocol == ptUDP) {  //use udp protocol
     ProtocolName = "UDP";
     sckt = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-#if defined(_MSC_VER) || defined(__MINGW32__)
+#ifdef _WIN32
     u_long NonBlock = 1; // True
     ioctlsocket(sckt, FIONBIO, &NonBlock);
 #else
-    fcntl(sckt, F_SETFL, O_NONBLOCK);
+    int flags = fcntl(sckt, F_GETFL, 0);
+    fcntl(sckt, F_SETFL, flags | O_NONBLOCK);
 #endif
   }
   else {
@@ -182,7 +196,7 @@ FGfdmSocket::FGfdmSocket(int port, int protocol, int precision)
     cout << "Creating input " << ProtocolName << " socket on port " << port
          << endl;
 
-  if (sckt != -1) {
+  if (sckt != INVALID_SOCKET) {
     memset(&scktName, 0, sizeof(struct sockaddr_in));
     scktName.sin_family = AF_INET;
     scktName.sin_port = htons(port);
@@ -190,31 +204,36 @@ FGfdmSocket::FGfdmSocket(int port, int protocol, int precision)
     if (Protocol == ptUDP)
       scktName.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    int len = sizeof(struct sockaddr_in);
-    if (bind(sckt, (struct sockaddr*)&scktName, len) != -1) {
+    socklen_t len = sizeof(struct sockaddr_in);
+    if (bind(sckt, (struct sockaddr*)&scktName, len) != SOCKET_ERROR) {
       if (debug_lvl > 0)
         cout << "Successfully bound to " << ProtocolName
              << " input socket on port " << port << endl << endl;
 
       if (Protocol == ptTCP) {
-        if (listen(sckt, 5) >= 0) { // successful listen()
-#if defined(_MSC_VER) || defined(__MINGW32__)
+        if (listen(sckt, 5) != SOCKET_ERROR) { // successful listen()
+          connected = true;
+#ifdef _WIN32
           u_long NoBlock = 1;
           ioctlsocket(sckt, FIONBIO, &NoBlock);
-          sckt_in = accept(sckt, (struct sockaddr*)&scktName, &len);
 #else
           int flags = fcntl(sckt, F_GETFL, 0);
           fcntl(sckt, F_SETFL, flags | O_NONBLOCK);
-          sckt_in = accept(sckt, (struct sockaddr*)&scktName, (socklen_t*)&len);
 #endif
-          connected = true;
-        } else
+          sckt_in = accept(sckt, (struct sockaddr*)&scktName, &len);
+        } else {
+          closesocket(sckt);
+          sckt = INVALID_SOCKET;
           cerr << "Could not listen ..." << endl;
+        }
       } else
         connected = true;
-    } else                // unsuccessful
-        cerr << "Could not bind to " << ProtocolName << " input socket, error = "
-             << errno << endl;
+    } else {                // unsuccessful
+      closesocket(sckt);
+      sckt = INVALID_SOCKET;
+      cerr << "Could not bind to " << ProtocolName << " input socket, error = "
+           << errno << endl;
+    }
   } else          // unsuccessful
       cerr << "Could not create " << ProtocolName << " socket for input, error = "
            << errno << endl;
@@ -226,8 +245,9 @@ FGfdmSocket::FGfdmSocket(int port, int protocol, int precision)
 
 FGfdmSocket::~FGfdmSocket()
 {
-  if (sckt) shutdown(sckt,2);
-  if (sckt_in) shutdown(sckt_in,2);
+  // Release the file descriptors to the OS.
+  if (sckt_in != INVALID_SOCKET) shutdown(sckt_in, SD_BOTH);
+  if (sckt != INVALID_SOCKET) closesocket(sckt);
   Debug(1);
 }
 
@@ -236,54 +256,64 @@ FGfdmSocket::~FGfdmSocket()
 string FGfdmSocket::Receive(void)
 {
   char buf[1024];
-  int len = sizeof(struct sockaddr_in);
-  int num_chars=0;
-  string data;      // todo: should allocate this with a standard size as a
+  string data;      // TODO should allocate this with a standard size as a
                     // class attribute and pass as a reference?
 
-  if (sckt_in <= 0 && Protocol == ptTCP) {
-    #if defined(_MSC_VER) || defined(__MINGW32__)
+  if (Protocol == ptTCP){
+    if (sckt_in == INVALID_SOCKET) {
+      socklen_t len = sizeof(struct sockaddr_in);
       sckt_in = accept(sckt, (struct sockaddr*)&scktName, &len);
-    #else
-      sckt_in = accept(sckt, (struct sockaddr*)&scktName, (socklen_t*)&len);
-    #endif
-    if (sckt_in > 0) {
-      #if defined(_MSC_VER) || defined(__MINGW32__)
+      if (sckt_in != INVALID_SOCKET) {
+#ifdef _WIN32
         u_long NoBlock = 1;
         ioctlsocket(sckt_in, FIONBIO, &NoBlock);
-      #else
+#else
         int flags = fcntl(sckt_in, F_GETFL, 0);
         fcntl(sckt_in, F_SETFL, flags | O_NONBLOCK);
-      #endif
-      send(sckt_in, "Connected to JSBSim server\nJSBSim> ", 35, 0);
-    }
-  }
-
-  if (sckt_in > 0) {
-    while ((num_chars = recv(sckt_in, buf, sizeof buf, 0)) > 0) {
-      data.append(buf, num_chars);
-    }
-
-#if defined(_MSC_VER)
-    // when nothing received and the error isn't "would block"
-    // then assume that the client has closed the socket.
-    if (num_chars == 0) {
-        DWORD err = WSAGetLastError ();
-        if (err != WSAEWOULDBLOCK) {
-            printf ("Socket Closed. back to listening\n");
-            closesocket (sckt_in);
-            sckt_in = -1;
-        }
-    }
 #endif
+        if (send(sckt_in, "Connected to JSBSim server\r\nJSBSim> ", 36, 0) == SOCKET_ERROR)
+          LogSocketError("Receive - TCP connection acknowledgement");
+      }
+    }
+
+    if (sckt_in != INVALID_SOCKET) {
+      int num_chars;
+
+      while ((num_chars = recv(sckt_in, buf, sizeof buf, 0)) > 0)
+        data.append(buf, num_chars);
+
+      if (num_chars == SOCKET_ERROR || num_chars == 0) {
+#ifdef _WIN32
+        if (WSAGetLastError() != WSAEWOULDBLOCK)
+#else
+        if (errno != EWOULDBLOCK)
+#endif
+        {
+          LogSocketError("Receive - TCP data reception");
+          // when nothing received and the error isn't "would block"
+          // then assume that the client has closed the socket.
+          cout << "Socket Closed. Back to listening" << endl;
+          closesocket(sckt_in);
+          sckt_in = INVALID_SOCKET;
+        }
+      }
+    }
   }
 
   // this is for FGUDPInputSocket
-  if (sckt >= 0 && Protocol == ptUDP) {
+  if (sckt != INVALID_SOCKET && Protocol == ptUDP) {
     struct sockaddr addr;
     socklen_t fromlen = sizeof addr;
-    num_chars = recvfrom(sckt, buf, sizeof buf, 0, (struct sockaddr*)&addr, &fromlen);
-    if (num_chars != -1) data.append(buf, num_chars);
+    int num_chars = recvfrom(sckt, buf, sizeof buf, 0, (struct sockaddr*)&addr, &fromlen);
+    if (num_chars > 0) data.append(buf, num_chars);
+    if (num_chars == SOCKET_ERROR) {
+#ifdef _WIN32
+      if (WSAGetLastError() != WSAEWOULDBLOCK)
+#else
+      if (errno != EWOULDBLOCK)
+#endif
+        LogSocketError("Receive - UDP data reception");
+    }
   }
 
   return data;
@@ -294,10 +324,12 @@ string FGfdmSocket::Receive(void)
 int FGfdmSocket::Reply(const string& text)
 {
   int num_chars_sent=0;
+  assert(Protocol == ptTCP);
 
-  if (sckt_in >= 0) {
+  if (sckt_in != INVALID_SOCKET) {
     num_chars_sent = send(sckt_in, text.c_str(), text.size(), 0);
-    send(sckt_in, "JSBSim> ", 8, 0);
+    if (num_chars_sent == SOCKET_ERROR) LogSocketError("Reply - Send data");
+    if (send(sckt_in, "JSBSim> ", 8, 0) == SOCKET_ERROR) LogSocketError("Reply - Prompt");
   } else {
     cerr << "Socket reply must be to a valid socket" << endl;
     return -1;
@@ -309,14 +341,16 @@ int FGfdmSocket::Reply(const string& text)
 
 void FGfdmSocket::Close(void)
 {
-  close(sckt_in);
+  assert(Protocol == ptTCP);
+  closesocket(sckt_in);
+  sckt_in = INVALID_SOCKET;
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void FGfdmSocket::Clear(void)
 {
-  buffer.str(string());
+  buffer.str("");
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -357,41 +391,64 @@ void FGfdmSocket::Send(void)
 {
   buffer << '\n';
   string str = buffer.str();
-  if ((send(sckt,str.c_str(),str.size(),0)) <= 0) {
-    perror("send");
-  }
+  Send(str.c_str(), str.size());
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void FGfdmSocket::Send(const char *data, int length)
 {
-  if ((send(sckt,data,length,0)) <= 0) {
-    perror("send");
+  if (Protocol == ptTCP && sckt_in != INVALID_SOCKET) {
+    if ((send(sckt_in, data, length, 0)) == SOCKET_ERROR) LogSocketError("Send - TCP data sending");
+    return;
   }
+
+  if (Protocol == ptUDP && sckt != INVALID_SOCKET) {
+    if ((send(sckt, data, length, 0)) == SOCKET_ERROR) LogSocketError("Send - UDP data sending");
+    return;
+  }
+
+  cerr << "Data sending must be to a valid socket" << endl;
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 void FGfdmSocket::WaitUntilReadable(void)
 {
-  if (sckt_in <= 0)
-    return;
+  assert(Protocol == ptTCP);
+  if (sckt_in == INVALID_SOCKET) return;
 
   fd_set fds;
   FD_ZERO(&fds);
   FD_SET(sckt_in, &fds);
-  select(sckt_in+1, &fds, NULL, NULL, NULL);
 
-  /*
-    If you want to check select return status:
+  int result = select(FD_SETSIZE, &fds, nullptr, nullptr, nullptr);
 
-    int recVal = select(sckt_in+1, &fds, NULL, NULL, NULL);
-    recVal: received value
-    0,             if socket timeout
-    -1,            if socket error
-    anithing else, if socket is readable
-  */
+  if (result == 0) {
+    cerr << "Socket timeout." << endl;
+    return;
+  } else if (result != SOCKET_ERROR)
+    return;
+
+  LogSocketError("WaitUntilReadable");
+}
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+void FGfdmSocket::LogSocketError(const std::string& msg)
+{
+  // An error has occurred, display the error message.
+  cerr << "Socket error in " << msg << ": ";
+#ifdef _WIN32
+  LPSTR errorMessage = nullptr;
+  DWORD errorCode = WSAGetLastError();
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                nullptr, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&errorMessage, 0, nullptr);
+  cerr << errorMessage << endl;
+  LocalFree(errorMessage);
+#else
+  cerr << strerror(errno) << endl;
+#endif
 }
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

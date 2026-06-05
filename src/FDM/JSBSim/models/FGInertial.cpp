@@ -37,6 +37,7 @@ INCLUDES
 
 #include "FGInertial.h"
 #include "input_output/FGXMLElement.h"
+#include "GeographicLib/Geodesic.hpp"
 
 using namespace std;
 
@@ -70,7 +71,7 @@ FGInertial::FGInertial(FGFDMExec* fgex)
   */
 
   vOmegaPlanet = { 0.0, 0.0, RotationRate };
-  GroundCallback.reset(new FGDefaultGroundCallback(a, b));
+  GroundCallback = std::make_unique<FGDefaultGroundCallback>(a, b);
 
   bind();
 
@@ -100,6 +101,11 @@ bool FGInertial::Load(Element* el)
     b = el->FindElementValueAsNumberConvertTo("semiminor_axis", "FT");
   else if (el->FindElement("polar_radius"))
     b = el->FindElementValueAsNumberConvertTo("polar_radius", "FT");
+  // Trigger GeographicLib exceptions if the equatorial or polar radii are
+  // ill-defined.
+  // This intercepts the exception before being thrown by a destructor.
+  GeographicLib::Geodesic geod(a, 1.-b/a);
+
   if (el->FindElement("rotation_rate")) {
     double RotationRate = el->FindElementValueAsNumberConvertTo("rotation_rate", "RAD/SEC");
     vOmegaPlanet = {0., 0., RotationRate};
@@ -112,10 +118,12 @@ bool FGInertial::Load(Element* el)
   GroundCallback->SetEllipse(a, b);
 
   // Messages to warn the user about possible inconsistencies.
-  if (a != b && J2 == 0.0)
-    cout << "Gravitational constant J2 is null for a non-spherical planet." << endl;
-  if (a == b && J2 != 0.0)
-    cout << "Gravitational constant J2 is non-zero for a spherical planet." << endl;
+  if (debug_lvl > 0) {
+    if (a != b && J2 == 0.0)
+      cout << "Gravitational constant J2 is null for a non-spherical planet." << endl;
+    if (a == b && J2 != 0.0)
+      cout << "Gravitational constant J2 is non-zero for a spherical planet." << endl;
+  }
 
   Debug(2);
 
@@ -286,7 +294,7 @@ void FGInertial::Debug(int from)
       cout << "    Semi minor axis: " << b << endl;
       cout << "    Rotation rate  : " << scientific << vOmegaPlanet(eZ) << endl;
       cout << "    GM             : " << GM << endl;
-      cout << "    J2             : " << J2 << endl << defaultfloat;
+      cout << "    J2             : " << J2 << endl << defaultfloat << endl;
     }
   }
   if (debug_lvl & 2 ) { // Instantiation/Destruction notification

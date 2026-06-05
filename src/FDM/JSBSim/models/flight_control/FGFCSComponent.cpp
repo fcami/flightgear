@@ -57,7 +57,7 @@ FGFCSComponent::FGFCSComponent(FGFCS* _fcs, Element* element) : fcs(_fcs)
   clip = cyclic_clip = false;
   dt = fcs->GetChannelDeltaT();
 
-  PropertyManager = fcs->GetPropertyManager();
+  auto PropertyManager = fcs->GetPropertyManager();
   if        (element->GetName() == string("lag_filter")) {
     Type = "LAG_FILTER";
   } else if (element->GetName() == string("lead_lag_filter")) {
@@ -113,14 +113,14 @@ FGFCSComponent::FGFCSComponent(FGFCS* _fcs, Element* element) : fcs(_fcs)
   Element *init_element = element->FindElement("init");
   while (init_element) {
     InitNodes.push_back(new FGPropertyValue(init_element->GetDataLine(),
-                                            PropertyManager ));
+                                            PropertyManager, init_element));
     init_element = element->FindNextElement("init");
   }
 
   Element *input_element = element->FindElement("input");
   while (input_element) {
     InputNodes.push_back(new FGPropertyValue(input_element->GetDataLine(),
-                                             PropertyManager ));
+                                             PropertyManager, input_element));
 
     input_element = element->FindNextElement("input");
   }
@@ -129,7 +129,7 @@ FGFCSComponent::FGFCSComponent(FGFCS* _fcs, Element* element) : fcs(_fcs)
   while (out_elem) {
     string output_node_name = out_elem->GetDataLine();
     bool node_exists = PropertyManager->HasNode(output_node_name);
-    FGPropertyNode* OutputNode = PropertyManager->GetNode( output_node_name, true );
+    SGPropertyNode* OutputNode = PropertyManager->GetNode( output_node_name, true );
     if (!OutputNode) {
       cerr << out_elem->ReadFrom() << "  Unable to process property: "
            << output_node_name << endl;
@@ -147,7 +147,9 @@ FGFCSComponent::FGFCSComponent(FGFCS* _fcs, Element* element) : fcs(_fcs)
 
   Element* delay_elem = element->FindElement("delay");
   if ( delay_elem ) {
-    delay_time = delay_elem->GetDataAsNumber();
+    string delay_str = delay_elem->GetDataLine();
+    FGParameterValue delayParam(delay_str, PropertyManager, delay_elem);
+    delay_time = delayParam.GetValue();
     string delayType = delay_elem->GetAttributeValue("type");
     if (delayType.length() > 0) {
       if (delayType == "time") {
@@ -296,7 +298,7 @@ void FGFCSComponent::Clip(void)
 // properties in the FCS component name attribute. The old way is supported in
 // code at this time, but deprecated.
 
-void FGFCSComponent::bind(Element* el)
+void FGFCSComponent::bind(Element* el, FGPropertyManager* PropertyManager)
 {
   string tmp;
   if (Name.find("/") == string::npos)
@@ -305,7 +307,7 @@ void FGFCSComponent::bind(Element* el)
     tmp = Name;
 
   bool node_exists = PropertyManager->HasNode(tmp);
-  FGPropertyNode* node = PropertyManager->GetNode(tmp, true);
+  SGPropertyNode* node = PropertyManager->GetNode(tmp, true);
 
   if (node) {
     OutputNodes.push_back(node);

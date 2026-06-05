@@ -44,6 +44,7 @@ INCLUDES
 #include "input_output/FGOutputFG.h"
 #include "input_output/FGXMLFileRead.h"
 #include "input_output/FGModelLoader.h"
+#include "input_output/string_utilities.h"
 
 using namespace std;
 
@@ -55,12 +56,11 @@ CLASS IMPLEMENTATION
 
 FGOutput::FGOutput(FGFDMExec* fdmex) : FGModel(fdmex)
 {
-  typedef int (FGOutput::*iOPV)(void) const;
-
   Name = "FGOutput";
   enabled = true;
 
-  PropertyManager->Tie("simulation/force-output", this, (iOPV)0, &FGOutput::ForceOutput);
+  PropertyManager->Tie<FGOutput, int>("simulation/force-output", this, nullptr,
+                                      &FGOutput::ForceOutput);
 
   Debug(0);
 }
@@ -99,7 +99,7 @@ bool FGOutput::Run(bool Holding)
   if (!enabled) return true;
 
   for (auto output: OutputTypes)
-    output->Run();
+    output->Run(Holding);
 
   return false;
 }
@@ -190,7 +190,7 @@ bool FGOutput::SetDirectivesFile(const SGPath& fname)
 
 bool FGOutput::Load(int subSystems, std::string protocol, std::string type,
                     std::string port, std::string name, double outRate,
-                    std::vector<FGPropertyNode_ptr> & outputProperties)
+                    std::vector<SGPropertyNode_ptr> & outputProperties)
 {
   size_t idx = OutputTypes.size();
   FGOutputType* Output = 0;

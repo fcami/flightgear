@@ -39,6 +39,7 @@ INCLUDES
 
 #include <vector>
 #include <map>
+#include <memory>
 
 #include "FGJSBBase.h"
 #include "FGPropertyReader.h"
@@ -219,7 +220,7 @@ private:
     double           TimeSpan;
     std::string           Name;
     std::string           Description;
-    std::vector <FGPropertyNode_ptr>  SetParam;
+    std::vector <SGPropertyNode_ptr>  SetParam;
     std::vector <std::string>  SetParamName;
     std::vector <FGPropertyValue*>  NotifyProperties;
     std::vector <std::string>              DisplayString;
@@ -259,7 +260,7 @@ private:
   FGPropertyReader LocalProperties;
 
   FGFDMExec* FDMExec;
-  FGPropertyManager* PropertyManager;
+  std::shared_ptr<FGPropertyManager> PropertyManager;
   void Debug(int from);
 };
 }

@@ -105,7 +105,7 @@ public:
     FGJSBsim( double dt );
 
     /// Destructor
-    ~FGJSBsim();
+    ~FGJSBsim() {}
 
     // Subsystem API.
     void init() override;
@@ -217,23 +217,22 @@ public:
                       double vel[3], double angularVel[3]);
 
 private:
-    JSBSim::FGFDMExec *fdmex;
-    JSBSim::FGInitialCondition *fgic;
+    std::unique_ptr<JSBSim::FGFDMExec> fdmex;
+    std::shared_ptr<JSBSim::FGInitialCondition> fgic;
     bool needTrim;
 
-    JSBSim::FGAtmosphere*      Atmosphere;
-    JSBSim::FGWinds*           Winds;
-    JSBSim::FGFCS*             FCS;
-    JSBSim::FGPropulsion*      Propulsion;
-    JSBSim::FGMassBalance*     MassBalance;
-    JSBSim::FGAircraft*        Aircraft;
-    JSBSim::FGPropagate*       Propagate;
-    JSBSim::FGAuxiliary*       Auxiliary;
-    JSBSim::FGAerodynamics*    Aerodynamics;
-    JSBSim::FGGroundReactions* GroundReactions;
-    JSBSim::FGInertial*        Inertial;
-    JSBSim::FGAccelerations*   Accelerations;
-    JSBSim::FGPropertyManager* PropertyManager;
+    std::shared_ptr<JSBSim::FGAtmosphere>      Atmosphere;
+    std::shared_ptr<JSBSim::FGWinds>           Winds;
+    std::shared_ptr<JSBSim::FGFCS>             FCS;
+    std::shared_ptr<JSBSim::FGPropulsion>      Propulsion;
+    std::shared_ptr<JSBSim::FGMassBalance>     MassBalance;
+    std::shared_ptr<JSBSim::FGAircraft>        Aircraft;
+    std::shared_ptr<JSBSim::FGPropagate>       Propagate;
+    std::shared_ptr<JSBSim::FGAuxiliary>       Auxiliary;
+    std::shared_ptr<JSBSim::FGAerodynamics>    Aerodynamics;
+    std::shared_ptr<JSBSim::FGGroundReactions> GroundReactions;
+    std::shared_ptr<JSBSim::FGInertial>        Inertial;
+    std::shared_ptr<JSBSim::FGAccelerations>   Accelerations;
 
     // disabling unused members
     /*

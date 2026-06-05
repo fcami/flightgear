@@ -41,9 +41,8 @@ INCLUDES
 #include <string>
 
 #include "models/propulsion/FGForce.h"
-#include "math/FGColumnVector3.h"
+#include "math/FGLocation.h"
 #include "math/LagrangeMultiplier.h"
-#include "FGSurface.h"
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 FORWARD DECLARATIONS
@@ -54,6 +53,8 @@ namespace JSBSim {
 class FGTable;
 class Element;
 class FGPropertyManager;
+class FGGroundReactions;
+class FGFunction;
 
 /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 CLASS DOCUMENTATION
@@ -187,7 +188,7 @@ CLASS DOCUMENTATION
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGLGear : protected FGSurface, public FGForce
+class JSBSIM_API FGLGear : public FGForce
 {
 public:
   struct Inputs {
@@ -232,10 +233,8 @@ public:
   /// Destructor
   ~FGLGear();
 
-  /** The Force vector for this gear
-      @param surface another surface to interact with, set to NULL for none.
-   */
-  const FGColumnVector3& GetBodyForces(FGSurface *surface = NULL);
+  /// The Force vector for this gear
+  const FGColumnVector3& GetBodyForces(void) override;
 
   /// Gets the location of the gear in Body axes
   FGColumnVector3 GetBodyLocation(void) const {
@@ -320,11 +319,11 @@ public:
   const struct Inputs& in;
 
   void ResetToIC(void);
-  void bind(void);
 
 private:
   int GearNumber;
-  static const FGMatrix33 Tb2s, Ts2b;
+  static const FGMatrix33 Tb2s;
+  static const FGMatrix33 Ts2b;
   FGMatrix33 mTGear;
   FGColumnVector3 vLocalGear;
   FGColumnVector3 vWhlVelVec, vGroundWhlVel;     // Velocity of this wheel
@@ -337,7 +336,7 @@ private:
   double bDampRebound;
   double compressLength;
   double compressSpeed;
-  double rollingFCoeff;
+  double staticFCoeff, dynamicFCoeff, rollingFCoeff;
   double Stiffness, Shape, Peak, Curvature; // Pacejka factors
   double BrakeFCoeff;
   double maxCompLen;
@@ -351,7 +350,12 @@ private:
   double FCoeff;
   double WheelSlip;
   double GearPos;
-  bool WOW;
+  double staticFFactor = 1.0;
+  double rollingFFactor = 1.0;
+  double maximumForce = DBL_MAX;
+  double bumpiness = 0.0;
+  bool isSolid = true;
+  bool WOW; // Weight On Wheel
   bool lastWOW;
   bool FirstContact;
   bool StartedGroundRun;
@@ -362,6 +366,7 @@ private:
   bool Castered;
   bool StaticFriction;
   std::string name;
+  double AGL; // Height above ground level
 
   BrakeGroup  eBrakeGrp;
   ContactType eContactType;
@@ -372,8 +377,11 @@ private:
 
   LagrangeMultiplier LMultiplier[3];
 
+  // NO std::shared_ptr<FGGroundReactions> here, to avoid circular references
+  // since FGGroundReactions owns the instances of FGLGear.
+  // Weak pointers are not needed since this FGLGear instance would not have
+  // been called if FGGroundReactions had been destroyed in the first place.
   FGGroundReactions* GroundReactions;
-  FGPropertyManager* PropertyManager;
 
   mutable bool useFCSGearPos;
 
@@ -392,6 +400,7 @@ private:
   void ReportTakeoffOrLanding(void);
   void Report(ReportType rt);
   void Debug(int from);
+  void bind(FGPropertyManager* pm);
 };
 }
 
