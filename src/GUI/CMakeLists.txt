@@ -116,8 +116,16 @@ if (HAVE_QT)
                             LocationController.hxx
                             LauncherArgumentTokenizer.cxx
                             LauncherArgumentTokenizer.hxx
-                            AircraftProxyModel.cxx
-                            AircraftProxyModel.hxx
+                            AircraftFavouritesModel.cxx
+                            AircraftFavouritesModel.hxx
+                            AircraftFilterModel.cxx
+                            AircraftFilterModel.hxx
+                            AircraftInstalledModel.cxx
+                            AircraftInstalledModel.hxx
+                            AircraftSearchModel.cxx
+                            AircraftSearchModel.hxx
+                            AircraftUpdatesModel.cxx
+                            AircraftUpdatesModel.hxx
                             DefaultAircraftLocator.cxx
                             DefaultAircraftLocator.hxx
                             LaunchConfig.cxx

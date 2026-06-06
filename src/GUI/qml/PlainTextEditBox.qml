@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear.Launcher 1.0
 import FlightGear 1.0
@@ -5,7 +8,6 @@ import FlightGear 1.0
 Rectangle {
     id: editFrame
 
-    property bool enabled: true
     property alias placeholder: placeholderText.text
     property alias text: edit.text
 
@@ -13,7 +15,7 @@ Rectangle {
     border.color: edit.activeFocus ? Style.frameColor : Style.minorFrameColor
     border.width: 1
     color: Style.panelBackground
-    
+
     signal editingFinished();
 
     TextEdit {

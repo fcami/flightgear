@@ -24,6 +24,7 @@ Item {
         width: parent.width - (emptyTrack.width + Style.margin)
         horizontalAlignment: Text.AlignRight
         font.pixelSize: Style.baseFontPixelSize
+        color: root.enabled ? Style.baseTextColor : Style.disabledTextColor
     }
 
     Rectangle {
@@ -35,12 +36,12 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
 
         height: 2
-        color: Style.inactiveThemeColor
+        color: root.enabled ? Style.inactiveThemeColor : Style.disabledThemeColor
 
         Rectangle {
             id: fullTrack
             height: parent.height
-            color: Style.frameColor
+            color: root.enabled ? Style.frameColor : Style.disabledThemeColor
             width: parent.width * __percentFull
         }
 
@@ -49,8 +50,9 @@ Item {
             anchors.centerIn: parent
             width: parent.width
             height: root.height
+            enabled: root.enabled
 
-            onClicked: {
+            onClicked: function(mouse) {
                 var frac = mouse.x / width;
                 root.value = min + 0.5 + (max - min) * frac;
             }
@@ -79,7 +81,7 @@ Item {
             width: radius * 2
             height: radius * 2
             radius: Style.roundRadius
-            color: Style.themeColor
+            color: root.enabled ? Style.themeColor : Style.disabledThemeColor
 
             anchors.verticalCenter: parent.verticalCenter
             x: parent.width * __percentFull
@@ -90,6 +92,7 @@ Item {
                 id: thumbMouse
                 hoverEnabled: true
                 anchors.fill: parent
+                enabled: root.enabled
 
                 drag.axis: Drag.XAxis
                 drag.minimumX: 0

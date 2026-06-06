@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear 1.0
 
@@ -6,7 +9,6 @@ Text {
     signal clicked();
 
     property bool clickable: true
-    property bool enabled: true
     property color baseTextColor: Style.baseTextColor
     color: enabled ? (mouse.containsMouse ? Style.themeColor : baseTextColor) : Style.disabledTextColor
     font.pixelSize: Style.baseFontPixelSize

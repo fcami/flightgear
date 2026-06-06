@@ -12,7 +12,6 @@ FocusScope {
     property string placeholder: ""
     property alias validator: edit.validator
     property alias text: edit.text
-    property bool enabled: true
     property bool commitOnReturn: true
 
     property alias suggestedWidthString: metrics.text

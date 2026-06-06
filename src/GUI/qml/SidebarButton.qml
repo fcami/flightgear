@@ -18,7 +18,6 @@ Item {
     signal clicked()
 
     property bool selected: false
-    property bool enabled: true
 
     property string disabledText: ""
 

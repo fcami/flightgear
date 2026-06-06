@@ -11,7 +11,6 @@ Item {
 
     property var model: nil
     property string displayRole: "display"
-    property bool enabled: true
     property int currentIndex: 0
     property string headerText: ""
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (C) 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear 1.0
 
@@ -6,7 +9,6 @@ Rectangle {
 
     property string text
     property string hoverText: ""
-    property bool enabled: true
     property bool destructiveAction: false
 
     readonly property string __baseColor: destructiveAction ? Style.destructiveActionColor :
