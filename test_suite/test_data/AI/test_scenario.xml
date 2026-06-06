@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: (C) 2026 Richard Harrison
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<!--
+  Minimal AI scenario fixture for AIManagerTests::testReinitPreservesScenario.
+  A single stationary ship is enough to check that the scenario survives a
+  subsystem reinit and is reloaded by postinit(). See issue #3388.
+-->
+<PropertyList>
+  <scenario>
+    <name>AIManager reinit test scenario</name>
+    <description>Single ship, used to verify scenarios survive a subsystem reinit.</description>
+    <entry>
+      <type>ship</type>
+      <name>test-ship</name>
+      <latitude>63.985</latitude>
+      <longitude>-22.605</longitude>
+      <heading>0</heading>
+      <speed>0</speed>
+    </entry>
+  </scenario>
+</PropertyList>
