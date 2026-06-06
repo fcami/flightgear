@@ -8,7 +8,6 @@ FocusScope {
     id: root
 
     property alias label: label.text
-    property bool enabled: true
     property var value: new Date()
 
     implicitHeight: label.implicitHeight

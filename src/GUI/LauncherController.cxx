@@ -38,12 +38,16 @@
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
 
+#include "AircraftFavouritesModel.hxx"
+#include "AircraftFilterModel.hxx"
 #include "AircraftItemModel.hxx"
-#include "AircraftProxyModel.hxx"
+#include "AircraftSearchModel.hxx"
+#include "AircraftUpdatesModel.hxx"
 #include "AirportDiagram.hxx"
 #include "CarrierDiagram.hxx"
 #include "CarriersLocationModel.hxx"
 #include "DefaultAircraftLocator.hxx"
+#include "FavouriteAircraftData.hxx"
 #include "FlightPlanController.hxx"
 #include "GettingStartedScope.hxx"
 #include "GettingStartedTip.hxx"
@@ -106,21 +110,20 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
             this, &LauncherController::summaryChanged);
 
     m_aircraftModel = new AircraftItemModel(this);
-    m_installedAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_installedAircraftModel->setInstalledFilterEnabled(true);
 
-    m_aircraftWithUpdatesModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_aircraftWithUpdatesModel->setInstalledFilterEnabled(true);
-    m_aircraftWithUpdatesModel->setHaveUpdateFilterEnabled(true);
+    m_aircraftInstalledModel = new AircraftInstalledModel(this, m_aircraftModel);
+    m_aircraftWithUpdatesModel = new AircraftUpdatesModel(this, m_aircraftModel);
+    m_favouriteAircraftModel = new AircraftFavouritesModel(this, m_aircraftModel);
 
-    m_browseAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_browseAircraftModel->setRatingFilterEnabled(true);
-    m_browseAircraftModel->setCompatibilityFilterEnabled(true);
+    // m_aircraftSearchModel sits between the base model and the filter model,
+    // allowing text-based searching and rating/compat filtering to be separated.
+    m_aircraftSearchModel = new AircraftSearchModel(this, m_aircraftModel);
 
-    m_aircraftSearchModel = new AircraftProxyModel(this, m_aircraftModel);
-
-    m_favouriteAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_favouriteAircraftModel->setShowFavourites(true);
+    // Single filter model; its source is swapped by setSelectedModel().
+    // Initial state is "installed" (the default QML tab).
+    m_aircraftFilterModel = new AircraftFilterModel(this, m_aircraftInstalledModel);
+    m_aircraftFilterModel->setRatingFilterEnabled(true);
+    m_aircraftFilterModel->setCompatibilityFilterEnabled(true);
 
     m_aircraftHistory = new RecentAircraftModel(m_aircraftModel, this);
 
@@ -212,7 +215,11 @@ void LauncherController::initQML(int& styleTypeId)
 
     qmlRegisterType<LauncherArgumentTokenizer>("FlightGear.Launcher", 1, 0, "ArgumentTokenizer");
     qmlRegisterUncreatableType<QAbstractItemModel>("FlightGear.Launcher", 1, 0, "QAIM", "no");
-    qmlRegisterUncreatableType<AircraftProxyModel>("FlightGear.Launcher", 1, 0, "AircraftProxyModel", "no");
+    qmlRegisterUncreatableType<AircraftFilterModel>("FlightGear.Launcher", 1, 0, "AircraftFilterModel", "no");
+    qmlRegisterUncreatableType<AircraftInstalledModel>("FlightGear.Launcher", 1, 0, "AircraftInstalledModel", "no");
+    qmlRegisterUncreatableType<AircraftSearchModel>("FlightGear.Launcher", 1, 0, "AircraftSearchModel", "no");
+    qmlRegisterUncreatableType<AircraftUpdatesModel>("FlightGear.Launcher", 1, 0, "AircraftUpdatesModel", "no");
+    qmlRegisterUncreatableType<AircraftFavouritesModel>("FlightGear.Launcher", 1, 0, "AircraftFavouritesModel", "no");
     qmlRegisterUncreatableType<RecentAircraftModel>("FlightGear.Launcher", 1, 0, "RecentAircraftModel", "no");
     qmlRegisterUncreatableType<RecentLocationsModel>("FlightGear.Launcher", 1, 0, "RecentLocationsModel", "no");
     qmlRegisterUncreatableType<LaunchConfig>("FlightGear.Launcher", 1, 0, "LaunchConfig", "Singleton API");
@@ -620,6 +627,25 @@ QStringList LauncherController::environmentSummary() const
     return m_environmentSummary;
 }
 
+
+void LauncherController::setSelectedModel(const QString& state)
+{
+    if (m_selectedModel == state)
+        return;
+
+    m_selectedModel = state;
+
+    // Swap the source of the single filter model based on which tab is active.
+    if (state == QLatin1String("installed")) {
+        m_aircraftFilterModel->setSourceModel(m_aircraftInstalledModel);
+    } else if (state == QLatin1String("browse") || state == QLatin1String("search")) {
+        m_aircraftFilterModel->setSourceModel(m_aircraftSearchModel);
+    }
+    // "updates" and "favourites" have their own dedicated models and do not
+    // go through the filter model, so no source swap is needed.
+
+    emit selectedModelChanged();
+}
 
 void LauncherController::setSelectedAircraft(QUrl selectedAircraft)
 {
