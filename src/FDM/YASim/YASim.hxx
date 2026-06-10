@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #ifndef _YASIM_HXX
 #define _YASIM_HXX
 

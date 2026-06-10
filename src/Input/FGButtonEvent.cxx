@@ -35,6 +35,12 @@ FGButtonEvent::FGButtonEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode
     }
 
     _invert = eventNode->getBoolValue("invert", false);
+
+    if (_outputName.empty()) {
+        // this is picked to avoid accidentally overwriting 'value' in
+        // existing button bindings
+        _outputName = "state";
+    }
 }
 
 void FGButtonEvent::fire(FGEventData& eventData)
@@ -82,7 +88,7 @@ void FGButtonEvent::update(double dt)
 void FGButtonEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
 {
     SGPropertyNode_ptr args(new SGPropertyNode);
-    args->setBoolValue("value", eventData.value > 0.0);
+    args->setBoolValue(_outputName, eventData.value > 0.0);
     binding->fire(args);
 }
 
@@ -165,10 +171,9 @@ void FGExtendedButtonEvent::fire(FGEventData& eventData)
                 _pressHeldTime = 0.0;
             }
         }
-    } else if (_outputMode == OutputMode::Switch) {
-        SG_LOG(SG_INPUT, SG_DEBUG, "Button '" << this->name << "' has been " << (pressed ? "pressed" : "released"));
-        eventData.value = pressed ? 1.0 : 0.0;
-        FGInputEvent::fire(eventData);
+    } else {
+        // use regular behaviour for switch / selector
+        FGButtonEvent::fire(eventData);
     }
 
     lastState = pressed;

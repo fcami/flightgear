@@ -142,7 +142,9 @@ void FGInputDevice::Configure(SGPropertyNode_ptr aDeviceNode)
     if (nas && haveUpdate) {
         const auto updateCode = nasal->getChild("update");
         const auto loc = updateCode->getLocation();
-        _postUpdateCallback = nas->createCode(updateCode->getStringValue(), loc.getPath(), loc.getLine());
+        _postUpdateCallback = nas->createCode(updateCode->getStringValue(),
+                                              loc.isValid() ? loc.getPath() : "",
+                                              loc.isValid() ? loc.getLine() : 1);
         if (_postUpdateCallback.getErrors().size() > 0) {
             simgear::reportFailure(simgear::LoadFailure::Misconfigured,
                                    simgear::ErrorCode::InputDeviceConfig,
@@ -162,7 +164,10 @@ void FGInputDevice::postOpen()
         SGPropertyNode_ptr open = nasal->getNode("open");
         if (open) {
             const string s = open->getStringValue();
-            bool ok = nas->createModule(nasalModule.c_str(), nasalModule.c_str(), s.c_str(), s.length(), deviceNode);
+            const auto loc = open->getLocation();
+            bool ok = nas->createModule(nasalModule.c_str(), loc.isValid() ? loc.getPath() : "", s.c_str(), s.length(),
+                                        deviceNode, 0, nullptr,
+                                        loc.isValid() ? loc.getLine() : 1);
             if (!ok) {
                 simgear::reportFailure(simgear::LoadFailure::Misconfigured,
                                        simgear::ErrorCode::InputDeviceConfig,

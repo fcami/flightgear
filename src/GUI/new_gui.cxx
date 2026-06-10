@@ -280,6 +280,11 @@ void NewGUI::registerNasalBindings(FGNasalSys* nas)
     NasalItemView::setupGhost(guiModule);
 }
 
+void NewGUI::shutdownNasalBindings()
+{
+    PUICompatObject::shutdownGhost();
+}
+
 void
 NewGUI::update (double delta_time_sec)
 {

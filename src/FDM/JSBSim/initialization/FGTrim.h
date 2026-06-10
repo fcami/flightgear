@@ -50,9 +50,9 @@ SENTRY
 INCLUDES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#include "FGFDMExec.h"
 #include "FGJSBBase.h"
 #include "FGTrimAxis.h"
+#include "FGInitialCondition.h"
 
 #include <vector>
 
@@ -61,6 +61,8 @@ FORWARD DECLARATIONS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 namespace JSBSim {
+
+class FGFDMExec;
 
 typedef enum { tLongitudinal=0, tFull, tGround, tPullup,
                tCustom, tTurn, tNone } TrimMode;
@@ -108,7 +110,7 @@ CLASS DOCUMENTATION
     fgic->SetAltitudeFtIC(1000);
     fgic->SetClimbRate(500);
     if( !fgt.DoTrim() ) {
-      cout << "Trim Failed" << endl;
+      std::cout << "Trim Failed" << std::endl;
     }
     fgt.Report();
     @endcode
@@ -120,10 +122,8 @@ CLASS DOCUMENTATION
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGTrim : public FGJSBBase
+class JSBSIM_API FGTrim : public FGJSBBase
 {
-private:
-
   std::vector<FGTrimAxis> TrimAxes;
   unsigned int Nsub;
   TrimMode mode;

@@ -11,6 +11,11 @@
 
 FGAxisEvent::FGAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGInputEvent(device, eventNode)
 {
+    // hat axes should return 0..8, no normalization
+    if (eventNode->getStringValue("name") == "abs-hat") {
+        _outputMode = OutputMode::Direct;
+    }
+
     tolerance = eventNode->getDoubleValue("tolerance", 0.002);
     minRange = eventNode->getDoubleValue("min-range", 0.0);
     maxRange = eventNode->getDoubleValue("max-range", 0.0);
@@ -156,20 +161,25 @@ double FGAxisEvent::computeValue(double rawValue) const
     return value;
 }
 
-void FGAbsAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
+void FGAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
 {
-    // sets the "setting" node
-    binding->fire(eventData.value);
+    SGPropertyNode_ptr args(new SGPropertyNode);
+    args->setDoubleValue(_outputName, eventData.value);
+    binding->fire(args);
 }
 
 FGRelAxisEvent::FGRelAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGAxisEvent(device, eventNode)
 {
     // relative axes can't use tolerance
     tolerance = 0.0;
+    if (_outputName.empty()) {
+        _outputName = "offset";
+    }
 }
 
-void FGRelAxisEvent::fire(SGAbstractBinding* binding, FGEventData& eventData)
+FGAbsAxisEvent::FGAbsAxisEvent(FGInputDevice* device, SGPropertyNode_ptr eventNode) : FGAxisEvent(device, eventNode)
 {
-    // sets the "offset" node
-    binding->fire(eventData.value, 1.0);
+    if (_outputName.empty()) {
+        _outputName = "setting";
+    }
 }

@@ -230,7 +230,7 @@ combustion_efficiency = Lookup_Combustion_Efficiency->GetValue(equivalence_ratio
 CLASS DECLARATION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-class FGTable : public FGParameter, public FGJSBBase
+class JSBSIM_API FGTable : public FGParameter, public FGJSBBase
 {
 public:
   /// Destructor
@@ -239,15 +239,40 @@ public:
   /** This is the very important copy constructor.
       @param table a const reference to a table.*/
   FGTable(const FGTable& table);
+  /// Copy assignment constructor.
+  /* MSVC issues an error C2280 if not defined : it is needed by
+     std::unique_ptr<FGTable>.
+     See StackOverflow: https://stackoverflow.com/questions/31264984/c-compiler-error-c2280-attempting-to-reference-a-deleted-function-in-visual */
+  FGTable& operator=(const FGTable&);
 
   /// The constructor for a table
-  FGTable (FGPropertyManager* propMan, Element* el, const std::string& prefix="");
-  FGTable (int );
+  FGTable (std::shared_ptr<FGPropertyManager> propMan, Element* el,
+           const std::string& prefix="");
+  FGTable (int);
   FGTable (int, int);
+
+  /// Get the current table value
   double GetValue(void) const;
+  /// @brief Get a value from a 1D internal table
+  /// @param key Row coordinate at which the value must be interpolated
+  /// @return The interpolated value
   double GetValue(double key) const;
+  /// @brief Get a value from a 2D internal table
+  /// @param rowKey Row coordinate at which the value must be interpolated
+  /// @param colKey Column coordinate at which the value must be interpolated
+  /// @return The interpolated value
   double GetValue(double rowKey, double colKey) const;
+  /// @brief Get a value from a 3D internal table
+  /// @param rowKey Row coordinate at which the value must be interpolated
+  /// @param colKey Column coordinate at which the value must be interpolated
+  /// @param TableKey Table coordinate at which the value must be interpolated
+  /// @return The interpolated value
   double GetValue(double rowKey, double colKey, double TableKey) const;
+
+  double GetMinValue(void) const;
+  double GetMinValue(double colKey) const;
+  double GetMinValue(double colKey, double TableKey) const;
+
   /** Read the table in.
       Data in the config file should be in matrix format with the row
       independents as the first column and the column independents in
@@ -271,17 +296,15 @@ public:
        */
 
   void operator<<(std::istream&);
-  FGTable& operator<<(const double n);
-  FGTable& operator<<(const int n);
+  FGTable& operator<<(const double x);
 
-  inline double GetElement(int r, int c) const {return Data[r][c];}
-
+  double GetElement(unsigned int r, unsigned int c) const;
   double operator()(unsigned int r, unsigned int c) const
   { return GetElement(r, c); }
 
-  void SetRowIndexProperty(FGPropertyNode *node)
+  void SetRowIndexProperty(SGPropertyNode *node)
   { lookupProperty[eRow] = new FGPropertyValue(node); }
-  void SetColumnIndexProperty(FGPropertyNode *node)
+  void SetColumnIndexProperty(SGPropertyNode *node)
   { lookupProperty[eColumn] = new FGPropertyValue(node); }
 
   unsigned int GetNumRows() const {return nRows;}
@@ -293,17 +316,15 @@ public:
 private:
   enum type {tt1D, tt2D, tt3D} Type;
   enum axis {eRow=0, eColumn, eTable};
-  bool internal;
+  bool internal = false;
+  std::shared_ptr<FGPropertyManager> PropertyManager; // Property root used to do late binding.
   FGPropertyValue_ptr lookupProperty[3];
-  double** Data;
-  std::vector <FGTable*> Tables;
-  unsigned int nRows, nCols, nTables, dimension;
-  int colCounter, rowCounter, tableCounter;
-  mutable int lastRowIndex, lastColumnIndex, lastTableIndex;
-  double** Allocate(void);
-  FGPropertyManager* const PropertyManager;
+  std::vector<double> Data;
+  std::vector<std::unique_ptr<FGTable>> Tables;
+  unsigned int nRows, nCols;
   std::string Name;
   void bind(Element* el, const std::string& Prefix);
+  void missingData(Element *el, unsigned int expected_size, size_t actual_size);
   void Debug(int from);
 };
 }

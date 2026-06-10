@@ -49,7 +49,7 @@ void populateFPWithNasal(flightgear::FlightPlanRef f,
 
 // helpers during tests
 
-SGPropertyNode_ptr propsFromString(const std::string& s);
+SGPropertyNode_ptr propsFromString(const std::string& s, size_t lineOffset = 0);
 
 const SGGeod getPosition();
 void setPosition(const SGGeod& g);

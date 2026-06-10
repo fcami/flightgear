@@ -1,7 +1,9 @@
+// SPDX-FileCopyrightText: 2001 Andy Ross
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
+#include "config.h"
+
+#include <exception>
 
 #include "Airplane.hpp"
 #include "Atmosphere.hpp"
@@ -68,7 +70,7 @@ Model::Model(Airplane* parent) : _parent(parent)
     _fSumXN = _modelN->getNode("f-sum-x", true);
     _fSumYN = _modelN->getNode("f-sum-y", true);
     _fSumZN = _modelN->getNode("f-sum-z", true);
-    
+
     _gefxN = fgGetNode("/fdm/yasim/debug/ground-effect/ge-f-x", true);
     _gefyN = fgGetNode("/fdm/yasim/debug/ground-effect/ge-f-y", true);
     _gefzN = fgGetNode("/fdm/yasim/debug/ground-effect/ge-f-z", true);
@@ -146,10 +148,10 @@ void Model::initIteration()
 
 // This function initializes some variables for the rotor calculation
 // Furthermore it integrates in "void Rotorpart::inititeration
-// (float dt,float *rot)" the "rotor orientation" by omega*dt for the 
-// 3D-visualization of the heli only. and it compensates the rotation 
+// (float dt,float *rot)" the "rotor orientation" by omega*dt for the
+// 3D-visualization of the heli only. and it compensates the rotation
 // of the fuselage. The rotor does not follow the rotation of the fuselage.
-// Therefore its rotation must be subtracted from the orientation of the 
+// Therefore its rotation must be subtracted from the orientation of the
 // rotor.
 // Maik
 void Model::initRotorIteration()
@@ -172,6 +174,10 @@ void Model::iterate()
 
 void Model::setState(State* s)
 {
+    if (!s->isValid()) {
+        throw std::range_error("Invalid state passed to Model::setState");
+    }
+
     _integrator.setState(s);
     _s = _integrator.getState();
 }
@@ -204,7 +210,7 @@ void Model::updateGround(State* s)
         // Get the point of ground contact
         float pos[3];
         g->getContact(pos);
-        
+
         // Transform the local coordinates of the contact point to
         // global coordinates.
         double pt[3];
@@ -323,7 +329,7 @@ void Model::calcForces(State* s)
         r->getPosition(pos);
         localWind(pos, s, vs, alt);
         r->calcLiftFactor(vs, _atmo.getDensity(), s);
-        float tq=0; 
+        float tq = 0;
         // total torque of rotor (scalar) for calculating new rotor rpm
 
         for(i=0; i<r->_rotorparts.size(); i++) {
@@ -358,7 +364,7 @@ void Model::calcForces(State* s)
     if ((_wingSpan != 0) && (_groundEffect != 0 ))
     {
       // distance between ground and wing ref. point
-      float dist = ground[3] - Math::dot3(ground, _geRefPoint); 
+      float dist = ground[3] - Math::dot3(ground, _geRefPoint);
       float fz = 0;
       float geForce[3] = {0, 0, 0};
       if(dist > 0 && dist < _wingSpan) {

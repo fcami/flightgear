@@ -3,7 +3,14 @@ set(HEADERS
     FGFDMExec.h
     FGJSBBase.h
     JSBSim.hxx
+    JSBSim_API.h
+    GeographicLib/Config.h
+    GeographicLib/Constants.hpp
+    GeographicLib/Geodesic.hpp
+    GeographicLib/GeodesicLine.hpp
+    GeographicLib/Math.hpp
     initialization/FGInitialCondition.h
+    initialization/FGLinearization.h
     initialization/FGTrim.h
     initialization/FGTrimAxis.h
     input_output/FGXMLParse.h
@@ -37,6 +44,7 @@ set(HEADERS
     math/FGQuaternion.h
     math/FGRealValue.h
     math/FGRungeKutta.h
+    math/FGStateSpace.h
     math/FGTable.h
     math/FGFunctionValue.h
     math/FGTemplateFunc.h
@@ -60,8 +68,10 @@ set(HEADERS
     models/FGOutput.h
     models/FGPropagate.h
     models/FGPropulsion.h
+    models/atmosphere/FGMSIS.h
     models/atmosphere/FGStandardAtmosphere.h
     models/atmosphere/FGWinds.h
+    models/atmosphere/MSIS/nrlmsise-00.h
     models/flight_control/FGAccelerometer.h
     models/flight_control/FGActuator.h
     models/flight_control/FGAngles.h
@@ -81,6 +91,7 @@ set(HEADERS
     models/flight_control/FGWaypoint.h
     models/flight_control/FGDistributor.h
     models/flight_control/FGLinearActuator.h
+    models/propulsion/FGBrushLessDCMotor.h
     models/propulsion/FGElectric.h
     models/propulsion/FGEngine.h
     models/propulsion/FGForce.h
@@ -100,7 +111,11 @@ set(SOURCES
     FGFDMExec.cpp
     FGJSBBase.cpp
     JSBSim.cxx
+    GeographicLib/Geodesic.cpp
+    GeographicLib/GeodesicLine.cpp
+    GeographicLib/Math.cpp
     initialization/FGInitialCondition.cpp
+    initialization/FGLinearization.cpp
     initialization/FGTrim.cpp
     initialization/FGTrimAxis.cpp
     input_output/FGGroundCallback.cpp
@@ -109,6 +124,7 @@ set(SOURCES
     input_output/FGScript.cpp
     input_output/FGXMLElement.cpp
     input_output/FGXMLParse.cpp
+    input_output/FGXMLFileRead.cpp
     input_output/FGfdmSocket.cpp
     input_output/FGInputType.cpp
     input_output/FGInputSocket.cpp
@@ -119,6 +135,7 @@ set(SOURCES
     input_output/FGOutputTextFile.cpp
     input_output/FGOutputType.cpp
     input_output/FGModelLoader.cpp
+    input_output/string_utilities.cpp
     math/FGColumnVector3.cpp
     math/FGCondition.cpp
     math/FGFunction.cpp
@@ -129,6 +146,7 @@ set(SOURCES
     math/FGQuaternion.cpp
     math/FGRealValue.cpp
     math/FGRungeKutta.cpp
+    math/FGStateSpace.cpp
     math/FGTable.cpp
     math/FGTemplateFunc.cpp
     models/FGAccelerations.cpp
@@ -151,8 +169,11 @@ set(SOURCES
     models/FGOutput.cpp
     models/FGPropagate.cpp
     models/FGPropulsion.cpp
+    models/atmosphere/FGMSIS.cpp
     models/atmosphere/FGStandardAtmosphere.cpp
     models/atmosphere/FGWinds.cpp
+    models/atmosphere/MSIS/nrlmsise-00.c
+    models/atmosphere/MSIS/nrlmsise-00_data.c
     models/flight_control/FGAccelerometer.cpp
     models/flight_control/FGActuator.cpp
     models/flight_control/FGAngles.cpp
@@ -171,6 +192,7 @@ set(SOURCES
     models/flight_control/FGWaypoint.cpp
     models/flight_control/FGDistributor.cpp
     models/flight_control/FGLinearActuator.cpp
+    models/propulsion/FGBrushLessDCMotor.cpp
     models/propulsion/FGElectric.cpp
     models/propulsion/FGEngine.cpp
     models/propulsion/FGForce.cpp
@@ -189,15 +211,14 @@ set(SOURCES
 
 add_library(JSBSim STATIC ${SOURCES} ${HEADERS})
 set(VERSION_MESSAGE "compiled from FlightGear ${FLIGHTGEAR_VERSION}")
-add_definitions("-DJSBSIM_VERSION=\"${VERSION_MESSAGE}\"")
-
+target_compile_definitions(JSBSim PUBLIC JSBSIM_STATIC_LINK
+                                  PRIVATE JSBSIM_VERSION="${VERSION_MESSAGE}")
 target_link_libraries(JSBSim SimGearCore)
-target_include_directories(JSBSim PRIVATE ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
+target_include_directories(JSBSim PUBLIC ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
 
 add_executable(JSBsim_bin JSBSim.cpp )
 set_target_properties(JSBsim_bin PROPERTIES OUTPUT_NAME "JSBSim" )
 target_Link_libraries(JSBsim_bin JSBSim)
-target_include_directories(JSBsim_bin PRIVATE ${PROJECT_SOURCE_DIR}/src/FDM/JSBSim)
 
 if (MSVC)
     set_target_properties(JSBsim_bin PROPERTIES DEBUG_POSTFIX d)

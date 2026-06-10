@@ -116,18 +116,21 @@ static void initNasalForTest()
 // a TestInputDevice with it.  The device node lives in a detached property
 // tree so tests don't pollute the global tree.
 // ---------------------------------------------------------------------------
-static SGSharedPtr<TestInputDevice> makeDevice(const std::string& name,
-                                               const std::string& xmlSnippet)
+static SGSharedPtr<TestInputDevice> _makeDevice(const std::string& name,
+                                                size_t lineOffset,
+                                                const std::string& xmlSnippet)
 {
     SGSharedPtr<TestInputDevice> device = new TestInputDevice(name);
     device->SetUniqueName(name);
 
     // Parse the XML snippet into a fresh, standalone property node
-    SGPropertyNode_ptr node = FGTestApi::propsFromString(xmlSnippet);
+    SGPropertyNode_ptr node = FGTestApi::propsFromString(xmlSnippet, lineOffset);
 
     device->Configure(node);
     return device;
 }
+
+#define makeDevice(name, xml) _makeDevice(name, __LINE__, xml)
 
 // ---------------------------------------------------------------------------
 // Test fixture setUp / tearDown
@@ -280,14 +283,14 @@ void InputDeviceTests::testButtonPressRelease()
     FGEventData press{1.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _buttonPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _buttonPressCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _buttonReleaseCmd.callCount);
 
     // Release
     FGEventData release{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // A second press should fire again
     device->HandleEvent(press);
@@ -440,7 +443,7 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData high{900.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(high);
     CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _highBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _highBtnCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _highBtnReleaseCmd.callCount);
     CPPUNIT_ASSERT_EQUAL(0, _lowBtnCmd.callCount);
 
@@ -448,7 +451,7 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData backCenter{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(backCenter);
     CPPUNIT_ASSERT_EQUAL(1, _highBtnReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _highBtnReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _highBtnReleaseCmd.lastState);
     // High press count unchanged
     CPPUNIT_ASSERT_EQUAL(1, _highBtnCmd.callCount);
 
@@ -456,14 +459,14 @@ void InputDeviceTests::testHighLowThreshold()
     FGEventData low{-900.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(low);
     CPPUNIT_ASSERT_EQUAL(1, _lowBtnCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _lowBtnCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _lowBtnCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _lowBtnReleaseCmd.callCount);
 
     // --- 5. Return to center: low button should release ---
     FGEventData backCenter2{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(backCenter2);
     CPPUNIT_ASSERT_EQUAL(1, _lowBtnReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _lowBtnReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _lowBtnReleaseCmd.lastState);
 
     // --- 6. Cross high threshold again: should fire a second press ---
     FGEventData high2{950.0, 0.016, KEYMOD_NONE};
@@ -757,29 +760,29 @@ void InputDeviceTests::testButtonSwitchMode()
     FGEventData press{1.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 
     // --- 2. Release: same binding fires with value=false (not a mod-up binding) ---
     FGEventData release{0.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(2, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastState);
 
     // --- 3. Second press: fires again with value=true ---
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(3, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 
     // --- 4. Second release: fires again with value=false ---
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(4, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _switchCmd.lastState);
 
     // --- 5. Non-zero values > 1 are still treated as press ---
     FGEventData pressHigh{255.0, 0.016, KEYMOD_NONE};
     device->HandleEvent(pressHigh);
     CPPUNIT_ASSERT_EQUAL(5, _switchCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _switchCmd.lastState);
 }
 
 // ---------------------------------------------------------------------------
@@ -837,7 +840,7 @@ void InputDeviceTests::testDoublePress()
     device->HandleEvent(press);
     CPPUNIT_ASSERT_EQUAL(1, _buttonPressCmd.callCount); // unchanged: suppressed
     CPPUNIT_ASSERT_EQUAL(1, _doublePressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _doublePressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _doublePressCmd.lastState);
 
     // --- 4. Release after the double-press fires the regular mod-up binding ---
     device->HandleEvent(release);
@@ -906,7 +909,7 @@ void InputDeviceTests::testLongPress()
     // Advance past the threshold (cumulative 1.1 s): long-press fires exactly once
     device->update(0.6);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastState);
 
     // Further updates while still pressed must not fire it a second time
     device->update(0.5);
@@ -915,7 +918,7 @@ void InputDeviceTests::testLongPress()
     // Release after a long-press: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // --- Scenario 2: short press (released before threshold) fires mod-up normally ---
 
@@ -928,7 +931,7 @@ void InputDeviceTests::testLongPress()
     // Release before threshold: mod-up fires
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(2, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount); // still just the one from scenario 1
 }
 
@@ -996,7 +999,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // fires exactly once; the same update also triggers one more repeatable fire
     device->update(1.1);
     CPPUNIT_ASSERT_EQUAL(1, _longPressCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(true, _longPressCmd.lastState);
     const int repeatCountAfterLongPress = _buttonPressCmd.callCount;
     CPPUNIT_ASSERT(repeatCountAfterLongPress > 3); // at least one more repeatable fire
 
@@ -1008,7 +1011,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // Release after long-press: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
 
     // --- Scenario 2: short hold (released before threshold) ---
     _buttonPressCmd.reset();
@@ -1026,7 +1029,7 @@ void InputDeviceTests::testRepeatableWithLongPress()
     // Release before threshold: mod-up fires normally
     device->HandleEvent(release);
     CPPUNIT_ASSERT_EQUAL(1, _buttonReleaseCmd.callCount);
-    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastValue);
+    CPPUNIT_ASSERT_EQUAL(false, _buttonReleaseCmd.lastState);
     CPPUNIT_ASSERT_EQUAL(0, _longPressCmd.callCount); // still only from scenario 1
 }
 
@@ -1511,6 +1514,7 @@ void ReportSettingTests::testBadNasalCodeReport()
         auto errs = nas->getAndClearErrorList();
         CPPUNIT_ASSERT(!errs.empty());
 
+        CPPUNIT_ASSERT_EQUAL(errs.front(), "undefined symbol: undefined_sym"s);
         // Re-dirty the report and update again: the report must be skipped
         // entirely (markAsError was called), so neither a new Nasal call nor a
         // new send should occur.
@@ -1562,4 +1566,62 @@ void ReportSettingTests::testBadNasalCodeReport()
         CPPUNIT_ASSERT_EQUAL(0u, device->getLastOutputReportId());
         CPPUNIT_ASSERT(nas->getAndClearErrorList().empty());
     }
+}
+
+// ---------------------------------------------------------------------------
+// testNasalFunctionCallback
+//
+
+// ---------------------------------------------------------------------------
+void ReportSettingTests::testNasalFunctionCallback()
+{
+    // Two <report> blocks that are initially dirty.  The <nasal><update>
+    // block increments a property counter each time it is called.
+    auto device = makeDevice("nasal-update-device", R"nasal(
+        <PropertyList>
+          <nasal>
+          <open>
+            <![CDATA[
+              # some comment
+             print("WINCTRL ECAM Nasal (event) open");
+
+                var ecam32 = {
+                  foo: 'apples',
+                  leds: {
+                    panel: { update: func { print("Updating panel LEDs"); return [1]; } },
+                    emer: { update: func { print("Updating emer LEDs"); return [2]; } },
+                    eng: { update: func { print("Updating eng LEDs"); return [3]; } }
+                  }
+                };
+
+                var panelLED = func() { return ecam32.leds.panel.update(); }
+                var emerLED = func() { return ecam32.leds.emer.update(); }
+                var engLED = func() { return ecam32.leds.eng.update(); }
+
+                print("WINCTRL ECAM Nasal (event) open done");
+            ]]>
+           </open>
+          </nasal>
+          <report>
+            <report-id type="int">1</report-id>
+        <nasal-function>panelLED</nasal-function>
+          </report>
+          <report>
+            <report-id type="int">2</report-id>
+            <nasal-function>emerLED</nasal-function>
+          </report>
+          <report>
+            <report-id type="int">3</report-id>
+            <nasal-function>engLED</nasal-function>
+          </report>
+        </PropertyList>
+    )nasal");
+
+    device->Open();
+    device->postOpen();
+
+    // First update(): all reports are dirty → all sent → callback fires once.
+    device->update(0.0);
+
+    CPPUNIT_ASSERT_EQUAL(3u, device->getLastOutputReportId());
 }

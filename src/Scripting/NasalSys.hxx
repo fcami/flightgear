@@ -88,8 +88,9 @@ public:
     virtual bool handleCommand(const SGPropertyNode* arg, SGPropertyNode *root);
 
     bool createModule(const char* moduleName, const char* fileName,
-                      const char* src, int len, const SGPropertyNode* cmdarg=0,
-                      int argc=0, naRef*args=0);
+                      const char* src, int len, const SGPropertyNode* cmdarg = 0,
+                      int argc = 0, naRef* args = 0,
+                      int sourceLineOffset = 1);
 
     void deleteModule(const char* moduleName);
 
