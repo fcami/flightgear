@@ -287,7 +287,7 @@ void FGAIManager::reinit()
 {
     // Delete scenario objects but preserve the scenario property nodes
     // so that postinit() can re-read and reload them.
-    for (auto& [name, scenario] : _scenarios) {
+    for (auto& [_, scenario] : _scenarios) {
         delete scenario;
     }
     _scenarios.clear();
