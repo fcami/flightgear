@@ -31,6 +31,7 @@
 #include "fgclouds.hxx"
 #include "gravity.hxx"
 #include "magvarmanager.hxx"
+#include "openmeteo_manager.hxx"
 #include "precipitation_mgr.hxx"
 #include "realwx_ctrl.hxx"
 #include "ridge_lift.hxx"
@@ -47,6 +48,7 @@ FGEnvironmentMgr::FGEnvironmentMgr() : _environment(new FGEnvironment()),
     fgClouds = new FGClouds;
     _sky->getPreRoot()->addChild(fgClouds->getCloudUpdateNode());
     set_subsystem("controller", Environment::LayerInterpolateController::createInstance(fgGetNode("/environment/config", true)));
+    set_subsystem("openmeteo", new Environment::OpenMeteoManager(fgGetNode("/environment/open-meteo", true)), 1.0);
 
     set_subsystem("climate", new FGClimate);
     set_subsystem("precipitation", new FGPrecipitationMgr);
@@ -66,6 +68,7 @@ FGEnvironmentMgr::~FGEnvironmentMgr()
     remove_subsystem("terrainsampler");
     remove_subsystem("precipitation");
     remove_subsystem("realwx");
+    remove_subsystem("openmeteo");
     remove_subsystem("controller");
     remove_subsystem("magvar");
 
