@@ -54,6 +54,8 @@ public:
 
 MPServerResolver::~MPServerResolver ()
 {
+    globals->get_event_mgr()->removeTask("MPServerResolver_update");
+
     if (_priv->_dnsRequest) {
         _priv->_dnsRequest->cancel();
     }
@@ -64,6 +66,7 @@ MPServerResolver::~MPServerResolver ()
 MPServerResolver::MPServerResolver () :
     _priv (new MPServerResolver_priv ())
 {
+    globals->get_event_mgr()->addTask("MPServerResolver_update", [this]() { this->run(); }, 0.0);
 }
 
 void
@@ -181,8 +184,5 @@ MPServerResolver::run ()
         _priv->_dnsRequest.clear();
         onSuccess();
         return;
-  }
-
-  // Relinquish control, call me back on the next frame
-  globals->get_event_mgr ()->addEvent ("MPServerResolver_update", [this](){ this->run(); }, .0);
+    }
 }

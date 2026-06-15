@@ -894,35 +894,31 @@ do_multiplayer_refreshserverlist (const SGPropertyNode * arg, SGPropertyNode * r
   // deletes itself when done
   class MyMPServerResolver : public MPServerResolver {
   public:
-    MyMPServerResolver () :
-        MPServerResolver ()
-    {
-      setTarget (fgGetNode ("/sim/multiplay/server-list", true));
-      setDnsName (fgGetString ("/sim/multiplay/dns/query-dn", "flightgear.org"));
-      setService (fgGetString ("/sim/multiplay/dns/query-srv-service", "fgms"));
-      setProtocol (fgGetString ("/sim/multiplay/dns/query-srv-protocol", "udp"));
-      _completeNode->setBoolValue (false);
-      _failureNode->setBoolValue (false);
-    }
+      MyMPServerResolver()
+      {
+          setTarget(fgGetNode("/sim/multiplay/server-list", true));
+          setDnsName(fgGetString("/sim/multiplay/dns/query-dn", "flightgear.org"));
+          setService(fgGetString("/sim/multiplay/dns/query-srv-service", "fgms"));
+          setProtocol(fgGetString("/sim/multiplay/dns/query-srv-protocol", "udp"));
+          _completeNode->setBoolValue(false);
+          _failureNode->setBoolValue(false);
+      }
 
-    ~MyMPServerResolver ()
-    {
-    }
+      ~MyMPServerResolver() = default;
 
-    virtual void
-    onSuccess ()
-    {
-      SG_LOG(SG_NETWORK, SG_DEBUG, "MyMPServerResolver: trigger success");
-      _completeNode->setBoolValue (true);
-      delete this;
-    }
-    virtual void
-    onFailure ()
-    {
-      SG_LOG(SG_NETWORK, SG_DEBUG, "MyMPServerResolver: trigger failure");
-      _failureNode->setBoolValue (true);
-      delete this;
-    }
+      void onSuccess() override
+      {
+          SG_LOG(SG_NETWORK, SG_DEBUG, "MyMPServerResolver: trigger success");
+          _completeNode->setBoolValue(true);
+          delete this;
+      }
+
+      void onFailure() override
+      {
+          SG_LOG(SG_NETWORK, SG_DEBUG, "MyMPServerResolver: trigger failure");
+          _failureNode->setBoolValue(true);
+          delete this;
+      }
 
   private:
     SGPropertyNode *_completeNode = fgGetNode ("/sim/multiplay/got-servers", true);
