@@ -287,6 +287,7 @@ using std::string;
                     if (prop->getType() != simgear::props::NONE) {
                         newPropData["value"] = JSON::valueToJson(prop);
                     }
+                    newNodesJson.push_back(newPropData);
                 }
 
                 newNodes.clear();
