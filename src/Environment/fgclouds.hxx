@@ -47,7 +47,7 @@ private:
         int roughFieldHeight;
         int roughFieldVoxelSize;
         int roughVoxelSizeFactor;
-        float extinction;
+        float voxelOpticalDepth;
         bool fieldRepeating;
 
         // Sun direction (world-space, already transformed to Z-up)
