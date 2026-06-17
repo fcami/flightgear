@@ -63,20 +63,6 @@ private:
     sg::BVHPager& _pager;
 };
 
-// Short circuit reading image files.
-class ReadFileCallback : public sg::OptionsReadFileCallback
-{
-public:
-    virtual ~ReadFileCallback()
-    {
-    }
-
-    virtual osgDB::ReaderWriter::ReadResult readImage(const std::string& name, const osgDB::Options*)
-    {
-        return new osg::Image;
-    }
-};
-
 static bool
 intersect(sg::BVHNode& node, sg::BVHPager& pager,
           const SGVec3d& start, SGVec3d& end, double offset, const simgear::BVHMaterial** material)
@@ -93,6 +79,8 @@ intersect(sg::BVHNode& node, sg::BVHPager& pager,
 
 int main(int argc, char** argv)
 {
+    osg::setNotifyLevel(osg::WARN);
+    //sglog().setLogLevels(SG_ALL, SG_WARN);
     /// Read arguments and environment variables.
 
     // use an ArgumentParser object to manage the program arguments.
@@ -165,7 +153,7 @@ int main(int argc, char** argv)
     sgUserDataInit(props.get());
     SGMaterialLibPtr ml = new SGMaterialLib;
     SGPath mpath(fg_root);
-    mpath.append("Materials/default/materials.xml");
+    mpath.append("Materials/regions/materials.xml");
     try {
         ml->load(fg_root, mpath.local8BitStr(), props);
     } catch (...) {
@@ -184,10 +172,14 @@ int main(int argc, char** argv)
                                              options->getDatabasePathList());
     options->setMaterialLib(ml);
     options->setPropertyNode(props);
-    options->setReadFileCallback(new ReadFileCallback);
     options->setPluginStringData("SimGear::FG_ROOT", fg_root);
     // we do not need the builtin boundingvolumes
     options->setPluginStringData("SimGear::BOUNDINGVOLUMES", "OFF");
+
+    // Specifically identify this as FGElev.  This is picked up at a number
+    // of points in the code to take into account that we don't have a graphics
+    // context.
+    options->setPluginStringData("SimGear::FGElev", "true");
     // We only want to load airports from STG files.  No objects nor any WS2.0 terrain that might be
     // on the scenery path.
     options->setPluginStringData("SimGear::FG_ONLY_AIRPORTS", "ON");
@@ -195,8 +187,12 @@ int main(int argc, char** argv)
     string_list scenerySuffixes = {"Terrain"}; // Just Terrain
     options->setSceneryPathSuffixes(scenerySuffixes);
 
+    // Install as global registry options so paged sub-tile loads inherit them
+    osgDB::Registry::instance()->setOptions(options.get());
+
     props->getNode("sim/rendering/random-objects", true)->setBoolValue(false);
     props->getNode("sim/rendering/random-vegetation", true)->setBoolValue(false);
+    props->getNode("sim/rendering/shaders/tessellation", true)->setBoolValue(false);
 
     int tileLat, tileLon;
     if (arguments.read("--tile-lat", s)) {
@@ -240,11 +236,8 @@ int main(int argc, char** argv)
     // Now work out what VPB and STG files we need to generate.
     string_list fileList;
 
-    // Main VPB tile is simply the L0 tile, assumed to be in in archive
     const SGGeod minTile = SGGeod::fromDeg(tileLon, tileLat);
     const SGBucket tile = SGBucket(minTile);
-
-    fileList.push_back("vpb/" + tile.gen_vpb_archive_filename(0, 0, 0, "subtile") + ".osgb"); // codespell:ignore subtile
 
     int maxTileLon = tileLon + 1;
 
@@ -260,6 +253,12 @@ int main(int argc, char** argv)
     for (auto t : buckets) {
         fileList.push_back(t.gen_index_str() + ".stg");
     }
+
+    // Main VPB tile is simply the L0 tile, assumed to be in an archive.  This is added
+    // after the .stg files so that any airports are loaded first and will constrain
+    // the elevation of the scenery mesh (see VPBTechnique::addElevationConstraint)
+    auto vpbFilename = "vpb/" + tile.gen_vpb_base() + ".osgb";
+    fileList.push_back(vpbFilename);
 
     // Get the whole world bvh tree
     SGSharedPtr<sg::BVHNode> node = sg::BVHPageNodeOSG::load(fileList, options, true);
