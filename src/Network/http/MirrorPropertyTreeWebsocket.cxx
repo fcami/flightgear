@@ -326,7 +326,7 @@ static void handleSetCommand(const string_list& nodes, cJSON* json, WebsocketWri
   cJSON * value = cJSON_GetObjectItem(json, "value");
   if ( NULL != value ) {
     if (nodes.size() > 1) {
-      SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficent values for nodes:" << nodes.size());
+      SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficient values for nodes:" << nodes.size());
       return;
     }
 
