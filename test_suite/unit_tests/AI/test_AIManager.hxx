@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 James Turner
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * This file is part of the program FlightGear.
  *
@@ -35,6 +36,7 @@ class AIManagerTests : public CppUnit::TestFixture
     CPPUNIT_TEST_SUITE(AIManagerTests);
     CPPUNIT_TEST(testBasic);
     CPPUNIT_TEST(testAircraftWaypoints);
+    CPPUNIT_TEST(testReinitPreservesScenario);
 
     CPPUNIT_TEST_SUITE_END();
 
@@ -49,4 +51,8 @@ public:
     // The tests.
     void testBasic();
     void testAircraftWaypoints();
+
+    // A loaded scenario (e.g. a carrier) must survive a subsystem reinit.
+    // See issue #3388.
+    void testReinitPreservesScenario();
 };
