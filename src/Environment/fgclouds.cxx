@@ -568,12 +568,12 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     snap.sunDirVoxel.normalize();
 
     // sunDirVoxel after normalisation gives the direction.
-    // However, we will actually step through the space in integer steps, 
+    // However, we will actually step through the space in integer steps,
     // and need to adjust the density calculations for non-orthogonal steps
     osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
-                    round(snap.sunDirVoxel.y()), 
+                    round(snap.sunDirVoxel.y()),
                     round(snap.sunDirVoxel.z()));
-    snap.sunStepLength = intStep.length();    
+    snap.sunStepLength = intStep.length();
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
