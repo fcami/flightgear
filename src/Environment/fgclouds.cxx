@@ -64,6 +64,7 @@ FGClouds::FGClouds() : index(0)
     _mirrorV = p->getNode("mirror-v", true);
     _cloudFieldRepeating = p->getNode("cloud-field-repeating", true);
     _activeVoxelFieldHeightNorm = p->getNode("active-voxel-field-height-norm", true);
+    _shadeUpdateAngleDeg = p->getNode("shade-update-angle-deg", true);
 }
 
 FGClouds::~FGClouds()
@@ -72,6 +73,9 @@ FGClouds::~FGClouds()
     // destroying the placement map (the task holds raw pointers into it).
     if (_rebuildFuture.valid())
         _rebuildFuture.wait();
+
+    if (_shadeRebuildFuture.valid())
+        _shadeRebuildFuture.wait();
 
     globals->get_commands()->removeCommand("add-cloud");
     globals->get_commands()->removeCommand("del-cloud");
@@ -506,6 +510,27 @@ bool FGClouds::repositionCloud(int index, float lon, float lat, float alt, float
     return true;
 }
 
+// Sun direction in voxel (Z-up, field-relative) space. Must be called on
+// the main thread (reads FGLight subsystem state and _cloudPosMatrix).
+osg::Vec3f FGClouds::computeSunDirVoxel(int width, int height) const
+{
+    auto l = globals->get_subsystem<FGLight>();
+
+    // sun_vec() points from scene toward sun in world (ECEF) space
+    SGVec4f sunWorld = l->sun_vec();
+    osg::Vec3f sunOsg(sunWorld.x(), sunWorld.y(), sunWorld.z());
+
+    // Rotate into local Z-up frame: multiply by the inverse (transpose for orthonormal) of _cloudPosMatrix
+    // In OSG row-vector convention: v_local = v_world * M^-1
+    const osg::Matrixf worldToLocal = osg::Matrix::inverse(_cloudPosMatrix);
+    osg::Vec3f sunLocal = sunOsg * worldToLocal;
+
+    // Compensate for non-cubic voxels: Z axis spans 'height' voxels, XY span 'width'
+    sunLocal.z() *= float(width) / float(height);
+    sunLocal.normalize();
+    return sunLocal;
+}
+
 FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 {
     RebuildSnapshot snap;
@@ -556,24 +581,6 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     _cloudCenterY->setFloatValue((float)_centerCart.y());
     _cloudCenterZ->setFloatValue((float)_centerCart.z());
     _cloudFieldRepeating->setBoolValue(_fieldRepeating);
-
-
-    // Sun direction - read subsystem state on main thread
-    auto l = globals->get_subsystem<FGLight>();
-    const osg::Vec4f sunDirection = toOsg(l->sun_vec_inv());
-    const osg::Matrixf cameraZUp = osg::Matrix::inverse(_cloudPosMatrix);
-    osg::Vec4f s = cameraZUp * (-sunDirection);
-    snap.sunDirVoxel = osg::Vec3f(s.x(), s.y(),
-                                  s.z() * float(snap.detailedFieldWidth) / float(snap.detailedFieldHeight));
-    snap.sunDirVoxel.normalize();
-
-    // sunDirVoxel after normalisation gives the direction.
-    // However, we will actually step through the space in integer steps,
-    // and need to adjust the density calculations for non-orthogonal steps
-    osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
-                       round(snap.sunDirVoxel.y()),
-                       round(snap.sunDirVoxel.z()));
-    snap.sunStepLength = intStep.length();
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
@@ -631,7 +638,6 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "rebuildField - No cloud data in range");
         result.detailedVoxelData = dummyVoxelData;
         result.roughVoxelData = dummyVoxelData;
-        result.voxelShadeData = dummyVoxelData;
         return result;
     }
 
@@ -661,10 +667,10 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     result.detailedVoxelData->setFileName("Detailed Cloud Voxel Data");
     result.detailedVoxelData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
 
-    result.voxelShadeData = new osg::Image();
-    result.voxelShadeData->setName("Voxel Shade Data");
-    result.voxelShadeData->setFileName("Voxel Shade Data");
-    result.voxelShadeData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
+    // By default OSG will de-reference the image data once it's loaded into OpenGL (and the GPU) to save memory.
+    // However we need the voxel data in subsequent frames to regenerate the shade texture.  Set data variance to dynamic to disable this.
+    result.roughVoxelData->setDataVariance(osg::Object::DYNAMIC);
+    result.detailedVoxelData->setDataVariance(osg::Object::DYNAMIC);
 
     result.windOffsetData = new osg::Image();
     result.windOffsetData->setName("Wind Offset Data");
@@ -739,14 +745,29 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         generateSDF(result.roughVoxelData);
     }
 
-    // Now build the shade image.  The R channel is the density towards the Sun.  The G channel the vertical density.
-    const float* voxelRaw = reinterpret_cast<const float*>(result.detailedVoxelData->data());
+    return result;
+}
+
+// Build the shade texture from the (already-built) detailed voxel field and the
+// current sun direction.  Run independently of runRebuild() above so that it can be
+// re-triggered whenever the sun direction has changed significantly, without having
+// to rebuild the rest of the voxel field.
+FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
+{
+    ShadeRebuildResult result;
+
+    result.voxelShadeData = new osg::Image();
+    result.voxelShadeData->setName("Voxel Shade Data");
+    result.voxelShadeData->setFileName("Voxel Shade Data");
+    result.voxelShadeData->allocateImage(snap.width, snap.width, snap.height, GL_RGBA, GL_FLOAT);
+
+    // The R channel is the density towards the Sun.  The G channel is the vertical density.
+    const float* voxelRaw = snap.voxelData.data();
     float* shadeRaw = reinterpret_cast<float*>(result.voxelShadeData->data());
 
     auto voxelIdx = [&](int i, int j, int k) {
-        return (k * snap.detailedFieldWidth * snap.detailedFieldWidth + j * snap.detailedFieldWidth + i) * 4;
+        return (k * snap.width * snap.width + j * snap.width + i) * 4;
     };
-
 
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
 
@@ -757,32 +778,32 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     int kStart, kEnd, kStep;
 
     if (snap.sunDirVoxel.x() >= 0) {
-        iStart = int(snap.detailedFieldWidth) - 1;
+        iStart = snap.width - 1;
         iEnd = -1;
         iStep = -1;
     } else {
         iStart = 0;
-        iEnd = int(snap.detailedFieldWidth);
+        iEnd = snap.width;
         iStep = 1;
     }
 
     if (snap.sunDirVoxel.y() >= 0) {
-        jStart = int(snap.detailedFieldWidth) - 1;
+        jStart = snap.width - 1;
         jEnd = -1;
         jStep = -1;
     } else {
         jStart = 0;
-        jEnd = int(snap.detailedFieldWidth);
+        jEnd = snap.width;
         jStep = 1;
     }
 
     if (snap.sunDirVoxel.z() >= 0) {
-        kStart = int(snap.detailedFieldHeight) - 1;
+        kStart = snap.height - 1;
         kEnd = -1;
         kStep = -1;
     } else {
         kStart = 0;
-        kEnd = int(snap.detailedFieldHeight);
+        kEnd = snap.height;
         kStep = 1;
     }
 
@@ -800,9 +821,9 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
                 int sj = j + int(round(snap.sunDirVoxel.y()));
                 int sk = k + int(round(snap.sunDirVoxel.z()));
 
-                if (si >= 0 && si < int(snap.detailedFieldWidth) &&
-                    sj >= 0 && sj < int(snap.detailedFieldWidth) &&
-                    sk >= 0 && sk < int(snap.detailedFieldHeight)) {
+                if (si >= 0 && si < snap.width &&
+                    sj >= 0 && sj < snap.width &&
+                    sk >= 0 && sk < snap.height) {
                     sunOpticalDepth = shadeRaw[voxelIdx(si, sj, sk)]; // .r channel
                 }
                 // else: at the sunward boundary, optical depth from outside is 0
@@ -822,14 +843,14 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     // --- VERTICAL SKY DENSITY (always top-down, independent of sun) ---
     // This represents how much density there is above each voxel.
     // Must be computed top-down so each voxel can read the already-computed voxel above it.
-    for (int k = int(snap.detailedFieldHeight) - 1; k >= 0; --k) {
-        for (int j = 0; j < int(snap.detailedFieldWidth); ++j) {
-            for (int i = 0; i < int(snap.detailedFieldWidth); ++i) {
+    for (int k = snap.height - 1; k >= 0; --k) {
+        for (int j = 0; j < snap.width; ++j) {
+            for (int i = 0; i < snap.width; ++i) {
                 const int idx = voxelIdx(i, j, k);
-                float density = voxelRaw[idx + 2];
+                float density = voxelRaw[idx + 2]; // .z channel
 
                 float verticalOpticalDepth = 0.0f;
-                if (k < int(snap.detailedFieldHeight) - 1) {
+                if (k < snap.height - 1) {
                     verticalOpticalDepth = shadeRaw[voxelIdx(i, j, k + 1) + 1];
                 }
                 verticalOpticalDepth += density * snap.voxelOpticalDepth;
@@ -856,12 +877,49 @@ void FGClouds::commitResult(RebuildResult result)
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
     _roughVoxelData = result.roughVoxelData;
-    _voxelShadeData = result.voxelShadeData;
     _windOffsetData = result.windOffsetData;
 
     // Push them into the textures
-    simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, _voxelShadeData, result.fieldRepeating);
+    simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, result.fieldRepeating);
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
+
+    // The density data the shade texture is built from has just changed, so it needs
+    // to be regenerated - independently of any sun direction change.
+    _shadeDirty = true;
+}
+
+FGClouds::ShadeSnapshot FGClouds::captureShadeSnapshot()
+{
+    ShadeSnapshot snap;
+    snap.width = _detailedVoxelData->s();
+    snap.height = _detailedVoxelData->r();
+
+    // Copy the raw voxel data out of the live osg::Image on the main thread - see
+    // the comment on ShadeSnapshot::voxelData for why we don't just hand the
+    // background thread a ref_ptr to the (GPU-texture-backed) image itself.
+    const float* voxelRaw = reinterpret_cast<const float*>(_detailedVoxelData->data());
+    const size_t numFloats = (size_t)snap.width * (size_t)snap.width * (size_t)snap.height * 4;
+    snap.voxelData.assign(voxelRaw, voxelRaw + numFloats);
+
+    auto cloudsProp = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
+    snap.voxelOpticalDepth = cloudsProp->getFloatValue("voxel-optical-depth", 2.5);
+    snap.sunDirVoxel = computeSunDirVoxel(snap.width, snap.height);
+
+    // sunDirVoxel after normalisation gives the direction.
+    // However, we will actually step through the space in integer steps,
+    // and need to adjust the density calculations for non-orthogonal steps
+    osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
+                       round(snap.sunDirVoxel.y()),
+                       round(snap.sunDirVoxel.z()));
+    snap.sunStepLength = intStep.length();
+
+    return snap;
+}
+
+void FGClouds::commitShadeResult(ShadeRebuildResult result)
+{
+    _voxelShadeData = result.voxelShadeData;
+    simgear::StateAttributeFactory::instance()->setCloudShadeImage(_voxelShadeData);
 }
 
 void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
@@ -966,6 +1024,36 @@ void FGClouds::updateFromOsgTraversal()
         RebuildSnapshot snap = captureSnapshot();
         _rebuildFuture = std::async(std::launch::async,
                                     &FGClouds::runRebuild, std::move(snap));
+    }
+
+    // Poll for a completed background shade rebuild first
+    if (_shadeRebuildFuture.valid() &&
+        _shadeRebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        commitShadeResult(_shadeRebuildFuture.get()); // non-blocking — already done
+    }
+
+    // Mark the shade texture dirty if the sun has moved more than the configured
+    // threshold since the last shade build. This lets the shade texture
+    // track the sun (e.g. time-of-day changes) independently of cloud rebuilds.
+    if (_detailedVoxelData && !_shadeDirty) {
+        const osg::Vec3f sunDirVoxel = computeSunDirVoxel(_detailedVoxelData->s(), _detailedVoxelData->r());
+        const float cosAngle = sunDirVoxel * _lastShadeSunDir;
+        const float thresholdDeg = _shadeUpdateAngleDeg->getFloatValue();
+        if (cosAngle < std::cos(thresholdDeg * SG_DEGREES_TO_RADIANS)) {
+            _shadeDirty = true;
+        }
+    }
+
+    // Launch a new shade rebuild if dirty, nothing is running, and there is
+    // some voxel data to shade.
+    if (_shadeDirty && _detailedVoxelData &&
+        (!_shadeRebuildFuture.valid() ||
+         _shadeRebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
+        _shadeDirty = false; // clear before launch; any new mutation re-sets it
+        ShadeSnapshot snap = captureShadeSnapshot();
+        _lastShadeSunDir = snap.sunDirVoxel;
+        _shadeRebuildFuture = std::async(std::launch::async,
+                                         &FGClouds::runShadeRebuild, std::move(snap));
     }
 
     if (_fieldRepeating) updateRepeatingField();

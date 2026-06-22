@@ -50,10 +50,6 @@ private:
         float voxelOpticalDepth;
         bool fieldRepeating;
 
-        // Sun direction (world-space, already transformed to Z-up)
-        osg::Vec3f sunDirVoxel;
-        float sunStepLength;
-
         // Field center for fgSet* calls at commit time
         SGVec3<double> centerCart;
         osg::Matrixf cloudPosMatrix;
@@ -64,11 +60,35 @@ private:
     struct RebuildResult {
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
-        osg::ref_ptr<osg::Image> voxelShadeData;
         osg::ref_ptr<osg::Image> windOffsetData;
         float maxZ = 0.0f;
         float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
+    };
+
+    // Snapshot needed to (re)build just the shade texture, independently of
+    // the rest of the voxel field.  This is cheap enough to redo whenever the
+    // sun direction has moved significantly, without re-running the full
+    // cloud placement/voxel field rebuild.
+    struct ShadeSnapshot {
+        // A private copy of the detailed voxel field's raw RGBA float data, taken on
+        // the main thread.  We deliberately copy rather than share the osg::Image with
+        // the background shade-rebuild thread: that Image is also live in an
+        // osg::Texture3D and can be touched concurrently by the render/GPU-upload
+        // path, which is a data race even though osg::Referenced ref-counting itself
+        // is atomic.
+        std::vector<float> voxelData;
+        int width;
+        int height;
+        float voxelOpticalDepth;
+
+        // Sun direction (world-space, already transformed to Z-up)
+        osg::Vec3f sunDirVoxel;
+        float sunStepLength;
+    };
+
+    struct ShadeRebuildResult {
+        osg::ref_ptr<osg::Image> voxelShadeData;
     };
 
     // Protects _cloudPlacementMap from concurrent access between
@@ -78,11 +98,23 @@ private:
     // Set on any mutation; cleared once a new async rebuild is launched.
     std::atomic<bool> _fieldDirty{false};
 
+    // Set whenever the shade texture needs to be regenerated: after a field
+    // rebuild (the density data it depends on has changed) or when the sun
+    // direction has moved more than _shadeUpdateAngleDeg since the last build.
+    std::atomic<bool> _shadeDirty{true};
+
     // The running or completed async task.  checked in updateFromOsgTraversal.
     std::future<RebuildResult> _rebuildFuture;
 
+    // The running or completed async shade-only rebuild task.
+    std::future<ShadeRebuildResult> _shadeRebuildFuture;
+
     // Set to true by the background thread when it finishes.
     std::atomic<bool> _rebuildComplete{false};
+
+    // Sun direction (Z-up, voxel space) used for the most recently launched
+    // shade build, so we can detect when it has drifted enough to need redoing.
+    osg::Vec3f _lastShadeSunDir{0.0f, 0.0f, 0.0f};
 
     size_t _roughFieldWidth;
     size_t _roughFieldHeight;
@@ -127,6 +159,9 @@ private:
     SGPropertyNode_ptr _cloudFieldRepeating;
     SGPropertyNode_ptr _activeVoxelFieldHeightNorm;
 
+    // Minimum sun direction change (in degrees) that triggers a shade rebuild.
+    SGPropertyNode_ptr _shadeUpdateAngleDeg;
+
     // A node in the scenegraph purely used to ensure that the voxel data
     // is modified during the update traversal.
     osg::ref_ptr<osg::Group> _cloudUpdateNode;
@@ -162,10 +197,21 @@ private:
     static void generateSDF(osg::ref_ptr<osg::Image>);
     osg::Vec3f getFinalPos(SGGeod loc, float x, float y);
 
+    // Sun direction in voxel (Z-up, field-relative) space. Shared
+    // by both the full rebuild snapshot and the shade-only snapshot.
+    osg::Vec3f computeSunDirVoxel(int width, int height) const;
+
     // Asynchronous rebuild of the cloud layers.
     RebuildSnapshot captureSnapshot();
     static RebuildResult runRebuild(RebuildSnapshot snap); // static = no 'this' access
     void commitResult(RebuildResult result);
+
+    // Asynchronous rebuild of just the shade texture - independent of the
+    // cloud placement/voxel field rebuild above, so it can be re-run whenever
+    // the sun direction changes significantly without rebuilding everything.
+    ShadeSnapshot captureShadeSnapshot();
+    static ShadeRebuildResult runShadeRebuild(ShadeSnapshot snap); // static = no 'this' access
+    void commitShadeResult(ShadeRebuildResult result);
 
 public:
     FGClouds();
