@@ -31,7 +31,7 @@ variables:
   # create a root dir *above* the Simgear checkout, otherwise CMake
   # complains about INTERFACE_INCLUDE_DIRECTORIES being the source dir
   WIN_FG_DIR: $CI_BUILDS_DIR\flightgear
-  MAC_IMAGE: macos-14-xcode-15
+  MAC_IMAGE: macos-26-xcode-26
 
 # do not run pipelines on forks
 # build merge requests, tags and the protected branches
