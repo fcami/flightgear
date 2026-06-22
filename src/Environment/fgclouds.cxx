@@ -515,7 +515,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     snap.detailedFieldWidth = cloudsProp->getIntValue("detailed-voxel-field-width", 256);
     snap.detailedFieldHeight = cloudsProp->getIntValue("detailed-voxel-field-height", 64);
     snap.detailedFieldVoxelSize = cloudsProp->getIntValue("detailed-voxel-size-m", 200);
-    snap.extinction = cloudsProp->getFloatValue("extinction-factor", 1.2);
+    snap.voxelOpticalDepth = cloudsProp->getFloatValue("voxel-optical-depth", 2.5);
     snap.fieldRepeating = _fieldRepeating;
     snap.cloudbaseM = 99999.0f;
 
@@ -564,10 +564,16 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     const osg::Matrixf cameraZUp = osg::Matrix::inverse(_cloudPosMatrix);
     osg::Vec4f s = cameraZUp * (-sunDirection);
     snap.sunDirVoxel = osg::Vec3f(s.x(), s.y(),
-                                  s.z() * float(snap.detailedFieldWidth) /
-                                      float(snap.detailedFieldHeight));
-    snap.sunStepLength = snap.sunDirVoxel.length() / float(snap.detailedFieldWidth);
+                                  s.z() * float(snap.detailedFieldWidth) / float(snap.detailedFieldHeight));
     snap.sunDirVoxel.normalize();
+
+    // sunDirVoxel after normalisation gives the direction.
+    // However, we will actually step through the space in integer steps,
+    // and need to adjust the density calculations for non-orthogonal steps
+    osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
+                       round(snap.sunDirVoxel.y()),
+                       round(snap.sunDirVoxel.z()));
+    snap.sunStepLength = intStep.length();
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
@@ -733,8 +739,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         generateSDF(result.roughVoxelData);
     }
 
-
-    // Now build the shade image.  The R channel is the transmittance towards the Sun.  The G channel the transmittance density.
+    // Now build the shade image.  The R channel is the density towards the Sun.  The G channel the vertical density.
     const float* voxelRaw = reinterpret_cast<const float*>(result.detailedVoxelData->data());
     float* shadeRaw = reinterpret_cast<float*>(result.voxelShadeData->data());
 
@@ -744,8 +749,6 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 
 
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
-
-    float dz = 1.0f / float(snap.detailedFieldHeight);
 
     // Determine loop order for each axis based on sun direction
     // so that when we process voxel (i,j,k), the sunward neighbour is already computed
@@ -800,17 +803,15 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
                 if (si >= 0 && si < int(snap.detailedFieldWidth) &&
                     sj >= 0 && sj < int(snap.detailedFieldWidth) &&
                     sk >= 0 && sk < int(snap.detailedFieldHeight)) {
-                    float sunwardTransmittance = shadeRaw[voxelIdx(si, sj, sk)]; // .r channel
-                    sunOpticalDepth = -log(std::max(sunwardTransmittance, 0.0001f));
+                    sunOpticalDepth = shadeRaw[voxelIdx(si, sj, sk)]; // .r channel
                 }
                 // else: at the sunward boundary, optical depth from outside is 0
 
                 // Add this voxel's contribution
                 // Use the step length in the sun direction (longer diagonal steps = more optical depth)
-                sunOpticalDepth += density * snap.extinction * snap.sunStepLength;
-                float sunTransmittance = std::exp(-sunOpticalDepth);
+                sunOpticalDepth += density * snap.voxelOpticalDepth * snap.sunStepLength;
 
-                shadeRaw[idx + 0] = sunTransmittance;
+                shadeRaw[idx + 0] = sunOpticalDepth;
                 shadeRaw[idx + 1] = 0.0f; // Filled by dedicated top-down pass below.
                 shadeRaw[idx + 2] = 0.0f;
                 shadeRaw[idx + 3] = 0.0f;
@@ -818,8 +819,8 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         }
     }
 
-    // --- VERTICAL SKY TRANSMITTANCE (always top-down, independent of sun) ---
-    // This represents how much sky light has penetrated from above to reach each voxel.
+    // --- VERTICAL SKY DENSITY (always top-down, independent of sun) ---
+    // This represents how much density there is above each voxel.
     // Must be computed top-down so each voxel can read the already-computed voxel above it.
     for (int k = int(snap.detailedFieldHeight) - 1; k >= 0; --k) {
         for (int j = 0; j < int(snap.detailedFieldWidth); ++j) {
@@ -829,11 +830,10 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 
                 float verticalOpticalDepth = 0.0f;
                 if (k < int(snap.detailedFieldHeight) - 1) {
-                    float aboveTransmittance = shadeRaw[voxelIdx(i, j, k + 1) + 1];
-                    verticalOpticalDepth = -log(std::max(aboveTransmittance, 0.0001f));
+                    verticalOpticalDepth = shadeRaw[voxelIdx(i, j, k + 1) + 1];
                 }
-                verticalOpticalDepth += density * snap.extinction * dz;
-                shadeRaw[idx + 1] = std::exp(-verticalOpticalDepth);
+                verticalOpticalDepth += density * snap.voxelOpticalDepth;
+                shadeRaw[idx + 1] = verticalOpticalDepth;
             }
         }
     }
@@ -844,7 +844,9 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 void FGClouds::commitResult(RebuildResult result)
 {
     // Setting property values needs to be done on the main thread as an atomic operation
-    const float cloudFieldHeightM = result.maxZ * _detailedFieldVoxelSize;
+
+    // We pad the cloud field height slightly so that we get smooth interpolation of density values in the shader.
+    const float cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
     _activeVoxelFieldHeightNorm->setFloatValue(cloudFieldHeightM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
     _cloudBaseM->setFloatValue(result.cloudbaseM);
     _cloudBaseZNorm->setFloatValue(result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
