@@ -1,22 +1,7 @@
 // MirrorPropertyTreeWebsocket.cxx -- A websocket for mirroring a property sub-tree
 //
-// Written by James Turner, started November 2016.
-//
-// Copyright (C) 2016  James Turner
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2016 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "MirrorPropertyTreeWebsocket.hxx"
 #include "jsonprops.hxx"
@@ -126,13 +111,13 @@ using std::string;
 
         std::string path;
         unsigned int id = 0;
-        
+
         bool operator==(const RemovedNode& other) const
         {
             return (path == other.path);
         }
     };
-    
+
     class MirrorTreeListener : public SGPropertyChangeListener
     {
     public:
@@ -164,7 +149,7 @@ using std::string;
         void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
         {
             SG_UNUSED(parent);
-            recursiveAdd(child);            
+            recursiveAdd(child);
         }
 
         void recursiveAdd(SGPropertyNode* node)
@@ -183,7 +168,7 @@ using std::string;
                 // each time a Nasal timer fires)
                 removedNodes.erase(id); // don't remove it!
                 idHash.insert(std::make_pair(node, id));
-                
+
                 // we can still do change compression here, but this also
                 // deals with type mutation when removing + re-adding with a
                 // different type
@@ -195,7 +180,7 @@ using std::string;
                     SG_LOG(SG_NETWORK, SG_INFO, "\tand will actually change" << node->getPath());
 #endif
                 }
-                
+
                 recentlyRemoved.erase(rrIt);
                 return;
             }
@@ -233,7 +218,7 @@ using std::string;
 
         void registerSubtree(SGPropertyNode* node)
         {
-#if defined (MIRROR_DEBUG)              
+#if defined(MIRROR_DEBUG)
             SG_LOG(SG_NETWORK, SG_INFO, "register subtree:" << node->getPath());
 #endif
             valueChanged(node);
@@ -248,7 +233,7 @@ using std::string;
         std::set<SGPropertyNode*> newNodes;
         std::set<SGPropertyNode*> changedNodes;
         std::set<PropertyId> removedNodes;
-        
+
         PropertyId idForProperty(SGPropertyNode* prop)
         {
             auto it = idHash.find(prop);
@@ -265,7 +250,7 @@ using std::string;
 #if defined (MIRROR_DEBUG)
             SGTimeStamp st;
             st.stamp();
-            
+
             int newSize = newNodes.size();
             int changedSize = changedNodes.size();
             int removedSize = removedNodes.size();
@@ -287,6 +272,7 @@ using std::string;
                     if (prop->getType() != simgear::props::NONE) {
                         newPropData["value"] = JSON::valueToJson(prop);
                     }
+                    newNodesJson.push_back(newPropData);
                 }
 
                 newNodes.clear();
@@ -340,7 +326,7 @@ static void handleSetCommand(const string_list& nodes, cJSON* json, WebsocketWri
   cJSON * value = cJSON_GetObjectItem(json, "value");
   if ( NULL != value ) {
     if (nodes.size() > 1) {
-      SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficent values for nodes:" << nodes.size());
+      SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficient values for nodes:" << nodes.size());
       return;
     }
 
