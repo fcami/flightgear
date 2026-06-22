@@ -218,7 +218,7 @@ using std::string;
 
         void registerSubtree(SGPropertyNode* node)
         {
-#if defined (MIRROR_DEBUG)
+#if defined(MIRROR_DEBUG)
             SG_LOG(SG_NETWORK, SG_INFO, "register subtree:" << node->getPath());
 #endif
             valueChanged(node);
