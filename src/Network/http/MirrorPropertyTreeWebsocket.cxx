@@ -111,13 +111,13 @@ using std::string;
 
         std::string path;
         unsigned int id = 0;
-        
+
         bool operator==(const RemovedNode& other) const
         {
             return (path == other.path);
         }
     };
-    
+
     class MirrorTreeListener : public SGPropertyChangeListener
     {
     public:
@@ -149,7 +149,7 @@ using std::string;
         void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
         {
             SG_UNUSED(parent);
-            recursiveAdd(child);            
+            recursiveAdd(child);
         }
 
         void recursiveAdd(SGPropertyNode* node)
@@ -168,7 +168,7 @@ using std::string;
                 // each time a Nasal timer fires)
                 removedNodes.erase(id); // don't remove it!
                 idHash.insert(std::make_pair(node, id));
-                
+
                 // we can still do change compression here, but this also
                 // deals with type mutation when removing + re-adding with a
                 // different type
@@ -180,7 +180,7 @@ using std::string;
                     SG_LOG(SG_NETWORK, SG_INFO, "\tand will actually change" << node->getPath());
 #endif
                 }
-                
+
                 recentlyRemoved.erase(rrIt);
                 return;
             }
@@ -218,7 +218,7 @@ using std::string;
 
         void registerSubtree(SGPropertyNode* node)
         {
-#if defined (MIRROR_DEBUG)              
+#if defined (MIRROR_DEBUG)
             SG_LOG(SG_NETWORK, SG_INFO, "register subtree:" << node->getPath());
 #endif
             valueChanged(node);
@@ -233,7 +233,7 @@ using std::string;
         std::set<SGPropertyNode*> newNodes;
         std::set<SGPropertyNode*> changedNodes;
         std::set<PropertyId> removedNodes;
-        
+
         PropertyId idForProperty(SGPropertyNode* prop)
         {
             auto it = idHash.find(prop);
@@ -250,7 +250,7 @@ using std::string;
 #if defined (MIRROR_DEBUG)
             SGTimeStamp st;
             st.stamp();
-            
+
             int newSize = newNodes.size();
             int changedSize = changedNodes.size();
             int removedSize = removedNodes.size();
