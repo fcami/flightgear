@@ -512,7 +512,7 @@ bool FGClouds::repositionCloud(int index, float lon, float lat, float alt, float
 
 // Sun direction in voxel (Z-up, field-relative) space. Must be called on
 // the main thread (reads FGLight subsystem state and _cloudPosMatrix).
-osg::Vec3f FGClouds::computeSunDirVoxel(int width, int height) const
+osg::Vec3f FGClouds::computeSunDirVoxel() const
 {
     auto l = globals->get_subsystem<FGLight>();
 
@@ -524,9 +524,6 @@ osg::Vec3f FGClouds::computeSunDirVoxel(int width, int height) const
     // In OSG row-vector convention: v_local = v_world * M^-1
     const osg::Matrixf worldToLocal = osg::Matrix::inverse(_cloudPosMatrix);
     osg::Vec3f sunLocal = sunOsg * worldToLocal;
-
-    // Compensate for non-cubic voxels: Z axis spans 'height' voxels, XY span 'width'
-    sunLocal.z() *= float(width) / float(height);
     sunLocal.normalize();
     return sunLocal;
 }
@@ -761,97 +758,96 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
     result.voxelShadeData->setFileName("Voxel Shade Data");
     result.voxelShadeData->allocateImage(snap.width, snap.width, snap.height, GL_RGBA, GL_FLOAT);
 
-    // The R channel is the density towards the Sun.  The G channel is the vertical density.
     const float* voxelRaw = snap.voxelData.data();
     float* shadeRaw = reinterpret_cast<float*>(result.voxelShadeData->data());
 
-    auto voxelIdx = [&](int i, int j, int k) {
-        return (k * snap.width * snap.width + j * snap.width + i) * 4;
+    // Zero the output
+    const size_t numFloats = (size_t)snap.width * snap.width * snap.height * 4;
+    std::fill(shadeRaw, shadeRaw + numFloats, 0.0f);
+
+    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: "
+        << snap.sunDirVoxel.x() << ", "
+        << snap.sunDirVoxel.y() << ", "
+        << snap.sunDirVoxel.z());
+
+    // sunDirVoxel is already normalised in *voxel* space (with Z scaled by
+    // width/height to compensate for non-cubic voxels).  Convert back to a
+    // uniform step direction for marching: undo the Z scale so each unit step
+    // is one voxel in each axis, then re-normalise.
+    osg::Vec3f marchDir = snap.sunDirVoxel;
+
+    // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
+    const float STEP_SIZE = 0.5f;
+    const osg::Vec3f step = marchDir * STEP_SIZE;
+
+    // Trilinear interpolation of density from the voxel field.
+    // p is in voxel coordinates [0..width) x [0..width) x [0..height).
+    // Returns 0 outside the field.
+    auto sampleDensity = [&](float px, float py, float pz) -> float {
+        // Clamp-to-border: outside field = no density
+        if (px < 0.0f || px >= float(snap.width)  - 1.0f ||
+            py < 0.0f || py >= float(snap.width)  - 1.0f ||
+            pz < 0.0f || pz >= float(snap.height) - 1.0f)
+            return 0.0f;
+
+        int x0 = int(px), y0 = int(py), z0 = int(pz);
+        int x1 = x0 + 1,  y1 = y0 + 1,  z1 = z0 + 1;
+        float fx = px - x0, fy = py - y0, fz = pz - z0;
+
+        auto d = [&](int x, int y, int z) -> float {
+            return voxelRaw[(z * snap.width * snap.width + y * snap.width + x) * 4 + 2];
+        };
+
+        // Trilinear interpolation
+        return (1-fz)*((1-fy)*((1-fx)*d(x0,y0,z0) + fx*d(x1,y0,z0))
+                             + fy *((1-fx)*d(x0,y1,z0) + fx*d(x1,y1,z0)))
+             +    fz *((1-fy)*((1-fx)*d(x0,y0,z1) + fx*d(x1,y0,z1))
+                             + fy *((1-fx)*d(x0,y1,z1) + fx*d(x1,y1,z1)));
     };
 
-    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
+    // For each voxel, ray-march toward the sun accumulating optical depth
+    for (int k = 0; k < snap.height; ++k) {
+        for (int j = 0; j < snap.width; ++j) {
+            for (int i = 0; i < snap.width; ++i) {
 
-    // Determine loop order for each axis based on sun direction
-    // so that when we process voxel (i,j,k), the sunward neighbour is already computed
-    int iStart, iEnd, iStep;
-    int jStart, jEnd, jStep;
-    int kStart, kEnd, kStep;
-
-    if (snap.sunDirVoxel.x() >= 0) {
-        iStart = snap.width - 1;
-        iEnd = -1;
-        iStep = -1;
-    } else {
-        iStart = 0;
-        iEnd = snap.width;
-        iStep = 1;
-    }
-
-    if (snap.sunDirVoxel.y() >= 0) {
-        jStart = snap.width - 1;
-        jEnd = -1;
-        jStep = -1;
-    } else {
-        jStart = 0;
-        jEnd = snap.width;
-        jStep = 1;
-    }
-
-    if (snap.sunDirVoxel.z() >= 0) {
-        kStart = snap.height - 1;
-        kEnd = -1;
-        kStep = -1;
-    } else {
-        kStart = 0;
-        kEnd = snap.height;
-        kStep = 1;
-    }
-
-    for (int k = kStart; k != kEnd; k += kStep) {
-        for (int j = jStart; j != jEnd; j += jStep) {
-            for (int i = iStart; i != iEnd; i += iStep) {
-                const int idx = voxelIdx(i, j, k);
-                float density = voxelRaw[idx + 2]; // .z channel
-
-                // --- SUN OPTICAL DEPTH ---
-                // Step to the next voxel in the sun direction
                 float sunOpticalDepth = 0.0f;
 
-                int si = i + int(round(snap.sunDirVoxel.x()));
-                int sj = j + int(round(snap.sunDirVoxel.y()));
-                int sk = k + int(round(snap.sunDirVoxel.z()));
+                // Start half a step above this voxel (avoid self-shadowing)
+                float px = float(i) + step.x() * 0.5f;
+                float py = float(j) + step.y() * 0.5f;
+                float pz = float(k) + step.z() * 0.5f;
 
-                if (si >= 0 && si < snap.width &&
-                    sj >= 0 && sj < snap.width &&
-                    sk >= 0 && sk < snap.height) {
-                    sunOpticalDepth = shadeRaw[voxelIdx(si, sj, sk)]; // .r channel
+                while (px >= 0.0f && px < float(snap.width)  &&
+                       py >= 0.0f && py < float(snap.width)  &&
+                       pz >= 0.0f && pz < float(snap.height)) {
+
+                    float density = sampleDensity(px, py, pz);
+                    sunOpticalDepth += density * snap.voxelOpticalDepth * STEP_SIZE;
+
+                    px += step.x();
+                    py += step.y();
+                    pz += step.z();
                 }
-                // else: at the sunward boundary, optical depth from outside is 0
 
-                // Add this voxel's contribution
-                // Use the step length in the sun direction (longer diagonal steps = more optical depth)
-                sunOpticalDepth += density * snap.voxelOpticalDepth * snap.sunStepLength;
-
+                const int idx = (k * snap.width * snap.width + j * snap.width + i) * 4;
                 shadeRaw[idx + 0] = sunOpticalDepth;
-                shadeRaw[idx + 1] = 0.0f; // Filled by dedicated top-down pass below.
+                shadeRaw[idx + 1] = 0.0f; // filled by vertical pass below
                 shadeRaw[idx + 2] = 0.0f;
                 shadeRaw[idx + 3] = 0.0f;
             }
         }
     }
 
-    // --- VERTICAL SKY DENSITY (always top-down, independent of sun) ---
-    // This represents how much density there is above each voxel.
-    // Must be computed top-down so each voxel can read the already-computed voxel above it.
+    // --- VERTICAL SKY DENSITY (top-down, independent of sun) ---
     for (int k = snap.height - 1; k >= 0; --k) {
         for (int j = 0; j < snap.width; ++j) {
             for (int i = 0; i < snap.width; ++i) {
-                const int idx = voxelIdx(i, j, k);
-                float density = voxelRaw[idx + 2]; // .z channel
+                const int idx = (k * snap.width * snap.width + j * snap.width + i) * 4;
+                float density = voxelRaw[idx + 2];
 
                 float verticalOpticalDepth = 0.0f;
                 if (k < snap.height - 1) {
-                    verticalOpticalDepth = shadeRaw[voxelIdx(i, j, k + 1) + 1];
+                    verticalOpticalDepth = shadeRaw[((k+1) * snap.width * snap.width + j * snap.width + i) * 4 + 1];
                 }
                 verticalOpticalDepth += density * snap.voxelOpticalDepth;
                 shadeRaw[idx + 1] = verticalOpticalDepth;
@@ -903,16 +899,7 @@ FGClouds::ShadeSnapshot FGClouds::captureShadeSnapshot()
 
     auto cloudsProp = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
     snap.voxelOpticalDepth = cloudsProp->getFloatValue("voxel-optical-depth", 2.5);
-    snap.sunDirVoxel = computeSunDirVoxel(snap.width, snap.height);
-
-    // sunDirVoxel after normalisation gives the direction.
-    // However, we will actually step through the space in integer steps,
-    // and need to adjust the density calculations for non-orthogonal steps
-    osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
-                       round(snap.sunDirVoxel.y()),
-                       round(snap.sunDirVoxel.z()));
-    snap.sunStepLength = intStep.length();
-
+    snap.sunDirVoxel = computeSunDirVoxel();
     return snap;
 }
 
@@ -1036,7 +1023,7 @@ void FGClouds::updateFromOsgTraversal()
     // threshold since the last shade build. This lets the shade texture
     // track the sun (e.g. time-of-day changes) independently of cloud rebuilds.
     if (_detailedVoxelData && !_shadeDirty) {
-        const osg::Vec3f sunDirVoxel = computeSunDirVoxel(_detailedVoxelData->s(), _detailedVoxelData->r());
+        const osg::Vec3f sunDirVoxel = computeSunDirVoxel();
         const float cosAngle = sunDirVoxel * _lastShadeSunDir;
         const float thresholdDeg = _shadeUpdateAngleDeg->getFloatValue();
         if (cosAngle < std::cos(thresholdDeg * SG_DEGREES_TO_RADIANS)) {

@@ -84,7 +84,6 @@ private:
 
         // Sun direction (world-space, already transformed to Z-up)
         osg::Vec3f sunDirVoxel;
-        float sunStepLength;
     };
 
     struct ShadeRebuildResult {
@@ -199,7 +198,7 @@ private:
 
     // Sun direction in voxel (Z-up, field-relative) space. Shared
     // by both the full rebuild snapshot and the shade-only snapshot.
-    osg::Vec3f computeSunDirVoxel(int width, int height) const;
+    osg::Vec3f computeSunDirVoxel() const;
 
     // Asynchronous rebuild of the cloud layers.
     RebuildSnapshot captureSnapshot();
