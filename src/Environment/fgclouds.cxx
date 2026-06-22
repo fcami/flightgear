@@ -765,10 +765,7 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
     const size_t numFloats = (size_t)snap.width * snap.width * snap.height * 4;
     std::fill(shadeRaw, shadeRaw + numFloats, 0.0f);
 
-    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: "
-        << snap.sunDirVoxel.x() << ", "
-        << snap.sunDirVoxel.y() << ", "
-        << snap.sunDirVoxel.z());
+    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
 
     // sunDirVoxel is already normalised in *voxel* space (with Z scaled by
     // width/height to compensate for non-cubic voxels).  Convert back to a
@@ -785,13 +782,13 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
     // Returns 0 outside the field.
     auto sampleDensity = [&](float px, float py, float pz) -> float {
         // Clamp-to-border: outside field = no density
-        if (px < 0.0f || px >= float(snap.width)  - 1.0f ||
-            py < 0.0f || py >= float(snap.width)  - 1.0f ||
+        if (px < 0.0f || px >= float(snap.width) - 1.0f ||
+            py < 0.0f || py >= float(snap.width) - 1.0f ||
             pz < 0.0f || pz >= float(snap.height) - 1.0f)
             return 0.0f;
 
         int x0 = int(px), y0 = int(py), z0 = int(pz);
-        int x1 = x0 + 1,  y1 = y0 + 1,  z1 = z0 + 1;
+        int x1 = x0 + 1, y1 = y0 + 1, z1 = z0 + 1;
         float fx = px - x0, fy = py - y0, fz = pz - z0;
 
         auto d = [&](int x, int y, int z) -> float {
@@ -799,17 +796,13 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
         };
 
         // Trilinear interpolation
-        return (1-fz)*((1-fy)*((1-fx)*d(x0,y0,z0) + fx*d(x1,y0,z0))
-                             + fy *((1-fx)*d(x0,y1,z0) + fx*d(x1,y1,z0)))
-             +    fz *((1-fy)*((1-fx)*d(x0,y0,z1) + fx*d(x1,y0,z1))
-                             + fy *((1-fx)*d(x0,y1,z1) + fx*d(x1,y1,z1)));
+        return (1 - fz) * ((1 - fy) * ((1 - fx) * d(x0, y0, z0) + fx * d(x1, y0, z0)) + fy * ((1 - fx) * d(x0, y1, z0) + fx * d(x1, y1, z0))) + fz * ((1 - fy) * ((1 - fx) * d(x0, y0, z1) + fx * d(x1, y0, z1)) + fy * ((1 - fx) * d(x0, y1, z1) + fx * d(x1, y1, z1)));
     };
 
     // For each voxel, ray-march toward the sun accumulating optical depth
     for (int k = 0; k < snap.height; ++k) {
         for (int j = 0; j < snap.width; ++j) {
             for (int i = 0; i < snap.width; ++i) {
-
                 float sunOpticalDepth = 0.0f;
 
                 // Start half a step above this voxel (avoid self-shadowing)
@@ -817,10 +810,9 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
                 float py = float(j) + step.y() * 0.5f;
                 float pz = float(k) + step.z() * 0.5f;
 
-                while (px >= 0.0f && px < float(snap.width)  &&
-                       py >= 0.0f && py < float(snap.width)  &&
+                while (px >= 0.0f && px < float(snap.width) &&
+                       py >= 0.0f && py < float(snap.width) &&
                        pz >= 0.0f && pz < float(snap.height)) {
-
                     float density = sampleDensity(px, py, pz);
                     sunOpticalDepth += density * snap.voxelOpticalDepth * STEP_SIZE;
 
@@ -847,7 +839,7 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
 
                 float verticalOpticalDepth = 0.0f;
                 if (k < snap.height - 1) {
-                    verticalOpticalDepth = shadeRaw[((k+1) * snap.width * snap.width + j * snap.width + i) * 4 + 1];
+                    verticalOpticalDepth = shadeRaw[((k + 1) * snap.width * snap.width + j * snap.width + i) * 4 + 1];
                 }
                 verticalOpticalDepth += density * snap.voxelOpticalDepth;
                 shadeRaw[idx + 1] = verticalOpticalDepth;
