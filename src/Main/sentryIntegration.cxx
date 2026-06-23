@@ -128,6 +128,14 @@ public:
             return false;
         }
 
+        // apply normal filtering, in addition to the checks
+        // above. This callback doesn't use the global configuration,
+        // but we do need to restrct what is sent, or we overload the
+        // backend.
+        if (!shouldLog(e.debugClass, e.debugPriority)) {
+            return false;
+        }
+
         const auto message = e.message.c_str();
         switch (e.debugPriority) {
         case SG_INFO:
@@ -348,7 +356,8 @@ void initSentry(bool quiet)
         sentry_value_set_by_key(user, "id", userUuidV);
         sentry_set_user(user);
 
-        sglog().addCallback(new SentryLogCallback);
+        auto logCb = new SentryLogCallback();
+        sglog().addCallback(logCb);
         setThrowCallback(sentryTraceSimgearThrow);
         simgear::setErrorReportCallback(sentrySimgearReportCallback);
 
