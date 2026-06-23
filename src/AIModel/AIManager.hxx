@@ -127,7 +127,8 @@ private:
     bool unloadScenario(const std::string& filename);
     void unloadAllScenarios();
 
-    SGPropertyNode_ptr root;
+    SGPropertyNode_ptr _scenarioRoot; // /sim/ai - scenario property nodes
+    SGPropertyNode_ptr _modelsRoot;   // /ai/models - AI model property nodes
     SGPropertyNode_ptr enabled;
     SGPropertyNode_ptr thermal_lift_node;
     SGPropertyNode_ptr user_altitude_agl_node;

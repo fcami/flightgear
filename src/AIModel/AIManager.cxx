@@ -119,9 +119,9 @@ FGAIManager::~FGAIManager()
 
 void FGAIManager::init()
 {
-    root = fgGetNode("sim/ai", true);
+    _scenarioRoot = fgGetNode("sim/ai", true);
 
-    enabled = root->getNode("enabled", true);
+    enabled = _scenarioRoot->getNode("enabled", true);
 
     thermal_lift_node = fgGetNode("/environment/thermal-lift-fps", true);
     wind_from_east_node = fgGetNode("/environment/wind-from-east-fps", true);
@@ -266,7 +266,7 @@ void FGAIManager::postinit()
         enabled->setBoolValue(true);
 
     // process all scenarios
-    for (auto n : root->getChildren("scenario")) {
+    for (auto n : _scenarioRoot->getChildren("scenario")) {
         const std::string& name = n->getStringValue();
         if (name.empty())
             continue;
@@ -283,8 +283,12 @@ void FGAIManager::postinit()
 
 void FGAIManager::reinit()
 {
-    // shutdown scenarios
-    unloadAllScenarios();
+    // Delete scenario objects but preserve the scenario property nodes
+    // so that postinit() can re-read and reload them.
+    for (auto& [_, scenario] : _scenarios) {
+        delete scenario;
+    }
+    _scenarios.clear();
 
     update(0.0);
     std::for_each(ai_list.begin(), ai_list.end(), std::mem_fn(&FGAIBase::reinit));
@@ -324,14 +328,14 @@ void FGAIManager::shutdown()
 
 void FGAIManager::bind()
 {
-    root = globals->get_props()->getNode("ai/models", true);
-    root->tie("count", SGRawValueMethods<FGAIManager, int>(*this,
-                                                           &FGAIManager::getNumAiObjects));
+    _modelsRoot = globals->get_props()->getNode("ai/models", true);
+    _modelsRoot->tie("count", SGRawValueMethods<FGAIManager, int>(*this,
+                                                                  &FGAIManager::getNumAiObjects));
 }
 
 void FGAIManager::unbind()
 {
-    root->untie("count");
+    _modelsRoot->untie("count");
 }
 
 void FGAIManager::removeDeadItem(FGAIBase* base)
@@ -489,8 +493,8 @@ bool FGAIManager::loadScenarioCommand(const SGPropertyNode* args, SGPropertyNode
 
     bool ok = loadScenario(name);
     if (ok) {
-        // create /sim/ai node for consistency
-        SGPropertyNode* scenarioNode = root->addChild("scenario");
+        // create /sim/ai/scenario node for consistency
+        SGPropertyNode* scenarioNode = _scenarioRoot->addChild("scenario");
         scenarioNode->setStringValue(name);
     }
 
@@ -626,10 +630,10 @@ bool FGAIManager::unloadScenario(const std::string& filename)
         return false;
     }
 
-    // remove /sim/ai node
-    for (auto n : root->getChildren("scenario")) {
+    // remove /sim/ai/scenario node
+    for (auto n : _scenarioRoot->getChildren("scenario")) {
         if (n->getStringValue() == filename) {
-            root->removeChild(n);
+            _scenarioRoot->removeChild(n);
             break;
         }
     }
@@ -643,9 +647,9 @@ void FGAIManager::unloadAllScenarios()
 {
     std::for_each(_scenarios.begin(), _scenarios.end(),
                   [](const ScenarioDict::value_type& v) { delete v.second; });
-    // remove /sim/ai node
-    if (root) {
-        root->removeChildren("scenario");
+    // remove /sim/ai/scenario nodes
+    if (_scenarioRoot) {
+        _scenarioRoot->removeChildren("scenario");
     }
     _scenarios.clear();
 }

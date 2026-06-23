@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 James Turner
+ * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * This file is part of the program FlightGear.
  *
@@ -16,6 +17,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "config.h"
 
 #include "test_AIManager.hxx"
 
@@ -36,6 +39,9 @@
 #include <Main/globals.hxx>
 #include <Navaids/NavDataCache.hxx>
 #include <Navaids/navrecord.hxx>
+
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/structure/commands.hxx>
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -96,14 +102,14 @@ void AIManagerTests::testBasic()
 
 void AIManagerTests::testAircraftWaypoints()
 {
-    auto aim = globals->get_subsystem<FGAIManager>();   
+    auto aim = globals->get_subsystem<FGAIManager>();
 
     SGPropertyNode_ptr aircraftDefinition(new SGPropertyNode);
     aircraftDefinition->setStringValue("type", "aircraft");
     aircraftDefinition->setStringValue("callsign", "G-ARTA");
     // set class for performance data
 
-    
+
     auto eggd = FGAirport::findByIdent("EGGD");
     aircraftDefinition->setDoubleValue("heading", 90.0);
     aircraftDefinition->setDoubleValue("latitude", eggd->geod().getLatitudeDeg());
@@ -127,5 +133,47 @@ void AIManagerTests::testAircraftWaypoints()
     CPPUNIT_ASSERT_DOUBLES_EQUAL(250.0, aiAircraft->getSpeed(), 1);
 
     std::unique_ptr<FGAIFlightPlan> aiFP(new FGAIFlightPlan);
-    ai->setFlightPlan(std::move(aiFP));    
+    ai->setFlightPlan(std::move(aiFP));
+}
+
+// A loaded scenario (e.g. a carrier) must survive a subsystem reinit.
+// postinit() reloads scenarios from the /sim/ai/scenario list, so reinit() must
+// preserve that list; if it clears it, the scenario - and any carrier it placed
+// - vanishes on a reset/reposition. This checks both the list and the resulting
+// AI objects survive a reinit. See issue #3388.
+void AIManagerTests::testReinitPreservesScenario()
+{
+    auto aim = globals->get_subsystem<FGAIManager>();
+
+    // Register a minimal scenario file into the catalog at /sim/ai/scenarios,
+    // exactly as registerScenarios() does for files found in $FG_ROOT/AI.
+    const SGPath scenarioPath = SGPath::fromUtf8(FG_TEST_SUITE_DATA) / "AI" / "test_scenario.xml";
+    CPPUNIT_ASSERT(scenarioPath.exists());
+    FGAIManager::registerScenarioFile(globals->get_props(), scenarioPath);
+
+    // Load it through the load-scenario command. This both creates the scenario
+    // objects and records the scenario in the active list at /sim/ai/scenario -
+    // the same path a --ai-scenario= start or the GUI dialog would take.
+    SGPropertyNode_ptr args(new SGPropertyNode);
+    args->setStringValue("name", "test_scenario");
+    CPPUNIT_ASSERT(globals->get_commands()->execute("load-scenario", args));
+
+    SGPropertyNode* scenarioRoot = globals->get_props()->getNode("sim/ai");
+    CPPUNIT_ASSERT_EQUAL(static_cast<size_t>(1), scenarioRoot->getChildren("scenario").size());
+
+    // The scenario's ship object should now be attached.
+    CPPUNIT_ASSERT(!aim->get_ai_list().empty());
+
+    // Reinit the subsystem - the operation that issue #3388 regressed on.
+    aim->reinit();
+
+    // The active scenario list must survive the reinit so that postinit() can
+    // reload it...
+    const auto activeAfter = scenarioRoot->getChildren("scenario");
+    CPPUNIT_ASSERT_EQUAL(static_cast<size_t>(1), activeAfter.size());
+    CPPUNIT_ASSERT_EQUAL(std::string{"test_scenario"},
+                         std::string{activeAfter.front()->getStringValue()});
+
+    // ...and the scenario objects must be present again rather than gone.
+    CPPUNIT_ASSERT(!aim->get_ai_list().empty());
 }
