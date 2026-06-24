@@ -36,23 +36,23 @@ private:
         // Copy of placement map - raw pointers are safe because SGVoxelCloud
         // objects are owned by _cloudPlacementMap and outlive the task.
         using LocalPlacement = std::pair<const SGVoxelCloud*, osg::Vec3f>;
-        std::vector<LocalPlacement> detailedFieldList;
-        std::vector<LocalPlacement> roughFieldList;
+        std::vector<LocalPlacement> detailedFieldList{};
+        std::vector<LocalPlacement> roughFieldList{};
 
         // Config captured at snapshot time
-        int detailedFieldWidth;
-        int detailedFieldHeight;
-        int detailedFieldVoxelSize;
-        int roughFieldWidth;
-        int roughFieldHeight;
-        int roughFieldVoxelSize;
-        int roughVoxelSizeFactor;
-        float voxelOpticalDepth;
-        bool fieldRepeating;
+        int detailedFieldWidth{};
+        int detailedFieldHeight{};
+        int detailedFieldVoxelSize{};
+        int roughFieldWidth{};
+        int roughFieldHeight{};
+        int roughFieldVoxelSize{};
+        int roughVoxelSizeFactor{};
+        float voxelOpticalDepth{};
+        bool fieldRepeating{};
 
         // Field center for fgSet* calls at commit time
-        SGVec3<double> centerCart;
-        osg::Matrixf cloudPosMatrix;
+        SGVec3<double> centerCart{};
+        osg::Matrixf cloudPosMatrix{};
         float cloudbaseM = 999999.0f;
     };
 
@@ -77,13 +77,13 @@ private:
         // osg::Texture3D and can be touched concurrently by the render/GPU-upload
         // path, which is a data race even though osg::Referenced ref-counting itself
         // is atomic.
-        std::vector<float> voxelData;
-        int width;
-        int height;
-        float voxelOpticalDepth;
+        std::vector<float> voxelData{};
+        int width{};
+        int height{};
+        float voxelOpticalDepth{};
 
         // Sun direction (world-space, already transformed to Z-up)
-        osg::Vec3f sunDirVoxel;
+        osg::Vec3f sunDirVoxel{};
     };
 
     struct ShadeRebuildResult {
@@ -113,7 +113,7 @@ private:
 
     // Sun direction (Z-up, voxel space) used for the most recently launched
     // shade build, so we can detect when it has drifted enough to need redoing.
-    osg::Vec3f _lastShadeSunDir{0.0f, 0.0f, 0.0f};
+    osg::Vec3f _lastShadeSunDir = osg::Vec3f();
 
     size_t _roughFieldWidth;
     size_t _roughFieldHeight;
