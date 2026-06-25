@@ -260,6 +260,7 @@ public:
 
         if (name == "cache-enabled") {
             SGSceneFeatures::instance()->setTextureCacheActive(b);
+            flightgear::updateSentryTag("dds-texture-cache", b ? "enabled" : "disabled");
         }
         else if (name == "compress-transparent" || name == "compress") {
             SGSceneFeatures::instance()->setTextureCacheCompressionActiveTransparent(b);

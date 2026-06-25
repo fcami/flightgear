@@ -496,8 +496,7 @@ void sentryReportUserError(const std::string& aggregate, const std::string& para
     if (!parameter.empty()) {
         m += ":" + parameter;
     }
-
-    sentry_value_set_by_key(event, "aggregate", sentry_value_new_string(m.c_str()));
+    sentry_set_tag("aggregate", m.c_str());
 
     for (const auto& ex : exceptions) {
         sentry_value_t exc = sentry_value_new_exception(ex.type.c_str(), ex.value.c_str());
@@ -507,7 +506,9 @@ void sentryReportUserError(const std::string& aggregate, const std::string& para
 
         sentry_event_add_exception(event, exc);
     }
+
     sentry_capture_event(event);
+    sentry_remove_tag("aggregate");
 }
 
 } // namespace flightgear

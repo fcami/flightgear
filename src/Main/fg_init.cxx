@@ -21,10 +21,10 @@
 #  define isatty _isatty
 #else
 // for open() and options
-#  include <sys/types.h>        
-#  include <sys/stat.h>
-#  include <fcntl.h>
-#  include <sys/file.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
 #include <string>
@@ -79,7 +79,7 @@
 
 #include <Cockpit/panel.hxx>
 #include <Cockpit/panel_io.hxx>
- 
+
 #include <Canvas/canvas_mgr.hxx>
 #include <Canvas/gui_mgr.hxx>
 #include <Canvas/FGCanvasSystemAdapter.hxx>
@@ -170,7 +170,7 @@ string fgBasePackageVersion(const SGPath& base_path) {
     if (!p.exists()) {
         return string();
     }
-    
+
     sg_gzifstream in( p );
     if (!in.is_open()) {
         return string();
@@ -198,7 +198,7 @@ std::optional<FGBasePackageInfo> fgBasePackageInfo(const SGPath& path)
     cJSON* json = cJSON_Parse(content.c_str());
 
     FGBasePackageInfo r;
-    
+
     auto ver = cJSON_GetObjectItem(json, "version");
     if (ver) {
         r.version = ver->valuestring;
@@ -228,7 +228,7 @@ public:
   {
       _didUseLauncher = didUseLauncher;
   }
-  
+
   /**
    * @brief haveExplicitAircraft - check if the combination of /sim/aircraft
    * and /sim/aircraft-dir defines an explicit -set.xml. We need to detect
@@ -247,6 +247,7 @@ public:
       return setFile.exists();
   }
 
+
   bool loadAircraft()
   {
     std::string aircraft = fgGetString( "/sim/aircraft", "");
@@ -256,50 +257,13 @@ public:
       SG_LOG(SG_GENERAL, SG_ALERT, "no aircraft specified");
       return false;
     }
-    
+
     _searchAircraft = aircraft + "-set.xml";
     std::string aircraftDir = fgGetString("/sim/aircraft-dir", "");
     if (!aircraftDir.empty()) {
-      // aircraft-dir was set, skip any searching at all, if it's valid
-      simgear::Dir acPath(aircraftDir);
-      SGPath setFile = acPath.file(_searchAircraft);
-      if (setFile.exists()) {
-        SG_LOG(SG_GENERAL, SG_INFO, "found aircraft in dir: " << aircraftDir );
-        
-        try {
-          readProperties(setFile, globals->get_props());
-        } catch ( const sg_exception &e ) {
-            SG_LOG(SG_IO, SG_ALERT,
-                   "Error reading aircraft: " << e.getFormattedMessage());
-            flightgear::addSentryBreadcrumb("Aircraft-dir=" + aircraftDir, "error");
-            SG_LOG(SG_IO, SG_ALERT, "aircraft dir is:" << aircraftDir);
-            flightgear::fatalMessageBoxWithoutExit(
-                "Error reading aircraft",
-                "An error occured reading the requested aircraft (" + aircraft + ")",
-                e.getFormattedMessage());
-            return false;
-        }
+        return loadAircraftFromExplicitDir(aircraft, aircraftDir);
+    } // of explicit aircraft-dir case
 
-        checkAircraftMinVersion();
-        checkAircraftDirName();
-
-          // apply state after the -set.xml, but before any options are are set
-          flightgear::applyInitialState();
-        return true;
-      } else {
-        SG_LOG(SG_GENERAL, SG_ALERT, "aircraft '" << _searchAircraft << 
-               "' not found in specified dir:" << aircraftDir);
-        flightgear::addSentryBreadcrumb("Aircraft-dir=" + aircraftDir, "error");
-        flightgear::fatalMessageBoxWithoutExit(
-            "Aircraft not found",
-            "The requested aircraft (" + aircraft + ") could not be found "
-                                                    "in the specified location. (" +
-                aircraftDir + ")",
-            aircraftDir);
-        return false;
-      }
-    }
-    
     if (!checkCache()) {
         flightgear::addSentryBreadcrumb("Scanning aircraft paths", "info");
 
@@ -311,10 +275,10 @@ public:
         n->setStringValue(getAircraftPaths().c_str());
         n->setAttribute(SGPropertyNode::USERARCHIVE, true);
         _cache->removeChildren("aircraft");
-  
+
         visitAircraftPaths();
     }
-    
+
     if (_foundPath.isNull()) {
       SG_LOG(SG_GENERAL, SG_ALERT,
              "Cannot find the specified aircraft: '" << aircraft << "'");
@@ -342,42 +306,69 @@ public:
           reportToSentry);
       return false;
     }
-    
+
     SG_LOG(SG_GENERAL, SG_INFO, "Loading aircraft -set file from:" << _foundPath);
-    fgSetString( "/sim/aircraft-dir", _foundPath.dir().c_str());
+    fgSetString("/sim/aircraft-dir", _foundPath.dir());
     if (!_foundPath.exists()) {
       SG_LOG(SG_GENERAL, SG_ALERT, "Unable to find -set file:" << _foundPath);
       return false;
     }
 
+    return loadAircraftPropsFile(_foundPath, aircraft);
+  }
 
-    try {
-        readProperties(_foundPath, globals->get_props());
-    } catch ( const sg_exception &e ) {
-      SG_LOG(SG_INPUT, SG_ALERT,
-             "Error reading aircraft: " << e.getFormattedMessage());
-      flightgear::fatalMessageBoxWithoutExit(
-        "Error reading aircraft",
-        "An error occured reading the requested aircraft (" + aircraft + ")",
-        e.getFormattedMessage());
-      return false;
-    }
+  private:
+  bool loadAircraftFromExplicitDir(const std::string& aircraft, const std::string& aircraftDir)
+  {
+      // aircraft-dir was set, skip any searching at all, if it's valid
+      simgear::Dir acPath(aircraftDir);
+      SGPath setFile = acPath.file(_searchAircraft);
+      if (!setFile.exists()) {
+          SG_LOG(SG_GENERAL, SG_ALERT, "aircraft '" << _searchAircraft << "' not found in specified dir:" << aircraftDir);
+          flightgear::addSentryBreadcrumb("Aircraft-dir=" + aircraftDir, "error");
+          flightgear::fatalMessageBoxWithoutExit(
+              "Aircraft not found",
+              "The requested aircraft (" + aircraft + ") could not be found "
+                                                      "in the specified location. (" +
+                  aircraftDir + ")",
+              aircraftDir);
+          return false;
+      } // -set.xml not found
 
-      // apply state after the -set.xml, but before any options are are set
-      flightgear::applyInitialState();
+      SG_LOG(SG_GENERAL, SG_INFO, "found aircraft in dir: " << aircraftDir);
+      return loadAircraftPropsFile(setFile, aircraft);
+  }
+
+  bool loadAircraftPropsFile(const SGPath& setFile, const std::string& aircraft)
+  {
+      try {
+          readProperties(setFile, globals->get_props());
+      } catch (const sg_exception& e) {
+          SG_LOG(SG_IO, SG_ALERT,
+                 "Error reading aircraft: " << e.getFormattedMessage());
+          flightgear::addSentryBreadcrumb("Aircraft-dir=" + setFile.dir(), "error");
+          SG_LOG(SG_IO, SG_ALERT, "aircraft dir is:" << setFile.dir());
+          flightgear::fatalMessageBoxWithoutExit(
+              "Error reading aircraft",
+              "An error occured reading the requested aircraft (" + aircraft + ")",
+              e.getFormattedMessage());
+          return false;
+      }
 
       checkAircraftMinVersion();
       checkAircraftDirName();
 
-    return true;
+      // apply state after the -set.xml, but before any options are are set
+      flightgear::applyInitialState();
+      return true;
   }
-  
-private:
+
+
     std::string getAircraftPaths()
     {
         return SGPath::join(globals->get_aircraft_paths(), ";");
     }
-  
+
   bool checkCache()
   {
     if (globals->get_fg_root().utf8Str() != _cache->getStringValue("fg-root", "")) {
@@ -387,28 +378,28 @@ private:
     if (getAircraftPaths() != _cache->getStringValue("fg-aircraft", "")) {
       return false; // cache mismatch
     }
-    
+
     std::vector<SGPropertyNode_ptr> cache = _cache->getChildren("aircraft");
     for (unsigned int i = 0; i < cache.size(); i++) {
       const std::string name = cache[i]->getStringValue("file", "");
       if (!simgear::strutils::iequals(_searchAircraft, name)) {
         continue;
       }
-      
+
       SGPath xml(cache[i]->getStringValue("path", ""));
       xml.append(name);
       if (xml.exists()) {
           flightgear::addSentryBreadcrumb("Found aircraft via cache", "info");
           _foundPath = xml;
           return true;
-      } 
-      
+      }
+
       return false;
     } // of aircraft in cache iteration
-    
+
     return false;
   }
-  
+
   virtual VisitResult visit(const SGPath& p)
   {
       SGPath realPath = p.realpath();
@@ -418,7 +409,7 @@ private:
         if (!_cache->getChild("aircraft", i++, false))
             break;
     }
-    
+
     SGPropertyNode *n, *entry = _cache->getChild("aircraft", --i, true);
 
     std::string fileName(realPath.file());
@@ -455,11 +446,11 @@ private:
       } else {
           SG_LOG(SG_AIRCRAFT, SG_DEV_ALERT, "Aircraft does not specify a minimum FG version: please add one at /sim/minimum-fg-version");
       }
-      
+
       auto compatNodes = globals->get_props()->getNode("/sim")->getChildren("compatible-fg-version");
       if (!compatNodes.empty()) {
           bool showCompatWarning = true;
-          
+
           // if we have at least one compatibility node, then it needs to match
           for (const auto& cn : compatNodes) {
               const auto v = cn->getStringValue();
@@ -468,14 +459,14 @@ private:
                   break;
               }
           }
-          
+
           if (showCompatWarning) {
               flightgear::modalMessageBox("Aircraft not compatible with this version",
               "The selected aircraft has not been checked for compatability with this version of FlightGear (" FLIGHTGEAR_VERSION  "). "
                                           "Some aircraft features might not work, or might be displayed incorrectly.");
           }
       }
-      
+
       return true;
   }
 
@@ -615,12 +606,12 @@ InitHomeResult fgInitHome(int argc, char** argv)
 {
   SGPath dataPath = fgHomePath();
   globals->set_fg_home(dataPath);
-    
+
     simgear::Dir fgHome(dataPath);
     if (!fgHome.exists()) {
         fgHome.create(0755);
     }
-    
+
     if (!fgHome.exists()) {
         flightgear::fatalMessageBoxWithoutExit(
           "Problem setting up user data",
@@ -669,7 +660,7 @@ InitHomeResult fgInitHome(int argc, char** argv)
                    << "\n\tdue to:" << simgear::strutils::error_string(errno));
             return InitHomeAbort;
         }
-        
+
         int err = ::flock(fd, LOCK_EX | LOCK_NB);
         if (err < 0) {
             if ( errno ==  EWOULDBLOCK) {
@@ -686,7 +677,7 @@ InitHomeResult fgInitHome(int argc, char** argv)
                 return InitHomeAbort;
             }
         }
-        
+
        // we locked it!
         result = InitHomeOkay;
     } else {
@@ -700,7 +691,7 @@ InitHomeResult fgInitHome(int argc, char** argv)
                << "\n\tdue to:" << simgear::strutils::error_string(errno));
             return InitHomeAbort;
         }
-            
+
         int err = write(fd, buf, len);
         if (err < 0) {
             SG_LOG(SG_GENERAL, SG_ALERT, "failed to write to lock file:" << pidPath
@@ -714,7 +705,7 @@ InitHomeResult fgInitHome(int argc, char** argv)
             << "\n\tdue to:" << simgear::strutils::error_string(errno));
             return InitHomeAbort;
         }
-        
+
         result = InitHomeOkay;
     }
 #endif
@@ -782,7 +773,7 @@ struct SimLogFileLine : SGPropertyChangeListener
 int fgInitConfig ( int argc, char **argv, bool reinit )
 {
     SGPath dataPath = globals->get_fg_home();
-    
+
     simgear::Dir exportDir(simgear::Dir(dataPath).file("Export"));
     if (!exportDir.exists()) {
       exportDir.create(0755);
@@ -800,7 +791,7 @@ int fgInitConfig ( int argc, char **argv, bool reinit )
     home = home->getChild("fg-home", 0, true);
     home->setStringValue(dataPath.utf8Str());
     home->setAttribute(SGPropertyNode::WRITE, false);
-  
+
     fgSetDefaults();
     flightgear::Options* options = flightgear::Options::sharedInstance();
     if (!reinit) {
@@ -827,7 +818,7 @@ int fgInitConfig ( int argc, char **argv, bool reinit )
     node->setAttribute(SGPropertyNode::PRESERVE, true);
     node->setBoolValue(developerMode);
     sglog().setDeveloperMode(developerMode);
-    
+
     static SimLogFileLine   simLogFileLine;
 
     // Read global defaults from $FG_ROOT/defaults
@@ -901,7 +892,7 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
         if (r == flightgear::FG_OPTIONS_SHOW_AIRCRAFT)
             return r;
     }
-    
+
     FindAndCacheAircraft f(globals->get_props());
     f.setDidUseLauncher(didUseLauncher);
     const bool haveExplicit = f.haveExplicitAircraft();
@@ -919,9 +910,6 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
     string aircraftId = fullyQualifiedAircraftId.empty() ? aircraftProp->getStringValue() : fullyQualifiedAircraftId;
 
     flightgear::addSentryTag("aircraft", aircraftId);
-
-    const auto acdp = SGPath::fromUtf8(aircraftDirProp->getStringValue());
-    flightgear::addSentryTag("aircraft-dir", acdp.file());
 
     PackageRef acftPackage;
     if (!haveExplicit) {
@@ -975,7 +963,10 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
     if (!f.loadAircraft()) {
         return flightgear::FG_OPTIONS_ERROR;
     }
-    
+
+    const auto acdp = SGPath::fromUtf8(aircraftDirProp->getStringValue());
+    flightgear::addSentryTag("aircraft-dir", acdp.file());
+
     return flightgear::FG_OPTIONS_OK;
 }
 
@@ -1023,11 +1014,11 @@ fgInitNav ()
 
   FGTACANList *channellist = new FGTACANList;
   globals->set_channellist( channellist );
-  
+
   SGPath path(globals->get_fg_root());
   path.append( "Navaids/TACAN_freq.dat" );
   flightgear::NavLoader().loadTacan(path, channellist);
-  
+
   return true;
 }
 
@@ -1068,10 +1059,10 @@ bool fgInitGeneral() {
 
 // Write various configuraton values out to the logs
 void fgOutputSettings()
-{    
+{
     SG_LOG( SG_GENERAL, SG_INFO, "Configuration State" );
     SG_LOG( SG_GENERAL, SG_INFO, "============= =====" );
-    
+
     SG_LOG( SG_GENERAL, SG_INFO, "aircraft-dir = " << '"' << fgGetString("/sim/aircraft-dir") << '"' );
     SG_LOG( SG_GENERAL, SG_INFO, "fghome-dir = " << '"' << globals->get_fg_home() << '"');
     SG_LOG( SG_GENERAL, SG_INFO, "download-dir = " << '"' << fgGetString("/sim/paths/download-dir") << '"' );
@@ -1143,15 +1134,15 @@ void fgCreateSubsystems(bool duringReset) {
 
         {
           SGSubsystem * httpd = flightgear::http::FGHttpd::createInstance( fgGetNode(flightgear::http::PROPERTY_ROOT) );
-          if( NULL != httpd ) 
-            mgr->add("httpd", httpd);
+          if (NULL != httpd)
+              mgr->add("httpd", httpd);
         }
 
         if (!duringReset) {
             mgr->add<FGTide>();
         }
     }
-    
+
     // SGSubsystemMgr::FDM
     {
         mgr->add<FDMShell>();
@@ -1162,7 +1153,7 @@ void fgCreateSubsystems(bool duringReset) {
         mgr->add<FGInstrumentMgr>();
         mgr->add("xml-autopilot", FGXMLAutopilotGroup::createInstance("autopilot"), SGSubsystemMgr::FDM);
     }
-    
+
     // SGSubsystemMgr::POST_FDM
     {
         mgr->add<PerformanceDB>();
@@ -1203,7 +1194,7 @@ void fgCreateSubsystems(bool duringReset) {
         fgSetArchivable("/sim/panel/y-offset");
         fgSetArchivable("/sim/panel/jitter");
     }
-    
+
     // SGSubsystemMgr::DISPLAY
     {
 #ifdef ENABLE_HUD
@@ -1215,7 +1206,7 @@ void fgCreateSubsystems(bool duringReset) {
           simgear::canvas::SystemAdapterPtr(new canvas::FGCanvasSystemAdapter)
         );
         mgr->add<CanvasMgr>();
-        
+
         auto canvasGui = new GUIMgr;
         mgr->add("CanvasGUI", canvasGui, SGSubsystemMgr::DISPLAY);
         auto guiCamera = flightgear::getGUICamera(flightgear::CameraGroup::getDefault());
@@ -1235,7 +1226,7 @@ void fgCreateSubsystems(bool duringReset) {
         mgr->add<FGModelMgr>();
         mgr->add<FGViewMgr>();
     }
-    
+
     // SGSubsystemMgr::SOUND
     {
         // Sound manager uses an own subsystem group "SOUND" which is the last
@@ -1273,7 +1264,7 @@ void fgPostInitSubsystems()
     st.stamp();
     mgr->postinit();
     SG_LOG(SG_GENERAL, SG_INFO, "Subsystems postinit took:" << st.elapsedMSec());
-  
+
     ////////////////////////////////////////////////////////////////////////
     // End of subsystem initialization.
     ////////////////////////////////////////////////////////////////////
@@ -1292,7 +1283,7 @@ void fgStartReposition()
 {
   SGPropertyNode *master_freeze = fgGetNode("/sim/freeze/master");
   SG_LOG( SG_GENERAL, SG_INFO, "fgStartReposition()");
-  
+
   flightgear::addSentryBreadcrumb("start reposition", "info");
 
   // ensure we are frozen
@@ -1300,7 +1291,7 @@ void fgStartReposition()
   if ( !freeze ) {
     master_freeze->setBoolValue(true);
   }
-  
+
   // set this signal so Nasal scripts can take action.
   fgSetBool("/sim/signals/reinit", true);
   fgSetBool("/sim/crashed", false);
@@ -1314,15 +1305,15 @@ void fgStartReposition()
   // this will mark position as needed finalized which we'll do in the
   // main-loop
   flightgear::initPosition();
-  
+
   auto terraSync = mgr->get_subsystem<simgear::SGTerraSync>();
   if (terraSync) {
     terraSync->reposition();
   }
-  
+
   // Initialize the FDM
   mgr->get_subsystem<FDMShell>()->reinit();
-  
+
   // reset replay buffers
   mgr->get_subsystem<FGReplay>()->reinit();
 
@@ -1336,7 +1327,7 @@ void fgStartReposition()
   if (envMgr) {
     envMgr->get_subsystem("realwx")->reinit();
   }
-  
+
     // needed for parking assignment to work after reposition
     auto atcManager = mgr->get_subsystem<FGATCManager>();
     if (atcManager) {
@@ -1377,32 +1368,32 @@ void fgStartNewReset()
     globals->saveUserSettings();
 
     SGPropertyNode_ptr preserved(new SGPropertyNode);
-  
+
     if (!copyPropertiesWithAttribute(globals->get_props(), preserved, SGPropertyNode::PRESERVE))
         SG_LOG(SG_GENERAL, SG_ALERT, "Error saving preserved state");
-    
+
     fgSetBool("/sim/signals/reinit", true);
     fgSetBool("/sim/freeze/master", true);
-    
+
     // pause the osgDB requests right now, but more may appear; we will
     // clear and cancel further down once shutdown has occured
     FGRenderer* render = globals->get_renderer();
     auto pager = render->getView()->getDatabasePager();
     pager->setAcceptNewDatabaseRequests(false);
     pager->cancel();
-    
+
     // extra clear is needed to ensure compile/merge lists are also empty
     pager->clear();
-    
+
     assert(pager->getDataToMergeListSize() == 0);
     assert(pager->getDataToCompileListSize() == 0);
 
-    
+
     SGSubsystemMgr* subsystemManger = globals->get_subsystem_mgr();
     // Nasal is added in fgPostInit, ensure it's already shutdown
     // before other subsystems, so Nasal listeners don't fire during shutdown
     subsystemManger->remove("nasal");
-    
+
     subsystemManger->shutdown();
 #ifdef ENABLE_OSGXR
     flightgear::VRManager::destroyInstance();
@@ -1413,20 +1404,15 @@ void fgStartNewReset()
     // of this class. Will be fixed better for future versions by making
     // this a proper subsystem.
     //FGATCDialogNew::hackyReset();
-    
+
     // remove most subsystems, with a few exceptions.
     for (int g=0; g<SGSubsystemMgr::MAX_GROUPS; ++g) {
         SGSubsystemGroup* grp = subsystemManger->get_group(static_cast<SGSubsystemMgr::GroupType>(g));
         for (auto nm : grp->member_names()) {
-            if ((nm == "time") || (nm == "terrasync") || (nm == "events")
-                || (nm == "lighting") 
-                || (nm == FGScenery::staticSubsystemClassId())
-                || (nm == flightgear::ErrorReporter::staticSubsystemClassId())
-                )
-            {
+            if ((nm == "time") || (nm == "terrasync") || (nm == "events") || (nm == "lighting") || (nm == FGScenery::staticSubsystemClassId()) || (nm == flightgear::ErrorReporter::staticSubsystemClassId())) {
                 continue;
             }
-            
+
             try {
                 subsystemManger->remove(nm.c_str());
             } catch (std::exception& e) {
@@ -1434,7 +1420,7 @@ void fgStartNewReset()
             } catch (...) {
                 SG_LOG(SG_GENERAL, SG_INFO, "caught generic exception shutting down:" << nm);
             }
-            
+
             // don't delete here, dropping the ref should be sufficient
         }
     } // of top-level groups iteration
@@ -1450,7 +1436,7 @@ void fgStartNewReset()
     if (composite_viewer) {
         composite_viewer_view = render->getView();
     }
-        
+
     // order is important here since tile-manager shutdown needs to
     // access the scenery object
     subsystemManger->remove(FGScenery::staticSubsystemClassId());
@@ -1458,7 +1444,7 @@ void fgStartNewReset()
     FGScenery::getPagerSingleton()->clearRequests();
     flightgear::CameraGroup::setDefault(NULL);
 
-    
+
     osgDB::Registry::instance()->clearObjectCache();
     // Pager requests depend on this, so don't clear it until now
     sgUserDataInit( NULL );
@@ -1471,7 +1457,7 @@ void fgStartNewReset()
 
     globals->set_renderer(NULL);
     globals->set_matlib(NULL);
-    
+
     flightgear::unregisterMainLoopProperties();
     FGReplay::resetStatisticsProperties();
 
@@ -1479,7 +1465,7 @@ void fgStartNewReset()
     simgear::VPBTechnique::clearConstraints();
     simgear::SGModelLib::resetPropertyRoot();
     simgear::ParticlesGlobalManager::clear();
-    simgear::UniformFactory::instance()->reset();    
+    simgear::UniformFactory::instance()->reset();
 
     flightgear::addons::AddonManager::reset();
 
@@ -1503,10 +1489,10 @@ void fgStartNewReset()
 
     fgInitConfig(0, NULL, true);
     fgInitGeneral(); // all of this?
-    
+
     // set out new property root on the command manager
     SGCommandMgr::instance()->setImplicitRoot(globals->get_props());
-    
+
     flightgear::Options::sharedInstance()->processOptions();
 
     // Rebuild the lists of allowed paths for cases where a path comes from an
@@ -1540,7 +1526,7 @@ void fgStartNewReset()
     eventHandler->reset();
     globals->set_renderer(render);
     render->init();
-    
+
     if (composite_viewer) {
         render->setView(composite_viewer_view);
     }
@@ -1579,23 +1565,23 @@ void fgStartNewReset()
         render->preinit();
         viewer->startThreading();
     }
-    
+
     fgOSResetProperties();
 
 // init some things manually
 // which do not follow the regular init pattern
-    
+
     globals->get_event_mgr()->init();
     globals->get_event_mgr()->setRealtimeProperty(fgGetNode("/sim/time/delta-realtime-sec", true));
-    
+
     globals->set_matlib( new SGMaterialLib );
-    
+
 // terra-sync needs the property tree root, pass it back in
     auto terra_sync = subsystemManger->get_subsystem<simgear::SGTerraSync>();
     if (terra_sync) {
         terra_sync->setRoot(globals->get_props());
     }
-    
+
     fgSetBool("/sim/signals/reinit", false);
     fgSetBool("/sim/freeze/master", false);
     fgSetBool("/sim/sceneryloaded",false);
