@@ -10,7 +10,7 @@
 #include <sstream>
 #include <algorithm> // for std::sort
 
-// ensure we include this before puAux.h, so that 
+// ensure we include this before puAux.h, so that
 // #define _PU_H_ 1 has been done, and hence we don't
 // include the un-modified system pu.h
 #include "FlightGear_pu.h"
@@ -79,7 +79,7 @@ static bool puBoxIntersect(const puBox& a, const puBox& b)
 
   return (x0 <= x1) && (y0 <= y1);
 }
-    
+
 class MapData;
 typedef std::vector<MapData*> MapDataVec;
 
@@ -197,6 +197,53 @@ public:
       }
     } // of list iteration
 
+    return false;
+  }
+
+  // Try a handful of alternative label placements (around the same anchor)
+  // until one is found which doesn't overlap anything already placed.
+  // This is what lets, e.g., a co-located VOR and NDB both stay readable
+  // instead of the lower-priority one simply being dropped.
+  bool placeAvoidingOverlap(const MapDataVec& placed)
+  {
+    static const int kCandidateDirs[] = {
+      HALIGN_CENTER | VALIGN_BOTTOM,
+      HALIGN_CENTER | VALIGN_TOP,
+      HALIGN_LEFT   | VALIGN_BOTTOM,
+      HALIGN_RIGHT  | VALIGN_BOTTOM,
+      HALIGN_LEFT   | VALIGN_TOP,
+      HALIGN_RIGHT  | VALIGN_TOP,
+      HALIGN_LEFT   | VALIGN_CENTER,
+      HALIGN_RIGHT  | VALIGN_CENTER,
+    };
+    static const int kNumCandidates = sizeof(kCandidateDirs) / sizeof(kCandidateDirs[0]);
+
+    const int originalDir = _offsetDir;
+    const int basePx = _offsetPx;
+
+    if (!overlaps(placed)) {
+      return true; // already fine where it is
+    }
+
+    for (int i = 0; i < kNumCandidates; ++i) {
+      if (kCandidateDirs[i] == originalDir) {
+        continue; // that's the one we already tried
+      }
+      setOffset(kCandidateDirs[i], basePx);
+      if (!overlaps(placed)) {
+        return true;
+      }
+    }
+
+    // last resort: push further out in the originally requested direction
+    setOffset(originalDir, basePx + 14);
+    if (!overlaps(placed)) {
+      return true;
+    }
+
+    // give up: restore the original offset so at least clipping/zoom-out
+    // has a chance of resolving things later, and report failure
+    setOffset(originalDir, basePx);
     return false;
   }
 
@@ -393,7 +440,7 @@ int MapData::_fontDescender = 0;
 // anonymous namespace
 namespace
 {
-    
+
 class MapAirportFilter : public FGAirport::AirportFilter
 {
 public:
@@ -403,12 +450,12 @@ public:
         _minLengthFt(fgGetDouble("/sim/navdb/min-runway-length-ft", 2000))
     {
     }
-    
+
     FGPositioned::Type maxType() const override
     {
         return _heliports ? FGPositioned::HELIPORT : FGPositioned::AIRPORT;
     }
-    
+
     FGPositioned::Type minType() const override
     {
         return FGPositioned::AIRPORT;
@@ -421,12 +468,12 @@ public:
         }
         return (aApt->type() <= maxType()) && (aApt->type() >= minType());
     }
-    
+
     void showAll()
     {
         _hardRunwaysOnly = false;
     }
-    
+
 private:
     const bool _heliports;
     bool _hardRunwaysOnly;
@@ -436,34 +483,44 @@ private:
 class NavaidFilter : public FGPositioned::Filter
 {
 public:
-    NavaidFilter(bool fixesEnabled, bool navaidsEnabled) :
+    NavaidFilter(bool fixesEnabled, bool vorEnabled, bool ndbEnabled) :
     _fixes(fixesEnabled),
-    _navaids(navaidsEnabled)
+    _vor(vorEnabled),
+    _ndb(ndbEnabled)
     {}
-    
+
     virtual bool pass(FGPositioned* aPos) const {
-        if (_fixes && (aPos->type() == FGPositioned::FIX)) {
+        if (aPos->type() == FGPositioned::FIX) {
+            if (!_fixes) return false;
             // ignore fixes which end in digits - expirmental
             if (aPos->ident().length() > 4 && isdigit(aPos->ident()[3]) && isdigit(aPos->ident()[4])) {
                 return false;
             }
+            return true;
         }
-        
+        if (aPos->type() == FGPositioned::VOR) return _vor;
+        if (aPos->type() == FGPositioned::NDB) return _ndb;
         return true;
     }
-    
+
     virtual FGPositioned::Type minType() const {
-        return _fixes ? FGPositioned::FIX : FGPositioned::NDB;
+        if (_fixes) return FGPositioned::FIX;
+        if (_ndb)   return FGPositioned::NDB;
+        if (_vor)   return FGPositioned::VOR;
+        return FGPositioned::VOR; // nothing enabled, minType > maxType => no query
     }
-    
+
     virtual FGPositioned::Type maxType() const {
-        return _navaids ? FGPositioned::VOR : FGPositioned::FIX;
+        if (_vor)   return FGPositioned::VOR;
+        if (_ndb)   return FGPositioned::NDB;
+        if (_fixes) return FGPositioned::FIX;
+        return FGPositioned::FIX;
     }
-    
+
 private:
-    bool _fixes, _navaids;
+    bool _fixes, _vor, _ndb;
 };
-    
+
 } // of anonymous namespace
 
 const int MAX_ZOOM = 12;
@@ -483,7 +540,7 @@ MapWidget::MapWidget(int x, int y, int maxX, int maxY) :
 
   _projectionCenter = globals->get_aircraft_position();
   _magneticHeadings = false;
-  
+
   MapData::setFont(legendFont);
   MapData::setPalette(colour);
 
@@ -511,10 +568,10 @@ void MapWidget::setProperty(SGPropertyNode_ptr prop)
   if (zoom < 0) {
     _root->setIntValue("zoom", 6); // default zoom
   }
-  
+
 // expose MAX_ZOOM to the UI
   _root->setIntValue("max-zoom", MAX_ZOOM);
-    
+
   createPropertyIfRequired(_root, "centre-on-aircraft", true);
   createPropertyIfRequired(_root, "draw-data", false);
   createPropertyIfRequired(_root, "draw-pois", true);
@@ -553,11 +610,11 @@ void MapWidget::doHit( int button, int updown, int x, int y )
   if ((button == 2) && (updown == PU_DOWN)) {
     _clickGeod = unproject(_hitLocation - SGVec2d(_width>>1, _height>>1));
   }
-  
+
   if (button != active_mouse_button) {
     return;
   }
-  
+
   if (updown == PU_UP) {
     puDeactivateWidget();
   } else if (updown == PU_DOWN) {
@@ -578,7 +635,7 @@ int MapWidget::checkKey (int key, int updown )
   if ((updown == PU_UP) || !isVisible () || !isActive () || (window != puGetWindow())) {
     return FALSE ;
   }
-  
+
   bool key_pan = _root->getIntValue("key-pan");
   if (!key_pan && (0
         || key == PU_KEY_UP
@@ -628,7 +685,7 @@ int MapWidget::checkKey (int key, int updown )
 
 void MapWidget::pan(const SGVec2d& delta)
 {
-  _hasPanned = true; 
+  _hasPanned = true;
   _projectionCenter = unproject(-delta);
 }
 
@@ -661,13 +718,13 @@ void MapWidget::update()
 {
     _drawAircraft = _root->getBoolValue("draw-aircraft");
     _aircraft = globals->get_aircraft_position();
-    
+
     bool mag = _root->getBoolValue("magnetic-headings");
     if (mag != _magneticHeadings) {
         clearData(); // flush cached data text, since it often includes heading
         _magneticHeadings =  mag;
     }
-    
+
     if (_hasPanned) {
         _root->setBoolValue("centre-on-aircraft", false);
         _hasPanned = false;
@@ -675,47 +732,49 @@ void MapWidget::update()
     else if (_root->getBoolValue("centre-on-aircraft") && _drawAircraft) {
         _projectionCenter = _aircraft;
     }
-    
+
     double julianDate = globals->get_time_params()->getJD();
     _magVar->update(_projectionCenter, julianDate);
-    
+
     _aircraftUp = _root->getBoolValue("aircraft-heading-up");
     if (_aircraftUp && _drawAircraft) {
         _upHeading = fgGetDouble("/orientation/heading-deg");
     } else {
         _upHeading = 0.0;
     }
-    
+
     if (_magneticHeadings) {
         _displayHeading = (int) fgGetDouble("/orientation/heading-magnetic-deg");
     } else {
         _displayHeading = (int) _upHeading;
     }
-    
+
     _cachedZoom = MAX_ZOOM - zoom();
     SGGeod topLeft = unproject(SGVec2d(_width/2, _height/2));
     // compute draw range, including a fudge factor for ILSs and other 'long'
     // symbols.
     _drawRangeNm = SGGeodesy::distanceNm(_projectionCenter, topLeft) + 10.0;
-  
+
     updateFlightHistory();
 
 // make spatial queries. This can trigger loading of XML files, etc, so we do
 // not want to do it in draw(), which can be called from an arbitrary OSG
 // rendering thread.
-    
+
     MapAirportFilter af(_root);
     if (_cachedZoom <= SHOW_DETAIL2_ZOOM) {
         // show all airports when zoomed in sufficently
         af.showAll();
     }
-    
+
     bool partial = false;
     FGPositionedList newItemsToDraw =
         FGPositioned::findWithinRangePartial(_projectionCenter, _drawRangeNm, &af, partial);
-    
+
     bool fixes = _root->getBoolValue("draw-fixes");
-    NavaidFilter f(fixes, _root->getBoolValue("draw-navaids"));
+    bool drawVor = _root->getBoolValue("draw-vor", true);
+    bool drawNdb = _root->getBoolValue("draw-ndb", true);
+    NavaidFilter f(fixes, drawVor, drawNdb);
     if (f.minType() <= f.maxType()) {
         FGPositionedList navs = FGPositioned::findWithinRange(_projectionCenter, _drawRangeNm, &f);
         newItemsToDraw.insert(newItemsToDraw.end(), navs.begin(), navs.end());
@@ -728,17 +787,17 @@ void MapWidget::update()
       if (_cachedZoom <= SHOW_DETAIL_ZOOM) {
           tf.addType(FGPositioned::CITY);
       }
-      
+
       if (_cachedZoom <= SHOW_DETAIL2_ZOOM) {
           tf.addType(FGPositioned::TOWN);
       }
-      
+
       FGPositionedList poi = FGPositioned::findWithinRange(_projectionCenter, _drawRangeNm, &tf);
       newItemsToDraw.insert(newItemsToDraw.end(), poi.begin(), poi.end());
     }
 
     _itemsToDraw.swap(newItemsToDraw);
-    
+
     updateAIObjects();
 }
 
@@ -761,9 +820,9 @@ void MapWidget::updateAIObjects()
         _aiDrawVec.clear();
         return;
     }
-    
+
     AIDrawVec newDrawVec;
-    
+
     const SGPropertyNode* ai = fgGetNode("/ai/models", true);
     for (int i = 0; i < ai->nChildren(); ++i) {
         const SGPropertyNode *model = ai->getChild(i);
@@ -771,17 +830,17 @@ void MapWidget::updateAIObjects()
         if (!model || model->getIntValue("id", -1) == -1) {
             continue;
         }
-        
+
         SGGeod pos = SGGeod::fromDegFt(
                                        model->getDoubleValue("position/longitude-deg"),
                                        model->getDoubleValue("position/latitude-deg"),
                                        model->getDoubleValue("position/altitude-ft"));
-        
+
         double dist = SGGeodesy::distanceNm(_projectionCenter, pos);
         if (dist > _drawRangeNm) {
             continue;
         }
-    
+
         newDrawVec.push_back(DrawAIObject((SGPropertyNode*) model, pos));
     } // of ai/models iteration
 
@@ -968,10 +1027,10 @@ void MapWidget::drawFlightHistory()
 {
   if (_flightHistoryPath.empty())
     return;
-    
+
   // first pass, draw the actual lines
   glLineWidth(2.0);
-  
+
   glColor3f(0.0, 0.0, 1.0);
 
   glBegin(GL_LINE_STRIP);
@@ -979,7 +1038,7 @@ void MapWidget::drawFlightHistory()
     SGVec2d p = project(_flightHistoryPath[i]);
     glVertex2d(p.x(), p.y());
   }
-  
+
   glEnd();
 }
 
@@ -1040,7 +1099,7 @@ void MapWidget::drawLatLonGrid()
   } else {
     _gridSpacing = 5.0;
   }
-  
+
   _gridCenter = roundGeod(_gridSpacing, _projectionCenter);
   _gridCache.clear();
 
@@ -1149,7 +1208,7 @@ void MapWidget::drawPositioned()
           case FGPositioned::COUNTRY:
               drawPOI(p);
               break;
-              
+
           default:
               SG_LOG(SG_GENERAL, SG_WARN, "unhandled type in MapWidget::drawPositioned");
       } // of positioned type switch
@@ -1328,7 +1387,7 @@ void MapWidget::drawPOI(FGPositioned* poi)
         radius =  5;
         glColor3f(0.2, 1.0, 0.0);
     }
-    
+
   circleAt(pos, 4, radius);
 
   if (validDataForKey(poi)) {
@@ -1394,7 +1453,7 @@ void MapWidget::drawAirport(FGAirport* apt)
   }
 
   FGRunwayList runways(apt->getRunwaysWithoutReciprocals());
-    
+
   for (unsigned int r=0; r<runways.size(); ++r) {
     drawRunwayPre(runways[r]);
   }
@@ -1406,7 +1465,7 @@ void MapWidget::drawAirport(FGAirport* apt)
     if (rwy->ILS()) {
         drawILS(false, rwy);
     }
-    
+
     if (rwy->reciprocalRunway()) {
       FGRunway* recip = rwy->reciprocalRunway();
       if (recip->ILS()) {
@@ -1498,7 +1557,7 @@ void MapWidget::drawRunway(FGRunway* rwy)
     setAnchorForKey(rwy, (p1 + p2) * 0.5);
     return;
   }
-  
+
 	char buffer[1024];
 	::snprintf(buffer, 1024, "%s/%s\n%03d/%03d\n%.0f'",
 		rwy->ident().c_str(),
@@ -1634,7 +1693,7 @@ void MapWidget::drawAI(const DrawAIObject& dai)
     SGGeod advance = SGGeodesy::direct(dai.pos, dai.heading, distanceM);
     drawLine(p, project(advance));
   }
-   
+
     MapData* d = getOrCreateDataForKey((void*) dai.model);
     d->setText(dai.legend);
     d->setLabel(dai.label);
@@ -1647,18 +1706,18 @@ SGVec2d MapWidget::project(const SGGeod& geod) const
 {
   SGVec2d p;
   double r = earth_radius_lat(geod.getLatitudeRad());
-  
+
     switch (_projection) {
     case PROJECTION_SAMSON_FLAMSTEED:
     {
         // Sanson-Flamsteed projection, relative to the projection center
         double lonDiff = geod.getLongitudeRad() - _projectionCenter.getLongitudeRad(),
         latDiff = geod.getLatitudeRad() - _projectionCenter.getLatitudeRad();
-        
+
         p = SGVec2d(cos(geod.getLatitudeRad()) * lonDiff, latDiff) * r * currentScale();
         break;
     }
-	
+
     case PROJECTION_AZIMUTHAL_EQUIDISTANT:
     {
         // Azimuthal Equidistant projection, relative to the projection center
@@ -1668,14 +1727,14 @@ SGVec2d MapWidget::project(const SGGeod& geod) const
                lat = geod.getLatitudeRad(),
                lon = geod.getLongitudeRad(),
                lonDiff = lon - ref_lon;
-      
+
         double c = acos( sin(ref_lat) * sin(lat) + cos(ref_lat) * cos(lat) * cos(lonDiff) );
         if (c == 0.0){
             // angular distance from center is 0
             p= SGVec2d(0.0, 0.0);
             break;
         }
-      
+
         double k = c / sin(c);
         double x, y;
         if (ref_lat == (90 * SG_DEGREES_TO_RADIANS))
@@ -1694,10 +1753,10 @@ SGVec2d MapWidget::project(const SGGeod& geod) const
             y = k * ( cos(ref_lat) * sin(lat) - sin(ref_lat) * cos(lat) * cos(lonDiff) );
         }
         p = SGVec2d(x, y) * r * currentScale();
-      
+
         break;
     }
-    
+
     case PROJECTION_ORTHO_AZIMUTH:
     {
         // http://mathworld.wolfram.com/OrthographicProjection.html
@@ -1707,25 +1766,25 @@ SGVec2d MapWidget::project(const SGGeod& geod) const
         double sinTheta1 = sin(_projectionCenter.getLatitudeRad());
         double sinTheta = sin(geod.getLatitudeRad());
         double cosTheta1 = cos(_projectionCenter.getLatitudeRad());
-        
+
         p = SGVec2d(cosTheta * sinDLambda,
                     (cosTheta1 * sinTheta) - (sinTheta1 * cosTheta * cosDLambda)) * r * currentScale();
         break;
     }
-            
+
     case PROJECTION_SPHERICAL:
     {
         SGVec3d cartCenter = SGVec3d::fromGeod(_projectionCenter);
         SGVec3d cartPt = SGVec3d::fromGeod(geod) - cartCenter;
-        
+
         // rotate relative to projection center
         SGQuatd orient = SGQuatd::fromLonLat(_projectionCenter);
         cartPt = orient.rotateBack(cartPt);
         return SGVec2d(cartPt.y(), cartPt.x()) * currentScale();
     }
     } // of projection mode switch
-    
-  
+
+
 // rotate as necessary
   double cost = cos(_upHeading * SG_DEGREES_TO_RADIANS),
     sint = sin(_upHeading * SG_DEGREES_TO_RADIANS);
@@ -1742,7 +1801,7 @@ SGGeod MapWidget::unproject(const SGVec2d& p) const
   SGVec2d ur(cost * p.x() - sint * p.y(),
              sint * p.x() + cost * p.y());
 
-  
+
 
     switch (_projection) {
     case PROJECTION_SAMSON_FLAMSTEED:
@@ -1753,7 +1812,7 @@ SGGeod MapWidget::unproject(const SGVec2d& p) const
         double lon = (unscaled.x() / cos(lat)) + _projectionCenter.getLongitudeRad();
         return SGGeod::fromRad(lon, lat);
     }
-	
+
     case PROJECTION_AZIMUTHAL_EQUIDISTANT:
     {
         double r = earth_radius_lat(_projectionCenter.getLatitudeRad());
@@ -1764,12 +1823,12 @@ SGGeod MapWidget::unproject(const SGVec2d& p) const
                ref_lon = _projectionCenter.getLongitudeRad(),
                rho = sqrt(unscaled.x() * unscaled.x() + unscaled.y() * unscaled.y()),
                c = rho/r;
-        
+
         if (rho == 0)
         {
             lat = ref_lat;
             lon = ref_lon;
-        } 
+        }
         else
         {
             lat = asin( cos(c) * sin(ref_lat) + (unscaled.y()  * sin(c) * cos(ref_lat)) / rho);
@@ -1790,23 +1849,23 @@ SGGeod MapWidget::unproject(const SGVec2d& p) const
 
         return SGGeod::fromRad(lon, lat);
     }
-        
+
     case PROJECTION_ORTHO_AZIMUTH:
     {
         double r = earth_radius_lat(_projectionCenter.getLatitudeRad());
         SGVec2d unscaled = ur * (1.0 / (currentScale() * r));
-        
+
         double phi = length(p);
         double c = asin(phi);
         double sinTheta1 = sin(_projectionCenter.getLatitudeRad());
         double cosTheta1 = cos(_projectionCenter.getLatitudeRad());
-        
+
         double lat = asin(cos(c) * sinTheta1 + ((unscaled.y() * sin(c) * cosTheta1) / phi));
         double lon = _projectionCenter.getLongitudeRad() +
         atan((unscaled.x()* sin(c)) / (phi  * cosTheta1 * cos(c) - unscaled.y() * sinTheta1 * sin(c)));
         return SGGeod::fromRad(lon, lat);
     }
-        
+
     case PROJECTION_SPHERICAL:
     {
         SGVec2d unscaled = ur * (1.0 / currentScale());
@@ -1942,12 +2001,15 @@ void MapWidget::drawData()
     }
 
     if (md->overlaps(drawQueue)) {
-      if (drawData) { // overlapped with data, let's try just the label
+      bool placed = md->placeAvoidingOverlap(drawQueue);
+      if (!placed && drawData) {
+        // still overlapping even after trying other positions; fall
+        // back to just the label (smaller box), and try again
         md->setDataVisible(false);
-        if (md->overlaps(drawQueue)) {
-          continue;
-        }
-      } else {
+        placed = !md->overlaps(drawQueue) || md->placeAvoidingOverlap(drawQueue);
+      }
+
+      if (!placed) {
         continue;
       }
     } // of overlaps case
@@ -2033,7 +2095,7 @@ void MapWidget::clearData()
   for (; it != _mapData.end(); ++it) {
     delete it->second;
   }
-  
+
   _mapData.clear();
 }
 
@@ -2042,7 +2104,7 @@ int MapWidget::displayHeading(double h) const
   if (_magneticHeadings) {
     h -= _magVar->get_magvar() * SG_RADIANS_TO_DEGREES;
   }
-  
+
   SG_NORMALIZE_RANGE(h, 0.0, 360.0);
   return SGMiscd::roundToInt(h);
 }
@@ -2055,13 +2117,13 @@ MapWidget::DrawAIObject::DrawAIObject(SGPropertyNode* m, const SGGeod& g) :
 {
     std::string name(model->getNameString());
     heading = model->getDoubleValue("orientation/true-heading-deg");
-    
+
     if ((name == "aircraft") || (name == "multiplayer") ||
         (name == "wingman") || (name == "tanker") || (name == "swift"))
     {
         speedKts = static_cast<int>(model->getDoubleValue("velocities/true-airspeed-kt"));
         label = model->getStringValue("callsign", "<>");
-    
+
         // try to access the flight-plan of the aircraft. There are several layers
         // of potential NULL-ness here, so we have to be defensive at each stage.
         std::string originICAO, destinationICAO;
@@ -2073,13 +2135,13 @@ MapWidget::DrawAIObject::DrawAIObject(SGPropertyNode* m, const SGGeod& g) :
                 if (p->GetFlightPlan()->departureAirport()) {
                     originICAO = p->GetFlightPlan()->departureAirport()->ident();
                 }
-                
+
                 if (p->GetFlightPlan()->arrivalAirport()) {
                     destinationICAO = p->GetFlightPlan()->arrivalAirport()->ident();
                 }
             } // of flight-plan exists
         } // of check for AIBase-derived instance
-        
+
         // draw callsign / altitude / speed
         int altFt50 = static_cast<int>(pos.getElevationFt() / 50.0) * 50;
         std::ostringstream ss;
@@ -2087,7 +2149,7 @@ MapWidget::DrawAIObject::DrawAIObject(SGPropertyNode* m, const SGGeod& g) :
         if (speedKts > 1) {
             ss << "\n" << altFt50 << "' " << speedKts << "kts";
         }
-        
+
         if (!originICAO.empty() || ! destinationICAO.empty()) {
             ss << "\n" << originICAO << " -> " << destinationICAO;
         }
@@ -2097,7 +2159,7 @@ MapWidget::DrawAIObject::DrawAIObject(SGPropertyNode* m, const SGGeod& g) :
         boat = true;
         speedKts = static_cast<int>(model->getDoubleValue("velocities/speed-kts"));
         label = model->getStringValue("name", "<>");
-        
+
         char buffer[1024];
         ::snprintf(buffer, 1024, "%s\n%dkts",
                    model->getStringValue("name", "<>").c_str(),
@@ -2105,4 +2167,3 @@ MapWidget::DrawAIObject::DrawAIObject(SGPropertyNode* m, const SGGeod& g) :
         legend = buffer;
     }
 }
-
