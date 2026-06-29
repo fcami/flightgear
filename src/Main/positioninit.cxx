@@ -146,7 +146,10 @@ static bool setPosFromAirportIDandHdg(const string& id, double tgt_hdg)
     const FGAirport* apt = fgFindAirportID(id);
     if (!apt) return false;
 
-    SGGeod startPos;
+    // Fall back to the airport reference position so that a failure to select
+    // a runway (e.g. when airport dynamics are not available) does not leave
+    // us at the default-constructed 0/0 location, out in the ocean.
+    SGGeod startPos = apt->geod();
     double heading = tgt_hdg;
     if (apt->type() == FGPositioned::HELIPORT) {
         if (apt->numHelipads() > 0) {

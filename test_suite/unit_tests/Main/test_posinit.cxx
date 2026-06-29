@@ -155,6 +155,37 @@ void PosInitTests::testAirportOnlyStartup()
     checkPosition(FGAirport::getByIdent("EDDF"s)->geod(), 10000.0);
 }
 
+void PosInitTests::testAirportOnlyStartupWithoutDynamics()
+{
+    // Without airport dynamics, runway selection fails; spawn must fall back to
+    // the airport reference position instead of default-constructed 0/0 (Null Island).
+    globals->get_subsystem_mgr()->remove(flightgear::AirportDynamicsManager::staticSubsystemClassId());
+
+    {
+        Options* opts = Options::sharedInstance();
+        opts->setShouldLoadDefaultConfig(false);
+
+        const char* args[] = {"dummypath", "--airport=EDDF"};
+        opts->init(2, (char**)args, SGPath());
+        opts->processOptions();
+    }
+
+    CPPUNIT_ASSERT(fgGetBool("/sim/presets/airport-requested"));
+    initPosition();
+
+    auto apt = FGAirport::getByIdent("EDDF"s);
+    CPPUNIT_ASSERT(apt);
+
+    SGGeod pos = SGGeod::fromDeg(
+        globals->get_props()->getDoubleValue("/position/longitude-deg"),
+        globals->get_props()->getDoubleValue("/position/latitude-deg"));
+    CPPUNIT_ASSERT_MESSAGE("Spawned at Null Island",
+                           SGGeodesy::distanceM(pos, SGGeod::fromDeg(0, 0)) > 1000.0);
+
+    checkClosestAirport("EDDF"s);
+    checkPosition(apt->geod(), 1000.0);
+}
+
 void PosInitTests::testAirportAltitudeOffsetStartup()
 {
     {

@@ -40,6 +40,7 @@ class PosInitTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testAirportAndAvailableParkingStartup);
     CPPUNIT_TEST(testAirportAndParkingStartup);
     CPPUNIT_TEST(testAirportOnlyStartup);
+    CPPUNIT_TEST(testAirportOnlyStartupWithoutDynamics);
     CPPUNIT_TEST(testAirportRunwayOffsetAltitudeStartup);
     CPPUNIT_TEST(testAirportRunwayOffsetGlideslopeStartup);
     CPPUNIT_TEST(testDefaultStartup);
@@ -95,6 +96,7 @@ public:
     void testAirportAndParkingStartup();
     void testAirportAndRunwayStartup();
     void testAirportOnlyStartup();
+    void testAirportOnlyStartupWithoutDynamics();
     void testAirportRunwayOffsetAltitudeStartup();
     void testAirportRunwayOffsetGlideslopeStartup();
     void testDefaultStartup();
