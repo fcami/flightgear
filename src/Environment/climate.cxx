@@ -303,13 +303,12 @@ void FGClimate::update_pressure()
     // pressure at elevation_itude
     static const double R0 = 8.314462618; // Universal gas constant
     static const double P0 = 101325.0;    // Sea level standard atm. pressure
-    static const double T0 = 288.15;      // Sea level standard temperature
     static const double L = 0.0065;       // Temperature lapse rate
     static const double M = 0.0289654;    // Molar mass of dry air
 
     double h = _gl.elevation_m/1000.0;
     double g = _gravityNode->getDoubleValue();
-    double P = P0*pow(1.0 - L*h/T0, g*M/(L*R0));
+    double P = P0*pow(1.0 - L*h/(Tc+273.1), g*M/(L*R0));
 
     // partial pressure of dry air
     double Pd = P - Pv;
@@ -804,14 +803,11 @@ void FGClimate::set_polar()
 
 void FGClimate::set_environment()
 {
-    double snow_fact, precipitation;
-
-    _set(_snow_level, 1000.0*_sl.temperature_mean/9.8);
-
     // rough estimate
     // Mist forms when the relative humidity is greater than about 70%
     // Fog forms when the difference between air temperature and dew point
     // is less than 2.5°C
+    double snow_fact, precipitation;
     double humidity, diff_temp_dewpoint;
     if (1 || !_weather_update)
     {
@@ -900,6 +896,18 @@ void FGClimate::set_environment()
         double cover = std::min(_gl.precipitation_annual, 990.0)/990.0;
         _set(_lichen_cover, 0.5*pow(_wetness*cover, 1.5));
     }
+
+    // Snow level: linear interpolation from 40% to 100% RH, dry adiabatic (9.8) below 40%
+    double rh = std::clamp(_gl.relative_humidity, 0.0, 100.0);
+    double lapse_rate;
+    if (humidity <= 40.0) {
+        lapse_rate = 9.8;
+    } else {
+        // 40% → 9.8, 100% → 5.5
+        double t = (humidity - 40.0) / 60.0;  // 0~1
+        lapse_rate = 9.8 - t * 4.3;
+    }
+    _set(_snow_level, 1000.0 * _sl.temperature_mean / lapse_rate);
 
     _rootNode->setDoubleValue("daytime-pct", _daytime*100.0);
     _rootNode->setDoubleValue("daylight-pct", _day_light*100.0);
