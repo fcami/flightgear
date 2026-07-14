@@ -17,6 +17,7 @@
 #include <mutex>
 
 #include <Environment/environment.hxx>
+#include <simgear/props/propertyObject.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 
 using std::vector;
@@ -36,8 +37,8 @@ private:
         // Copy of placement map - raw pointers are safe because SGVoxelCloud
         // objects are owned by _cloudPlacementMap and outlive the task.
         using LocalPlacement = std::pair<const SGVoxelCloud*, osg::Vec3f>;
-        std::vector<LocalPlacement> detailedFieldList{};
-        std::vector<LocalPlacement> roughFieldList{};
+        std::vector<LocalPlacement> detailedFieldList;
+        std::vector<LocalPlacement> roughFieldList;
 
         // Config captured at snapshot time
         int detailedFieldWidth{};
@@ -51,8 +52,8 @@ private:
         bool fieldRepeating{};
 
         // Field center for fgSet* calls at commit time
-        SGVec3<double> centerCart{};
-        osg::Matrixf cloudPosMatrix{};
+        SGVec3<double> centerCart;
+        osg::Matrixf cloudPosMatrix;
         float cloudbaseM = 999999.0f;
     };
 
@@ -61,7 +62,7 @@ private:
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
         osg::ref_ptr<osg::Image> windOffsetData;
-        float maxZ = 0.0f;
+        double maxZ = 0.0f;
         float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
     };
@@ -77,13 +78,13 @@ private:
         // osg::Texture3D and can be touched concurrently by the render/GPU-upload
         // path, which is a data race even though osg::Referenced ref-counting itself
         // is atomic.
-        std::vector<float> voxelData{};
+        std::vector<float> voxelData;
         int width{};
         int height{};
         float voxelOpticalDepth{};
 
         // Sun direction (world-space, already transformed to Z-up)
-        osg::Vec3f sunDirVoxel{};
+        osg::Vec3f sunDirVoxel;
     };
 
     struct ShadeRebuildResult {
@@ -97,11 +98,6 @@ private:
     // Set on any mutation; cleared once a new async rebuild is launched.
     std::atomic<bool> _fieldDirty{false};
 
-    // Set whenever the shade texture needs to be regenerated: after a field
-    // rebuild (the density data it depends on has changed) or when the sun
-    // direction has moved more than _shadeUpdateAngleDeg since the last build.
-    std::atomic<bool> _shadeDirty{true};
-
     // The running or completed async task.  checked in updateFromOsgTraversal.
     std::future<RebuildResult> _rebuildFuture;
 
@@ -113,7 +109,7 @@ private:
 
     // Sun direction (Z-up, voxel space) used for the most recently launched
     // shade build, so we can detect when it has drifted enough to need redoing.
-    osg::Vec3f _lastShadeSunDir = osg::Vec3f();
+    osg::Vec3f _lastShadeSunDir;
 
     size_t _roughFieldWidth;
     size_t _roughFieldHeight;
@@ -148,18 +144,18 @@ private:
     osg::ref_ptr<simgear::SGReaderWriterOptions> _options;
 
     // Properties that are subsequently mapped to Uniforms by the Effects system
-    SGPropertyNode_ptr _cloudBaseM;
-    SGPropertyNode_ptr _cloudBaseZNorm;
-    SGPropertyNode_ptr _cloudCenterX;
-    SGPropertyNode_ptr _cloudCenterY;
-    SGPropertyNode_ptr _cloudCenterZ;
-    SGPropertyNode_ptr _mirrorU;
-    SGPropertyNode_ptr _mirrorV;
-    SGPropertyNode_ptr _cloudFieldRepeating;
-    SGPropertyNode_ptr _activeVoxelFieldHeightNorm;
+    SGPropObjDouble _cloudBaseM;
+    SGPropObjDouble _cloudBaseZNorm;
+    SGPropObjDouble _cloudCenterX;
+    SGPropObjDouble _cloudCenterY;
+    SGPropObjDouble _cloudCenterZ;
+    SGPropObjBool _mirrorU;
+    SGPropObjBool _mirrorV;
+    SGPropObjBool _cloudFieldRepeating;
+    SGPropObjDouble _activeVoxelFieldHeightNorm;
 
     // Minimum sun direction change (in degrees) that triggers a shade rebuild.
-    SGPropertyNode_ptr _shadeUpdateAngleDeg;
+    SGPropObjDouble _shadeUpdateAngleDeg;
 
     // A node in the scenegraph purely used to ensure that the voxel data
     // is modified during the update traversal.
@@ -202,7 +198,7 @@ private:
 
     // Asynchronous rebuild of the cloud layers.
     RebuildSnapshot captureSnapshot();
-    static RebuildResult runRebuild(RebuildSnapshot snap); // static = no 'this' access
+    static RebuildResult runRebuild(RebuildSnapshot snap);
     void commitResult(RebuildResult result);
 
     // Asynchronous rebuild of just the shade texture - independent of the

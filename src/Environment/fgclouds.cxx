@@ -55,16 +55,35 @@ FGClouds::FGClouds() : index(0)
 
     auto p = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
 
-    _cloudBaseM = p->getNode("cloud-base-m", true);
-    _cloudBaseZNorm = p->getNode("cloud-base-z-norm", true);
-    _cloudCenterX = p->getNode("cloud-center-x", true);
-    _cloudCenterY = p->getNode("cloud-center-y", true);
-    _cloudCenterZ = p->getNode("cloud-center-z", true);
-    _mirrorU = p->getNode("mirror-u", true);
-    _mirrorV = p->getNode("mirror-v", true);
-    _cloudFieldRepeating = p->getNode("cloud-field-repeating", true);
-    _activeVoxelFieldHeightNorm = p->getNode("active-voxel-field-height-norm", true);
-    _shadeUpdateAngleDeg = p->getNode("shade-update-angle-deg", true);
+    _cloudBaseM = SGPropObjDouble(p, "cloud-base-m");
+    _cloudBaseM.setDefault(0.0);
+
+    _cloudBaseZNorm = SGPropObjDouble(p, "cloud-base-z-norm");
+    _cloudBaseZNorm.setDefault(0.0);
+
+    _cloudCenterX = SGPropObjDouble(p, "cloud-center-x");
+    _cloudCenterX.setDefault(0.0);
+
+    _cloudCenterY = SGPropObjDouble(p, "cloud-center-y");
+    _cloudCenterY.setDefault(0.0);
+
+    _cloudCenterZ = SGPropObjDouble(p, "cloud-center-z");
+    _cloudCenterZ.setDefault(0.0);
+
+    _mirrorU = SGPropObjBool(p, "mirror-u");
+    _mirrorU.setDefault(false);
+
+    _mirrorV = SGPropObjBool(p, "mirror-v");
+    _mirrorV.setDefault(false);
+
+    _cloudFieldRepeating = SGPropObjBool(p, "cloud-field-repeating");
+    _cloudFieldRepeating.setDefault(false);
+
+    _activeVoxelFieldHeightNorm = SGPropObjDouble(p, "active-voxel-field-height-norm");
+    _activeVoxelFieldHeightNorm.setDefault(0.0);
+
+    _shadeUpdateAngleDeg = SGPropObjDouble(p, "shade-update-angle-deg");
+    _shadeUpdateAngleDeg.setDefault(0.0);
 }
 
 FGClouds::~FGClouds()
@@ -577,10 +596,10 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
 
-    _cloudCenterX->setFloatValue((float)_centerCart.x());
-    _cloudCenterY->setFloatValue((float)_centerCart.y());
-    _cloudCenterZ->setFloatValue((float)_centerCart.z());
-    _cloudFieldRepeating->setBoolValue(_fieldRepeating);
+    _cloudCenterX = _centerCart.x();
+    _cloudCenterY = _centerCart.y();
+    _cloudCenterZ = _centerCart.z();
+    _cloudFieldRepeating = _fieldRepeating;
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
@@ -725,7 +744,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     for (const auto& cl : snap.detailedFieldList) {
         const SGVoxelCloud* c = cl.first;
         osg::Vec3f p = cl.second + zOffset;
-        float z = (float)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
+        double z = (double)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
         result.maxZ = std::max(z, result.maxZ);
     }
 
@@ -737,7 +756,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         for (const auto& cl : snap.roughFieldList) {
             const SGVoxelCloud* c = cl.first;
             osg::Vec3f p = cl.second + zOffset;
-            float z = (float)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            double z = (double)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
             result.maxZ = std::max(z, result.maxZ);
         }
 
@@ -771,9 +790,7 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
 
     // sunDirVoxel is already normalised in *voxel* space (with Z scaled by
-    // width/height to compensate for non-cubic voxels).  Convert back to a
-    // uniform step direction for marching: undo the Z scale so each unit step
-    // is one voxel in each axis, then re-normalise.
+    // width/height to compensate for non-cubic voxels).
     osg::Vec3f marchDir = snap.sunDirVoxel;
 
     // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
@@ -799,7 +816,8 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
         };
 
         // Trilinear interpolation
-        return (1 - fz) * ((1 - fy) * ((1 - fx) * d(x0, y0, z0) + fx * d(x1, y0, z0)) + fy * ((1 - fx) * d(x0, y1, z0) + fx * d(x1, y1, z0))) + fz * ((1 - fy) * ((1 - fx) * d(x0, y0, z1) + fx * d(x1, y0, z1)) + fy * ((1 - fx) * d(x0, y1, z1) + fx * d(x1, y1, z1)));
+        return (1 - fz) * ((1 - fy) * ((1 - fx) * d(x0, y0, z0) + fx * d(x1, y0, z0)) + fy * ((1 - fx) * d(x0, y1, z0) + fx * d(x1, y1, z0))) +
+               fz * ((1 - fy) * ((1 - fx) * d(x0, y0, z1) + fx * d(x1, y0, z1)) + fy * ((1 - fx) * d(x0, y1, z1) + fx * d(x1, y1, z1)));
     };
 
     // For each voxel, ray-march toward the sun accumulating optical depth
@@ -858,12 +876,12 @@ void FGClouds::commitResult(RebuildResult result)
     // Setting property values needs to be done on the main thread as an atomic operation
 
     // We pad the cloud field height slightly so that we get smooth interpolation of density values in the shader.
-    const float cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
-    _activeVoxelFieldHeightNorm->setFloatValue(cloudFieldHeightM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    _cloudBaseM->setFloatValue(result.cloudbaseM);
-    _cloudBaseZNorm->setFloatValue(result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    _mirrorU->setBoolValue(false);
-    _mirrorV->setBoolValue(false);
+    const double cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
+    _activeVoxelFieldHeightNorm = cloudFieldHeightM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseM = (double) result.cloudbaseM;
+    _cloudBaseZNorm = (double) result.cloudbaseM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _mirrorU = false;
+    _mirrorV = false;
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
@@ -873,10 +891,6 @@ void FGClouds::commitResult(RebuildResult result)
     // Push them into the textures
     simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, result.fieldRepeating);
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
-
-    // The density data the shade texture is built from has just changed, so it needs
-    // to be regenerated - independently of any sun direction change.
-    _shadeDirty = true;
 }
 
 FGClouds::ShadeSnapshot FGClouds::captureShadeSnapshot()
@@ -993,12 +1007,15 @@ void FGClouds::updateWindColumn(double dt, FGEnvironment* env)
 
 void FGClouds::updateFromOsgTraversal()
 {
+    bool shadeDirty = false;
+
     // Poll for a completed background rebuild first
     if (_rebuildFuture.valid() &&
         _rebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         commitResult(_rebuildFuture.get()); // non-blocking — already done
         // Don't clear _fieldDirty here; a new mutation may have arrived
         // while the last rebuild was in flight — see below.
+        shadeDirty = true;
     }
 
     // Launch a new rebuild if dirty and nothing is running
@@ -1019,21 +1036,20 @@ void FGClouds::updateFromOsgTraversal()
     // Mark the shade texture dirty if the sun has moved more than the configured
     // threshold since the last shade build. This lets the shade texture
     // track the sun (e.g. time-of-day changes) independently of cloud rebuilds.
-    if (_detailedVoxelData && !_shadeDirty) {
+    if (_detailedVoxelData && !shadeDirty) {
         const osg::Vec3f sunDirVoxel = computeSunDirVoxel();
         const float cosAngle = sunDirVoxel * _lastShadeSunDir;
-        const float thresholdDeg = _shadeUpdateAngleDeg->getFloatValue();
+        const float thresholdDeg = _shadeUpdateAngleDeg;
         if (cosAngle < std::cos(thresholdDeg * SG_DEGREES_TO_RADIANS)) {
-            _shadeDirty = true;
+            shadeDirty = true;
         }
     }
 
     // Launch a new shade rebuild if dirty, nothing is running, and there is
     // some voxel data to shade.
-    if (_shadeDirty && _detailedVoxelData &&
+    if (shadeDirty && _detailedVoxelData &&
         (!_shadeRebuildFuture.valid() ||
          _shadeRebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
-        _shadeDirty = false; // clear before launch; any new mutation re-sets it
         ShadeSnapshot snap = captureShadeSnapshot();
         _lastShadeSunDir = snap.sunDirVoxel;
         _shadeRebuildFuture = std::async(std::launch::async,
@@ -1043,9 +1059,9 @@ void FGClouds::updateFromOsgTraversal()
     if (_fieldRepeating) updateRepeatingField();
 
     // Adjust the altitude of the cloud base
-    const float cloudBaseM = _cloudBaseM->getFloatValue();
-    const float fieldHeightM = (float)(_detailedFieldHeight * _detailedFieldVoxelSize);
-    _cloudBaseZNorm->setFloatValue(cloudBaseM / fieldHeightM);
+    const double cloudBaseM = _cloudBaseM;
+    const double fieldHeightM = (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseZNorm = cloudBaseM / fieldHeightM;
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
@@ -1082,20 +1098,20 @@ void FGClouds::updateRepeatingField()
         _centerCart = _centerCart + toSG(snapECEF);
 
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-        _cloudCenterX->setFloatValue((float)_centerCart.x());
-        _cloudCenterY->setFloatValue((float)_centerCart.y());
-        _cloudCenterZ->setFloatValue((float)_centerCart.z());
+        _cloudCenterX = _centerCart.x();
+        _cloudCenterY = _centerCart.y();
+        _cloudCenterZ = _centerCart.z();
 
         // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
         // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
         // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
         // in too large a rotation of the up vector.
         if (std::abs(snapX) >= 1.0f) {
-            _mirrorU->setBoolValue(!_mirrorU->getBoolValue());
+            _mirrorU = !_mirrorU;
         }
 
         if (std::abs(snapY) >= 1.0f) {
-            _mirrorV->setBoolValue(!_mirrorV->getBoolValue());
+            _mirrorV = !_mirrorV;
         }
     }
 }
