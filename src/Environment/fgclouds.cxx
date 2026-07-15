@@ -789,9 +789,10 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
 
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
 
-    // sunDirVoxel is already normalised in *voxel* space (with Z scaled by
-    // width/height to compensate for non-cubic voxels).
+    // sunDirVoxel Z needs to be scaled up because the voxel space is not a cube.
     osg::Vec3f marchDir = snap.sunDirVoxel;
+    marchDir.z() = marchDir.z() * (float) snap.width / (float) snap.height;
+    marchDir.normalize();
 
     // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
     const float STEP_SIZE = 0.5f;
