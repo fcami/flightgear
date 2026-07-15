@@ -791,7 +791,7 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
 
     // sunDirVoxel Z needs to be scaled up because the voxel space is not a cube.
     osg::Vec3f marchDir = snap.sunDirVoxel;
-    marchDir.z() = marchDir.z() * (float) snap.width / (float) snap.height;
+    marchDir.z() = marchDir.z() * (float)snap.width / (float)snap.height;
     marchDir.normalize();
 
     // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
@@ -879,8 +879,8 @@ void FGClouds::commitResult(RebuildResult result)
     // We pad the cloud field height slightly so that we get smooth interpolation of density values in the shader.
     const double cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
     _activeVoxelFieldHeightNorm = cloudFieldHeightM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
-    _cloudBaseM = (double) result.cloudbaseM;
-    _cloudBaseZNorm = (double) result.cloudbaseM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseM = (double)result.cloudbaseM;
+    _cloudBaseZNorm = (double)result.cloudbaseM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
     _mirrorU = false;
     _mirrorV = false;
 
