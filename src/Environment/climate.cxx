@@ -308,7 +308,7 @@ void FGClimate::update_pressure()
 
     double h = _gl.elevation_m/1000.0;
     double g = _gravityNode->getDoubleValue();
-    double P = P0*pow(1.0 - L*h/(Tc+273.1), g*M/(L*R0));
+    double P = P0 * pow(1.0 - L * h / (Tc + 273.1), g * M / (L * R0));
 
     // partial pressure of dry air
     double Pd = P - Pv;
@@ -898,13 +898,12 @@ void FGClimate::set_environment()
     }
 
     // Snow level: linear interpolation from 40% to 100% RH, dry adiabatic (9.8) below 40%
-    double rh = std::clamp(_gl.relative_humidity, 0.0, 100.0);
     double lapse_rate;
     if (humidity <= 40.0) {
         lapse_rate = 9.8;
     } else {
         // 40% → 9.8, 100% → 5.5
-        double t = (humidity - 40.0) / 60.0;  // 0~1
+        double t = (humidity - 40.0) / 60.0; // 0~1
         lapse_rate = 9.8 - t * 4.3;
     }
     _set(_snow_level, 1000.0 * _sl.temperature_mean / lapse_rate);
