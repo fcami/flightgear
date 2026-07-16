@@ -182,7 +182,7 @@ linux-qt5-build:
       artifacts: true
       ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
-      job: linux-build
+      job: linux-stable-build
       ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
