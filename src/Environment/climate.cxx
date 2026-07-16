@@ -898,7 +898,6 @@ void FGClimate::set_environment()
     }
 
     // Snow level: linear interpolation from 40% to 100% RH, dry adiabatic (9.8) below 40%
-    double rh = std::clamp(_gl.relative_humidity, 0.0, 100.0);
     double lapse_rate;
     if (humidity <= 40.0) {
         lapse_rate = 9.8;
