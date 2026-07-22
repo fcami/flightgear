@@ -533,7 +533,7 @@ bool FGClouds::repositionCloud(int index, float lon, float lat, float alt, float
 // the main thread (reads FGLight subsystem state and _cloudPosMatrix).
 osg::Vec3f FGClouds::computeSunDirVoxel() const
 {
-    assert(SGThreads::isMainThread());
+    assert(SGThread::isMainThread());
     auto l = globals->get_subsystem<FGLight>();
 
     // sun_vec() points from scene toward sun in world (ECEF) space
@@ -552,7 +552,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 {
     RebuildSnapshot snap;
 
-    assert(SGThreads::isMainThread());
+    assert(SGThread::isMainThread());
 
     // Read config (always main-thread safe)
     auto cloudsProp = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
@@ -896,7 +896,7 @@ void FGClouds::commitResult(RebuildResult result)
 
 FGClouds::ShadeSnapshot FGClouds::captureShadeSnapshot()
 {
-    assert(SGThreads::isMainThread());
+    assert(SGThread::isMainThread());
 
     ShadeSnapshot snap;
     snap.width = _detailedVoxelData->s();
