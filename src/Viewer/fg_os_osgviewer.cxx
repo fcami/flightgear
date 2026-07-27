@@ -53,6 +53,8 @@
 
 #if defined(SG_WINDOWS)
 #include <process.h> // _getpid()
+#else
+    #include <unistd.h>
 #endif
 
 using namespace std;
