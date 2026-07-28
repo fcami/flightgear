@@ -819,11 +819,15 @@ bool FGProps::close()
     // guard this, since NetChannelPoller::removeChannel must be symmetric
     if (is_enabled()) {
         SG_LOG(SG_IO, SG_INFO, "closing FGProps");
-        for (auto channel : _activeChannels) {
+        // Swap out _activeChannels before iterating: ~PropsChannel calls removeChannel()
+        // which would otherwise modify _activeChannels during the range-for loop,
+        // causing iterator invalidation and potential use-after-free with 3+ connections.
+        std::vector<PropsChannel*> toClose;
+        std::swap(toClose, _activeChannels);
+        for (auto channel : toClose) {
             channel->close();
             delete channel;
         }
-        _activeChannels.clear();
         poller.removeChannel(this);
 
         set_enabled(false);
@@ -864,9 +868,9 @@ void FGProps::handleAccept()
 void FGProps::removeChannel(FGProps::PropsChannel* channel)
 {
     auto it = std::find(_activeChannels.begin(), _activeChannels.end(), channel);
-    if (it == _activeChannels.end()) {
-        SG_LOG(SG_IO, SG_WARN, "FGProps::removeChannel: unknown channel");
-    } else {
+    if (it != _activeChannels.end()) {
         _activeChannels.erase(it);
     }
+    // not finding the channel is expected when called from ~PropsChannel
+    // during FGProps::close(), since _activeChannels has been swapped out
 }
