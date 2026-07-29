@@ -1,7 +1,17 @@
 # SPDX-FileCopyrightText: 2016 Edward d'Auvergne
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-target_sources(fgfs_test_suite PRIVATE TestSuite.cxx)
+target_sources(fgfs_test_suite PRIVATE
+    TestSuite.cxx
+    httpTestHelpers.hxx
+    test_JsonUriHandler.cxx             test_JsonUriHandler.hxx
+    test_PropertyChangeWebsocket.cxx    test_PropertyChangeWebsocket.hxx
+    test_MirrorPropertyTreeWebsocket.cxx test_MirrorPropertyTreeWebsocket.hxx
+)
+
+fg_add_test_suite(JsonUriHandlerTests              u)
+fg_add_test_suite(PropertyChangeWebsocketTests     u)
+fg_add_test_suite(MirrorPropertyTreeWebsocketTests u)
 
 if(ENABLE_SWIFT)
     target_sources(fgfs_test_suite PRIVATE

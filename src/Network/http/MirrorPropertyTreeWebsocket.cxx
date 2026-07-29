@@ -201,12 +201,13 @@ using std::string;
 
             auto it = idHash.find(child);
             if (it != idHash.end()) {
-                removedNodes.insert(it->second);
+                const auto id = it->second; // save before erase invalidates the iterator
+                removedNodes.insert(id);
                 idHash.erase(it);
                 // record so we can map removed+add of the same property into
                 // a simple value change (this happens commonly with the canvas
                 // due to lazy Nasal scripting)
-                recentlyRemoved.emplace_back(child, it->second);
+                recentlyRemoved.emplace_back(child, id);
 #if defined (MIRROR_DEBUG)
                 SG_LOG(SG_NETWORK, SG_INFO, "adding RR:" << recentlyRemoved.back().path);
 #endif
@@ -374,16 +375,16 @@ static void handleExecCommand(cJSON* json)
 }
 #endif
 
-MirrorPropertyTreeWebsocket::MirrorPropertyTreeWebsocket(const std::string& path) :
-    _rootPath(path),
-    _listener(new MirrorTreeListener),
-    _minSendInterval(100)
-{
-    checkNodeExists();
-}
+    MirrorPropertyTreeWebsocket::MirrorPropertyTreeWebsocket(const std::string& path) : _rootPath(path),
+                                                                                        _listener(new MirrorTreeListener),
+                                                                                        _minSendInterval(fgGetInt("/sim/http/mirror-websocket/update-interval-ms", 100))
+    {
+        checkNodeExists();
+    }
 
 MirrorPropertyTreeWebsocket::~MirrorPropertyTreeWebsocket()
 {
+    close();
 }
 
 void MirrorPropertyTreeWebsocket::close()
