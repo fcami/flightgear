@@ -857,6 +857,10 @@ static int get_sample_cnt(struct iax_event *e)
 static int iax_xmit_frame(struct iax_frame *f)
 {
 	int res;
+    if (!f->session) {
+        IAXERROR "No session in iax_xmit_frame");
+        return -1;
+    }
 #ifdef DEBUG_SUPPORT
 	if (debug) {
 		struct ast_iax2_full_hdr *h = (struct ast_iax2_full_hdr *)f->data;
@@ -868,10 +872,6 @@ static int iax_xmit_frame(struct iax_frame *f)
 										f->datalen - sizeof(struct ast_iax2_full_hdr));
 	}
 #endif
-    if (!f->session) {
-        IAXERROR "No session in iax_xmit_frame");
-        return -1;
-    }
 
     /* Send the frame raw */
 	res = f->session->sendto(netfd, (const char *) f->data, f->datalen,
@@ -898,6 +898,7 @@ static int iax_reliable_xmit(struct iax_frame *f)
 		if (!fc->data || !fc->datalen) {
 			IAXERROR "No frame data?");
 			DEBU(G "No frame data?\n");
+			free(fc);
 			return -1;
 		} else {
 			fc->data = (char *)malloc(fc->datalen);
@@ -930,8 +931,8 @@ int iax_init(int preferredportno)
 {
 	int portno = preferredportno;
 #ifndef _MSC_VER // avoid compare of address of imported function
-     /* MSVC only - In certain circumstances the addresses placed in iax_sendto and iax_recvfrom 
-        can be an offset to a jump table, making a compare of the current address to the address 
+     /* MSVC only - In certain circumstances the addresses placed in iax_sendto and iax_recvfrom
+        can be an offset to a jump table, making a compare of the current address to the address
         of the actual imported function fail. */
 	if (iax_recvfrom == (iax_recvfrom_t)recvfrom)
 #endif // !_MSC_VER
@@ -1149,7 +1150,7 @@ static int iax_send(struct iax_session *pvt, struct ast_frame *f, unsigned int t
 		now = 0;
 		sendmini = 0;
 	}
-	
+
 	/* Allocate an iax_frame */
 	if (now)
 	{
@@ -1163,7 +1164,7 @@ static int iax_send(struct iax_session *pvt, struct ast_frame *f, unsigned int t
 			return -1;
 		}
 	}
-	
+
 	/* Copy our prospective frame into our immediate or retransmitted wrapper */
 	iax_frame_wrap(fr, f);
 
@@ -2303,7 +2304,7 @@ static int forward_match(struct sockaddr_in *sin, short callno, short dcallno, s
 			if (cur->peercallno == 0) {
 				cur->peercallno = callno;
 			}
-			else if ( cur->peercallno != callno ) 
+			else if ( cur->peercallno != callno )
 			{
 				// print a warning when the callno's don't match
 				fprintf( stderr, "WARNING: peercallno does not match callno"
@@ -2677,8 +2678,8 @@ static struct iax_event *iax_header_to_event(struct iax_session *session, struct
 			/* If it's not an ACK packet, it's out of order. */
 			DEBU(G "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n",
 				session->iseqno, fh->oseqno, fh->type, subclass);
-			
-			/* 
+
+			/*
 			 * Check if session->iseqno > fh->oseqno, accounting for possible wrap around
 			 * This is correct if the two values are not equal (which, in this case, is guaranteed)
 			 */
@@ -3363,16 +3364,25 @@ struct iax_event *iax_get_event(int blocking)
 					frame->retrytime = 1000;
 				fh = (struct ast_iax2_full_hdr *)(frame->data);
 				fh->dcallno = htons(IAX_FLAG_RETRANS | frame->dcallno);
-				iax_xmit_frame(frame);
-				/* Schedule another retransmission */
-				DEBU(G "Scheduling retransmission %d\n", frame->retries);
-				iax_sched_add(NULL, frame, NULL, NULL, frame->retrytime);
+				if (iax_session_valid(frame->session)) {
+					iax_xmit_frame(frame);
+					/* Schedule another retransmission */
+					DEBU(G "Scheduling retransmission %d\n", frame->retries);
+					iax_sched_add(NULL, frame, NULL, NULL, frame->retrytime);
+				} else {
+					if (frame->data)
+						free(frame->data);
+					free(frame);
+					free(cur);
+					cur = NULL;
+				}
 			}
 		} else if (cur->func)
 		{
 		    cur->func(cur->arg);
 		}
-		free(cur);
+		if (cur)
+			free(cur);
 	}
 
 	/* get jitterbuffer-scheduled events */
