@@ -101,13 +101,13 @@ public:
         return SGPath(); // not found
     }
 
-    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        std::vector<SGPath> paths;
+        std::vector<simgear::ResourceManager::FoundFile> files;
         for (const SGPath& path : globals->get_aircraft_paths()) {
-            findAllOfTypeHelper(path, type, paths);
+            findAllOfTypeHelper(path, type, files);
         }
-        return paths;
+        return files;
     }
 };
 
@@ -125,11 +125,11 @@ public:
         return p.exists() ? p : SGPath();
     }
 
-    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        std::vector<SGPath> paths;
-        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
-        return paths;
+        std::vector<simgear::ResourceManager::FoundFile> files;
+        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, files);
+        return files;
     }
 };
 
