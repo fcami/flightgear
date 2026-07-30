@@ -84,7 +84,7 @@ class FGVoiceMgr::FGVoice : public SGPropertyChangeListener
 {
 public:
   FGVoice(FGVoiceMgr * mgr ) : _mgr(mgr) {}
-  virtual ~FGVoice() {}
+  virtual ~FGVoice();
   virtual void speak( const std::string & msg ) = 0;
   virtual void update(double dt) = 0;
   void pushMessage( const std::string & m);
@@ -92,8 +92,12 @@ public:
 
 protected:
   void valueChanged(SGPropertyNode *node);
+  // register as change listener on the given node, and remember it so the
+  // listener can be removed again in ~FGVoice()
+  void listenOnTextNode(SGPropertyNode_ptr node);
 
   FGVoiceMgr *_mgr;
+  SGPropertyNode_ptr _textNode;
 
 #if defined(ENABLE_THREADS)
   SGLockedQueue<std::string> _msg;
