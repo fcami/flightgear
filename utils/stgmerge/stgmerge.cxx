@@ -1,20 +1,5 @@
-// stgmerge.cxx -- combined STG models
-//
-// Copyright (C) 2015 Stuart Buchanan
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2015 Stuart Buchanan
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -709,10 +694,10 @@ int main(int argc, char** argv) {
 		SG_LOG(SG_GENERAL, SG_ALERT,
 				"Problems loading FlightGear materials.\n" << "Probably FG_ROOT is not properly set.");
 	}
-	simgear::SGModelLib::init(fg_root, props);
+    simgear::SGModelLib::init(simgear::PathList{SGPath(fg_root)}, props);
 
-	// Set up the reader/writer options
-	osg::ref_ptr<simgear::SGReaderWriterOptions> options;
+    // Set up the reader/writer options
+    osg::ref_ptr<simgear::SGReaderWriterOptions> options;
 	if (osgDB::Options* ropt = osgDB::Registry::instance()->getOptions())
 		options = new simgear::SGReaderWriterOptions(*ropt);
 	else

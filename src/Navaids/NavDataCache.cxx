@@ -150,8 +150,9 @@ public:
 class SceneryNavDataProvider : public simgear::ResourceProvider
 {
 public:
-    SceneryNavDataProvider(simgear::PathList sceneryPaths, simgear::ResourceManager::Priority priority)
-        : ResourceProvider(priority), _sceneryPaths(std::move(sceneryPaths))
+    SceneryNavDataProvider(simgear::PathList sceneryPaths, simgear::PathList dataPaths,
+                           simgear::ResourceManager::Priority priority)
+        : ResourceProvider(priority), _sceneryPaths(std::move(sceneryPaths)), _dataPaths(std::move(dataPaths))
     {
     }
 
@@ -184,11 +185,23 @@ public:
                 }
             }
         }
+
+        // Default dat file (e.g. $FG_ROOT/Airports/apt.dat.gz) from each data path
+        const char* defaultRelPath = navDataDefaultRelPath(type);
+        for (const auto& dp : _dataPaths) {
+            SGPath f(dp);
+            f.append(defaultRelPath);
+            if (f.isFile()) {
+                result.push_back({f, defaultRelPath});
+            }
+        }
+
         return result;
     }
 
 private:
     simgear::PathList _sceneryPaths;
+    simgear::PathList _dataPaths;
 
     static const char* navDataSubdir(simgear::ResourceManager::FileType type)
     {
@@ -197,6 +210,17 @@ private:
         case simgear::ResourceManager::FileType::NavDatNAV: return "nav";
         case simgear::ResourceManager::FileType::NavDatFIX: return "fix";
         case simgear::ResourceManager::FileType::NavDatPOI: return "poi";
+        default: return nullptr;
+        }
+    }
+
+    static const char* navDataDefaultRelPath(simgear::ResourceManager::FileType type)
+    {
+        switch (type) {
+        case simgear::ResourceManager::FileType::NavDatAPT: return "Airports/apt.dat.gz";
+        case simgear::ResourceManager::FileType::NavDatNAV: return "Navaids/nav.dat.gz";
+        case simgear::ResourceManager::FileType::NavDatFIX: return "Navaids/fix.dat.gz";
+        case simgear::ResourceManager::FileType::NavDatPOI: return "Navaids/poi.dat.gz";
         default: return nullptr;
         }
     }
@@ -1498,7 +1522,7 @@ void NavDataCache::updateListsOfDatFiles() {
 
     auto* rm = simgear::ResourceManager::instance();
     auto* sceneryProvider = new SceneryNavDataProvider(
-        std::move(sceneryPaths), simgear::ResourceManager::PRIORITY_NORMAL);
+        std::move(sceneryPaths), globals->get_data_paths(), simgear::ResourceManager::PRIORITY_NORMAL);
     rm->addProvider(sceneryProvider);
 
     // All $scenery_path/NavData/apt/*.dat[.gz] files found inside scenery

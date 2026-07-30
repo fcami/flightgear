@@ -19,6 +19,10 @@ class FGMenuBar;
 class FGDialog;
 class FGColor;
 class FGNasalSys;
+class Highlight;
+namespace flightgear {
+class NavDataCache;
+}
 
 /**
  * XML-configured GUI subsystem.
@@ -203,8 +207,8 @@ private:
     typedef ColourDict::const_iterator _citt_t;
     void clear_colors();
 
-    // Read all the configuration files in a directory. The translation domain
-    // may be overridden from each dialog XML definition.
+    void readDialogFile(const SGPath& xmlPath, flightgear::NavDataCache* cache,
+                        Highlight* highlight, const std::string& translationDomain);
     void readDir(const SGPath& path, const std::string& translationDomain);
 
     std::unique_ptr<FGMenuBar> _menubar;
