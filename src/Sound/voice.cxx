@@ -104,6 +104,10 @@ void FGVoiceMgr::shutdown()
 
   for( std::vector<FGVoice*>::iterator it = _voices.begin(); it != _voices.end(); ++it )
     delete *it;
+
+  // avoid dangling pointers/double-delete if shutdown() is ever called again
+  // (e.g. SGSubsystemGroup::shutdown() has no reentrancy guard)
+  _voices.clear();
 }
 
 
@@ -168,7 +172,7 @@ FGFestivalVoice::FGFestivalVoice(FGVoiceMgr *mgr, const SGPropertyNode_ptr node)
     setPitch(_pitch = _pitchNode->getDoubleValue());
     setSpeed(_speed = _speedNode->getDoubleValue());
 
-    node->getNode("text", true)->addChangeListener(this);
+    listenOnTextNode(node->getNode("text", true));
 }
 
 
@@ -178,6 +182,18 @@ FGFestivalVoice::~FGFestivalVoice()
 	delete _sock;
 }
 
+
+FGVoiceMgr::FGVoice::~FGVoice()
+{
+    if (_textNode)
+        _textNode->removeChangeListener(this);
+}
+
+void FGVoiceMgr::FGVoice::listenOnTextNode(SGPropertyNode_ptr node)
+{
+    _textNode = node;
+    _textNode->addChangeListener(this);
+}
 
 void FGVoiceMgr::FGVoice::pushMessage( const string & m)
 {
