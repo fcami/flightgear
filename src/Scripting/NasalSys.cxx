@@ -14,18 +14,22 @@
 
 #include <algorithm>
 #include <errno.h>
+#include <fstream>
+#include <map>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fstream>
-#include <sstream>
+#include <sys/types.h>
+#include <unordered_set>
 #include <vector>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
+#include <simgear/io/sg_mmap.hxx>
 #include <simgear/math/sg_geodesy.hxx>
 #include <simgear/math/sg_random.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_dir.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
@@ -34,7 +38,6 @@
 #include <simgear/props/props.hxx>
 #include <simgear/structure/commands.hxx>
 #include <simgear/structure/event_mgr.hxx>
-#include <simgear/io/sg_mmap.hxx>
 
 #include <simgear/nasal/cppbind/from_nasal.hxx>
 #include <simgear/nasal/cppbind/to_nasal.hxx>
@@ -1159,24 +1162,7 @@ void FGNasalSys::init()
     flightgear::initNasalTranslations(d->_globals, d->_context);
     flightgear::addons::initAddonClassesForNasal(d->_globals, d->_context);
 
-    // Now load the various source files in the Nasal directory
-    simgear::Dir nasalDir(SGPath(globals->get_fg_root(), "Nasal"));
-
-    // load core Nasal scripts. In GUI startup mode, we restrict to a limited
-    // set of modules deliberately
-    loadScriptDirectory(nasalDir,
-                        globals->get_props()->getNode("/sim/nasal-load-priority"),
-                        fgGetBool("/sim/gui/startup"));
-
-
-    // Add modules in Nasal subdirectories to property tree
-    simgear::PathList directories = nasalDir.children(simgear::Dir::TYPE_DIR+
-            simgear::Dir::NO_DOT_OR_DOTDOT, "");
-    for (unsigned int i=0; i<directories.size(); ++i) {
-        simgear::Dir dir(directories[i]);
-        simgear::PathList scripts = dir.children(simgear::Dir::TYPE_FILE, ".nas");
-        addModule(directories[i].file(), scripts);
-    }
+    loadNasalScripts();
 
     // set signal and remove node to avoid restoring at reinit
     const char *s = "nasal-dir-initialized";
@@ -1310,23 +1296,59 @@ bool pathSortPredicate(const SGPath& p1, const SGPath& p2)
 
 // Loads all scripts in given directory, with an optional partial ordering of
 // files defined in loadorder.
-void FGNasalSys::loadScriptDirectory(simgear::Dir nasalDir, SGPropertyNode* loadorder,
+void FGNasalSys::loadNasalScripts()
+{
+    using RM = simgear::ResourceManager;
+    auto all = RM::instance()->findAllOfType(RM::FileType::NasalScript);
+
+    // Deduplicate by relPath, keeping first (highest-priority) occurrence
+    // This is important so we can update a core Nasal script in a newer
+    // data-path
+    std::unordered_set<std::string> seen;
+    std::vector<RM::FoundFile> deduped;
+    for (auto& f : all)
+        if (seen.insert(f.relPath).second) deduped.push_back(f);
+
+    // Partition into top-level scripts and module subdirectory scripts
+    std::vector<RM::FoundFile> topLevel;
+    std::map<std::string, simgear::PathList> modules;
+    for (const auto& f : deduped) {
+        const auto slash = f.relPath.find('/');
+        if (slash == std::string::npos) {
+            topLevel.push_back(f);
+        } else {
+            modules[f.relPath.substr(0, slash)].push_back(f.path);
+        }
+    }
+
+    loadScriptDirectory(std::move(topLevel),
+                        globals->get_props()->getNode("/sim/nasal-load-priority"),
+                        fgGetBool("/sim/gui/startup"));
+
+    for (auto& [moduleName, scripts] : modules) {
+        addModule(moduleName, scripts);
+    }
+}
+
+void FGNasalSys::loadScriptDirectory(std::vector<simgear::ResourceManager::FoundFile> scripts,
+                                     SGPropertyNode* loadorder,
                                      bool excludeUnspecifiedInLoadOrder)
 {
-    simgear::PathList scripts = nasalDir.children(simgear::Dir::TYPE_FILE, ".nas");
-
     if (loadorder != nullptr && loadorder->hasChild("file")) {
       // Load any scripts defined in the loadorder in order, removing them from
       // the list so they don't get loaded twice.
       simgear::PropertyList files = loadorder->getChildren("file");
 
-      auto loadAndErase = [ &scripts, &nasalDir, this ] (SGPropertyNode_ptr n) {
-        SGPath p = SGPath(nasalDir.path(), n->getStringValue());
-        auto script = std::find(scripts.begin(), scripts.end(), p);
-        if (script != scripts.end()) {
-          this->loadModule(p, p.file_base().c_str());
-          scripts.erase(script);
-        }
+      auto loadAndErase = [&scripts, this](SGPropertyNode_ptr n) {
+          const std::string name = n->getStringValue();
+          auto it = std::find_if(scripts.begin(), scripts.end(),
+                                 [&name](const simgear::ResourceManager::FoundFile& f) {
+                                     return f.relPath == name;
+                                 });
+          if (it != scripts.end()) {
+              this->loadModule(it->path, it->path.file_base().c_str());
+              scripts.erase(it);
+          }
       };
 
       std::for_each(files.begin(), files.end(), loadAndErase);
@@ -1336,10 +1358,10 @@ void FGNasalSys::loadScriptDirectory(simgear::Dir nasalDir, SGPropertyNode* load
         return;
     }
 
-    // Load any remaining scripts.
-    // Note: simgear::Dir already reports file entries in a deterministic order,
-    // so a fixed loading sequence is guaranteed (same for every user)
-    std::for_each(scripts.begin(), scripts.end(), [this](SGPath p) { this->loadModule(p, p.file_base().c_str()); });
+    std::for_each(scripts.begin(), scripts.end(), [this](const simgear::ResourceManager::FoundFile& f) {
+        // simgear::Dir reports entries in a deterministic order, preserving a fixed loading sequence
+        this->loadModule(f.path, f.path.file_base().c_str());
+    });
 }
 
 // Create module with list of scripts
