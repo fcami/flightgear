@@ -47,7 +47,7 @@ FGFLITEVoice::FGFLITEVoice(FGVoiceMgr * mgr, const SGPropertyNode_ptr node, cons
   _sgr = smgr->find(sampleGroupRefName, true);
   _sgr->tie_to_listener();
 
-  node->getNode("text", true)->addChangeListener(this);
+  listenOnTextNode(node->getNode("text", true));
 
   SG_LOG(SG_SOUND, SG_DEBUG, "FLITEVoice initialized for sample-group '" << sampleGroupRefName
       << "'. Samples will be named '" << _sampleName << "' "
