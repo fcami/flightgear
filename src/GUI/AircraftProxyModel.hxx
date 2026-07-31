@@ -15,6 +15,12 @@ class AircraftProxyModel : public QSortFilterProxyModel
 public:
     AircraftProxyModel(QObject* pr, QAbstractItemModel * source);
 
+    enum SortMode {
+        SortByRating = 0,   //< overall (community) rating, highest first
+        SortByName,         //< aircraft name, A-Z
+    };
+    Q_ENUM(SortMode)
+
     Q_PROPERTY(QList<int> ratings READ ratings WRITE setRatings NOTIFY ratingsChanged)
 
     Q_PROPERTY(bool ratingsFilterEnabled READ ratingsFilterEnabled WRITE setRatingFilterEnabled NOTIFY ratingsFilterEnabledChanged)
@@ -26,6 +32,8 @@ public:
     Q_INVOKABLE void setAircraftFilterString(QString s);
 
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+
+    Q_PROPERTY(int sortMode READ sortMode WRITE setSortMode NOTIFY sortModeChanged)
 
     /**
       * Compute the row (index in QML / ListView speak) based on an aircraft URI.
@@ -62,12 +70,20 @@ public:
     QString summaryText() const;
 
     int count() const;
+
+    int sortMode() const
+    {
+        return m_sortMode;
+    }
+
+    void setSortMode(int mode);
 signals:
     void ratingsChanged();
     void ratingsFilterEnabledChanged();
     void compatibilityFilterEnabledChanged();
     void summaryTextChanged();
     void countChanged();
+    void sortModeChanged();
 
 public slots:
 
@@ -88,6 +104,7 @@ private:
     bool m_onlyShowInstalled = false;
     bool m_onlyShowWithUpdate = false;
     bool m_onlyShowFavourites = false;
+    int m_sortMode = SortByRating;
 
     QList<int> m_ratings;
     QString m_filterString;
