@@ -313,10 +313,10 @@ private:
 
     AircraftFilterModel* m_aircraftFilterModel = nullptr;
     AircraftInstalledModel* m_aircraftInstalledModel = nullptr;
-    AircraftItemModel* m_aircraftModel;
-    AircraftSearchModel* m_aircraftSearchModel;
-    AircraftUpdatesModel* m_aircraftWithUpdatesModel;
-    AircraftFavouritesModel* m_favouriteAircraftModel;
+    AircraftItemModel* m_aircraftModel = nullptr;
+    AircraftSearchModel* m_aircraftSearchModel = nullptr;
+    AircraftUpdatesModel* m_aircraftWithUpdatesModel = nullptr;
+    AircraftFavouritesModel* m_favouriteAircraftModel = nullptr ;
 
     MPServersModel* m_serversModel = nullptr;
     LocationController* m_location = nullptr;
