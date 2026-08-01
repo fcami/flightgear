@@ -24,7 +24,8 @@ FocusScope
     state: "installed"
 
     Component.onCompleted: {
-        _launcher.browseAircraftModel.loadCompatibilityAndRatingsSettings();
+        _launcher.currentAircraftModel.loadCompatibilityAndRatingsSettings();
+        _launcher.selectedModel = root.state;
 
         // if the user has favourites defined, default to that tab
         if (_launcher.favouriteAircraftModel.count > 0) {
@@ -33,25 +34,30 @@ FocusScope
         }
     }
 
+    onStateChanged: {
+        _launcher.selectedModel = root.state
+    }
+
     GettingStartedScope.controller: tipsLayer.controller
 
     Rectangle
     {
         id: tabBar
         height: searchButton.height + (Style.margin * 2)
-        width: parent.width
+        width: displayFilterPanel.width
         color: Style.backgroundColor
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 1
 
         GridToggleButton {
-            id: gridModeToggle
+            id: settingsToggle
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Style.margin
-            gridMode: !_launcher.aircraftGridMode
-            onClicked: _launcher.aircraftGridMode = !_launcher.aircraftGridMode
+            onClicked: { displayFilterPanel.state = displayFilterPanel.state === "open" ? "closed" : "open" }
 
             GettingStartedTip {
-                tipId: "gridModeTip"
+                tipId: "aircraftSettingsTip"
 
                 anchors {
                     horizontalCenter: parent.horizontalCenter
@@ -59,7 +65,7 @@ FocusScope
                     top: parent.bottom
                 }
                 arrow: GettingStartedTip.TopLeft
-                text: qsTr("Toggle between grid and list view")
+                text: qsTr("Show display & filtering controls for the aircraft list")
             }
         }
 
@@ -73,6 +79,7 @@ FocusScope
                 onClicked: {
                     root.state = "installed"
                     root.updateSelectionFromLauncher();
+                    searchButton.clear();
                 }
                 active: root.state == "installed"
 
@@ -107,6 +114,7 @@ FocusScope
                 onClicked: {
                     root.state = "browse"
                     root.updateSelectionFromLauncher();
+                    searchButton.clear();
                 }
                 active: root.state == "browse"
 
@@ -145,8 +153,13 @@ FocusScope
             anchors.rightMargin: Style.margin
             anchors.verticalCenter: parent.verticalCenter
 
-            onSearch: {
-               _launcher.searchAircraftModel.setAircraftFilterString(term)
+            onSearch: function(term) {
+                _launcher.aircraftSearchModel.setSearchString(term)
+
+                if (term == "") {
+                    return; // avoid doing an unnecessary search when clearing the search box
+                }
+
                 root.state = "search"
                 root.updateSelectionFromLauncher();
             }
@@ -177,18 +190,6 @@ FocusScope
     }
 
     Component {
-        id: ratingsHeader
-        AircraftRatingsPanel {
-            width: aircraftContent.width
-            tips: tipsLayer
-            onClearSelection: {
-                _launcher.selectedAircraft = "";
-                root.updateSelectionFromLauncher()
-            }
-        }
-    }
-
-    Component {
         id: noDefaultCatalogHeader
         NoDefaultCatalogPanel {
             width: aircraftContent.width
@@ -203,15 +204,53 @@ FocusScope
     }
 
     Component {
-        id: searchHeader
+        id: searchMoreFooter
         Rectangle {
-            visible: _launcher.searchAircraftModel.count === 0
             width: aircraftContent.width
             height: visible ? Style.strutSize : 0
+            visible: _launcher.currentAircraftModel.filteredOutCount > 0
+
+            // open the filter panel on click
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    displayFilterPanel.state = "open";
+                }
+            }
 
             StyledText {
                 anchors.fill: parent
-                text: qsTr("No aircraft match the search.")
+                text: qsTr("%1 aircraft matched the search, but were filtered out. Adjust your filter to see more aircraft. " +
+                        "(Click here to open the list settings)").
+                    arg(_launcher.currentAircraftModel.filteredOutCount)
+                wrapMode: Text.WordWrap
+                font.pixelSize: Style.headingFontPixelSize
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+    }
+
+    Component {
+        id: showMoreFooter
+        Rectangle {
+            width: aircraftContent.width
+            height: visible ? Style.strutSize : 0
+            visible: _launcher.currentAircraftModel.filteredOutCount > 0
+
+            // open the filter panel on click
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    displayFilterPanel.state = "open";
+                }
+            }
+
+            StyledText {
+                anchors.fill: parent
+                text: qsTr("%1 aircraft are available, but were filtered out. Adjust your filter to see more aircraft. " +
+                        "(Click here to open the list settings)").
+                    arg(_launcher.currentAircraftModel.filteredOutCount)
                 wrapMode: Text.WordWrap
                 font.pixelSize: Style.headingFontPixelSize
                 horizontalAlignment: Text.AlignHCenter
@@ -266,7 +305,7 @@ FocusScope
     Loader {
         id: aircraftContent
         // we use gridModeToggle vis to mean enabled, effectively
-        source: (gridModeToggle.visible && _launcher.aircraftGridMode) ? "qrc:///qml/AircraftGridView.qml"
+        source: _launcher.aircraftGridMode ? "qrc:///qml/AircraftGridView.qml"
                                            : "qrc:///qml/AircraftListView.qml"
 
         anchors {
@@ -323,13 +362,13 @@ FocusScope
             name: "installed"
             PropertyChanges {
                 target: root
-                __model: _launcher.installedAircraftModel
+                __model: _launcher.currentAircraftModel
                 __header: emptyHeaderFooter
                 __footer: installMoreAircraftFooter
             }
 
             PropertyChanges {
-                target: gridModeToggle; visible: true
+                target: settingsToggle; visible: true
             }
         },
 
@@ -337,13 +376,13 @@ FocusScope
             name: "search"
             PropertyChanges {
                 target: root
-                __model: _launcher.searchAircraftModel
-                __header: searchHeader
-                __footer: emptyHeaderFooter
+                __model: _launcher.currentAircraftModel
+                __header: emtyHeaderFooter
+                __footer: searchMoreFooter
             }
 
             PropertyChanges {
-                target: gridModeToggle; visible: true
+                target: settingsToggle; visible: true
             }
         },
 
@@ -351,13 +390,13 @@ FocusScope
             name: "browse"
             PropertyChanges {
                 target: root
-                __model: _launcher.browseAircraftModel
-                __header: _addOns.showNoOfficialHangar ? noDefaultCatalogHeader : ratingsHeader
-                __footer: emptyHeaderFooter
+                __model: _launcher.currentAircraftModel
+                __header: _addOns.showNoOfficialHangar ? noDefaultCatalogHeader : emptyHeaderFooter
+                __footer: showMoreFooter
             }
 
             PropertyChanges {
-                target: gridModeToggle; visible: true
+                target: settingsToggle; visible: true
             }
         },
 
@@ -371,7 +410,7 @@ FocusScope
             }
 
             PropertyChanges {
-                target: gridModeToggle; visible: false
+                target: settingsToggle; visible: false
             }
         },
 
@@ -386,7 +425,7 @@ FocusScope
             }
 
             PropertyChanges {
-                target: gridModeToggle; visible: true
+                target: settingsToggle; visible: false
             }
         }
 
@@ -407,17 +446,69 @@ FocusScope
         detailsView.visible = false;
     }
 
+    Rectangle {
+        anchors.fill: parent
+        opacity: 0.1
+        color: "black"
+        z: displayFilterPanel.z
+        // mouse are behind panel to consume clicks
+        MouseArea {
+            anchors.fill: parent
+            onClicked: { displayFilterPanel.state = "closed"; }
+        // accept so that clicks don't fall through to other
+        // UI elements
+            onPressed: (mouse)=> {mouse.accepted = true; }
+        }
+
+        visible: displayFilterPanel.state === "open"
+    }
+
+    AircraftRatingsPanel {
+        id: displayFilterPanel
+        width: Math.min(aircraftContent.width, displayFilterPanel.implicitWidth)
+        height: displayFilterPanel.implicitHeight
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 1
+
+        tips: tipsLayer
+        onClearSelection: {
+            _launcher.selectedAircraft = "";
+            root.updateSelectionFromLauncher()
+        }
+
+        clip: true
+        state: "closed"
+
+        states: [
+            State {
+                name: "closed"
+                PropertyChanges { target: displayFilterPanel; y:  -displayFilterPanel.height; }
+            },
+
+            State {
+                name: "open"
+                PropertyChanges { target: displayFilterPanel; y: 0}
+            }
+        ]
+
+        transitions: Transition {
+            PropertyAnimation { duration: 200; properties: "y"; easing.type: Easing.InOutQuad }
+        }
+    }
+
     // we don't want our tips to interfere with the details views
     GettingStartedTipLayer {
         id: tipsLayer
         anchors.fill: parent
         scopeId: "aircraft"
+        z: detailsView.z - 1
     }
 
     AircraftDetailsView {
         id: detailsView
         anchors.fill: parent
         visible: false
+        z: 10
 
         BackButton {
             id: backButton

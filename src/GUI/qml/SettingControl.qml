@@ -11,7 +11,6 @@ Item {
     property string description: ""
     property string label: ""
     property var keywords: []
-    property bool enabled: true
     property string option: ""
     property string setting: ""
 

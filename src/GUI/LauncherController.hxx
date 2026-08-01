@@ -14,8 +14,12 @@
 #include <simgear/package/Package.hxx>
 #include <simgear/package/Catalog.hxx>
 
+#include "AircraftFavouritesModel.hxx"
+#include "AircraftFilterModel.hxx"
+#include "AircraftInstalledModel.hxx"
 #include "AircraftItemModel.hxx"
-#include "AircraftProxyModel.hxx"
+#include "AircraftSearchModel.hxx"
+#include "AircraftUpdatesModel.hxx"
 #include "FlightPlanController.hxx"
 #include "LocationController.hxx"
 #include "MPServersModel.h"
@@ -33,11 +37,12 @@ class LauncherController : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(AircraftProxyModel* installedAircraftModel MEMBER m_installedAircraftModel CONSTANT)
-    Q_PROPERTY(AircraftProxyModel* aircraftWithUpdatesModel MEMBER m_aircraftWithUpdatesModel CONSTANT)
-    Q_PROPERTY(AircraftProxyModel* browseAircraftModel MEMBER m_browseAircraftModel CONSTANT)
-    Q_PROPERTY(AircraftProxyModel* searchAircraftModel MEMBER m_aircraftSearchModel CONSTANT)
-    Q_PROPERTY(AircraftProxyModel* favouriteAircraftModel MEMBER m_favouriteAircraftModel CONSTANT)
+    Q_PROPERTY(AircraftFilterModel* currentAircraftModel MEMBER m_aircraftFilterModel CONSTANT)
+    Q_PROPERTY(AircraftUpdatesModel* aircraftWithUpdatesModel MEMBER m_aircraftWithUpdatesModel CONSTANT)
+    Q_PROPERTY(AircraftSearchModel* aircraftSearchModel MEMBER m_aircraftSearchModel CONSTANT)
+    Q_PROPERTY(AircraftFavouritesModel* favouriteAircraftModel MEMBER m_favouriteAircraftModel CONSTANT)
+
+    Q_PROPERTY(QString selectedModel READ selectedModel WRITE setSelectedModel NOTIFY selectedModelChanged)
 
     Q_PROPERTY(AircraftItemModel* baseAircraftModel MEMBER m_aircraftModel CONSTANT)
 
@@ -120,6 +125,11 @@ public:
     QString settingsSearchTerm() const
     {
         return m_settingsSearchTerm;
+    }
+
+    QString selectedModel() const
+    {
+        return m_selectedModel;
     }
 
     QStringList settingsSummary() const;
@@ -238,8 +248,13 @@ signals:
     void skipAircraftFromArgsChanged();
 
     void networkAvailableChanged();
+
+    void selectedModelChanged();
+
 public slots:
     void setSelectedAircraft(QUrl selectedAircraft);
+
+    void setSelectedModel(const QString& state);
 
     void setSettingsSearchTerm(QString settingsSearchTerm);
 
@@ -296,12 +311,12 @@ private:
 private:
     QWindow* m_window = nullptr;
 
-    AircraftProxyModel* m_installedAircraftModel;
+    AircraftFilterModel* m_aircraftFilterModel = nullptr;
+    AircraftInstalledModel* m_aircraftInstalledModel = nullptr;
     AircraftItemModel* m_aircraftModel;
-    AircraftProxyModel* m_aircraftSearchModel;
-    AircraftProxyModel* m_browseAircraftModel;
-    AircraftProxyModel* m_aircraftWithUpdatesModel;
-    AircraftProxyModel* m_favouriteAircraftModel;
+    AircraftSearchModel* m_aircraftSearchModel;
+    AircraftUpdatesModel* m_aircraftWithUpdatesModel;
+    AircraftFavouritesModel* m_favouriteAircraftModel;
 
     MPServersModel* m_serversModel = nullptr;
     LocationController* m_location = nullptr;
@@ -317,7 +332,8 @@ private:
     QStringList m_settingsSummary, m_environmentSummary;
     RecentAircraftModel* m_aircraftHistory = nullptr;
     RecentLocationsModel* m_locationHistory = nullptr;
-	QSize m_minWindowSize;
+    QString m_selectedModel;
+    QSize m_minWindowSize;
     QTimer* m_subsystemIdleTimer = nullptr;
 
 	bool m_inAppMode = false;

@@ -1,5 +1,10 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.0
 import FlightGear 1.0
+
+// TODO rename this file
 
 Rectangle {
     id: root
@@ -10,7 +15,7 @@ Rectangle {
     height: Style.baseFontPixelSize + Style.margin * 2
     color: mouse.containsMouse ? Style.minorFrameColor : Style.backgroundColor
 
-    property bool gridMode: false
+    // property bool gridMode: false
 
     signal clicked();
 
@@ -21,8 +26,7 @@ Rectangle {
         anchors.centerIn: parent
 
         readonly property string __iconSuffix: mouse.containsMouse ? "?theme" : "?text"
-        source: (root.gridMode ? "image://colored-icon/grid-view"
-                              : "image://colored-icon/list-view") + __iconSuffix
+        source: "image://colored-icon/settings" + __iconSuffix
     }
 
     MouseArea {
@@ -39,7 +43,6 @@ Rectangle {
         visible: mouse.containsMouse
         color: Style.baseTextColor
         font.pixelSize: Style.baseFontPixelSize
-        text: root.gridMode ? qsTr("Switch to grid view")
-                            : qsTr("Switch to list view")
+        text: qsTr("Display & filtering settings")
     }
 }

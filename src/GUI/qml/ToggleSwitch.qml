@@ -8,7 +8,6 @@ Item {
     id: root
     property bool checked: false
     property alias label: label.text
-    property bool enabled: true
 
     implicitWidth: track.width + label.width + 16
     implicitHeight: Math.max(label.height, thumb.height)
