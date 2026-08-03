@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-FileCopyrightText: 2026 James Turner
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
@@ -43,15 +43,6 @@ public:
     Q_PROPERTY(int filteredOutCount READ filteredOutCount NOTIFY filtersChanged)
 
     Q_PROPERTY(Sorting sorting READ sorting WRITE setSorting NOTIFY sortingChanged)
-
-    /**
-     * Compute the row (index in QML / ListView speak) based on an aircraft URI.
-     * Returns -1 if the URI is not present in the (filtered) model.
-     * Handles both direct AircraftItemModel sources and proxy-chained sources.
-     */
-    Q_INVOKABLE int indexForURI(QUrl uri) const;
-
-    Q_INVOKABLE void selectVariantForAircraftURI(QUrl uri);
 
     Q_INVOKABLE void loadCompatibilityAndRatingsSettings();
 

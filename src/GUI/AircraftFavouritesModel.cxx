@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-FileCopyrightText: 2026 James Turner
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "AircraftFavouritesModel.hxx"
@@ -16,18 +16,6 @@ AircraftFavouritesModel::AircraftFavouritesModel(QObject* pr, QAbstractItemModel
     connect(this, &QAbstractItemModel::modelReset, this, &AircraftFavouritesModel::countChanged);
     connect(FavouriteAircraftData::instance(), &FavouriteAircraftData::changed,
             [this]() { this->invalidate(); });
-}
-
-int AircraftFavouritesModel::indexForURI(QUrl uri) const
-{
-    auto srcIdx = qobject_cast<AircraftItemModel*>(sourceModel())->indexOfAircraftURI(uri);
-    auto ourIdx = mapFromSource(srcIdx);
-    return ourIdx.isValid() ? ourIdx.row() : -1;
-}
-
-void AircraftFavouritesModel::selectVariantForAircraftURI(QUrl uri)
-{
-    qobject_cast<AircraftItemModel*>(sourceModel())->selectVariantForAircraftURI(uri);
 }
 
 int AircraftFavouritesModel::count() const
