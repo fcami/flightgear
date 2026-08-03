@@ -25,15 +25,23 @@ AircraftFilterModel::AircraftFilterModel(QObject* pr, QAbstractItemModel* source
 
 AircraftItemModel* AircraftFilterModel::resolveItemModel() const
 {
-    auto* itemModel = qobject_cast<AircraftItemModel*>(sourceModel());
-    if (!itemModel) {
-        // Source is a proxy (e.g. AircraftSearchModel); look one level deeper.
-        auto* proxySource = qobject_cast<QAbstractProxyModel*>(sourceModel());
-        Q_ASSERT(proxySource);
-        itemModel = qobject_cast<AircraftItemModel*>(proxySource->sourceModel());
+    auto m = sourceModel();
+    while (m) {
+        auto* itemModel = qobject_cast<AircraftItemModel*>(m);
+        if (itemModel) {
+            return itemModel;
+        }
+
+        auto pm = qobject_cast<QAbstractProxyModel*>(m);
+        if (!pm) {
+            break;
+        }
+
+        m = pm->sourceModel();
     }
-    Q_ASSERT(itemModel);
-    return itemModel;
+
+    qFatal("AircraftFilterModel::resolveItemModel() failed to find AircraftItemModel in the source model chain");
+    return nullptr;
 }
 
 void AircraftFilterModel::setRatings(QList<int> ratings)
@@ -44,36 +52,6 @@ void AircraftFilterModel::setRatings(QList<int> ratings)
     invalidate();
     emit filtersChanged();
     emit summaryTextChanged();
-}
-
-int AircraftFilterModel::indexForURI(QUrl uri) const
-{
-    auto* itemModel = qobject_cast<AircraftItemModel*>(sourceModel());
-    QModelIndex sourceIdx;
-
-    if (itemModel) {
-        // Direct chain: AircraftItemModel → AircraftFilterModel
-        sourceIdx = mapFromSource(itemModel->indexOfAircraftURI(uri));
-    } else {
-        // Indirect chain through a proxy (e.g. AircraftSearchModel)
-        auto* proxySource = qobject_cast<QAbstractProxyModel*>(sourceModel());
-        Q_ASSERT(proxySource);
-        itemModel = qobject_cast<AircraftItemModel*>(proxySource->sourceModel());
-        Q_ASSERT(itemModel);
-        auto proxyIdx = proxySource->mapFromSource(itemModel->indexOfAircraftURI(uri));
-        sourceIdx = mapFromSource(proxyIdx);
-    }
-
-    if (!sourceIdx.isValid()) {
-        return -1;
-    }
-
-    return sourceIdx.row();
-}
-
-void AircraftFilterModel::selectVariantForAircraftURI(QUrl uri)
-{
-    resolveItemModel()->selectVariantForAircraftURI(uri);
 }
 
 void AircraftFilterModel::setRatingFilterEnabled(bool e)
