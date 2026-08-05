@@ -157,7 +157,6 @@ void AircraftFilterModel::saveCompatibilityAndRatingsSettings()
         vRatings.append(m_ratings.at(i));
     }
     settings.setValue("ratings-filter", vRatings);
-    qInfo() << "Did save ratings";
 }
 
 int AircraftFilterModel::filteredOutCount() const
@@ -183,23 +182,32 @@ void AircraftFilterModel::setSorting(Sorting s)
 
 void AircraftFilterModel::updateSorting()
 {
+    auto order = Qt::AscendingOrder;
     switch (m_sorting) {
     case Sorting::SortByName:
         setSortRole(AircraftVariantDescriptionRole);
         setSortCaseSensitivity(Qt::CaseInsensitive);
+
         break;
     case Sorting::SortByRating:
-        setSortRole(AircraftRatingRole);
-        setSortCaseSensitivity(Qt::CaseSensitive); // doesn't matter, it's an int
+        setSortRole(AircraftCombinedRatingRole);
+        // highest-rated at the top
+        order = Qt::DescendingOrder;
         break;
     }
 
     setDynamicSortFilter(true);
-    sort(0);
+    sort(0, order);
 }
 
 bool AircraftFilterModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
+    if (m_sorting == Sorting::SortByRating) {
+        // use default impl
+        return QSortFilterProxyModel::lessThan(left, right);
+    }
+
+    // custom imply for SortByName
     const QString variantLeft = left.data(AircraftVariantDescriptionRole).toString();
     const QString variantRight = right.data(AircraftVariantDescriptionRole).toString();
 
