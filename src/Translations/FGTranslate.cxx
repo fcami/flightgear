@@ -135,6 +135,18 @@ std::size_t FGTranslate::getCount(const string& resourceName,
     return 0;
 }
 
+std::vector<string> FGTranslate::getIdsWithPrefix(const string& resourceName,
+                                                  const string& prefix) const
+{
+    const auto resource = getResource(resourceName);
+
+    if (resource) {
+        return resource->getIdsWithPrefix(prefix);
+    }
+
+    return {};
+}
+
 static naRef f_get(const FGTranslate& tr, const nasal::CallContext& ctx)
 {
     if (ctx.argc < 2 || ctx.argc > 3) {
@@ -234,5 +246,6 @@ void FGTranslate::setupGhost()
         .method("getPluralWithDefault", &f_getPluralWithDefault)
         .method("getAll", &FGTranslate::getAll)
         .method("getCount", &FGTranslate::getCount)
+        .method("getIdsWithPrefix", &FGTranslate::getIdsWithPrefix)
         .method("translationUnit", &f_translationUnit);
 }

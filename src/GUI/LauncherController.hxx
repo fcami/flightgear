@@ -19,6 +19,7 @@
 #include "AircraftInstalledModel.hxx"
 #include "AircraftItemModel.hxx"
 #include "AircraftSearchModel.hxx"
+#include "AircraftTagsModel.hxx"
 #include "AircraftUpdatesModel.hxx"
 #include "FlightPlanController.hxx"
 #include "LauncherLanguagesModel.hxx"
@@ -42,6 +43,7 @@ class LauncherController : public QObject
     Q_PROPERTY(AircraftUpdatesModel* aircraftWithUpdatesModel MEMBER m_aircraftWithUpdatesModel CONSTANT)
     Q_PROPERTY(AircraftSearchModel* aircraftSearchModel MEMBER m_aircraftSearchModel CONSTANT)
     Q_PROPERTY(AircraftFavouritesModel* favouriteAircraftModel MEMBER m_favouriteAircraftModel CONSTANT)
+    Q_PROPERTY(AircraftTagsModel* aircraftTagsModel MEMBER m_aircraftTagsModel CONSTANT)
 
     Q_PROPERTY(QString selectedModel READ selectedModel WRITE setSelectedModel NOTIFY selectedModelChanged)
 
@@ -329,6 +331,7 @@ private:
     AircraftSearchModel* m_aircraftSearchModel = nullptr;
     AircraftUpdatesModel* m_aircraftWithUpdatesModel = nullptr;
     AircraftFavouritesModel* m_favouriteAircraftModel = nullptr ;
+    AircraftTagsModel* m_aircraftTagsModel = nullptr;
 
     MPServersModel* m_serversModel = nullptr;
     LauncherLanguagesModel* m_languagesModel = nullptr;
