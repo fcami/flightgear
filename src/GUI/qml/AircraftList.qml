@@ -148,6 +148,7 @@ FocusScope
             id: searchButton
 
             height: installedAircraftButton.height
+            showTagFilter: true
 
             anchors.right: parent.right
             anchors.rightMargin: Style.margin

@@ -109,6 +109,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file>qml/RouteLegsView.qml</file>
         <file>qml/OverlayMenu.qml</file>
         <file>qml/PopupChoiceItem.qml</file>
+        <file>qml/TagLozenge.qml</file>
+        <file>qml/AddTagLozenge.qml</file>
+        <file>qml/TagFilterPanel.qml</file>
         <file>qml/AircraftGridDelegate.qml</file>
         <file>qml/AircraftGridView.qml</file>
         <file>qml/AircraftListView.qml</file>
@@ -158,6 +161,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="reorder-small">assets/mask-reorder-small.png</file>
         <file alias="cancel">assets/mask-cancel.png</file>
         <file alias="add">assets/mask-add.png</file>
+        <file alias="add-small">assets/mask-add-compact.png</file>
         <file alias="toolbox-help">assets/mask-toolbox-help.png</file>
         <file alias="ellipsis">assets/mask-ellipsis.png</file>
 

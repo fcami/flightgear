@@ -37,6 +37,7 @@ QtObject
     readonly property int baseFontPixelSize: 12
     readonly property int subHeadingFontPixelSize: 14
     readonly property int headingFontPixelSize: 18
+    readonly property int smallFontPixelSize: baseFontPixelSize - 2
 
     readonly property string disabledTextColor: "#6f6f6f"
 

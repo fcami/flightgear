@@ -8,11 +8,15 @@ FocusScope
 {
     id: root
 
-    width: Style.strutSize * 3
+    width: Style.strutSize * 6
     height: frame.height
 
     property string placeholder: qsTr("Search")
     property bool active: false
+
+    // when true, show the selected aircraft-tag lozenges in the box, and an
+    // extended tag-suggestions area below it while the box has focus
+    property bool showTagFilter: false
 
     signal search(string term)
 
@@ -35,6 +39,32 @@ FocusScope
 
     readonly property bool canClear: (buttonText.text.length > 0)
 
+    function showTagSuggestions()
+    {
+        if (!root.showTagFilter)
+            return;
+        OverlayShared.globalOverlay.showOverlayAtItemOffset(tagSuggestionsComponent, frame,
+                                                             Qt.point(0, frame.height))
+    }
+
+    Component {
+        id: tagSuggestionsComponent
+        TagFilterPanel {
+            filterText: buttonText.text
+            selectedTags: _launcher.currentAircraftModel.selectedTags
+            onSelected: function(tag) {
+                _launcher.currentAircraftModel.addTag(tag);
+                buttonText.text = "";
+            }
+            onRemoveRequested: function(tag) {
+                _launcher.currentAircraftModel.removeTag(tag);
+            }
+            onToggleNegationRequested: function(tag) {
+                _launcher.currentAircraftModel.toggleTagNegation(tag);
+            }
+        }
+    }
+
     Rectangle
     {
         id: frame
@@ -50,7 +80,7 @@ FocusScope
         TextInput {
             id: buttonText
             anchors.left: parent.left
-            anchors.right: searchIcon.left
+            anchors.right: tagFilterLoader.left
             anchors.margins: Style.margin
             anchors.verticalCenter: parent.verticalCenter
 
@@ -74,6 +104,16 @@ FocusScope
             }
 
             text: ""
+
+            onActiveFocusChanged: {
+                if (!root.showTagFilter)
+                    return;
+                if (activeFocus) {
+                    root.showTagSuggestions();
+                } else {
+                    OverlayShared.globalOverlay.dismissOverlay();
+                }
+            }
 
             // placeholder text, hides itself whenever parent has non-empty text
             StyledText {
@@ -100,17 +140,45 @@ FocusScope
             anchors.verticalCenter: parent.verticalCenter
         }
 
+        // selected tag lozenges, shown compactly (no 'x') while the box is
+        // not focused; hidden while focused, since the full-size lozenges
+        // (with 'x') then appear in the extended area below instead
+        Loader {
+            id: tagFilterLoader
+            active: root.showTagFilter && !buttonText.activeFocus
+            anchors.right: searchIcon.left
+            anchors.rightMargin: active ? Style.margin : 0
+            anchors.verticalCenter: parent.verticalCenter
+
+            sourceComponent: Row {
+                spacing: Style.margin
+
+                Repeater {
+                    model: _launcher.currentAircraftModel.selectedTags
+                    delegate: TagLozenge {
+                        compact: true
+                        anchors.verticalCenter: parent.verticalCenter
+                        tag: modelData.tag
+                        negated: modelData.negated
+                        onToggleNegationRequested: _launcher.currentAircraftModel.toggleTagNegation(modelData.tag)
+                    }
+                }
+            }
+        }
+
         MouseArea {
             id: mouse
             anchors.left: parent.left
             height: parent.height
-            anchors.right: clearButtonMouse.left
+            anchors.right: root.showTagFilter ? tagFilterLoader.left : clearButtonMouse.left
             hoverEnabled: true
 
             onClicked: {
                 if (!buttonText.activeFocus) {
                     root.forceActiveFocus();
                     buttonText.selectAll();
+                } else {
+                    root.showTagSuggestions();
                 }
             }
 
