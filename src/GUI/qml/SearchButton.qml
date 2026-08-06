@@ -39,10 +39,15 @@ FocusScope
 
     readonly property bool canClear: (buttonText.text.length > 0)
 
-    function showTagSuggestions()
+    // set immediately before each showTagSuggestions() call, to control
+    // whether the panel opens straight into its 'browse all tags' mode
+    property bool __startTagPanelInBrowseMode: false
+
+    function showTagSuggestions(startInBrowseMode)
     {
         if (!root.showTagFilter)
             return;
+        root.__startTagPanelInBrowseMode = !!startInBrowseMode;
         OverlayShared.globalOverlay.showOverlayAtItemOffset(tagSuggestionsComponent, frame,
                                                              Qt.point(0, frame.height))
     }
@@ -50,8 +55,10 @@ FocusScope
     Component {
         id: tagSuggestionsComponent
         TagFilterPanel {
+            width: frame.width
             filterText: buttonText.text
             selectedTags: _launcher.currentAircraftModel.selectedTags
+            showingAllTags: root.__startTagPanelInBrowseMode
             onSelected: function(tag) {
                 _launcher.currentAircraftModel.addTag(tag);
                 buttonText.text = "";
@@ -140,27 +147,27 @@ FocusScope
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // selected tag lozenges, shown compactly (no 'x') while the box is
-        // not focused; hidden while focused, since the full-size lozenges
-        // (with 'x') then appear in the extended area below instead
+        // tag status icon: outline when no tags are active, theme-colored
+        // filled icon when at least one is; click opens the tag panel
+        // straight into 'browse all tags' mode
         Loader {
             id: tagFilterLoader
-            active: root.showTagFilter && !buttonText.activeFocus
+            active: root.showTagFilter
             anchors.right: searchIcon.left
             anchors.rightMargin: active ? Style.margin : 0
             anchors.verticalCenter: parent.verticalCenter
 
-            sourceComponent: Row {
-                spacing: Style.margin
+            sourceComponent: Image {
+                source: (_launcher.currentAircraftModel.selectedTags.length > 0)
+                    ? "image://colored-icon/tag-filled?theme"
+                    : "image://colored-icon/tag-outline?text"
 
-                Repeater {
-                    model: _launcher.currentAircraftModel.selectedTags
-                    delegate: TagLozenge {
-                        compact: true
-                        anchors.verticalCenter: parent.verticalCenter
-                        tag: modelData.tag
-                        negated: modelData.negated
-                        onToggleNegationRequested: _launcher.currentAircraftModel.toggleTagNegation(modelData.tag)
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        root.forceActiveFocus();
+                        buttonText.selectAll();
+                        root.showTagSuggestions(true);
                     }
                 }
             }

@@ -48,8 +48,10 @@ public:
     /**
      * List of selected tags to filter by. Each entry is a map with "tag"
      * (string) and "negated" (bool) keys: a negated entry requires the tag
-     * to be *absent* rather than present. Aircraft must satisfy every entry
-     * (logical AND) to pass the filter.
+     * to be *absent* rather than present. Negated entries are combined with
+     * logical AND (an aircraft having any negated tag is excluded);
+     * non-negated entries are combined with logical OR (an aircraft must
+     * have at least one of them, if any are present).
      */
     Q_PROPERTY(QVariantList selectedTags READ selectedTags WRITE setSelectedTags NOTIFY filtersChanged)
 

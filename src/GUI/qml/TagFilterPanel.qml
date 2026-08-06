@@ -32,13 +32,10 @@ Rectangle {
     color: Style.panelBackground
     border.width: 1
     border.color: Style.minorFrameColor
-    width: flick.width + (Style.margin * 2)
     height: outerColumn.implicitHeight + (Style.margin * 2)
     clip: true
 
     y: -OverlayShared.globalOverlay.verticalOverflowFor(height)
-
-    Component.onCompleted: computeMenuWidth()
 
     function doSelect(tag)
     {
@@ -54,22 +51,11 @@ Rectangle {
         return false;
     }
 
-    // measure the natural width of every tag entry once, up-front, so the
-    // popup doesn't resize as the user types a filter term
-    function computeMenuWidth()
-    {
-        var minWidth = 200;
-        for (var i = 0; i < tagsRepeater.count; i++) {
-            minWidth = Math.max(minWidth, tagsRepeater.itemAt(i).implicitWidth);
-        }
-        flick.width = minWidth;
-    }
-
     Column {
         id: outerColumn
         x: Style.margin
         y: Style.margin
-        width: flick.width
+        width: root.width - (Style.margin * 2)
         spacing: Style.margin
 
         StyledText {
@@ -109,22 +95,24 @@ Rectangle {
         Flickable {
             id: flick
             visible: root.showingAllTags
-            // width is set once by computeMenuWidth()
-            height: root.showingAllTags ? Math.min(itemsColumn.childrenRect.height, root.maximumPermittedHeight) : 0
-            contentHeight: itemsColumn.childrenRect.height
+            width: parent.width
+            height: root.showingAllTags ? Math.min(itemsFlow.childrenRect.height, root.maximumPermittedHeight) : 0
+            contentHeight: itemsFlow.childrenRect.height
             clip: true
             ScrollBar.vertical: ScrollBar {}
 
-            Column {
-                id: itemsColumn
+            Flow {
+                id: itemsFlow
                 width: flick.width
+                spacing: Style.margin / 2
 
                 Repeater {
                     id: tagsRepeater
                     model: _launcher.aircraftTagsModel
-                    delegate: PopupChoiceItem {
+                    delegate: TagLozenge {
                         readonly property string tagId: model.tag
-                        text: model.name
+                        compact: true
+                        tag: model.tag
                         visible: {
                             if (root.isSelected(model.tag))
                                 return false;
@@ -133,7 +121,7 @@ Rectangle {
                                    model.name.toLowerCase().indexOf(needle) >= 0 ||
                                    model.tag.toLowerCase().indexOf(needle) >= 0;
                         }
-                        onSelect: function(index) { root.doSelect(tagId) }
+                        onClicked: root.doSelect(tagId)
                     }
                 }
             }

@@ -227,11 +227,26 @@ bool AircraftFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sou
 
     if (!m_selectedTags.isEmpty()) {
         const QStringList aircraftTags = index.data(AircraftTagsRole).toStringList();
+
+        // negated tags always exclude (AND semantics); non-negated tags use
+        // OR semantics, i.e. the aircraft must match at least one of them
+        bool haveIncludeTag = false;
+        bool matchedIncludeTag = false;
+
         for (const auto& selected : m_selectedTags) {
             const bool present = aircraftTags.contains(selected.tag, Qt::CaseInsensitive);
-            if (present == selected.negated) {
-                return false;
+            if (selected.negated) {
+                if (present) {
+                    return false;
+                }
+            } else {
+                haveIncludeTag = true;
+                matchedIncludeTag = matchedIncludeTag || present;
             }
+        }
+
+        if (haveIncludeTag && !matchedIncludeTag) {
+            return false;
         }
     }
 

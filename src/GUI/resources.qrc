@@ -32,6 +32,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file>qml/AircraftWarningPanel.qml</file>
         <file>qml/AircraftDetailsView.qml</file>
         <file>qml/AircraftCompactDelegate.qml</file>
+        <file>qml/AircraftTagsRow.qml</file>
         <file>qml/SearchButton.qml</file>
         <file>qml/AircraftPreviewPanel.qml</file>
         <file>qml/TabButton.qml</file>

@@ -183,6 +183,9 @@ public:
     AircraftItemModel* baseAircraftModel() const
     { return m_aircraftModel; }
 
+    AircraftTagsModel* aircraftTagsModel() const
+    { return m_aircraftTagsModel; }
+
     void initialRestoreSettings();
     void saveSettings();
 

@@ -5,6 +5,10 @@
 
 #include <array>
 
+#include <QDebug>
+#include <QJSValue>
+#include <QQmlEngine>
+
 #include <simgear/misc/strutils.hxx>
 
 #include <Main/globals.hxx>
@@ -88,6 +92,8 @@ QVariant AircraftTagsModel::data(const QModelIndex& index, int role) const
         return descriptionForTag(QString::fromStdString(info.tagId));
     case GroupRole:
         return QString::fromStdString(info.group);
+    case ColorRole:
+        return colorForGroup(info.group);
     default:
         return {};
     }
@@ -100,6 +106,7 @@ QHash<int, QByteArray> AircraftTagsModel::roleNames() const
     result[NameRole] = "name";
     result[DescriptionRole] = "description";
     result[GroupRole] = "group";
+    result[ColorRole] = "color";
     return result;
 }
 
@@ -136,4 +143,50 @@ int AircraftTagsModel::indexOfTag(QString tag) const
 bool AircraftTagsModel::isKnownTag(QString tag) const
 {
     return infoForTag(tag) != nullptr;
+}
+
+QColor AircraftTagsModel::colorForGroup(const std::string& group) const
+{
+    for (size_t i = 0; i < knownGroups.size(); ++i) {
+        if (group == knownGroups.at(i)) {
+            if (i < _categoryColors.size()) {
+                return _categoryColors.at(i);
+            }
+            break;
+        }
+    }
+
+    return QColor("#1b7ad3"); // Style.qml's themeColor, used as a fallback
+}
+
+QColor AircraftTagsModel::colorForTag(QString tag) const
+{
+    const auto* info = infoForTag(tag);
+    if (!info)
+        return QColor("#1b7ad3");
+
+    return colorForGroup(info->group);
+}
+
+void AircraftTagsModel::loadStyleColors(QQmlEngine* engine, int styleTypeId)
+{
+    // mirrors QmlColoredImageProvider::loadStyleColors()
+    QJSValue styleValue = engine->singletonInstance<QJSValue>(styleTypeId);
+    if (styleValue.isNull() || !styleValue.isQObject()) {
+        qWarning("AircraftTagsModel: unable to load Style object");
+        return;
+    }
+
+    QObject* styleObject = styleValue.toQObject();
+    const QVariantList colors = styleObject->property("tagCategoryColors").toList();
+
+    _categoryColors.clear();
+    _categoryColors.reserve(static_cast<size_t>(colors.size()));
+    for (const auto& v : colors) {
+        _categoryColors.push_back(QColor(v.toString()));
+    }
+
+    if (!_tags.empty()) {
+        emit dataChanged(index(0), index(static_cast<int>(_tags.size()) - 1), {ColorRole});
+    }
 }

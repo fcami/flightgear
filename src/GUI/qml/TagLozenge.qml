@@ -17,14 +17,15 @@ Rectangle {
 
     signal removeRequested()
     signal toggleNegationRequested()
+    signal clicked()
 
     readonly property string __name: _launcher.aircraftTagsModel.nameForTag(root.tag)
     readonly property string __description: _launcher.aircraftTagsModel.descriptionForTag(root.tag)
 
     height: label.implicitHeight + Style.margin
-    width: label.implicitWidth + (root.compact ? (Style.margin * 2) : (closeIcon.width + Style.margin * 2))
+    width: label.implicitWidth + (root.compact ? (Style.margin * 2) : (closeIcon.width + Style.margin * 2.5))
     radius: height / 2
-    color: root.negated ? Style.destructiveActionColor : Style.themeColor
+    color: root.negated ? Style.destructiveActionColor : _launcher.aircraftTagsModel.colorForTag(root.tag)
 
     ToolTip.visible: hoverArea.containsMouse && (root.__description.length > 0)
     ToolTip.text: root.__description
@@ -34,7 +35,7 @@ Rectangle {
         id: label
         text: root.negated ? ("! " + root.__name) : root.__name
         color: Style.themeContrastTextColor
-        font.pixelSize: root.compact ? Style.smallFontPixelSize : Style.baseFontPixelSize
+        font.pixelSize: Style.baseFontPixelSize
         anchors {
             left: parent.left
             leftMargin: Style.margin
@@ -50,15 +51,17 @@ Rectangle {
         font.pixelSize: Style.baseFontPixelSize
         anchors {
             right: parent.right
+            rightMargin: Style.margin * 0.5
             verticalCenter: parent.verticalCenter
         }
     }
 
-    // covers the whole lozenge: double-click cycles negation
+    // covers the whole lozenge: click selects, double-click cycles negation
     MouseArea {
         id: hoverArea
         anchors.fill: parent
         hoverEnabled: true
+        onClicked: root.clicked()
         onDoubleClicked: root.toggleNegationRequested()
     }
 

@@ -7,6 +7,9 @@
 #include <vector>
 
 #include <QAbstractListModel>
+#include <QColor>
+
+class QQmlEngine;
 
 /**
  * @brief Enumerates the aircraft catalog tags known to the launcher.
@@ -26,7 +29,8 @@ public:
         TagRole = Qt::UserRole + 1, ///< raw tag id, e.g. "de-havilland"
         NameRole,                   ///< translated display name
         DescriptionRole,            ///< translated description (may be empty)
-        GroupRole                   ///< group id, e.g. "manufacturer"
+        GroupRole,                  ///< group id, e.g. "manufacturer"
+        ColorRole                   ///< per-group category color (see loadStyleColors())
     };
     Q_ENUM(Roles)
 
@@ -38,8 +42,19 @@ public:
 
     Q_INVOKABLE QString nameForTag(QString tag) const;
     Q_INVOKABLE QString descriptionForTag(QString tag) const;
+    Q_INVOKABLE QColor colorForTag(QString tag) const;
     Q_INVOKABLE int indexOfTag(QString tag) const;
     Q_INVOKABLE bool isKnownTag(QString tag) const;
+
+    /**
+     * @brief Load the per-tag-category colors from the QML Style singleton.
+     *
+     * Mirrors QmlColoredImageProvider::loadStyleColors(): must be called
+     * once the QML engine and the Style singleton both exist (i.e. after
+     * LauncherController::initQML()), reading Style.qml's
+     * 'tagCategoryColors' array.
+     */
+    void loadStyleColors(QQmlEngine* engine, int styleTypeId);
 
 private:
     struct TagInfo {
@@ -50,6 +65,8 @@ private:
 
     void reload();
     const TagInfo* infoForTag(const QString& tag) const;
+    QColor colorForGroup(const std::string& group) const;
 
     std::vector<TagInfo> _tags;
+    std::vector<QColor> _categoryColors;
 };
