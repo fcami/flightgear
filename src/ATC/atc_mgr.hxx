@@ -27,7 +27,7 @@ typedef std::vector<FGATCController*> AtcVec;
 typedef std::vector<FGATCController*>::iterator AtcVecIterator;
 
 /**
- * This subsystem performs two tasks. It provides the ATC controllers for the AI aircraft 
+ * This subsystem performs two tasks. It provides the ATC controllers for the AI aircraft
  * and shaddows the users aircraft and does the basic ATC and AI interaction.
 */
 
@@ -56,6 +56,7 @@ public:
     // Subsystem API.
     void postinit() override;
     void shutdown() override;
+    void reinit() override;
     void update(double time) override;
 
     // Subsystem identification.
