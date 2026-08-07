@@ -35,6 +35,23 @@ Rectangle
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
+        PopupChoice {
+            id: sortChoice
+            model: StringListModel{
+                values: [qsTr("By name"), qsTr("By rating")]
+                keys: [FG.AircraftFilterModel.SortByName, FG.AircraftFilterModel.SortByRating]
+            }
+
+            currentIndex: model.indexOfKey(_launcher.currentAircraftModel.sorting)
+            onCurrentIndexChanged: {
+                _launcher.currentAircraftModel.sorting = model.keys[currentIndex]
+            }
+
+            label: qsTr("Sort aircraft by: ")
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
         ToggleSwitch {
             id: doCompatibilityCheck
             checked: _launcher.currentAircraftModel.compatibilityFilterEnabled

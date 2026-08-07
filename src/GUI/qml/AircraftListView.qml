@@ -20,8 +20,7 @@ Item {
         if (!model)
             return;
 
-        model.selectVariantForAircraftURI(_launcher.selectedAircraft);
-        var row = model.indexForURI(_launcher.selectedAircraft);
+        var row = _launcher.selectedAircraftIndex(model)
         if (row >= 0) {
             // sequence here is necessary so programmatic moves
             // are instant

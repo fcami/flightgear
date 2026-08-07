@@ -25,15 +25,23 @@ AircraftFilterModel::AircraftFilterModel(QObject* pr, QAbstractItemModel* source
 
 AircraftItemModel* AircraftFilterModel::resolveItemModel() const
 {
-    auto* itemModel = qobject_cast<AircraftItemModel*>(sourceModel());
-    if (!itemModel) {
-        // Source is a proxy (e.g. AircraftSearchModel); look one level deeper.
-        auto* proxySource = qobject_cast<QAbstractProxyModel*>(sourceModel());
-        Q_ASSERT(proxySource);
-        itemModel = qobject_cast<AircraftItemModel*>(proxySource->sourceModel());
+    auto m = sourceModel();
+    while (m) {
+        auto* itemModel = qobject_cast<AircraftItemModel*>(m);
+        if (itemModel) {
+            return itemModel;
+        }
+
+        auto pm = qobject_cast<QAbstractProxyModel*>(m);
+        if (!pm) {
+            break;
+        }
+
+        m = pm->sourceModel();
     }
-    Q_ASSERT(itemModel);
-    return itemModel;
+
+    qFatal() << "AircraftFilterModel::resolveItemModel() failed to find AircraftItemModel in the source model chain";
+    return nullptr;
 }
 
 void AircraftFilterModel::setRatings(QList<int> ratings)
@@ -44,36 +52,6 @@ void AircraftFilterModel::setRatings(QList<int> ratings)
     invalidate();
     emit filtersChanged();
     emit summaryTextChanged();
-}
-
-int AircraftFilterModel::indexForURI(QUrl uri) const
-{
-    auto* itemModel = qobject_cast<AircraftItemModel*>(sourceModel());
-    QModelIndex sourceIdx;
-
-    if (itemModel) {
-        // Direct chain: AircraftItemModel → AircraftFilterModel
-        sourceIdx = mapFromSource(itemModel->indexOfAircraftURI(uri));
-    } else {
-        // Indirect chain through a proxy (e.g. AircraftSearchModel)
-        auto* proxySource = qobject_cast<QAbstractProxyModel*>(sourceModel());
-        Q_ASSERT(proxySource);
-        itemModel = qobject_cast<AircraftItemModel*>(proxySource->sourceModel());
-        Q_ASSERT(itemModel);
-        auto proxyIdx = proxySource->mapFromSource(itemModel->indexOfAircraftURI(uri));
-        sourceIdx = mapFromSource(proxyIdx);
-    }
-
-    if (!sourceIdx.isValid()) {
-        return -1;
-    }
-
-    return sourceIdx.row();
-}
-
-void AircraftFilterModel::selectVariantForAircraftURI(QUrl uri)
-{
-    resolveItemModel()->selectVariantForAircraftURI(uri);
 }
 
 void AircraftFilterModel::setRatingFilterEnabled(bool e)
@@ -179,7 +157,6 @@ void AircraftFilterModel::saveCompatibilityAndRatingsSettings()
         vRatings.append(m_ratings.at(i));
     }
     settings.setValue("ratings-filter", vRatings);
-    qInfo() << "Did save ratings";
 }
 
 int AircraftFilterModel::filteredOutCount() const
@@ -205,23 +182,32 @@ void AircraftFilterModel::setSorting(Sorting s)
 
 void AircraftFilterModel::updateSorting()
 {
+    auto order = Qt::AscendingOrder;
     switch (m_sorting) {
     case Sorting::SortByName:
         setSortRole(AircraftVariantDescriptionRole);
         setSortCaseSensitivity(Qt::CaseInsensitive);
+
         break;
     case Sorting::SortByRating:
-        setSortRole(AircraftRatingRole);
-        setSortCaseSensitivity(Qt::CaseSensitive); // doesn't matter, it's an int
+        setSortRole(AircraftCombinedRatingRole);
+        // highest-rated at the top
+        order = Qt::DescendingOrder;
         break;
     }
 
     setDynamicSortFilter(true);
-    sort(0);
+    sort(0, order);
 }
 
 bool AircraftFilterModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
+    if (m_sorting == Sorting::SortByRating) {
+        // use default impl
+        return QSortFilterProxyModel::lessThan(left, right);
+    }
+
+    // custom imply for SortByName
     const QString variantLeft = left.data(AircraftVariantDescriptionRole).toString();
     const QString variantRight = right.data(AircraftVariantDescriptionRole).toString();
 

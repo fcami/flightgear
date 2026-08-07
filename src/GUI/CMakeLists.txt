@@ -120,6 +120,8 @@ if (HAVE_QT)
                             AircraftFavouritesModel.hxx
                             AircraftFilterModel.cxx
                             AircraftFilterModel.hxx
+                            AircraftRatingsProxyModel.cxx
+                            AircraftRatingsProxyModel.hxx
                             AircraftInstalledModel.cxx
                             AircraftInstalledModel.hxx
                             AircraftSearchModel.cxx

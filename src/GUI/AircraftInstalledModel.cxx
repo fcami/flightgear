@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-FileCopyrightText: 2026 James Turner
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "AircraftInstalledModel.hxx"
@@ -12,18 +12,6 @@ AircraftInstalledModel::AircraftInstalledModel(QObject* pr, QAbstractItemModel* 
     connect(this, &QAbstractItemModel::rowsInserted, this, &AircraftInstalledModel::countChanged);
     connect(this, &QAbstractItemModel::rowsRemoved, this, &AircraftInstalledModel::countChanged);
     connect(this, &QAbstractItemModel::modelReset, this, &AircraftInstalledModel::countChanged);
-}
-
-int AircraftInstalledModel::indexForURI(QUrl uri) const
-{
-    auto srcIdx = qobject_cast<AircraftItemModel*>(sourceModel())->indexOfAircraftURI(uri);
-    auto ourIdx = mapFromSource(srcIdx);
-    return ourIdx.isValid() ? ourIdx.row() : -1;
-}
-
-void AircraftInstalledModel::selectVariantForAircraftURI(QUrl uri)
-{
-    qobject_cast<AircraftItemModel*>(sourceModel())->selectVariantForAircraftURI(uri);
 }
 
 int AircraftInstalledModel::count() const

@@ -151,8 +151,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="hide">assets/mask-hide.png</file>
         <file alias="preview">assets/mask-preview.png</file>
         <file alias="up-down">assets/mask-up-down.png</file>
-        <file alias="star-filled">assets/mask-star-filled.png</file>
-        <file alias="star-outline">assets/mask-star-outline.png</file>
+
         <file alias="back">assets/mask-back.png</file>
         <file alias="cancel-small">assets/mask-cancel-small.png</file>
         <file alias="reorder-list">assets/mask-reorder-list.png</file>
@@ -180,5 +179,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="heart-filled">assets/tabler-mask-heart-filled.svg</file>
         <file alias="heart-outline">assets/tabler-mask-heart-outline.svg</file>
         <file alias="heart-plus">assets/tabler-mask-heart-plus.svg</file>
+
+        <file alias="star-filled">assets/tabler-mask-star-filled.svg</file>
+        <file alias="star-outline">assets/tabler-mask-star-outline.svg</file>
     </qresource>
 </RCC>

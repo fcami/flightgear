@@ -14,18 +14,6 @@ AircraftUpdatesModel::AircraftUpdatesModel(QObject* pr, QAbstractItemModel* sour
     connect(this, &QAbstractItemModel::modelReset, this, &AircraftUpdatesModel::countChanged);
 }
 
-int AircraftUpdatesModel::indexForURI(QUrl uri) const
-{
-    auto srcIdx = qobject_cast<AircraftItemModel*>(sourceModel())->indexOfAircraftURI(uri);
-    auto ourIdx = mapFromSource(srcIdx);
-    return ourIdx.isValid() ? ourIdx.row() : -1;
-}
-
-void AircraftUpdatesModel::selectVariantForAircraftURI(QUrl uri)
-{
-    qobject_cast<AircraftItemModel*>(sourceModel())->selectVariantForAircraftURI(uri);
-}
-
 int AircraftUpdatesModel::count() const
 {
     return rowCount();

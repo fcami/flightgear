@@ -20,9 +20,6 @@ public:
 
     Q_PROPERTY(int count READ count NOTIFY countChanged)
 
-    Q_INVOKABLE int indexForURI(QUrl uri) const;
-    Q_INVOKABLE void selectVariantForAircraftURI(QUrl uri);
-
     int count() const;
 
 signals:
