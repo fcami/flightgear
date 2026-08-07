@@ -21,6 +21,7 @@
 #include "AircraftSearchModel.hxx"
 #include "AircraftUpdatesModel.hxx"
 #include "FlightPlanController.hxx"
+#include "LauncherLanguagesModel.hxx"
 #include "LocationController.hxx"
 #include "MPServersModel.h"
 #include "QmlAircraftInfo.hxx"
@@ -50,6 +51,8 @@ class LauncherController : public QObject
     Q_PROPERTY(FlightPlanController* flightPlan MEMBER m_flightPlan CONSTANT)
 
     Q_PROPERTY(MPServersModel* mpServersModel MEMBER m_serversModel CONSTANT)
+
+    Q_PROPERTY(LauncherLanguagesModel* languagesModel MEMBER m_languagesModel CONSTANT)
 
     Q_PROPERTY(QUrl selectedAircraft READ selectedAircraft WRITE setSelectedAircraft NOTIFY selectedAircraftChanged)
 
@@ -292,6 +295,8 @@ private slots:
 
     void checkForOldDownloadDir();
 
+    void onLanguageSelectionChanged();
+
 private:
     /**
      * Check if the passed index is the selected aircraft, and if so, refresh
@@ -326,6 +331,7 @@ private:
     AircraftFavouritesModel* m_favouriteAircraftModel = nullptr ;
 
     MPServersModel* m_serversModel = nullptr;
+    LauncherLanguagesModel* m_languagesModel = nullptr;
     LocationController* m_location = nullptr;
     FlightPlanController* m_flightPlan = nullptr;
 
