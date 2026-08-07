@@ -120,6 +120,13 @@ public:
 
     Q_INVOKABLE bool matchesSearch(QString term, QStringList keywords) const;
 
+    /**
+     * given a (proxy) model, find the row which corresponds to selectedAircraft.
+     *
+     * Also sets the active variant of the underlying model
+     */
+    Q_INVOKABLE int selectedAircraftIndex(QAbstractItemModel* model);
+
     bool isSearchActive() const;
 
     QString settingsSearchTerm() const
