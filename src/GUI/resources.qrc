@@ -176,5 +176,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="toolbox-fly-heli">assets/icons8-helicopter.svg</file>
 
         <file alias="aircraft-carrier">assets/aircraft-carrier-icon.svg</file>
+
+        <file alias="heart-filled">assets/tabler-mask-heart-filled.svg</file>
+        <file alias="heart-outline">assets/tabler-mask-heart-outline.svg</file>
+        <file alias="heart-plus">assets/tabler-mask-heart-plus.svg</file>
     </qresource>
 </RCC>
