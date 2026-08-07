@@ -84,10 +84,6 @@ public:
     // among other things, the subdirectory of $scenery_path/NavData where
     // each type of dat file is looked for.
     static const std::string datTypeStr[];
-    // defaultDatFile[DATFILETYPE_APT] = std::string("Airports/apt.dat.gz"),
-    // etc. This tells where to find the historical dat files: those under
-    // $FG_ROOT.
-    static const std::string defaultDatFile[];
 
     // Update d->datFilesInfo and legacy d->metarDatPath, d->poiDatPath,
     // etc. by looking into $scenery_path/NavData for each scenery path.

@@ -24,12 +24,9 @@
 #include <simgear/compiler.h>
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/misc/ResourceManager.hxx>
-#include <simgear/misc/sg_dir.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
-#include <Add-ons/Addon.hxx>
-#include <Add-ons/AddonManager.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
 #include <Scripting/NasalSys.hxx>
@@ -136,30 +133,21 @@ NewGUI::init ()
         auto* cache = flightgear::NavDataCache::instance();
         flightgear::NavDataCache::Transaction txn(cache);
         auto* highlight = globals->get_subsystem<Highlight>();
-        for (const auto& p : simgear::ResourceManager::instance()->findAllUniqueOfType(
-                 simgear::ResourceManager::FileType::GUIDialog)) {
-            readDialogFile(p, cache, highlight, "core");
+
+        // While still in the startup/launcher GUI, only core dialogs are loaded
+        const bool inStartupGui = fgGetBool("/sim/gui/startup");
+
+        using RM = simgear::ResourceManager;
+        for (const auto& f : RM::instance()->findUniqueFilesOfType(RM::FileType::GUIDialog)) {
+            // f.origin is set by CurrentAircraftDirProvider ("current-aircraft")
+            // and flightgear::addons::ResourceProvider ("addons/<id>"); it is
+            // empty for core (FG_ROOT / extra data path) dialogs.
+            if (!f.origin.empty() && inStartupGui) {
+                continue;
+            }
+            readDialogFile(f.path, cache, highlight, f.origin.empty() ? "core" : f.origin);
         }
         txn.commit();
-    }
-
-    if (fgGetBool("/sim/gui/startup") == false) {
-        SGPath aircraftDialogDir(fgGetString("/sim/aircraft-dir"), "gui/dialogs");
-        if (aircraftDialogDir.exists()) {
-            readDir(aircraftDialogDir, "current-aircraft");
-        }
-
-        // Read XML dialogs made available by registered add-ons
-        const auto& addonManager = flightgear::addons::AddonManager::instance();
-        if (addonManager) {
-            for (const auto& addon : addonManager->registeredAddons()) {
-                SGPath addonDialogDir = addon->getBasePath() / "gui/dialogs";
-
-                if (addonDialogDir.exists()) {
-                    readDir(addonDialogDir, "addons/" + addon->getId());
-                }
-            }
-        }
     }
 
     if (_menubar) {
@@ -565,47 +553,30 @@ void NewGUI::readDialogFile(const SGPath& xmlPath, flightgear::NavDataCache* cac
     }
 
         // cached, easy
-    if (!cache->isCachedFileModified(xmlPath)) {
-        string name = cache->readStringProperty(xmlPath.utf8Str());
-        // The translation domain can be overridden from the xmlPath contents
-        setDialogMetadata(name, xmlPath, translationDomain);
-        return;
-    }
+        if (!cache->isCachedFileModified(xmlPath)) {
+            string name = cache->readStringProperty(xmlPath.utf8Str());
+            // The translation domain can be overridden from the xmlPath contents
+            setDialogMetadata(name, xmlPath, translationDomain);
+            return;
+        }
 
       // we need to parse the actual XML
-    if (!props) {
-        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
-        return;
-    }
+        if (!props) {
+            SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
+            return;
+        }
 
-    if (!nameprop) {
-        SG_LOG(SG_INPUT, SG_WARN, "dialog " << xmlPath << " has no name; skipping.");
-        return;
-    }
+        if (!nameprop) {
+            SG_LOG(SG_INPUT, SG_WARN, "dialog " << xmlPath << " has no name; skipping.");
+            return;
+        }
 
       // update cached values
-    setDialogMetadata(name, xmlPath, translationDomain);
-    if (!cache->isReadOnly()) {
-        cache->stampCacheFile(xmlPath);
-        cache->writeStringProperty(xmlPath.utf8Str(), name);
-    }
-}
-
-void NewGUI::readDir(const SGPath& path, const std::string& translationDomain)
-{
-    simgear::Dir dir(path);
-    if (!dir.exists()) {
-        SG_LOG(SG_INPUT, SG_INFO, "directory does not exist: " << path);
-        return;
-    }
-
-    flightgear::NavDataCache* cache = flightgear::NavDataCache::instance();
-    flightgear::NavDataCache::Transaction txn(cache);
-    auto highlight = globals->get_subsystem<Highlight>();
-    for (SGPath xmlPath : dir.children(simgear::Dir::TYPE_FILE, ".xml")) {
-        readDialogFile(xmlPath, cache, highlight, translationDomain);
-    }
-    txn.commit();
+        setDialogMetadata(name, xmlPath, translationDomain);
+        if (!cache->isReadOnly()) {
+            cache->stampCacheFile(xmlPath);
+            cache->writeStringProperty(xmlPath.utf8Str(), name);
+        }
 }
 
 ////////////////////////////////////////////////////////////////////////

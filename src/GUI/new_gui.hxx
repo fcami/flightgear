@@ -209,7 +209,6 @@ private:
 
     void readDialogFile(const SGPath& xmlPath, flightgear::NavDataCache* cache,
                         Highlight* highlight, const std::string& translationDomain);
-    void readDir(const SGPath& path, const std::string& translationDomain);
 
     std::unique_ptr<FGMenuBar> _menubar;
     FGDialogRef _active_dialog;
