@@ -166,6 +166,34 @@ Item {
                         setting: "develop"
                     },
 
+                    SettingsComboBox {
+                        id: languageSetting
+                        label: qsTr("Language")
+                        advanced: true
+                        description: qsTr("Choose the language used. Note that some translations may be incomplete, and some text may still appear in English.")
+                        model: _launcher.languagesModel
+                        keywords: ["language", "locale", "translation", "i18n"]
+
+                        readonly property string currentCode: _launcher.languagesModel.currentLanguageCode
+
+                        // persistence is handled directly by LauncherLanguagesModel (it needs
+                        // to be readable very early at startup, before any QML exists)
+                        function saveState() {}
+                        function restoreState()
+                        {
+                            languageSetting.selectedIndex = _launcher.languagesModel.currentIndex;
+                        }
+
+                        onSelectedIndexChanged: _launcher.languagesModel.currentIndex = selectedIndex
+
+                        Connections {
+                            target: _launcher.languagesModel
+                            function onCurrentIndexChanged() {
+                                languageSetting.selectedIndex = _launcher.languagesModel.currentIndex;
+                            }
+                        }
+                    },
+
                     SettingCheckbox {
                         id: restartLauncher
                         label: qsTr("Re-open FlightGear on exit")
@@ -179,6 +207,7 @@ Item {
                     if (!showConsoleWin.hidden && showConsoleWin.checked) _config.setArg("console");
                     _config.setEnableDisableOption("sentry",  enableCrashReporting.checked);
                     if (developerMode.checked) _config.setArg("developer");
+                    if (languageSetting.currentCode !== "") _config.setArg("language", languageSetting.currentCode);
                     if (restartLauncher.checked) _config.setArg("restart-launcher");
                 }
             }

@@ -140,6 +140,8 @@ if (HAVE_QT)
                             LaunchConfig.hxx
                             MPServersModel.cpp
                             MPServersModel.h
+                            LauncherLanguagesModel.cxx
+                            LauncherLanguagesModel.hxx
                             RecentAircraftModel.cxx
                             RecentAircraftModel.hxx
                             RecentLocationsModel.cxx

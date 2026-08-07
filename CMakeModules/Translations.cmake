@@ -19,6 +19,11 @@ if (${do_translate} AND NOT TARGET Qt${QT_VERSION_MAJOR}::lrelease)
         "\n(on Linux You may need to install an additional package containing the Qt translation tools)")
 endif()
 
+# comma-separated list of language dirs actually embedded into the launcher
+# (available at runtime as FG_LAUNCHER_LANGUAGES in config.h), so the launcher
+# doesn't need to scan Qt resources to discover its own supported languages
+set(FG_LAUNCHER_LANGUAGES "")
+
 
 function(translation_dir_list result curdir)
   file(GLOB children RELATIVE ${curdir} ${curdir}/*)
@@ -46,12 +51,15 @@ if (${do_translate})
     file(WRITE ${translation_res} "<RCC>\n<qresource prefix=\"/\">\n")
 
     # qm generation and installation
+    set(EMBEDDED_LANGUAGES "")
     foreach(LANG ${LANGUAGES})
         # avoid issue if the FGData we found is a different version, and a translation is
         # missing: just skip it
         if (NOT EXISTS ${TRANSLATIONS_SRC_DIR}/${LANG}/FlightGear-Qt.xlf)
             continue()
         endif()
+
+        list(APPEND EMBEDDED_LANGUAGES ${LANG})
 
         set(out_file "${PROJECT_BINARY_DIR}/FlightGear_${LANG}.qm")
         add_custom_command(
@@ -79,6 +87,8 @@ if (${do_translate})
 
     # set this so config.h can detect it
     set(HAVE_QRC_TRANSLATIONS TRUE)
+
+    string(REPLACE ";" "," FG_LAUNCHER_LANGUAGES "${EMBEDDED_LANGUAGES}")
 
     add_custom_target(ts)
     
