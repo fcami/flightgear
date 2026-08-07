@@ -41,8 +41,10 @@
 #include "AircraftFavouritesModel.hxx"
 #include "AircraftFilterModel.hxx"
 #include "AircraftItemModel.hxx"
+#include "AircraftRatingsProxyModel.hxx"
 #include "AircraftSearchModel.hxx"
 #include "AircraftUpdatesModel.hxx"
+
 #include "AirportDiagram.hxx"
 #include "CarrierDiagram.hxx"
 #include "CarriersLocationModel.hxx"
@@ -110,14 +112,16 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
             this, &LauncherController::summaryChanged);
 
     m_aircraftModel = new AircraftItemModel(this);
+    auto ratingsProxy = new AircraftRatingsProxyModel(this);
+    ratingsProxy->setSourceModel(m_aircraftModel);
 
-    m_aircraftInstalledModel = new AircraftInstalledModel(this, m_aircraftModel);
-    m_aircraftWithUpdatesModel = new AircraftUpdatesModel(this, m_aircraftModel);
-    m_favouriteAircraftModel = new AircraftFavouritesModel(this, m_aircraftModel);
+    m_aircraftInstalledModel = new AircraftInstalledModel(this, ratingsProxy);
+    m_aircraftWithUpdatesModel = new AircraftUpdatesModel(this, ratingsProxy);
+    m_favouriteAircraftModel = new AircraftFavouritesModel(this, ratingsProxy);
 
     // m_aircraftSearchModel sits between the base model and the filter model,
     // allowing text-based searching and rating/compat filtering to be separated.
-    m_aircraftSearchModel = new AircraftSearchModel(this, m_aircraftModel);
+    m_aircraftSearchModel = new AircraftSearchModel(this, ratingsProxy);
 
     // Single filter model; its source is swapped by setSelectedModel().
     // Initial state is "installed" (the default QML tab).
@@ -1093,4 +1097,31 @@ void LauncherController::onReachabilityChanged()
 
     emit networkAvailableChanged();
 #endif
+}
+
+int LauncherController::selectedAircraftIndex(QAbstractItemModel* model)
+{
+    if (!m_selectedAircraftInfo) {
+        return -1;
+    }
+
+    // hit the base case, stop descending
+    AircraftItemModel* itemModel = qobject_cast<AircraftItemModel*>(model);
+    if (itemModel) {
+        QModelIndex idx = itemModel->indexOfAircraftURI(m_selectedAircraft);
+        if (idx.isValid()) {
+            itemModel->selectVariantForAircraftURI(m_selectedAircraft);
+            return idx.row();
+        }
+
+        return -1;
+    }
+
+    auto* proxy = qobject_cast<QAbstractProxyModel*>(model);
+    if (!proxy) {
+        return -1; // should never happen
+    }
+
+    // recurse into the proxy
+    return selectedAircraftIndex(proxy->sourceModel());
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.0
 import QtQuick.Controls 2.2
 
@@ -17,7 +20,7 @@ Item {
         if (!model)
             return;
 
-        var row = model.indexForURI(_launcher.selectedAircraft);
+        var row = _launcher.findSelectedAircraftIndex(model)
         if (row >= 0) {
             view.currentIndex = row;
         } else {
@@ -44,7 +47,7 @@ Item {
         cellWidth: width / colCount
         cellHeight: 128 + Style.strutSize
         highlightMoveDuration: 0
-        
+
         ScrollBar.vertical: ScrollBar {}
 
         readonly property int baseCellWidth: 172 + (Style.strutSize * 2)

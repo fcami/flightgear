@@ -147,16 +147,33 @@ Item {
             visible: (model.description !== "") || root.__showAlternateText
         }
 
-        AircraftDownloadPanel
-        {
-            id: downloadPanel
-            visible: (model.package !== undefined)
-            packageSize: model.packageSizeBytes
-            installStatus: model.packageStatus
-            downloadedBytes: model.downloadedBytes
-            uri: model.uri
+        Row {
             width: parent.width
-            compact: true
+            height: Math.max(combinedRating.height, downloadPanel.height)
+            spacing: Style.margin
+
+            AircraftRating
+            {
+                id: combinedRating
+                showValue: true
+                title: qsTr("Rating")
+                anchors.verticalCenter: parent.verticalCenter
+                value: model.combinedRating
+            }
+
+            AircraftDownloadPanel
+            {
+                id: downloadPanel
+                visible: (model.package !== undefined)
+                packageSize: model.packageSizeBytes
+                installStatus: model.packageStatus
+                downloadedBytes: model.downloadedBytes
+                uri: model.uri
+                compact: true
+
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - (combinedRating.width + Style.margin)
+            }
         }
 
     } // of content column

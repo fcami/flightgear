@@ -20,11 +20,25 @@ void QmlStringListModel::setValues(QStringList v)
     beginResetModel();
     m_values = v;
     endResetModel();
+    emit valuesChanged();
 }
 
 QStringList QmlStringListModel::values() const
 {
     return m_values;
+}
+
+void QmlStringListModel::setKeys(QVariantList v)
+{
+    beginResetModel();
+    m_keys = v;
+    endResetModel();
+    emit keysChanged();
+}
+
+QVariantList QmlStringListModel::keys() const
+{
+    return m_keys;
 }
 
 int QmlStringListModel::rowCount(const QModelIndex& parent) const
@@ -53,10 +67,18 @@ void QmlStringListModel::clear()
 {
     beginResetModel();
     m_values.clear();
+    m_keys.clear();
     endResetModel();
+    emit valuesChanged();
+    emit keysChanged();
 }
 
 bool QmlStringListModel::empty() const
 {
     return m_values.isEmpty();
+}
+
+int QmlStringListModel::indexOfKey(const QVariant& key) const
+{
+    return m_keys.indexOf(key);
 }

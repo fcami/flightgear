@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2018 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear 1.0
 
@@ -5,38 +8,50 @@ Item {
     id: root
 
     property string title: ""
-    property int value: 3
+    property double value: 3
 
-    implicitWidth: label.implicitWidth + ratingRow.implicitWidth + Style.margin
-    implicitHeight: label.height
+    property alias showValue: ratingValue.visible
 
-    StyledText {
-        id: label
-        anchors.right: ratingRow.left
-        anchors.rightMargin: Style.margin
-        anchors.left: parent.left
-
-        horizontalAlignment: Text.AlignRight
-        text: root.title + ":"
-    }
+    implicitWidth: childrenRect.width
+    implicitHeight: Math.max(label.height, 24)
 
     Row {
-        id: ratingRow
+        id: contentRow
+        spacing: Style.margin
 
-        spacing: 2
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
+        StyledText {
+            id: label
+            anchors.verticalCenter: parent.verticalCenter
 
-        Repeater {
-            model: 5
+            horizontalAlignment: Text.AlignRight
+            text: root.title + ":"
+        }
 
-            delegate: Rectangle {
-                color: ((model.index + 1) <= root.value) ? Style.themeColor : Style.disabledTextColor
-                width: radius * 2
-                height: radius * 2
-                radius: Style.roundRadius
+        Row {
+            id: ratingRow
+
+            spacing: 0 // keep this really tight
+            anchors.verticalCenter: parent.verticalCenter
+
+            Repeater {
+                model: 5
+
+                delegate: Image {
+                    source: {
+                        var b = (model.index + 1) <= root.value;
+                        return b ? "image://colored-icon/star-filled?theme" : "image://colored-icon/star-outline?text";
+                    }
+                }
             }
         }
-    }
 
+        StyledText {
+            id: ratingValue
+            visible: false // hidden by default
+            anchors.verticalCenter: parent.verticalCenter
+            horizontalAlignment: Text.AlignLeft
+            text: "(" + Number(root.value).toLocaleString(null, 'f', 2) + ")"
+            width: Style.strutSize
+        }
+    }
 }
