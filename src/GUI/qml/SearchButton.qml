@@ -57,17 +57,17 @@ FocusScope
         TagFilterPanel {
             width: frame.width
             filterText: buttonText.text
-            selectedTags: _launcher.currentAircraftModel.selectedTags
+            selectedTags: _launcher.aircraftSearchModel.selectedTags
             showingAllTags: root.__startTagPanelInBrowseMode
             onSelected: function(tag) {
-                _launcher.currentAircraftModel.addTag(tag);
+                _launcher.aircraftSearchModel.addTag(tag);
                 buttonText.text = "";
             }
             onRemoveRequested: function(tag) {
-                _launcher.currentAircraftModel.removeTag(tag);
+                _launcher.aircraftSearchModel.removeTag(tag);
             }
             onToggleNegationRequested: function(tag) {
-                _launcher.currentAircraftModel.toggleTagNegation(tag);
+                _launcher.aircraftSearchModel.toggleTagNegation(tag);
             }
         }
     }
@@ -158,7 +158,7 @@ FocusScope
             anchors.verticalCenter: parent.verticalCenter
 
             sourceComponent: Image {
-                source: (_launcher.currentAircraftModel.selectedTags.length > 0)
+                source: (_launcher.aircraftSearchModel.selectedTags.length > 0)
                     ? "image://colored-icon/tag-filled?theme"
                     : "image://colored-icon/tag-outline?text"
 

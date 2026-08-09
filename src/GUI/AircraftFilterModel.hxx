@@ -5,7 +5,6 @@
 
 #include <QSortFilterProxyModel>
 #include <QUrl>
-#include <QVariantList>
 
 class AircraftItemModel;
 
@@ -44,16 +43,6 @@ public:
     Q_PROPERTY(int filteredOutCount READ filteredOutCount NOTIFY filtersChanged)
 
     Q_PROPERTY(Sorting sorting READ sorting WRITE setSorting NOTIFY sortingChanged)
-
-    /**
-     * List of selected tags to filter by. Each entry is a map with "tag"
-     * (string) and "negated" (bool) keys: a negated entry requires the tag
-     * to be *absent* rather than present. Negated entries are combined with
-     * logical AND (an aircraft having any negated tag is excluded);
-     * non-negated entries are combined with logical OR (an aircraft must
-     * have at least one of them, if any are present).
-     */
-    Q_PROPERTY(QVariantList selectedTags READ selectedTags WRITE setSelectedTags NOTIFY filtersChanged)
 
     Q_INVOKABLE void loadCompatibilityAndRatingsSettings();
 
@@ -95,23 +84,6 @@ public:
 
     int filteredOutCount() const;
 
-    QVariantList selectedTags() const;
-    void setSelectedTags(QVariantList tags);
-
-    /// true if \p tag is currently selected (negated or not)
-    Q_INVOKABLE bool hasTag(QString tag) const;
-
-    /// add \p tag to the selection (non-negated) if not already present
-    Q_INVOKABLE void addTag(QString tag);
-
-    /// remove \p tag from the selection, if present
-    Q_INVOKABLE void removeTag(QString tag);
-
-    /// flip the negated state of \p tag, if present
-    Q_INVOKABLE void toggleTagNegation(QString tag);
-
-    Q_INVOKABLE void clearTags();
-
 signals:
     void filtersChanged();
     void summaryTextChanged();
@@ -123,11 +95,6 @@ protected:
     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
 
 private:
-    struct SelectedTag {
-        QString tag;
-        bool negated = false;
-    };
-
     AircraftItemModel* resolveItemModel() const;
     void updateSorting();
 
@@ -137,5 +104,4 @@ private:
 
     QList<int> m_ratings;
     Sorting m_sorting = Sorting::SortByName;
-    QList<SelectedTag> m_selectedTags;
 };

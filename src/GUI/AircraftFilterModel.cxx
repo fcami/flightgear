@@ -3,8 +3,6 @@
 
 #include "AircraftFilterModel.hxx"
 
-#include <algorithm>
-
 #include <QAbstractProxyModel>
 #include <QDebug>
 #include <QSettings>
@@ -95,101 +93,6 @@ void AircraftFilterModel::setCompatibilityFilterEnabled(bool e)
     emit countChanged();
 }
 
-QVariantList AircraftFilterModel::selectedTags() const
-{
-    QVariantList result;
-    for (const auto& t : m_selectedTags) {
-        QVariantMap m;
-        m["tag"] = t.tag;
-        m["negated"] = t.negated;
-        result.append(m);
-    }
-    return result;
-}
-
-void AircraftFilterModel::setSelectedTags(QVariantList tags)
-{
-    QList<SelectedTag> newTags;
-    for (const auto& v : tags) {
-        const auto m = v.toMap();
-        newTags.append({m.value("tag").toString(), m.value("negated").toBool()});
-    }
-
-    m_selectedTags = newTags;
-    invalidate();
-    emit filtersChanged();
-    emit summaryTextChanged();
-    emit countChanged();
-}
-
-bool AircraftFilterModel::hasTag(QString tag) const
-{
-    for (const auto& t : m_selectedTags) {
-        if (t.tag.compare(tag, Qt::CaseInsensitive) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void AircraftFilterModel::addTag(QString tag)
-{
-    if (hasTag(tag)) {
-        return;
-    }
-
-    m_selectedTags.append({tag, false});
-    invalidate();
-    emit filtersChanged();
-    emit summaryTextChanged();
-    emit countChanged();
-}
-
-void AircraftFilterModel::removeTag(QString tag)
-{
-    const auto count = m_selectedTags.size();
-    auto it = std::remove_if(m_selectedTags.begin(), m_selectedTags.end(), [&tag](const SelectedTag& t) {
-        return t.tag.compare(tag, Qt::CaseInsensitive) == 0;
-    });
-    m_selectedTags.erase(it, m_selectedTags.end());
-
-    if (m_selectedTags.size() == count) {
-        return; // nothing removed
-    }
-
-    invalidate();
-    emit filtersChanged();
-    emit summaryTextChanged();
-    emit countChanged();
-}
-
-void AircraftFilterModel::toggleTagNegation(QString tag)
-{
-    for (auto& t : m_selectedTags) {
-        if (t.tag.compare(tag, Qt::CaseInsensitive) == 0) {
-            t.negated = !t.negated;
-            invalidate();
-            emit filtersChanged();
-            emit summaryTextChanged();
-            emit countChanged();
-            return;
-        }
-    }
-}
-
-void AircraftFilterModel::clearTags()
-{
-    if (m_selectedTags.isEmpty()) {
-        return;
-    }
-
-    m_selectedTags.clear();
-    invalidate();
-    emit filtersChanged();
-    emit summaryTextChanged();
-    emit countChanged();
-}
-
 QString AircraftFilterModel::summaryText() const
 {
     const int unfilteredCount = sourceModel()->rowCount();
@@ -222,31 +125,6 @@ bool AircraftFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sou
             if (m_ratings.at(i) > index.data(AircraftRatingRole + i).toInt()) {
                 return false;
             }
-        }
-    }
-
-    if (!m_selectedTags.isEmpty()) {
-        const QStringList aircraftTags = index.data(AircraftTagsRole).toStringList();
-
-        // negated tags always exclude (AND semantics); non-negated tags use
-        // OR semantics, i.e. the aircraft must match at least one of them
-        bool haveIncludeTag = false;
-        bool matchedIncludeTag = false;
-
-        for (const auto& selected : m_selectedTags) {
-            const bool present = aircraftTags.contains(selected.tag, Qt::CaseInsensitive);
-            if (selected.negated) {
-                if (present) {
-                    return false;
-                }
-            } else {
-                haveIncludeTag = true;
-                matchedIncludeTag = matchedIncludeTag || present;
-            }
-        }
-
-        if (haveIncludeTag && !matchedIncludeTag) {
-            return false;
         }
     }
 
