@@ -56,20 +56,6 @@ Default destructor
 FGATCManager::~FGATCManager() {
 }
 
-void FGATCManager::reinit()
-{
-    if (initSucceeded) {
-        // do *not* clear activeStations here, becuase initControllers
-        // doesn't re-add them (sigh), that's instead done by FGATCController::init
-        userAircraftTrafficRef.reset();
-        userAircraftScheduledFlight.reset();
-        _routeManagerDestinationAirportNode.clear();
-        initSucceeded = false; // clear so re-init is possible
-    }
-
-    postinit();
-}
-
 /**
 * Sets up ATC subsystem parts depending on other subsystems
 * Override of SGSubsystem::postinit()
@@ -77,12 +63,6 @@ void FGATCManager::reinit()
 */
 void FGATCManager::postinit()
 {
-    if (!fgGetBool("/sim/atc/enabled") || !fgGetBool("/sim/ai/enabled")) {
-        SG_LOG(SG_ATC, SG_INFO, "ATC subsystem disabled, not starting");
-        return;
-    }
-
-    SG_LOG(SG_ATC, SG_INFO, "Starting ATC");
     transNum = fgGetNode("/sim/atc/transmission-num", true);
     splashAlpha = fgGetNode("/sim/startup/splash-alpha", true);
     initControllers();
@@ -269,15 +249,10 @@ void FGATCManager::shutdown()
     userAircraftTrafficRef.reset();
     userAircraftScheduledFlight.reset();
     _routeManagerDestinationAirportNode.clear();
-    initSucceeded = false; // clear so re-init is possible
 }
 
 void FGATCManager::reposition()
 {
-    if (!fgGetBool("/sim/atc/enabled") || !initSucceeded) {
-        return;
-    }
-
     prevController = controller = nullptr;
 
 // remove any parking assignment form the user flight-plan, so it's
@@ -322,8 +297,9 @@ void FGATCManager::signalReady()
     auto userAircraft = aiManager->getUserAircraft();
     if (userAircraft) {
         auto userAIFP = userAircraft->GetFlightPlan();
-        if (userAIFP &&
-            userAIFP->getLeg() == AILeg::TAKEOFF &&
+        if (userAIFP && 
+            fgGetBool("/sim/ai/enabled") &&
+            userAIFP->getLeg() == AILeg::TAKEOFF && 
             userAircraft->getTakeOffStatus() == AITakeOffStatus::NONE) {
             userAircraft->setTakeOffStatus(AITakeOffStatus::QUEUED);
         }
@@ -338,12 +314,7 @@ update its state.
 @param time The delta time, in seconds, since the last
 update.  On first update, delta time will be 0.
 */
-void FGATCManager::update(double time)
-{
-    if (!initSucceeded) {
-        return;
-    }
-
+void FGATCManager::update ( double time ) {
     // SG_LOG(SG_ATC, SG_BULK, "ATC update code is running at time: " << time);
 
     if (splashAlpha->getDoubleValue() == 0.0 && startTime == 0) {
@@ -498,9 +469,9 @@ void FGATCManager::update(double time)
     }
 
    // update the active ATC stations
-    for (auto atc : activeStations) {
-        atc->update(time);
-    }
+   for (AtcVecIterator atc = activeStations.begin(); atc != activeStations.end(); ++atc) {
+       (*atc)->update(time);
+   }
 }
 
 
