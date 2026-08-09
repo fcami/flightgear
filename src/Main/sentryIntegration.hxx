@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <map>
 #include <simgear/misc/strutils.hxx>
 #include <string>
 
@@ -32,6 +33,12 @@ void addSentryTag(const char* tag, const char* value);
 void addSentryTag(const std::string& tag, const std::string& value);
 
 void updateSentryTag(const std::string& tag, const std::string& value);
+
+/**
+ * @brief attach a named block of structured data to subsequent events.
+ */
+void setSentryContext(const std::string& name,
+                      const std::map<std::string, std::string>& values);
 
 
 void sentryReportNasalError(const std::string& msg, const string_list& stack);
