@@ -289,21 +289,33 @@ void FGClouds::buildLayer(int iLayer, const string& name, double coverage, doubl
         float fieldWidthM = (float)_detailedFieldWidth * (float)_detailedFieldVoxelSize;
         double cov = coverage * fieldWidthM * fieldWidthM;
 
-        while (cov > 0.0f) {
+        // Guard against a tight loop: buildCloud() returns 0.0 (no progress on
+        // cov) whenever the chosen variety's box/type can't be resolved.
+        int consecutiveNoProgress = 0;
+        const int maxConsecutiveNoProgress = 1000;
+
+        while (cov > 0.0f && consecutiveNoProgress < maxConsecutiveNoProgress) {
             double choice = mt_rand(&seed);
 
             for (int i = 0; i < CloudVarietyCount; i++) {
                 choice -= tCloudVariety[i].count * totalCount;
                 if (choice <= 0.0) {
-                    cov -= buildCloud(cloud_def_root,
-                                      box_def_root,
-                                      tCloudVariety[i].name,
-                                      altFt,
-                                      grid_z_rand,
-                                      layer);
+                    double extent = buildCloud(cloud_def_root,
+                                               box_def_root,
+                                               tCloudVariety[i].name,
+                                               altFt,
+                                               grid_z_rand,
+                                               layer);
+                    cov -= extent;
+                    consecutiveNoProgress = (extent > 0.0) ? 0 : consecutiveNoProgress + 1;
                     break;
                 }
             }
+        }
+
+        if (consecutiveNoProgress >= maxConsecutiveNoProgress) {
+            SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "buildLayer: giving up after " << consecutiveNoProgress
+                                                                                  << " consecutive cloud-placement failures - check cloudlayers.xml box/cloud definitions for this layer type");
         }
     }
 }
@@ -792,7 +804,10 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
     // sunDirVoxel Z needs to be scaled up because the voxel space is not a cube.
     osg::Vec3f marchDir = snap.sunDirVoxel;
     marchDir.z() = marchDir.z() * (float)snap.width / (float)snap.height;
-    marchDir.normalize();
+    const float marchDirLength = marchDir.normalize();
+
+    // Protect against a tight loop if sun direction is not valid.
+    const bool haveValidSunDir = marchDirLength > 0.0f;
 
     // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
     const float STEP_SIZE = 0.5f;
@@ -832,7 +847,8 @@ FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
                 float py = float(j) + step.y() * 0.5f;
                 float pz = float(k) + step.z() * 0.5f;
 
-                while (px >= 0.0f && px < float(snap.width) &&
+                while (haveValidSunDir &&
+                       px >= 0.0f && px < float(snap.width) &&
                        py >= 0.0f && py < float(snap.width) &&
                        pz >= 0.0f && pz < float(snap.height)) {
                     float density = sampleDensity(px, py, pz);
