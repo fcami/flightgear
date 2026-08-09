@@ -314,8 +314,7 @@ void FGClouds::buildLayer(int iLayer, const string& name, double coverage, doubl
         }
 
         if (consecutiveNoProgress >= maxConsecutiveNoProgress) {
-            SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "buildLayer: giving up after " << consecutiveNoProgress
-                                                                                  << " consecutive cloud-placement failures - check cloudlayers.xml box/cloud definitions for this layer type");
+            SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "buildLayer: giving up after " << consecutiveNoProgress << " consecutive cloud-placement failures - check cloudlayers.xml box/cloud definitions for this layer type");
         }
     }
 }
