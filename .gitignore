@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2005 Erik HOFMAN
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Ignore all hidden directories (i.e., .idea, .vscode). This casts a very wide net,
 # and a case could be made either way for it being a good thing or a bad thing.
 .*
@@ -36,3 +38,6 @@ CPackConfig.cmake
 CPackSourceConfig.cmake
 cmake_uninstall.cmake
 CTestTestfile.cmake
+
+# Claude Code AI assistant
+CLAUDE.md
