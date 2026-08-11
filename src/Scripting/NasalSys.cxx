@@ -876,7 +876,7 @@ static naRef f_open(naContext c, naRef me, int argc, naRef* args)
     }
 
 #if defined(SG_WINDOWS)
-    std::wstring fp = filename.wstr();
+    std::wstring fp = filename.wstrForIO();
     std::wstring wmodestr = simgear::strutils::convertUtf8ToWString(modestr);
     f = _wfopen(fp.c_str(), wmodestr.c_str());
 #else
