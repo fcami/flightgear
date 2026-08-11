@@ -75,8 +75,8 @@ void SHPParser::parsePolyLines(const SGPath& aPath, PolyLine::Type aTy,
                                PolyLineList& aResult, bool aClosed)
 {
 #if defined(SG_WINDOWS)
-	const auto ws = aPath.wstr();
-	gzFile file = gzopen_w(ws.c_str(), "rb");
+    const auto ws = aPath.wstrForIO();
+    gzFile file = gzopen_w(ws.c_str(), "rb");
 #else
     const auto s = aPath.utf8Str();
     gzFile file = gzopen(s.c_str(), "rb");
