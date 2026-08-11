@@ -74,10 +74,10 @@ static inline void assign(double* ptr, const SGVec3d& vec)
     ptr[2] = vec[2];
 }
 
-static bool isNANArray(const double* d, size_t count)
+static bool isNonFiniteArray(const double* d, size_t count)
 {
-    for (int i = 0; i < count; ++i) {
-        if (std::isnan(d[i])) {
+    for (size_t i = 0; i < count; ++i) {
+        if (!std::isfinite(d[i])) {
             return true;
         }
     }
@@ -753,7 +753,7 @@ void FGInterface::_busdump(void)
 bool FGInterface::prepare_ground_cache_m(double startSimTime, double endSimTime,
                                          const double pt[3], double rad)
 {
-    if (isNANArray(pt, 3)) {
+    if (isNonFiniteArray(pt, 3)) {
         throw sg_range_exception("FGInterface::prepare_ground_cache_m: invalid WGS84 position");
     }
 
@@ -764,7 +764,7 @@ bool FGInterface::prepare_ground_cache_m(double startSimTime, double endSimTime,
 bool FGInterface::prepare_ground_cache_ft(double startSimTime, double endSimTime,
                                           const double pt[3], double rad)
 {
-    if (isNANArray(pt, 3)) {
+    if (isNonFiniteArray(pt, 3)) {
         throw sg_range_exception("FGInterface::prepare_ground_cache_ft: invalid WGS84 position");
     }
 
@@ -796,6 +796,10 @@ double
 FGInterface::get_cat_m(double t, const double pt[3],
                        double end[2][3], double vel[2][3])
 {
+    if (isNonFiniteArray(pt, 3)) {
+        throw sg_range_exception("FGInterface::get_cat_m: FDM passed a non-finite query position");
+    }
+
     SGVec3d _end[2], _vel[2];
     double dist = ground_cache.get_cat(t, SGVec3d(pt), _end, _vel);
     for (int k = 0; k < 2; ++k) {
@@ -809,6 +813,10 @@ double
 FGInterface::get_cat_ft(double t, const double pt[3],
                         double end[2][3], double vel[2][3])
 {
+    if (isNonFiniteArray(pt, 3)) {
+        throw sg_range_exception("FGInterface::get_cat_ft: FDM passed a non-finite query position");
+    }
+
     // Convert units and do the real work.
     SGVec3d pt_m = SG_FEET_TO_METER * SGVec3d(pt);
     SGVec3d _end[2], _vel[2];
@@ -844,6 +852,10 @@ bool FGInterface::get_agl_m(double t, const double pt[3], double max_altoff,
                             double linearVel[3], double angularVel[3],
                             simgear::BVHMaterial const*& material, simgear::BVHNode::Id& id)
 {
+    if (isNonFiniteArray(pt, 3) || !std::isfinite(max_altoff)) {
+        throw sg_range_exception("FGInterface::get_agl_m: FDM passed a non-finite query position");
+    }
+
     SGVec3d pt_m = SGVec3d(pt) - max_altoff * ground_cache.get_down();
     SGVec3d _contact, _normal, _linearVel, _angularVel;
     material = 0;
@@ -866,6 +878,10 @@ bool FGInterface::get_agl_ft(double t, const double pt[3], double max_altoff,
                              double linearVel[3], double angularVel[3],
                              simgear::BVHMaterial const*& material, simgear::BVHNode::Id& id)
 {
+    if (isNonFiniteArray(pt, 3) || !std::isfinite(max_altoff)) {
+        throw sg_range_exception("FGInterface::get_agl_ft: FDM passed a non-finite query position");
+    }
+
     // Convert units and do the real work.
     SGVec3d pt_m = SGVec3d(pt) - max_altoff * ground_cache.get_down();
     pt_m *= SG_FEET_TO_METER;
@@ -892,6 +908,10 @@ bool FGInterface::get_nearest_m(double t, const double pt[3], double maxDist,
                                 simgear::BVHMaterial const*& material,
                                 simgear::BVHNode::Id& id)
 {
+    if (isNonFiniteArray(pt, 3)) {
+        throw sg_range_exception("FGInterface::get_nearest_m: FDM passed a non-finite query position");
+    }
+
     SGVec3d _contact, _linearVel, _angularVel;
     material = 0;
     if (!ground_cache.get_nearest(t, SGVec3d(pt), maxDist, _contact, _linearVel,
@@ -910,6 +930,10 @@ bool FGInterface::get_nearest_ft(double t, const double pt[3], double maxDist,
                                  simgear::BVHMaterial const*& material,
                                  simgear::BVHNode::Id& id)
 {
+    if (isNonFiniteArray(pt, 3)) {
+        throw sg_range_exception("FGInterface::get_nearest_ft: FDM passed a non-finite query position");
+    }
+
     SGVec3d _contact, _linearVel, _angularVel;
     material = 0;
     if (!ground_cache.get_nearest(t, SG_FEET_TO_METER * SGVec3d(pt),
@@ -986,6 +1010,10 @@ FGInterface::get_groundlevel_m(const SGGeod& geod)
 
 bool FGInterface::caught_wire_m(double t, const double pt[4][3])
 {
+    if (isNonFiniteArray(&pt[0][0], 12)) {
+        throw sg_range_exception("FGInterface::caught_wire_m: FDM passed a non-finite query position");
+    }
+
     SGVec3d pt_m[4];
     for (int i = 0; i < 4; ++i)
         pt_m[i] = SGVec3d(pt[i]);
@@ -995,6 +1023,10 @@ bool FGInterface::caught_wire_m(double t, const double pt[4][3])
 
 bool FGInterface::caught_wire_ft(double t, const double pt[4][3])
 {
+    if (isNonFiniteArray(&pt[0][0], 12)) {
+        throw sg_range_exception("FGInterface::caught_wire_ft: FDM passed a non-finite query position");
+    }
+
     // Convert units and do the real work.
     SGVec3d pt_m[4];
     for (int i = 0; i < 4; ++i)
