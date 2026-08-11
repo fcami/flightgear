@@ -215,8 +215,7 @@ public:
      * @param resource  same as for get()
      * @param prefix    a string such as "tag-"
      * @return The basic id of every translatable string in @a resource whose
-     *         name starts with @a prefix, in ascending order, with no
-     *         duplicates
+     *         name starts with @a prefix, in ascending order
      */
     std::vector<std::string> getIdsWithPrefix(const std::string& resource,
                                               const std::string& prefix) const;
