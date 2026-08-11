@@ -434,6 +434,21 @@ void updateSentryTag(const std::string& tag, const std::string& value)
     sentry_set_tag(tag.c_str(), value.c_str());
 }
 
+void setSentryContext(const std::string& name,
+                      const std::map<std::string, std::string>& values)
+{
+    if (name.empty() || !static_sentryEnabled)
+        return;
+
+    sentry_value_t info = sentry_value_new_object();
+    for (const auto& v : values) {
+        sentry_value_set_by_key(info, v.first.c_str(),
+                                sentry_value_new_string(v.second.c_str()));
+    }
+
+    sentry_set_context(name.c_str(), info);
+}
+
 void sentryReportNasalError(const std::string& msg, const string_list& stack)
 {
     if (!static_sentryEnabled)
@@ -557,6 +572,11 @@ void addSentryTag(const char*, const char*)
 }
 
 void updateSentryTag(const std::string&, const std::string&)
+{
+}
+
+void setSentryContext(const std::string&,
+                      const std::map<std::string, std::string>&)
 {
 }
 
