@@ -275,6 +275,20 @@ void FGGlobals::set_fg_root(const SGPath& root)
         SG_LOG(SG_GENERAL, SG_ALERT, "***\n***\n*** Warning: changing bad FG_ROOT/--fg-root to '" << fg_root << "'\n***\n***");
     }
 
+#if defined(SG_WINDOWS)
+    // Windows file APIs silently misbehave beyond MAX_PATH (260 chars); a long
+    // FG_ROOT leaves little headroom for the deep resource paths used by
+    // aircraft/scenery data, so flag it for crash-report correlation.
+    const auto fgRootLength = fg_root.utf8Str().size();
+    if (fgRootLength > 120) {
+        const char* bucket = (fgRootLength > 260) ? ">260" : (fgRootLength > 200) ? "200-260"
+                                                                                  : "120-200";
+        flightgear::addSentryTag("long-fg-root-path", bucket);
+        SG_LOG(SG_GENERAL, SG_WARN, "FG_ROOT path is long (" << fgRootLength << " characters): this can cause erratic file-not-found errors on "
+                                                                                "Windows for deeply nested resource paths.");
+    }
+#endif
+
     // deliberately not a tied property, for SGPath::validate() security
     // write-protect to avoid accidents
     SGPropertyNode* n = fgGetNode("/sim", true);
