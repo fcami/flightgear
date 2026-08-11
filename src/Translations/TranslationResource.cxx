@@ -168,6 +168,7 @@ std::size_t TranslationResource::getCount(const string& name) const
 vector<string> TranslationResource::getIdsWithPrefix(const string& prefix) const
 {
     vector<string> result;
+    std::set<string> dedup; // to avoid duplicates
 
     // KeyType pairs are ordered lexicographically by name first, so every
     // name starting with 'prefix' occupies one contiguous range starting at
@@ -180,7 +181,9 @@ vector<string> TranslationResource::getIdsWithPrefix(const string& prefix) const
             break; // past the last name with this prefix
         }
 
-        result.push_back(name);
+        if (dedup.insert(name).second) {
+            result.push_back(name);
+        }
     }
 
     return result;

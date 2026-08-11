@@ -174,7 +174,7 @@ public:
      * @param prefix  a string such as "tag-"
      * @return A vector containing the element name (aka “basic id”) of every
      *         translation unit in this TranslationResource whose name starts
-     *         with @a prefix.
+     *         with @a prefix, with duplicates removed.
      */
     std::vector<std::string> getIdsWithPrefix(const std::string& prefix) const;
 
