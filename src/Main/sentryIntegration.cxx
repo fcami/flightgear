@@ -4,19 +4,30 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "config.h"
-#include "simgear/debug/debug_types.h"
+
+// use the raw define, we can't use SG_WINDOWS here since we need to include
+// these *early*, otherwise other definitions cause us problems
+#if defined(_WIN32)
+    #include <tlhelp32.h>
+    #include <windows.h>
+#endif
 
 #include "sentryIntegration.hxx"
 
+#include <algorithm>
 #include <cstring> // for strcmp
+#include <sstream>
 
+#include <simgear/compiler.h>
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/LogCallback.hxx>
 #include <simgear/debug/Reporting.hxx>
+#include <simgear/debug/debug_types.h>
 #include <simgear/debug/logstream.hxx>
 
 #include <simgear/io/iostreams/sgstream.hxx>
 #include <simgear/misc/sg_path.hxx>
+#include <simgear/misc/strutils.hxx>
 #include <simgear/props/props.hxx>
 #include <simgear/structure/commands.hxx>
 #include <simgear/structure/exception.hxx>
@@ -449,11 +460,87 @@ void setSentryContext(const std::string& name,
     sentry_set_context(name.c_str(), info);
 }
 
+void addLoadedModulesSentryContext()
+{
+    if (!static_sentryEnabled)
+        return;
+
+    #if defined(SG_WINDOWS)
+    // Known Windows/system/toolkit modules which are never interesting when
+    // diagnosing a crash which appears to occur inside a graphics driver.
+    // Anything not on this list is reported, since third-party overlay /
+    // injection DLLs (capture software, RGB-lighting tools, etc) are a common
+    // real cause of driver-looking crashes and are otherwise invisible to us.
+    static const std::initializer_list<const char*> knownPrefixes = {
+        "api-ms-win-", "ext-ms-win-"};
+    static const std::initializer_list<const char*> knownNames = {
+        "ntdll.dll", "kernel32.dll", "kernelbase.dll", "user32.dll", "gdi32.dll",
+        "gdi32full.dll", "win32u.dll", "advapi32.dll", "msvcrt.dll", "sechost.dll",
+        "rpcrt4.dll", "shell32.dll", "shcore.dll", "shlwapi.dll", "ole32.dll",
+        "oleaut32.dll", "combase.dll", "ucrtbase.dll", "bcrypt.dll", "bcryptprimitives.dll",
+        "imm32.dll", "setupapi.dll", "cfgmgr32.dll", "d3d9.dll", "d3d10warp.dll",
+        "d3d11.dll", "dxgi.dll", "opengl32.dll", "glu32.dll", "ws2_32.dll", "winmm.dll",
+        "version.dll", "psapi.dll", "crypt32.dll", "msasn1.dll", "clbcatq.dll",
+        "propsys.dll", "uxtheme.dll", "dwmapi.dll", "comdlg32.dll", "comctl32.dll",
+        "oleacc.dll", "netapi32.dll", "userenv.dll", "profapi.dll", "powrprof.dll",
+        "wtsapi32.dll", "avrt.dll", "dbghelp.dll", "faultrep.dll", "wer.dll",
+        "iphlpapi.dll", "mswsock.dll", "nsi.dll", "fwpuclnt.dll", "rasadhlp.dll",
+        "dnsapi.dll", "mscoree.dll", "shwapi.dll", "fgfs.exe", "crashpad_handler.exe",
+        "sentry.dll"};
+
+    auto isUninteresting = [](const std::string& lowerName) {
+        for (const char* n : knownNames) {
+            if (lowerName == n)
+                return true;
+        }
+        for (const char* p : knownPrefixes) {
+            if (simgear::strutils::starts_with(lowerName, p))
+                return true;
+        }
+        // Qt, OSG and our own plugins are expected, and not interesting here
+        return simgear::strutils::starts_with(lowerName, "qt5") ||
+               simgear::strutils::starts_with(lowerName, "qt6") ||
+               simgear::strutils::starts_with(lowerName, "osg");
+    };
+
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, GetCurrentProcessId());
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        return;
+    }
+
+    MODULEENTRY32W moduleEntry;
+    moduleEntry.dwSize = sizeof(moduleEntry);
+
+    std::map<std::string, std::string> context;
+    if (Module32FirstW(snapshot, &moduleEntry)) {
+        do {
+            if (context.size() >= 64)
+                break;
+
+            const SGPath path(std::wstring(moduleEntry.szExePath));
+            const std::string fileName = path.file();
+            if (fileName.empty() || isUninteresting(simgear::strutils::lowercase(fileName)))
+                continue;
+
+            std::ostringstream key;
+            key << "module_" << context.size();
+            context[key.str()] = fileName;
+        } while (Module32NextW(snapshot, &moduleEntry));
+    }
+
+    CloseHandle(snapshot);
+
+    if (!context.empty()) {
+        setSentryContext("loaded_modules", context);
+    }
+    #endif // SG_WINDOWS
+}
+
 void sentryReportNasalError(const std::string& msg, const string_list& stack)
 {
     if (!static_sentryEnabled)
         return;
-#if 0
+    #if 0
     sentry_value_t exc = sentry_value_new_object();
     sentry_value_set_by_key(exc, "type", sentry_value_new_string("Exception"));
     sentry_value_set_by_key(exc, "value", sentry_value_new_string(msg.c_str()));
@@ -475,7 +562,7 @@ void sentryReportNasalError(const std::string& msg, const string_list& stack)
 
     sentry_capture_event(event);
 
-#endif
+    #endif
 }
 
 void sentryReportException(const std::string& msg, const std::string& location)
@@ -577,6 +664,10 @@ void updateSentryTag(const std::string&, const std::string&)
 
 void setSentryContext(const std::string&,
                       const std::map<std::string, std::string>&)
+{
+}
+
+void addLoadedModulesSentryContext()
 {
 }
 
