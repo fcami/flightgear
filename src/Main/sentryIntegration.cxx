@@ -310,10 +310,10 @@ void initSentry(bool quiet)
 
     SGPath dataPath = fgHomePath() / "sentry_db";
 #if defined(SG_WINDOWS)
-    const auto homePathString = dataPath.wstr();
+    const auto homePathString = dataPath.wstrForIO();
     sentry_options_set_database_pathw(options, homePathString.c_str());
 
-    const auto logPath = (fgHomePath() / "fgfs.log").wstr();
+    const auto logPath = (fgHomePath() / "fgfs.log").wstrForIO();
     sentry_options_add_attachmentw(options, logPath.c_str());
 #else
     const auto homePathString = dataPath.utf8Str();
