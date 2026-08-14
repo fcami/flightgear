@@ -13,7 +13,7 @@ Rectangle
     property GettingStartedTipLayer tips
 
     implicitHeight: contents.implicitHeight + Style.margin * 2
-    implicitWidth: 800
+    implicitWidth: Style.strutSize * 24
     color: Style.backgroundColor
 
     Column {

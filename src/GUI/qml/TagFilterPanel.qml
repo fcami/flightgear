@@ -55,7 +55,7 @@ Rectangle {
             wrapMode: Text.WordWrap
             color: Style.disabledTextColor
             text: root.selectedTags.length > 0 ? qsTr("Filtering by tags:")
-                                                : qsTr("Enter a search term above. Click + to filter by tag.")
+                                                : qsTr("Enter a search term above, or '[' to search tags. Click + to browse tags.")
         }
 
         Flow {
