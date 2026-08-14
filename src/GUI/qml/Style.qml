@@ -30,6 +30,19 @@ QtObject
     readonly property string noteFrameColor: "#fe6600"
     readonly property string noteBackgroundColor: "#f6a773"
 
+    // one color per aircraft tag category/group, in the same order as
+    // AircraftTagsModel's (C++) knownGroups: role, manufacturer, era,
+    // feature, propulsion, sim-feature. Read by
+    // AircraftTagsModel::loadStyleColors() for the ColorRole.
+    readonly property var tagCategoryColors: [
+        "#1b7ad3", // role
+        "#8e44ad", // manufacturer
+        "#16a085", // era
+        "#e67e22", // feature
+        "#2c3e50", // propulsion
+        "#27ae60"  // sim-feature
+    ]
+
     readonly property string baseTextColor: "#2f2f2f"
     readonly property string themeContrastTextColor: "#efefef"
     readonly property string themeContrastLinkColor: baseTextColor
@@ -37,6 +50,7 @@ QtObject
     readonly property int baseFontPixelSize: 12
     readonly property int subHeadingFontPixelSize: 14
     readonly property int headingFontPixelSize: 18
+    readonly property int smallFontPixelSize: baseFontPixelSize - 2
 
     readonly property string disabledTextColor: "#6f6f6f"
 

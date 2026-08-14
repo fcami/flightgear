@@ -46,6 +46,7 @@
 #include "AircraftItemModel.hxx"
 #include "AircraftRatingsProxyModel.hxx"
 #include "AircraftSearchModel.hxx"
+#include "AircraftTagsModel.hxx"
 #include "AircraftUpdatesModel.hxx"
 
 #include "AirportDiagram.hxx"
@@ -135,6 +136,8 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
     m_aircraftFilterModel = new AircraftFilterModel(this, m_aircraftInstalledModel);
     m_aircraftFilterModel->setRatingFilterEnabled(true);
     m_aircraftFilterModel->setCompatibilityFilterEnabled(true);
+
+    m_aircraftTagsModel = new AircraftTagsModel(this);
 
     m_aircraftHistory = new RecentAircraftModel(m_aircraftModel, this);
 
@@ -231,6 +234,8 @@ void LauncherController::initQML(int& styleTypeId)
     qmlRegisterUncreatableType<AircraftSearchModel>("FlightGear.Launcher", 1, 0, "AircraftSearchModel", "no");
     qmlRegisterUncreatableType<AircraftUpdatesModel>("FlightGear.Launcher", 1, 0, "AircraftUpdatesModel", "no");
     qmlRegisterUncreatableType<AircraftFavouritesModel>("FlightGear.Launcher", 1, 0, "AircraftFavouritesModel", "no");
+    qmlRegisterUncreatableType<AircraftTagsModel>("FlightGear.Launcher", 1, 0, "AircraftTagsModel", "no");
+    qmlRegisterType<AircraftTagsFilterModel>("FlightGear.Launcher", 1, 0, "AircraftTagsFilterModel");
     qmlRegisterUncreatableType<RecentAircraftModel>("FlightGear.Launcher", 1, 0, "RecentAircraftModel", "no");
     qmlRegisterUncreatableType<RecentLocationsModel>("FlightGear.Launcher", 1, 0, "RecentLocationsModel", "no");
     qmlRegisterUncreatableType<LaunchConfig>("FlightGear.Launcher", 1, 0, "LaunchConfig", "Singleton API");

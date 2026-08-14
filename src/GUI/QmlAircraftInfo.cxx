@@ -923,6 +923,21 @@ bool QmlAircraftInfo::hasTag(QString tag) const
     return false;
 }
 
+QStringList QmlAircraftInfo::tags() const
+{
+    if (_item) {
+        return resolveItem()->tags;
+    } else if (_package) {
+        QStringList result;
+        for (const auto& tag : _package->tags()) {
+            result.push_back(QString::fromStdString(tag));
+        }
+        return result;
+    }
+
+    return {};
+}
+
 bool QmlAircraftInfo::favourite() const
 {
     return FavouriteAircraftData::instance()->isFavourite(uri());

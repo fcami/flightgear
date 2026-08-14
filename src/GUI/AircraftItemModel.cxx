@@ -326,6 +326,8 @@ QVariant AircraftItemModel::dataFromItem(AircraftItemPtr item, const DelegateSta
         return item->status(0 /* variant is always 0 */);
     } else if (role == AircraftCompatibleRole) {
         return item->declaredCompatible;
+    } else if (role == AircraftTagsRole) {
+        return item->tags;
     }
 
     return QVariant();
@@ -406,6 +408,12 @@ QVariant AircraftItemModel::dataFromPackage(const PackageRef& item, const Delega
         return item->hasTag("helicopter");
     } else if (role == AircraftIsSeaplaneRole) {
         return item->hasTag("seaplane") || item->hasTag("floats");
+    } else if (role == AircraftTagsRole) {
+        QStringList tags;
+        for (const auto& tag : item->tags()) {
+            tags.push_back(QString::fromStdString(tag));
+        }
+        return tags;
     }
 
     return QVariant();
@@ -465,6 +473,8 @@ QHash<int, QByteArray> AircraftItemModel::roleNames() const
     result[AircraftRatingRole + 1] = "ratingSystems";
     result[AircraftRatingRole + 2] = "ratingCockpit";
     result[AircraftRatingRole + 3] = "ratingExterior";
+
+    result[AircraftTagsRole] = "tags";
 
     return result;
 }

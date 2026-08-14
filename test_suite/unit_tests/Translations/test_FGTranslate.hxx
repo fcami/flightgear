@@ -22,6 +22,7 @@ class FGTranslateTests : public CppUnit::TestFixture
     CPPUNIT_TEST(test_getWithDefault);
     CPPUNIT_TEST(test_pluralsAndAircraftDomain);
     CPPUNIT_TEST(test_multipleIndices);
+    CPPUNIT_TEST(test_getIdsWithPrefix);
     CPPUNIT_TEST(test_addonDomain);
     CPPUNIT_TEST(test_NasalAPI_en_US);
     CPPUNIT_TEST(test_NasalAPI_fr_FR);
@@ -42,6 +43,7 @@ public:
     void test_getWithDefault();
     void test_pluralsAndAircraftDomain();
     void test_multipleIndices();
+    void test_getIdsWithPrefix();
     void test_addonDomain();
     void test_NasalAPI_en_US();
     void test_NasalAPI_fr_FR();

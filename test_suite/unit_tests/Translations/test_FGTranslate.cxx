@@ -32,6 +32,8 @@ using std::string;
 
 using flightgear::addons::AddonManager;
 
+/* codespell:ignore-begin (French) */
+
 // The en_US strings may differ from the default translation strings (the
 // former are found in <target> elements of
 // Translations/en_US/FlightGear-nonQt.xlf, the latter in <source> elements of
@@ -252,6 +254,47 @@ void FGTranslateTests::test_multipleIndices()
         string fetched = tr.get("dialog-whatever", "sentence", i);
         CPPUNIT_ASSERT_EQUAL(v[i], fetched);
     }
+}
+
+void FGTranslateTests::test_getIdsWithPrefix()
+{
+    FGTestApi::setUp::initTestGlobals("test_getIdsWithPrefix", "en_US");
+
+    const auto dir = SGPath::fromUtf8(FG_TEST_SUITE_DATA) / "Aircraft" / "Test";
+    fgSetString("/sim/aircraft-dir"s, dir.utf8Str());
+
+    globals->get_locale()->loadAircraftTranslations();
+    auto tr = FGTranslate("current-aircraft");
+
+    // "care-package" also matches prefix "car", since matching is done on
+    // characters, not on some notion of word boundary.
+    std::vector<std::string> v = {"car-brand", "car-model", "care-package"};
+    std::vector<std::string> v2 = tr.getIdsWithPrefix("some-resource", "car");
+    CPPUNIT_ASSERT(std::equal(v.cbegin(), v.cend(), v2.cbegin(), v2.cend()));
+
+    // Exact, single match
+    v = {"cats"};
+    v2 = tr.getIdsWithPrefix("some-resource", "cats");
+    CPPUNIT_ASSERT(std::equal(v.cbegin(), v.cend(), v2.cbegin(), v2.cend()));
+
+    // No match
+    v2 = tr.getIdsWithPrefix("some-resource", "zzz-non-existent");
+    CPPUNIT_ASSERT(v2.empty());
+
+    // Empty prefix: all ids of the resource, sorted, without duplicates
+    v = {"car-brand", "car-model", "care-package", "cats", "dog", "hello"};
+    v2 = tr.getIdsWithPrefix("some-resource", "");
+    CPPUNIT_ASSERT(std::equal(v.cbegin(), v.cend(), v2.cbegin(), v2.cend()));
+
+    // The "sentence" basicId has three translation units (indices 0 to 2) in
+    // the "dialog-whatever" resource; it must only be reported once.
+    v = {"sentence"};
+    v2 = tr.getIdsWithPrefix("dialog-whatever", "sent");
+    CPPUNIT_ASSERT(std::equal(v.cbegin(), v.cend(), v2.cbegin(), v2.cend()));
+
+    // Non-existent resource
+    v2 = tr.getIdsWithPrefix("non-existent-resource", "");
+    CPPUNIT_ASSERT(v2.empty());
 }
 
 void FGTranslateTests::test_addonDomain()
@@ -567,6 +610,8 @@ void FGTranslateTests::test_NasalAPI_fr_FR()
 
     NasalAPI_languageIndependentTests();
 }
+
+/* codespell:ignore-end */
 
 void FGTranslateTests::tearDown()
 {

@@ -147,10 +147,10 @@ Item {
             visible: (model.description !== "") || root.__showAlternateText
         }
 
-        Row {
+        Item {
+            id: ratingsDownloadBox
             width: parent.width
             height: Math.max(combinedRating.height, downloadPanel.height)
-            spacing: Style.margin
 
             AircraftRating
             {
@@ -158,9 +158,11 @@ Item {
                 showValue: true
                 title: qsTr("Rating")
                 anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
                 value: model.combinedRating
             }
 
+            // right justified, fills the remaining space
             AircraftDownloadPanel
             {
                 id: downloadPanel
@@ -172,10 +174,11 @@ Item {
                 compact: true
 
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - (combinedRating.width + Style.margin)
+                anchors.right: parent.right
+                anchors.left: combinedRating.right
+                anchors.leftMargin: Style.strutSize
             }
         }
-
     } // of content column
 
     Item {

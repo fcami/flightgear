@@ -554,6 +554,14 @@ std::size_t FGLocale::getLocalizedStringCount(const string& id,
     return FGTranslate().getCount(resource, id);
 }
 
+vector<string>
+FGLocale::getLocalizedStringIdsWithPrefix(const string& prefix,
+                                          const string& resource) const
+{
+    assert(_inited);
+    return FGTranslate().getIdsWithPrefix(resource, prefix);
+}
+
 // Check for localized font
 std::string
 FGLocale::getDefaultFont(const char* fallbackFont)
