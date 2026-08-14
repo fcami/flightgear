@@ -95,6 +95,12 @@ public:
     QStringList excludedTags() const { return _excludedTags; }
     void setExcludedTags(QStringList excludedTags);
 
+    /**
+     * @brief The raw tag id of the sole matching row, or an empty string if
+     * zero or more than one row currently passes the filter.
+     */
+    Q_INVOKABLE QString singleMatchTag() const;
+
 signals:
     void filterTextChanged();
     void excludedTagsChanged();

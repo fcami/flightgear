@@ -3,6 +3,7 @@
 
 import QtQuick 2.2
 import FlightGear 1.0
+import FlightGear.Launcher 1.0
 
 FocusScope
 {
@@ -39,6 +40,35 @@ FocusScope
 
     readonly property bool canClear: (buttonText.text.length > 0)
 
+    // a leading '[' switches the box into tag search mode: no aircraft-list
+    // text filter is applied, and the tag panel opens straight into its
+    // full/browsable list so the (rest of the) typed text narrows tags instead
+    readonly property bool tagSearchMode: buttonText.text.length > 0 && buttonText.text.charAt(0) === "["
+
+    onTagSearchModeChanged: {
+        if (tagSearchMode) {
+            root.showTagSuggestions(true);
+        }
+    }
+
+    function trySelectSingleMatchingTag()
+    {
+        var tag = tagMatchModel.singleMatchTag();
+        if (tag.length > 0) {
+            _launcher.aircraftSearchModel.addTag(tag);
+            buttonText.text = "";
+        }
+    }
+
+    // mirrors the filtering TagFilterPanel.qml applies internally, used only
+    // to detect "exactly one tag currently matches" for the Enter-key case
+    AircraftTagsFilterModel {
+        id: tagMatchModel
+        sourceModel: _launcher.aircraftTagsModel
+        filterText: root.tagSearchMode ? buttonText.text.substring(1) : ""
+        excludedTags: _launcher.aircraftSearchModel.selectedTags.map(function (t) { return t.tag; })
+    }
+
     // set immediately before each showTagSuggestions() call, to control
     // whether the panel opens straight into its 'browse all tags' mode
     property bool __startTagPanelInBrowseMode: false
@@ -56,7 +86,7 @@ FocusScope
         id: tagSuggestionsComponent
         TagFilterPanel {
             width: frame.width
-            filterText: buttonText.text
+            filterText: root.tagSearchMode ? buttonText.text.substring(1) : buttonText.text
             selectedTags: _launcher.aircraftSearchModel.selectedTags
             showingAllTags: root.__startTagPanelInBrowseMode
             onSelected: function(tag) {
@@ -95,13 +125,38 @@ FocusScope
             focus: true
             font.pixelSize: Style.baseFontPixelSize
 
+            Keys.priority: Keys.BeforeItem
+            Keys.onReturnPressed: function(event) {
+                if (root.tagSearchMode) {
+                    root.trySelectSingleMatchingTag();
+                    event.accepted = true;
+                } else {
+                    // let TextInput's own handling run, so onEditingFinished
+                    // still fires (submits the search and closes the panel)
+                    event.accepted = false;
+                }
+            }
+            Keys.onEnterPressed: function(event) {
+                if (root.tagSearchMode) {
+                    root.trySelectSingleMatchingTag();
+                    event.accepted = true;
+                } else {
+                    event.accepted = false;
+                }
+            }
+
             onTextChanged: {
-                if (root.autoSubmit) {
+                if (root.autoSubmit && !root.tagSearchMode) {
                     searchTimer.restart();
                 }
             }
 
             onEditingFinished: {
+                if (root.tagSearchMode) {
+                    // Enter is handled above; losing focus while in tag search
+                    // mode must not apply '[...' as a normal search filter
+                    return;
+                }
                 if (text == "") {
                     clear();
                 } else {
@@ -205,6 +260,8 @@ FocusScope
             id: searchTimer
             interval: 800
             onTriggered: {
+                if (root.tagSearchMode)
+                    return;
                 if (buttonText.text.length > 2) {
                     root.search(buttonText.text)
                 } else if (buttonText.text.length == 0) {

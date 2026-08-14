@@ -228,3 +228,11 @@ bool AircraftTagsFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex&
     const auto name = sourceModel()->data(sourceIndex, AircraftTagsModel::NameRole).toString();
     return name.contains(_filterText, Qt::CaseInsensitive) || tag.contains(_filterText, Qt::CaseInsensitive);
 }
+
+QString AircraftTagsFilterModel::singleMatchTag() const
+{
+    if (rowCount() != 1)
+        return {};
+
+    return data(index(0, 0), AircraftTagsModel::TagRole).toString();
+}

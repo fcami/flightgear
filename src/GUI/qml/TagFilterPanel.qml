@@ -117,5 +117,12 @@ Rectangle {
                 }
             }
         }
+
+        StyledText {
+            width: parent.width
+            visible: root.showingAllTags && (tagsRepeater.count === 0)
+            color: Style.disabledTextColor
+            text: qsTr("No matching tags")
+        }
     }
 }
