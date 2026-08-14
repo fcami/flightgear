@@ -126,6 +126,8 @@ if (HAVE_QT)
                             AircraftInstalledModel.hxx
                             AircraftSearchModel.cxx
                             AircraftSearchModel.hxx
+                            AircraftTagsModel.cxx
+                            AircraftTagsModel.hxx
                             AircraftUpdatesModel.cxx
                             AircraftUpdatesModel.hxx
                             DefaultAircraftLocator.cxx

@@ -38,6 +38,7 @@ const int AircraftPrimaryURIRole = Qt::UserRole + 21;
 
 const int AircraftStatusRole = Qt::UserRole + 22;
 const int AircraftCompatibleRole = Qt::UserRole + 23;
+const int AircraftTagsRole = Qt::UserRole + 24;
 
 const int AircraftRatingRole = Qt::UserRole + 100;
 const int AircraftCombinedRatingRole = Qt::UserRole + 150;

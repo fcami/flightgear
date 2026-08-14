@@ -92,6 +92,8 @@ class QmlAircraftInfo : public QObject
 
     Q_PROPERTY(bool declaredCompatible READ declaredCompatible NOTIFY infoChanged)
 
+    Q_PROPERTY(QStringList tags READ tags NOTIFY infoChanged)
+
     Q_PROPERTY(QUrl homePage READ homePage NOTIFY infoChanged)
     Q_PROPERTY(QUrl supportUrl READ supportUrl NOTIFY infoChanged)
     Q_PROPERTY(QUrl wikipediaUrl READ wikipediaUrl NOTIFY infoChanged)
@@ -176,6 +178,7 @@ public:
     Q_INVOKABLE bool isAltitudeBelowLimits(QuantityValue speed) const;
 
     Q_INVOKABLE bool hasTag(QString tag) const;
+    QStringList tags() const;
     bool favourite() const;
 
 signals:
