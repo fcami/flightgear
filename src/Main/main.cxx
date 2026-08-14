@@ -223,8 +223,12 @@ static void fgSetVideoOptions()
 static void checkOpenGLVersion()
 {
     flightgear::addSentryTag("gl-version", fgGetString("/sim/rendering/gl-info/gl-version"));
-    flightgear::addSentryTag("gl-renderer", fgGetString("/sim/rendering/gl-info/gl-vendor"));
-    flightgear::addSentryTag("gl-vendor", fgGetString("/sim/rendering/gl-info/gl-renderer"));
+    flightgear::addSentryTag("gl-vendor", fgGetString("/sim/rendering/gl-info/gl-vendor"));
+    flightgear::addSentryTag("gl-renderer", fgGetString("/sim/rendering/gl-info/gl-renderer"));
+
+    // capture non-standard loaded modules (e.g. overlay/capture software),
+    // since these are a common cause of crashes which look like driver bugs
+    flightgear::addLoadedModulesSentryContext();
 
 #if defined(SG_MAC)
     // Mac users can't upgrade their drivers, so complaining about

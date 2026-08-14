@@ -296,7 +296,9 @@ int fgOSMainLoop()
     osgViewer::ViewerBase* viewer_base = globals->get_renderer()->getViewerBase();
     viewer_base->setReleaseContextAtEndOfFrameHint(false);
     if (!viewer_base->isRealized()) {
+        flightgear::addSentryBreadcrumb("about to realize OSG viewer (creating GL context)", "info");
         viewer_base->realize();
+        flightgear::addSentryBreadcrumb("OSG viewer realize complete", "info");
         std::string affinity = fgGetString("/sim/thread-cpu-affinity");
         if (affinity != "") {
             ShowAffinities();

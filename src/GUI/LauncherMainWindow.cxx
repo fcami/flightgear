@@ -194,6 +194,8 @@ bool LauncherMainWindow::checkQQC2Availability()
 
 LauncherMainWindow::~LauncherMainWindow()
 {
+    // mark the start of QQuickView (and its render-thread GL context) teardown
+    flightgear::addSentryBreadcrumb("destroying LauncherMainWindow (QQuickView)", "info");
 }
 
 bool LauncherMainWindow::event(QEvent *event)

@@ -688,15 +688,20 @@ bool runLauncherDialog()
 
     FGHTTPClient::getOrCreate();
 
-    LauncherMainWindow dlg(false);
+    int appResult = 0;
+    {
+        LauncherMainWindow dlg(false);
 
-    if (options->isOptionSet("fullscreen")) {
-        dlg.showFullScreen();
-    } else {
-        dlg.setVisible(true);
-    }
+        if (options->isOptionSet("fullscreen")) {
+            dlg.showFullScreen();
+        } else {
+            dlg.setVisible(true);
+        }
 
-    int appResult = qApp->exec();
+        appResult = qApp->exec();
+    } // dlg destroyed here, tearing down its QQuickView render-thread GL context
+    flightgear::addSentryBreadcrumb("launcher QQuickView destroyed", "info");
+
     // avoid crashes / NavCache races if the loader is still running after
     // the launcher exits
     if (naturalEarthLoader) {
