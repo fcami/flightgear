@@ -147,28 +147,24 @@ FocusScope
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // tag status icon: outline when no tags are active, theme-colored
-        // filled icon when at least one is; click opens the tag panel
-        // straight into 'browse all tags' mode
-        Loader {
+
+        Image {
             id: tagFilterLoader
-            active: root.showTagFilter
+            visible: root.showTagFilter
             anchors.right: searchIcon.left
-            anchors.rightMargin: active ? Style.margin : 0
+            anchors.rightMargin: root.showTagFilter ? Style.margin : 0
             anchors.verticalCenter: parent.verticalCenter
 
-            sourceComponent: Image {
-                source: (_launcher.aircraftSearchModel.selectedTags.length > 0)
+            source: (_launcher.aircraftSearchModel.selectedTags.length > 0)
                     ? "image://colored-icon/tag-filled?theme"
                     : "image://colored-icon/tag-outline?text"
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        root.forceActiveFocus();
-                        buttonText.selectAll();
-                        root.showTagSuggestions(true);
-                    }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    root.forceActiveFocus();
+                    buttonText.selectAll();
+                    root.showTagSuggestions(true);
                 }
             }
         }

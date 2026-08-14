@@ -8,6 +8,8 @@
 
 #include <QAbstractListModel>
 #include <QColor>
+#include <QSortFilterProxyModel>
+#include <QStringList>
 
 class QQmlEngine;
 
@@ -69,4 +71,38 @@ private:
 
     std::vector<TagInfo> _tags;
     std::vector<QColor> _categoryColors;
+};
+
+/**
+ * @brief Proxy-filter model for narrowing down AircraftTagsModel from QML.
+ *
+ * Used by the tag-picker UI (TagFilterPanel.qml) so the free-text/excluded-
+ * tag filtering it needs (previously done row-by-row in QML JS via a
+ * delegate 'visible' binding) is instead done in C++ via the usual
+ * QSortFilterProxyModel::filterAcceptsRow() override.
+ */
+class AircraftTagsFilterModel : public QSortFilterProxyModel
+{
+    Q_OBJECT
+    Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterTextChanged)
+    Q_PROPERTY(QStringList excludedTags READ excludedTags WRITE setExcludedTags NOTIFY excludedTagsChanged)
+public:
+    explicit AircraftTagsFilterModel(QObject* parent = nullptr);
+
+    QString filterText() const { return _filterText; }
+    void setFilterText(QString filterText);
+
+    QStringList excludedTags() const { return _excludedTags; }
+    void setExcludedTags(QStringList excludedTags);
+
+signals:
+    void filterTextChanged();
+    void excludedTagsChanged();
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
+
+private:
+    QString _filterText;
+    QStringList _excludedTags;
 };

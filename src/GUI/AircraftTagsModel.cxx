@@ -190,3 +190,41 @@ void AircraftTagsModel::loadStyleColors(QQmlEngine* engine, int styleTypeId)
         emit dataChanged(index(0), index(static_cast<int>(_tags.size()) - 1), {ColorRole});
     }
 }
+
+AircraftTagsFilterModel::AircraftTagsFilterModel(QObject* parent) : QSortFilterProxyModel(parent)
+{
+    setDynamicSortFilter(true);
+}
+
+void AircraftTagsFilterModel::setFilterText(QString filterText)
+{
+    if (_filterText == filterText)
+        return;
+    _filterText = filterText;
+    emit filterTextChanged();
+    invalidateFilter();
+}
+
+void AircraftTagsFilterModel::setExcludedTags(QStringList excludedTags)
+{
+    if (_excludedTags == excludedTags)
+        return;
+    _excludedTags = excludedTags;
+    emit excludedTagsChanged();
+    invalidateFilter();
+}
+
+bool AircraftTagsFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
+{
+    const auto sourceIndex = sourceModel()->index(sourceRow, 0, sourceParent);
+    const auto tag = sourceModel()->data(sourceIndex, AircraftTagsModel::TagRole).toString();
+
+    if (_excludedTags.contains(tag, Qt::CaseInsensitive))
+        return false;
+
+    if (_filterText.isEmpty())
+        return true;
+
+    const auto name = sourceModel()->data(sourceIndex, AircraftTagsModel::NameRole).toString();
+    return name.contains(_filterText, Qt::CaseInsensitive) || tag.contains(_filterText, Qt::CaseInsensitive);
+}

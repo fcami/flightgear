@@ -235,6 +235,7 @@ void LauncherController::initQML(int& styleTypeId)
     qmlRegisterUncreatableType<AircraftUpdatesModel>("FlightGear.Launcher", 1, 0, "AircraftUpdatesModel", "no");
     qmlRegisterUncreatableType<AircraftFavouritesModel>("FlightGear.Launcher", 1, 0, "AircraftFavouritesModel", "no");
     qmlRegisterUncreatableType<AircraftTagsModel>("FlightGear.Launcher", 1, 0, "AircraftTagsModel", "no");
+    qmlRegisterType<AircraftTagsFilterModel>("FlightGear.Launcher", 1, 0, "AircraftTagsFilterModel");
     qmlRegisterUncreatableType<RecentAircraftModel>("FlightGear.Launcher", 1, 0, "RecentAircraftModel", "no");
     qmlRegisterUncreatableType<RecentLocationsModel>("FlightGear.Launcher", 1, 0, "RecentLocationsModel", "no");
     qmlRegisterUncreatableType<LaunchConfig>("FlightGear.Launcher", 1, 0, "LaunchConfig", "Singleton API");

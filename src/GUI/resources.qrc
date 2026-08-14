@@ -187,5 +187,8 @@ SPDX-License-Identifier: GPL-2.0-or-later
 
         <file alias="star-filled">assets/tabler-mask-star-filled.svg</file>
         <file alias="star-outline">assets/tabler-mask-star-outline.svg</file>
+
+        <file alias="tag-filled">assets/tabler-mask-tag-filled.svg</file>
+        <file alias="tag-outline">assets/tabler-mask-tag-outline.svg</file>
     </qresource>
 </RCC>

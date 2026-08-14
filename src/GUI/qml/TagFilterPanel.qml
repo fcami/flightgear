@@ -4,6 +4,7 @@
 import QtQuick 2.4
 import QtQuick.Controls 2.2
 import FlightGear 1.0
+import FlightGear.Launcher 1.0
 
 // Extended area shown below the aircraft search box while it has focus.
 // Initially shows the currently selected tags (regular-mode lozenges, with
@@ -40,15 +41,6 @@ Rectangle {
     function doSelect(tag)
     {
         root.selected(tag);
-    }
-
-    function isSelected(tag)
-    {
-        for (var i = 0; i < root.selectedTags.length; i++) {
-            if (root.selectedTags[i].tag === tag)
-                return true;
-        }
-        return false;
     }
 
     Column {
@@ -92,6 +84,13 @@ Rectangle {
             color: Style.minorFrameColor
         }
 
+        AircraftTagsFilterModel {
+            id: filteredTagsModel
+            sourceModel: _launcher.aircraftTagsModel
+            filterText: root.filterText
+            excludedTags: root.selectedTags.map(function (t) { return t.tag; })
+        }
+
         Flickable {
             id: flick
             visible: root.showingAllTags
@@ -108,19 +107,11 @@ Rectangle {
 
                 Repeater {
                     id: tagsRepeater
-                    model: _launcher.aircraftTagsModel
+                    model: filteredTagsModel
                     delegate: TagLozenge {
                         readonly property string tagId: model.tag
                         compact: true
                         tag: model.tag
-                        visible: {
-                            if (root.isSelected(model.tag))
-                                return false;
-                            var needle = root.filterText.toLowerCase();
-                            return needle.length === 0 ||
-                                   model.name.toLowerCase().indexOf(needle) >= 0 ||
-                                   model.tag.toLowerCase().indexOf(needle) >= 0;
-                        }
                         onClicked: root.doSelect(tagId)
                     }
                 }
