@@ -8,8 +8,10 @@
 // use the raw define, we can't use SG_WINDOWS here since we need to include
 // these *early*, otherwise other definitions cause us problems
 #if defined(_WIN32)
-    #include <tlhelp32.h>
+// clang-format off
     #include <windows.h>
+    #include <tlhelp32.h>
+// clang-format on
 #endif
 
 #include "sentryIntegration.hxx"
@@ -466,6 +468,7 @@ void addLoadedModulesSentryContext()
         return;
 
     #if defined(SG_WINDOWS)
+
     // Known Windows/system/toolkit modules which are never interesting when
     // diagnosing a crash which appears to occur inside a graphics driver.
     // Anything not on this list is reported, since third-party overlay /
