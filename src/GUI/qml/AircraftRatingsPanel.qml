@@ -38,8 +38,8 @@ Rectangle
         PopupChoice {
             id: sortChoice
             model: StringListModel{
-                values: [qsTr("By name"), qsTr("By rating")]
-                keys: [FG.AircraftFilterModel.SortByName, FG.AircraftFilterModel.SortByRating]
+                values: [qsTr("By name"), qsTr("By rating"), qsTr("By user rating")]
+                keys: [FG.AircraftFilterModel.SortByName, FG.AircraftFilterModel.SortByRating, FG.AircraftFilterModel.SortByUserRating]
             }
 
             currentIndex: model.indexOfKey(_launcher.currentAircraftModel.sorting)

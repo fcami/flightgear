@@ -19,6 +19,7 @@ set(SOURCES
     PUICompatObject.cxx
     FGNasalMenuBar.cxx
     CanvasWidget.cxx
+    AircraftRatingSubmission.cxx
 )
 
 set(HEADERS
@@ -38,6 +39,7 @@ set(HEADERS
     PUICompatObject.hxx
     FGNasalMenuBar.hxx
     CanvasWidget.hxx
+    AircraftRatingSubmission.hxx
 )
 
 if(WIN32)

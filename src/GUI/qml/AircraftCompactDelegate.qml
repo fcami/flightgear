@@ -179,6 +179,16 @@ Item {
                 anchors.leftMargin: Style.strutSize
             }
         }
+
+        AircraftUserRatingButton {
+            width: parent.width
+            visible: (model.package !== undefined)
+            average: model.userRatingAverage
+            votes: model.userRatingVotes
+            ownRating: model.userOwnRating
+            canRate: model.userCanRate
+            onRateRequested: function(rating) { model.userOwnRating = rating; }
+        }
     } // of content column
 
     Item {

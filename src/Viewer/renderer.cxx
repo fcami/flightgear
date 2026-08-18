@@ -40,13 +40,14 @@
 #include <simgear/scene/util/OsgUtils.hxx>
 #include <simgear/timing/sg_time.hxx>
 
-#include <Main/sentryIntegration.hxx>
-#include <Model/modelmgr.hxx>
-#include <Model/acmodel.hxx>
-#include <Scenery/scenery.hxx>
-#include <GUI/new_gui.hxx>
-#include <GUI/gui.h>
 #include <GUI/Highlight.hxx>
+#include <GUI/gui.h>
+#include <GUI/new_gui.hxx>
+#include <Main/AircraftRatingTracker.hxx>
+#include <Main/sentryIntegration.hxx>
+#include <Model/acmodel.hxx>
+#include <Model/modelmgr.hxx>
+#include <Scenery/scenery.hxx>
 #include <Time/light.hxx>
 
 #include <Environment/precipitation_mgr.hxx>
@@ -516,6 +517,7 @@ FGRenderer::update()
         if (sAlpha <= 0.0) {
             _splashHiddenSignal->setBoolValue(true);
             flightgear::addSentryBreadcrumb("splash-screen fade out complete", "info");
+            flightgear::startAircraftRatingFlownTimer();
         }
 
         _splash_alpha->setDoubleValue((sAlpha < 0) ? 0.0 : sAlpha);
