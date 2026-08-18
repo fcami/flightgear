@@ -17,6 +17,8 @@
 #include <QNetworkDiskCache>
 #include <QPushButton>
 #include <QQmlComponent>
+#include <QQmlEngine>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QRegularExpressionValidator>
 #include <QSettings>
@@ -31,13 +33,14 @@
 #include <simgear/structure/exception.hxx>
 
 // FlightGear headers
-#include <Network/HTTPClient.hxx>
-#include <Main/globals.hxx>
 #include <Airports/airport.hxx>
-#include <Main/options.hxx>
 #include <Main/fg_init.hxx>
 #include <Main/fg_props.hxx>
+#include <Main/globals.hxx>
+#include <Main/locale.hxx>
+#include <Main/options.hxx>
 #include <Main/sentryIntegration.hxx>
+#include <Network/HTTPClient.hxx>
 
 #include "AircraftItemModel.hxx"
 #include "AircraftProxyModel.hxx"
@@ -99,6 +102,10 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
     connect(m_config, &LaunchConfig::restore, this, &LauncherController::restoreAircraft);
 
     m_flightPlan = new FlightPlanController(this, m_config);
+
+    m_languagesModel = new LauncherLanguagesModel(this);
+    connect(m_languagesModel, &LauncherLanguagesModel::currentIndexChanged,
+            this, &LauncherController::onLanguageSelectionChanged);
 
     m_location->setLaunchConfig(m_config);
     connect(m_location, &LocationController::descriptionChanged,
@@ -215,6 +222,7 @@ void LauncherController::initQML(int& styleTypeId)
     qmlRegisterUncreatableType<RecentLocationsModel>("FlightGear.Launcher", 1, 0, "RecentLocationsModel", "no");
     qmlRegisterUncreatableType<LaunchConfig>("FlightGear.Launcher", 1, 0, "LaunchConfig", "Singleton API");
     qmlRegisterUncreatableType<MPServersModel>("FlightGear.Launcher", 1, 0, "MPServers", "Singleton API");
+    qmlRegisterUncreatableType<LauncherLanguagesModel>("FlightGear.Launcher", 1, 0, "LauncherLanguagesModel", "Singleton API");
 
     qmlRegisterType<NavaidSearchModel>("FlightGear", 1, 0, "NavaidSearch");
     qmlRegisterType<CarriersLocationModel>("FlightGear", 1, 0, "CarriersModel");
@@ -544,6 +552,24 @@ bool LauncherController::canFly() const
     int status = index.data(AircraftPackageStatusRole).toInt();
     bool canRun = (status == LocalAircraftCache::PackageInstalled);
     return canRun;
+}
+
+void LauncherController::onLanguageSelectionChanged()
+{
+    const std::string code = m_languagesModel->currentLanguageCode().toStdString();
+
+    // swap the launcher QTranslator
+    flightgear::switchUILanguage(code);
+
+    // re-select the FGLocale/XLIFF strings used for aircraft, tags, etc,
+    // shown inside the launcher itself
+    globals->get_locale()->selectLanguage(code);
+    globals->packageRoot()->setLocale(globals->get_locale()->getPreferredLanguage());
+
+    // refresh every qsTr() binding in the QML tree, without a full reload
+    if (auto quickView = qobject_cast<QQuickView*>(m_window)) {
+        quickView->engine()->retranslate();
+    }
 }
 
 void LauncherController::downloadDirChanged(QString path)
