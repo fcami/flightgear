@@ -339,7 +339,7 @@ void FGClouds::buildCloudLayers(void)
     // We use the high limits quoted as we can generate middle altitude clouds
     // more easily within the voxel field.
     auto lat_abs = abs(fgGetNode("/position/latitude-deg")->getDoubleValue());
-    double upper_region_ft = 23000; // Default to temperate
+    double upper_region_ft = 23000;              // Default to temperate
     if (lat_abs < 23.5) upper_region_ft = 25000; // Tropical region
     if (lat_abs > 66.5) upper_region_ft = 13000; // Polar region
 
@@ -372,16 +372,13 @@ void FGClouds::buildCloudLayers(void)
         if (coverage == "few") {
             coverage_norm = 2.0 / 8.0; // <1-2
             cu_subtype = "cu-hum";
-        }
-        else if (coverage == "scattered") {
+        } else if (coverage == "scattered") {
             coverage_norm = 4.0 / 8.0; // 3-4
             cu_subtype = "cu-med";
-        }
-        else if (coverage == "broken") {
+        } else if (coverage == "broken") {
             coverage_norm = 6.0 / 8.0; // 5-7
             cu_subtype = "cu-con";
-        }
-        else if (coverage == "overcast") {
+        } else if (coverage == "overcast") {
             coverage_norm = 8.0 / 8.0; // 8
             cu_subtype = "cu-con";
         }
