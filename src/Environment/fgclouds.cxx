@@ -334,13 +334,23 @@ void FGClouds::buildCloudLayers(void)
     // Enable repeating of the voxel space as the clouds we generate should be global
     setCloudsRepeating(true);
 
+    // The upper cloud levels varies between the polar, temperate and tropical regions.
+    // See https://cloudatlas.wmo.int/en/clouds-definitions.html.
+    // We use the high limits quoted as we can generate middle altitude clouds
+    // more easily within the voxel field.
+    auto lat_abs = abs(fgGetNode("/position/latitude-deg")->getDoubleValue());
+    double upper_region_ft = 23000; // Default to temperate
+    if (lat_abs < 23.5) upper_region_ft = 25000; // Tropical region
+    if (lat_abs > 66.5) upper_region_ft = 13000; // Polar region
+
     SGPropertyNode* metar_root = fgGetNode("/environment", true);
 
     //double wind_speed_kt	 = metar_root->getDoubleValue("wind-speed-kt");
     double temperature_degc = metar_root->getDoubleValue("temperature-sea-level-degc");
     double dewpoint_degc = metar_root->getDoubleValue("dewpoint-sea-level-degc");
-    double pressure_mb = metar_root->getDoubleValue("pressure-sea-level-inhg") * SG_INHG_TO_PA / 100.0;
     double rel_humidity = metar_root->getDoubleValue("relative-humidity");
+    bool rain = (metar_root->getDoubleValue("rain-norm") > 0.0);
+    bool snow = (metar_root->getDoubleValue("snow-norm") > 0.0);
 
     // formula d'Epsy, base d'un cumulus
     double cumulus_base = 122.0 * (temperature_degc - dewpoint_degc);
@@ -355,32 +365,61 @@ void FGClouds::buildCloudLayers(void)
         string coverage = cloud_root->getStringValue("coverage");
 
         double coverage_norm = 0.0;
-        if (coverage == "few")
+
+        // Cumulus develops into different varieties.  We use the coverage
+        // as a proxy for the likely type of Cumulus.
+        string cu_subtype = "";
+        if (coverage == "few") {
             coverage_norm = 2.0 / 8.0; // <1-2
-        else if (coverage == "scattered")
+            cu_subtype = "cu-hum";
+        }
+        else if (coverage == "scattered") {
             coverage_norm = 4.0 / 8.0; // 3-4
-        else if (coverage == "broken")
+            cu_subtype = "cu-med";
+        }
+        else if (coverage == "broken") {
             coverage_norm = 6.0 / 8.0; // 5-7
-        else if (coverage == "overcast")
+            cu_subtype = "cu-con";
+        }
+        else if (coverage == "overcast") {
             coverage_norm = 8.0 / 8.0; // 8
+            cu_subtype = "cu-con";
+        }
 
         string layer_type = "nn";
 
         if (coverage == "cirrus") {
             layer_type = "ci";
-        } else if (alt_ft > 16500) {
+        } else if (alt_ft > upper_region_ft) {
             //			layer_type = "ci|cs|cc";
-            layer_type = "ci";
+            if (coverage_norm < 0.5) {
+                // Low coverage assumed to be cirrus
+                layer_type = "ci";
+            } else {
+                // We don't have any way to distinguish between
+                // cirrostratus and cirrocumulus, so we will
+                // assume the former.
+                layer_type = "cs";
+            }
         } else if (alt_ft > 6500) {
             //			layer_type = "as|ac|ns";
-            layer_type = "ac";
-            if (pressure_mb < 1005.0 && coverage_norm >= 0.5)
+            if (coverage_norm < 0.5) {
+                // Low coverage assumed to be Altocumulus
+                // as Alto-stratus and nimbo-stratus usually cover
+                // the entire sky.
+                layer_type = "ac";
+            } else if (rain || snow) {
+                // Any precipitation is associated with nimbostratus
                 layer_type = "ns";
+            } else {
+                // Alto-stratus is the only other medium level option
+                layer_type = "as";
+            }
         } else {
             //			layer_type = "st|cu|cb|sc";
             if (cumulus_base * 0.80 < alt_m && cumulus_base * 1.20 > alt_m) {
                 // +/- 20% from cumulus probable base
-                layer_type = "cu";
+                layer_type = cu_subtype;
             } else if (stratus_base * 0.80 < alt_m && stratus_base * 1.40 > alt_m) {
                 // +/- 20% from stratus probable base
                 layer_type = "st";
@@ -389,7 +428,7 @@ void FGClouds::buildCloudLayers(void)
                 if (alt_ft < 2000)
                     layer_type = "st";
                 else if (alt_ft < 4500)
-                    layer_type = "cu";
+                    layer_type = cu_subtype;
                 else
                     layer_type = "sc";
             }
