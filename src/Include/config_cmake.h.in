@@ -76,6 +76,10 @@
 
 #cmakedefine HAVE_QRC_TRANSLATIONS
 
+// comma-separated list of language dirs (e.g. "de_DE,fr_FR,en_US") embedded
+// into the launcher as FlightGear_<lang>.qm resources; empty if HAVE_QRC_TRANSLATIONS is unset
+#define FG_LAUNCHER_LANGUAGES "@FG_LAUNCHER_LANGUAGES@"
+
 #cmakedefine ENABLE_SWIFT
 
 #cmakedefine HAVE_SENTRY

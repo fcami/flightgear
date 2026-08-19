@@ -25,6 +25,13 @@ namespace flightgear
   // Requires FGGlobals to be initialized. Safe to call several times.
   void initQSettings();
 
+  /**
+   * @brief switch the installed launcher/simulator-UI (Qt qsTr()) translator
+   * to match @p code, removing any previously installed dynamic translator
+   * first. An empty @p code means "use the detected system language".
+   */
+  void switchUILanguage(const std::string& code);
+
   // Set 'fg-root' in QSettings to the special value "!ask" if either Alt or
   // Shift is pressed. Return true in this case, false otherwise.
   bool checkKeyboardModifiersForSettingFGRoot();
