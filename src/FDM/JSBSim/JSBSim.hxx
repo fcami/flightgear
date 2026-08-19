@@ -304,6 +304,7 @@ private:
     double hook_length;
 
     bool crashed;
+    bool _reportedNonFiniteContactPoint = false;
 
     AircraftMesh_ptr mesh;
     SGPropertyNode_ptr _ai_wake_enabled;
@@ -316,6 +317,10 @@ private:
     bool update_ground_cache(const JSBSim::FGLocation& cart, double dt);
     void init_gear(void);
     void update_gear(void);
+
+    // Diagnose which piece of JSBSim state produced a non-finite ground query
+    // point, and report it before the ground-cache code throws.
+    void reportNonFiniteContactPoint(const JSBSim::FGColumnVector3& loc);
 
     void update_external_forces(double t_off);
 };
