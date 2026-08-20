@@ -37,17 +37,17 @@ namespace {
 }
 
 
-DownloadTerrasyncSharedData::DownloadTerrasyncSharedData(QObject* pr, QNetworkAccessManager* nam) : 
+DownloadTerrasyncSharedData::DownloadTerrasyncSharedData(QObject* pr, QNetworkAccessManager* nam) :
     QThread(pr),
     m_networkManager(nam),
-    m_dns(new QtDNSClient(this, "ws2"))
+    m_dns(new QtDNSClient(this, "ws20"))
 {
     const SGPath terrasyncRoot = flightgear::Options::sharedInstance()->actualTerrasyncDir();
     if (!terrasyncRoot.exists()) {
         simgear::Dir d(terrasyncRoot);
         d.create(0755);
     }
-    
+
     m_items.emplace_back("../SharedModels.txz", terrasyncRoot / "Models", tr("shared scenery models"));
     m_items.emplace_back("Airports_archive.tgz", terrasyncRoot / "Airports", tr("airports data"));
 
@@ -55,7 +55,7 @@ DownloadTerrasyncSharedData::DownloadTerrasyncSharedData(QObject* pr, QNetworkAc
 
     connect(m_dns, &QtDNSClient::finished, [this]() {
         auto baseServer = m_dns->result();
-       
+
         m_serverUri = baseServer;
         qInfo() << Q_FUNC_INFO << "will download shared data from" << baseServer;
         startNextDownload();
@@ -65,7 +65,7 @@ DownloadTerrasyncSharedData::DownloadTerrasyncSharedData(QObject* pr, QNetworkAc
     connect(m_dns, &QtDNSClient::failed, [this](QString msg) {
         // use us1mirror
         qWarning() << "DNS query failed:" << msg;
-        m_serverUri = QStringLiteral("https://us1mirror.flightgear.org/terrasync/ws2/");
+        m_serverUri = QStringLiteral("https://de3mirror.flightgear.org/ws2/");
         startNextDownload();
     });
 
@@ -119,7 +119,7 @@ void DownloadTerrasyncSharedData::startNextDownload()
     req.setRawHeader("user-agent", "flightgear-installer");
     m_download = m_networkManager->get(req);
     m_download->setReadBufferSize(64 * 1024 * 1024);
-    
+
     m_buffer.clear();
 
     connect(m_download, &QNetworkReply::downloadProgress, this, &DownloadTerrasyncSharedData::onDownloadProgress);
@@ -193,7 +193,7 @@ void DownloadTerrasyncSharedData::updateProgress()
     fullPathStr.erase(0, m_pathPrefixLength);
     emit installProgress(QString::fromStdString(fullPathStr), percent);
 }
-    
+
 void DownloadTerrasyncSharedData::run()
 {
     while (!m_error & !m_done) {
