@@ -155,7 +155,9 @@ linux-build:
     paths:
       - $CCACHE_DIR
 
-linux-qt5-build:
+# disable until we decide what we're doing with minimum distro for this
+# due to Pango/Cairo update (need more recent HarfBuzz)
+.linux-qt5-build:
   extends: .ccache-variables
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear-qt5:latest
   stage: build
