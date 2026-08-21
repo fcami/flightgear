@@ -296,7 +296,7 @@ macos-build:
       --fresh
       -D CMAKE_BUILD_TYPE=RelWithDebInfo
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
-      -D CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      -D CMAKE_OSX_ARCHITECTURES="arm64"
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/osg-dist;$CI_PROJECT_DIR/simgear-dist"
       -D ENABLE_CCACHE=ON
 
