@@ -81,6 +81,11 @@ class QmlAircraftInfo : public QObject
     Q_PROPERTY(QUrl thumbnail READ thumbnail NOTIFY infoChanged)
     Q_PROPERTY(QVariantList ratings READ ratings NOTIFY infoChanged)
 
+    Q_PROPERTY(double userRatingAverage READ userRatingAverage NOTIFY infoChanged)
+    Q_PROPERTY(int userRatingVotes READ userRatingVotes NOTIFY infoChanged)
+    Q_PROPERTY(int userOwnRating READ userOwnRating NOTIFY infoChanged)
+    Q_PROPERTY(bool userCanRate READ userCanRate NOTIFY infoChanged)
+
     Q_PROPERTY(QString pathOnDisk READ pathOnDisk NOTIFY infoChanged)
     Q_PROPERTY(QString packageId READ packageId NOTIFY infoChanged)
     Q_PROPERTY(quint64 packageSize READ packageSize NOTIFY infoChanged)
@@ -121,6 +126,12 @@ public:
     QString description() const;
     QString authors() const;
     QVariantList ratings() const;
+
+    double userRatingAverage() const;
+    int userRatingVotes() const;
+    int userOwnRating() const;
+    bool userCanRate() const;
+    Q_INVOKABLE void submitUserRating(int rating);
 
     QVariantList previews() const;
 
