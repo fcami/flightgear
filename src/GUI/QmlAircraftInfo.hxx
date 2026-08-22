@@ -85,6 +85,7 @@ class QmlAircraftInfo : public QObject
     Q_PROPERTY(int userRatingVotes READ userRatingVotes NOTIFY infoChanged)
     Q_PROPERTY(int userOwnRating READ userOwnRating NOTIFY infoChanged)
     Q_PROPERTY(bool userCanRate READ userCanRate NOTIFY infoChanged)
+    Q_PROPERTY(quint32 flownMinutes READ flownMinutes NOTIFY infoChanged)
 
     Q_PROPERTY(QString pathOnDisk READ pathOnDisk NOTIFY infoChanged)
     Q_PROPERTY(QString packageId READ packageId NOTIFY infoChanged)
@@ -132,6 +133,7 @@ public:
     int userOwnRating() const;
     bool userCanRate() const;
     Q_INVOKABLE void submitUserRating(int rating);
+    quint32 flownMinutes() const;
 
     QVariantList previews() const;
 

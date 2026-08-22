@@ -17,9 +17,9 @@
 #include <simgear/props/props_io.hxx>
 
 #include <Main/globals.hxx>
+#include <Main/AircraftRatingTracker.hxx>
 
 #include "AircraftCompatibility.hxx"
-#include "AircraftRatingSubmission.hxx"
 #include "FavouriteAircraftData.hxx"
 #include "LocalAircraftCache.hxx"
 
@@ -448,7 +448,7 @@ int QmlAircraftInfo::userRatingVotes() const
 int QmlAircraftInfo::userOwnRating() const
 {
     if (_package) {
-        return globals->packageRoot()->userRatingForPackage(_package->qualifiedId());
+        return _package->userRating();
     }
     return -1;
 }
@@ -456,11 +456,17 @@ int QmlAircraftInfo::userOwnRating() const
 bool QmlAircraftInfo::userCanRate() const
 {
     if (_package) {
-        auto root = globals->packageRoot();
-        return root->isPackageFlownEnoughToRate(_package->qualifiedId()) &&
-               (root->userRatingForPackage(_package->qualifiedId()) < 0);
+        return flightgear::canRateAircraft(_package);
     }
     return false;
+}
+
+quint32 QmlAircraftInfo::flownMinutes() const
+{
+    if (_package) {
+        return _package->flownMinutes();
+    }
+    return 0;
 }
 
 void QmlAircraftInfo::submitUserRating(int rating)
@@ -469,7 +475,7 @@ void QmlAircraftInfo::submitUserRating(int rating)
         return;
     }
 
-    globals->packageRoot()->setUserRatingForPackage(_package->qualifiedId(), rating);
+    _package->setUserRating(rating);
     flightgear::submitAircraftRating(_package->qualifiedId(), rating);
     emit infoChanged();
 }
