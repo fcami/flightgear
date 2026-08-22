@@ -19,6 +19,7 @@ target_sources(fgfsObjects PRIVATE
     fg_os_common.cxx
     fg_scene_commands.cxx
     fg_props.cxx
+    AircraftRatingTracker.cxx
     FGInterpolator.cxx
     globals.cxx
     locale.cxx
@@ -33,6 +34,7 @@ target_sources(fgfsObjects PRIVATE
     ErrorReporter.cxx
     ${MS_RESOURCE_FILE}
     AircraftDirVisitorBase.hxx
+    AircraftRatingTracker.hxx
     fg_commands.hxx
     fg_init.hxx
     fg_io.hxx

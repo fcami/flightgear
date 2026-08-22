@@ -26,6 +26,7 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="airport-closed-icon">assets/airport-closed-icon.png</file>
         <file>qml/AircraftList.qml</file>
         <file>qml/AircraftRating.qml</file>
+        <file>qml/AircraftUserRatingButton.qml</file>
         <file>qml/ArrowButton.qml</file>
         <file>qml/AircraftDownloadPanel.qml</file>
         <file>qml/Button.qml</file>

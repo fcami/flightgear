@@ -194,6 +194,11 @@ void AircraftFilterModel::updateSorting()
         // highest-rated at the top
         order = Qt::DescendingOrder;
         break;
+    case Sorting::SortByUserRating:
+        setSortRole(AircraftUserRatingAverageRole);
+        // highest-rated at the top
+        order = Qt::DescendingOrder;
+        break;
     }
 
     setDynamicSortFilter(true);
@@ -202,7 +207,7 @@ void AircraftFilterModel::updateSorting()
 
 bool AircraftFilterModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
-    if (m_sorting == Sorting::SortByRating) {
+    if ((m_sorting == Sorting::SortByRating) || (m_sorting == Sorting::SortByUserRating)) {
         // use default impl
         return QSortFilterProxyModel::lessThan(left, right);
     }

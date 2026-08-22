@@ -22,6 +22,7 @@ public:
     enum class Sorting {
         SortByName = 0,
         SortByRating,
+        SortByUserRating,
     };
 
     Q_ENUM(Sorting)
