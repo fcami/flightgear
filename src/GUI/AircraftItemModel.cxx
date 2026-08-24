@@ -407,7 +407,7 @@ QVariant AircraftItemModel::dataFromPackage(const PackageRef& item, const Delega
         return QUrl("package:" + QString::fromStdString(item->qualifiedId()));
     } else if (role == AircraftHasRatingsRole) {
         return item->properties()->hasChild("rating");
-    } else if ((role >= AircraftRatingRole) && (role < AircraftVariantDescriptionRole)) {
+    } else if ((role >= AircraftRatingRole) && (role < AircraftCombinedRatingRole)) {
         return packageRating(item, role - AircraftRatingRole);
     } else if (role == AircraftStatusRole) {
         return QmlAircraftInfo::packageAircraftStatus(item);
