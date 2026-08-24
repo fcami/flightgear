@@ -24,7 +24,9 @@ bool timerStarted = false;
 
 /// minimum accumulated flown minutes before we consider offering the user a
 /// chance to rate a package
-const uint32_t MIN_FLOWN_MINUTES_TO_RATE = 2;
+const uint32_t MIN_FLOWN_MINUTES_TO_RATE = 0;
+
+const std::string DEFAULT_RATINGS_SERVICE_URL = "https://ratings.flightgear.org";
 
 /**
  * Short connect/total timeouts so an unreachable/down backend fails fast
@@ -86,7 +88,8 @@ bool canRateAircraft(const simgear::pkg::PackageRef& pkg)
 
 void submitAircraftRating(const std::string& qualifiedPackageId, int rating)
 {
-    const std::string baseUrl = fgGetString("/sim/package-system/ratings-service/url");
+    const std::string baseUrl = fgGetString("/sim/package-system/ratings-service/url",
+        DEFAULT_RATINGS_SERVICE_URL);
     if (baseUrl.empty()) {
         return; // no backend configured, nothing to do
     }
