@@ -17,6 +17,8 @@
 #include <QNetworkDiskCache>
 #include <QPushButton>
 #include <QQmlComponent>
+#include <QQmlEngine>
+#include <QQuickView>
 #include <QQuickWindow>
 #include <QSettings>
 
@@ -30,20 +32,28 @@
 #include <simgear/structure/exception.hxx>
 
 // FlightGear headers
-#include <Network/HTTPClient.hxx>
-#include <Main/globals.hxx>
 #include <Airports/airport.hxx>
-#include <Main/options.hxx>
 #include <Main/fg_init.hxx>
 #include <Main/fg_props.hxx>
+#include <Main/globals.hxx>
+#include <Main/locale.hxx>
+#include <Main/options.hxx>
 #include <Main/sentryIntegration.hxx>
+#include <Network/HTTPClient.hxx>
 
+#include "AircraftFavouritesModel.hxx"
+#include "AircraftFilterModel.hxx"
 #include "AircraftItemModel.hxx"
-#include "AircraftProxyModel.hxx"
+#include "AircraftRatingsProxyModel.hxx"
+#include "AircraftSearchModel.hxx"
+#include "AircraftTagsModel.hxx"
+#include "AircraftUpdatesModel.hxx"
+
 #include "AirportDiagram.hxx"
 #include "CarrierDiagram.hxx"
 #include "CarriersLocationModel.hxx"
 #include "DefaultAircraftLocator.hxx"
+#include "FavouriteAircraftData.hxx"
 #include "FlightPlanController.hxx"
 #include "GettingStartedScope.hxx"
 #include "GettingStartedTip.hxx"
@@ -101,26 +111,33 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
 
     m_flightPlan = new FlightPlanController(this, m_config);
 
+    m_languagesModel = new LauncherLanguagesModel(this);
+    connect(m_languagesModel, &LauncherLanguagesModel::currentIndexChanged,
+            this, &LauncherController::onLanguageSelectionChanged);
+
     m_location->setLaunchConfig(m_config);
     connect(m_location, &LocationController::descriptionChanged,
             this, &LauncherController::summaryChanged);
 
     m_aircraftModel = new AircraftItemModel(this);
-    m_installedAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_installedAircraftModel->setInstalledFilterEnabled(true);
+    auto ratingsProxy = new AircraftRatingsProxyModel(this);
+    ratingsProxy->setSourceModel(m_aircraftModel);
 
-    m_aircraftWithUpdatesModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_aircraftWithUpdatesModel->setInstalledFilterEnabled(true);
-    m_aircraftWithUpdatesModel->setHaveUpdateFilterEnabled(true);
+    m_aircraftInstalledModel = new AircraftInstalledModel(this, ratingsProxy);
+    m_aircraftWithUpdatesModel = new AircraftUpdatesModel(this, ratingsProxy);
+    m_favouriteAircraftModel = new AircraftFavouritesModel(this, ratingsProxy);
 
-    m_browseAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_browseAircraftModel->setRatingFilterEnabled(true);
-    m_browseAircraftModel->setCompatibilityFilterEnabled(true);
+    // m_aircraftSearchModel sits between the base model and the filter model,
+    // allowing text-based searching and rating/compat filtering to be separated.
+    m_aircraftSearchModel = new AircraftSearchModel(this, ratingsProxy);
 
-    m_aircraftSearchModel = new AircraftProxyModel(this, m_aircraftModel);
+    // Single filter model; its source is swapped by setSelectedModel().
+    // Initial state is "installed" (the default QML tab).
+    m_aircraftFilterModel = new AircraftFilterModel(this, m_aircraftInstalledModel);
+    m_aircraftFilterModel->setRatingFilterEnabled(true);
+    m_aircraftFilterModel->setCompatibilityFilterEnabled(true);
 
-    m_favouriteAircraftModel = new AircraftProxyModel(this, m_aircraftModel);
-    m_favouriteAircraftModel->setShowFavourites(true);
+    m_aircraftTagsModel = new AircraftTagsModel(this);
 
     m_aircraftHistory = new RecentAircraftModel(m_aircraftModel, this);
 
@@ -212,11 +229,18 @@ void LauncherController::initQML(int& styleTypeId)
 
     qmlRegisterType<LauncherArgumentTokenizer>("FlightGear.Launcher", 1, 0, "ArgumentTokenizer");
     qmlRegisterUncreatableType<QAbstractItemModel>("FlightGear.Launcher", 1, 0, "QAIM", "no");
-    qmlRegisterUncreatableType<AircraftProxyModel>("FlightGear.Launcher", 1, 0, "AircraftProxyModel", "no");
+    qmlRegisterUncreatableType<AircraftFilterModel>("FlightGear.Launcher", 1, 0, "AircraftFilterModel", "no");
+    qmlRegisterUncreatableType<AircraftInstalledModel>("FlightGear.Launcher", 1, 0, "AircraftInstalledModel", "no");
+    qmlRegisterUncreatableType<AircraftSearchModel>("FlightGear.Launcher", 1, 0, "AircraftSearchModel", "no");
+    qmlRegisterUncreatableType<AircraftUpdatesModel>("FlightGear.Launcher", 1, 0, "AircraftUpdatesModel", "no");
+    qmlRegisterUncreatableType<AircraftFavouritesModel>("FlightGear.Launcher", 1, 0, "AircraftFavouritesModel", "no");
+    qmlRegisterUncreatableType<AircraftTagsModel>("FlightGear.Launcher", 1, 0, "AircraftTagsModel", "no");
+    qmlRegisterType<AircraftTagsFilterModel>("FlightGear.Launcher", 1, 0, "AircraftTagsFilterModel");
     qmlRegisterUncreatableType<RecentAircraftModel>("FlightGear.Launcher", 1, 0, "RecentAircraftModel", "no");
     qmlRegisterUncreatableType<RecentLocationsModel>("FlightGear.Launcher", 1, 0, "RecentLocationsModel", "no");
     qmlRegisterUncreatableType<LaunchConfig>("FlightGear.Launcher", 1, 0, "LaunchConfig", "Singleton API");
     qmlRegisterUncreatableType<MPServersModel>("FlightGear.Launcher", 1, 0, "MPServers", "Singleton API");
+    qmlRegisterUncreatableType<LauncherLanguagesModel>("FlightGear.Launcher", 1, 0, "LauncherLanguagesModel", "Singleton API");
 
     qmlRegisterType<NavaidSearchModel>("FlightGear", 1, 0, "NavaidSearch");
     qmlRegisterType<CarriersLocationModel>("FlightGear", 1, 0, "CarriersModel");
@@ -546,6 +570,24 @@ bool LauncherController::canFly() const
     return canRun;
 }
 
+void LauncherController::onLanguageSelectionChanged()
+{
+    const std::string code = m_languagesModel->currentLanguageCode().toStdString();
+
+    // swap the launcher QTranslator
+    flightgear::switchUILanguage(code);
+
+    // re-select the FGLocale/XLIFF strings used for aircraft, tags, etc,
+    // shown inside the launcher itself
+    globals->get_locale()->selectLanguage(code);
+    globals->packageRoot()->setLocale(globals->get_locale()->getPreferredLanguage());
+
+    // refresh every qsTr() binding in the QML tree, without a full reload
+    if (auto quickView = qobject_cast<QQuickView*>(m_window)) {
+        quickView->engine()->retranslate();
+    }
+}
+
 void LauncherController::downloadDirChanged(QString path)
 {
     // this can get run if the UI is disabled, just bail out before doing
@@ -620,6 +662,25 @@ QStringList LauncherController::environmentSummary() const
     return m_environmentSummary;
 }
 
+
+void LauncherController::setSelectedModel(const QString& state)
+{
+    if (m_selectedModel == state)
+        return;
+
+    m_selectedModel = state;
+
+    // Swap the source of the single filter model based on which tab is active.
+    if (state == QLatin1String("installed")) {
+        m_aircraftFilterModel->setSourceModel(m_aircraftInstalledModel);
+    } else if (state == QLatin1String("browse") || state == QLatin1String("search")) {
+        m_aircraftFilterModel->setSourceModel(m_aircraftSearchModel);
+    }
+    // "updates" and "favourites" have their own dedicated models and do not
+    // go through the filter model, so no source swap is needed.
+
+    emit selectedModelChanged();
+}
 
 void LauncherController::setSelectedAircraft(QUrl selectedAircraft)
 {
@@ -1067,4 +1128,31 @@ void LauncherController::onReachabilityChanged()
 
     emit networkAvailableChanged();
 #endif
+}
+
+int LauncherController::selectedAircraftIndex(QAbstractItemModel* model)
+{
+    if (!m_selectedAircraftInfo) {
+        return -1;
+    }
+
+    // hit the base case, stop descending
+    AircraftItemModel* itemModel = qobject_cast<AircraftItemModel*>(model);
+    if (itemModel) {
+        QModelIndex idx = itemModel->indexOfAircraftURI(m_selectedAircraft);
+        if (idx.isValid()) {
+            itemModel->selectVariantForAircraftURI(m_selectedAircraft);
+            return idx.row();
+        }
+
+        return -1;
+    }
+
+    auto* proxy = qobject_cast<QAbstractProxyModel*>(model);
+    if (!proxy) {
+        return -1; // should never happen
+    }
+
+    // recurse into the proxy
+    return selectedAircraftIndex(proxy->sourceModel());
 }

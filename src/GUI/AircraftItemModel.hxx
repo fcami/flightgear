@@ -38,8 +38,14 @@ const int AircraftPrimaryURIRole = Qt::UserRole + 21;
 
 const int AircraftStatusRole = Qt::UserRole + 22;
 const int AircraftCompatibleRole = Qt::UserRole + 23;
+const int AircraftTagsRole = Qt::UserRole + 24;
 
 const int AircraftRatingRole = Qt::UserRole + 100;
+const int AircraftCombinedRatingRole = Qt::UserRole + 150;
+const int AircraftUserRatingAverageRole = Qt::UserRole + 151;
+const int AircraftUserRatingVotesRole = Qt::UserRole + 152;
+const int AircraftUserOwnRatingRole = Qt::UserRole + 153; ///< -1 if not rated by the user
+const int AircraftUserCanRateRole = Qt::UserRole + 154;   ///< installed, flown enough, not yet rated
 const int AircraftVariantDescriptionRole = Qt::UserRole + 200;
 
 class PackageDelegate;

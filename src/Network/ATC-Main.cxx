@@ -9,15 +9,16 @@
 
 #include <simgear/compiler.h>
 
-#include <stdlib.h>		// atoi() atof() abs()
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
-
-#include <stdio.h>              //snprintf
+#include <fcntl.h>
+#include <stdio.h>  //snprintf
+#include <stdlib.h> // atoi() atof() abs()
+#include <sys/stat.h>
+#include <sys/types.h>
 #ifdef _WIN32
 #  include <io.h>                 //lseek, read, write
+#else
+    #include <unistd.h> //lseek, read, write
 #endif
 
 #include <string>

@@ -39,7 +39,7 @@ private:
 public:
     /**
      * Create a new TCP server.
-     * 
+     *
      * @param tokens Tokenized configuration parameters
      */
     FGProps(const std::vector<std::string>& tokens);
@@ -47,7 +47,7 @@ public:
     /**
      * Destructor.
      */
-    ~FGProps();
+    virtual ~FGProps();
 
     /**
      * Start the telnet server.
@@ -60,7 +60,7 @@ public:
     bool process() override;
 
     /**
-     * 
+     *
      */
     bool close() override;
 

@@ -19,6 +19,7 @@ set(SOURCES
     PUICompatObject.cxx
     FGNasalMenuBar.cxx
     CanvasWidget.cxx
+    AircraftRatingSubmission.cxx
 )
 
 set(HEADERS
@@ -38,6 +39,7 @@ set(HEADERS
     PUICompatObject.hxx
     FGNasalMenuBar.hxx
     CanvasWidget.hxx
+    AircraftRatingSubmission.hxx
 )
 
 if(WIN32)
@@ -116,14 +118,28 @@ if (HAVE_QT)
                             LocationController.hxx
                             LauncherArgumentTokenizer.cxx
                             LauncherArgumentTokenizer.hxx
-                            AircraftProxyModel.cxx
-                            AircraftProxyModel.hxx
+                            AircraftFavouritesModel.cxx
+                            AircraftFavouritesModel.hxx
+                            AircraftFilterModel.cxx
+                            AircraftFilterModel.hxx
+                            AircraftRatingsProxyModel.cxx
+                            AircraftRatingsProxyModel.hxx
+                            AircraftInstalledModel.cxx
+                            AircraftInstalledModel.hxx
+                            AircraftSearchModel.cxx
+                            AircraftSearchModel.hxx
+                            AircraftTagsModel.cxx
+                            AircraftTagsModel.hxx
+                            AircraftUpdatesModel.cxx
+                            AircraftUpdatesModel.hxx
                             DefaultAircraftLocator.cxx
                             DefaultAircraftLocator.hxx
                             LaunchConfig.cxx
                             LaunchConfig.hxx
                             MPServersModel.cpp
                             MPServersModel.h
+                            LauncherLanguagesModel.cxx
+                            LauncherLanguagesModel.hxx
                             RecentAircraftModel.cxx
                             RecentAircraftModel.hxx
                             RecentLocationsModel.cxx

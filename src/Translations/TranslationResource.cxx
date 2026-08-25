@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstddef>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -165,6 +166,30 @@ std::size_t TranslationResource::getCount(const string& name) const
     return index;
 }
 
+vector<string> TranslationResource::getIdsWithPrefix(const string& prefix) const
+{
+    vector<string> result;
+    std::set<string> dedup; // to avoid duplicates
+
+    // KeyType pairs are ordered lexicographically by name first, so every
+    // name starting with 'prefix' occupies one contiguous range starting at
+    // this iterator.
+    auto it = _map.lower_bound(KeyType(prefix, 0));
+
+    for (; it != _map.end(); ++it) {
+        const string& name = it->first.first;
+        if (name.compare(0, prefix.size(), prefix) != 0) {
+            break; // past the last name with this prefix
+        }
+
+        if (dedup.insert(name).second) {
+            result.push_back(name);
+        }
+    }
+
+    return result;
+}
+
 static naRef f_get(const TranslationResource& tr, const nasal::CallContext& ctx)
 {
     if (ctx.argc < 1 || ctx.argc > 2) {
@@ -255,5 +280,6 @@ void TranslationResource::setupGhost()
         .method("getPluralWithDefault", &f_getPluralWithDefault)
         .method("getAll", &TranslationResource::getAll)
         .method("getCount", &TranslationResource::getCount)
+        .method("getIdsWithPrefix", &TranslationResource::getIdsWithPrefix)
         .method("translationUnit", &f_translationUnit);
 }

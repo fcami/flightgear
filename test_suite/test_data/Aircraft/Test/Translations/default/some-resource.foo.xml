@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
-
+<!-- SPDX-FileCopyrightText: 2025 Florent Rougon -->
+<!-- SPDX-License-Identifier: GPL-2.0-or-later-->
 <resource>
   <meta>
     <file-type>FlightGear default translation file</file-type>
@@ -11,5 +12,10 @@
   <strings>
     <hello>Hello from the Test aircraft!</hello>
     <cats has-plural="true">%1 cat(s) is not enough cats.</cats>
+    <!-- Extra ids used to test FGTranslate::getIdsWithPrefix() -->
+    <car-brand>Test car brand</car-brand>
+    <car-model>Test car model</car-model>
+    <care-package>Test care package</care-package>
+    <dog>Test dog</dog>
   </strings>
 </resource>

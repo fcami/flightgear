@@ -5,148 +5,128 @@ import QtQuick 2.2
 import FlightGear.Launcher 1.0 as FG
 import FlightGear 1.0
 
-ListHeaderBox
+Rectangle
 {
-    id: root
+    id: aircraftFilterPanel
     signal clearSelection();
 
-    GettingStartedScope.controller: tips.controller
+    property GettingStartedTipLayer tips
 
-    contents: [
+    implicitHeight: contents.implicitHeight + Style.margin * 2
+    implicitWidth: Style.strutSize * 24
+    color: Style.backgroundColor
+
+    Column {
+        id: contents
+        y: Style.margin
+        spacing: (Style.margin * 2)
+
+        ToggleSwitch {
+            id: useGridMode
+            checked: _launcher.aircraftGridMode
+
+            onCheckedChanged: {
+                _launcher.aircraftGridMode = checked
+                _launcher.saveUISetting("aircraft-grid-mode", checked);
+            }
+
+            label: checked ? qsTr("Display aircraft in a grid") : qsTr("Display aircraft in a list")
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        PopupChoice {
+            id: sortChoice
+            model: StringListModel{
+                values: [qsTr("By name"), qsTr("By rating"), qsTr("By user rating")]
+                keys: [FG.AircraftFilterModel.SortByName, FG.AircraftFilterModel.SortByRating, FG.AircraftFilterModel.SortByUserRating]
+            }
+
+            currentIndex: model.indexOfKey(_launcher.currentAircraftModel.sorting)
+            onCurrentIndexChanged: {
+                _launcher.currentAircraftModel.sorting = model.keys[currentIndex]
+            }
+
+            label: qsTr("Sort aircraft by: ")
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
 
         ToggleSwitch {
             id: doCompatibilityCheck
-            checked: _launcher.browseAircraftModel.compatibilityFilterEnabled
+            checked: _launcher.currentAircraftModel.compatibilityFilterEnabled
 
             onCheckedChanged: {
-                _launcher.browseAircraftModel.compatibilityFilterEnabled = checked
+                _launcher.currentAircraftModel.compatibilityFilterEnabled = checked
                 _launcher.saveUISetting("enable-compatibility-filter", checked);
             }
 
             label: qsTr("Only display compatible aircraft")
-            anchors.verticalCenter: parent.verticalCenter
-        },
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        Rectangle {
+            color: Style.frameColor
+            height: 1
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
 
         ToggleSwitch {
             id: doFilterCheck
-            checked: _launcher.browseAircraftModel.ratingsFilterEnabled
+            checked: _launcher.currentAircraftModel.ratingsFilterEnabled
 
             onCheckedChanged: {
-                _launcher.browseAircraftModel.ratingsFilterEnabled = checked
+                _launcher.currentAircraftModel.ratingsFilterEnabled = checked
                 _launcher.saveUISetting("enable-ratings-filter", checked);
             }
 
-            label: qsTr("Filter using ratings")
-            anchors {
-                verticalCenter: parent.verticalCenter
-                leftMargin: Style.margin
-                left: doCompatibilityCheck.right
-            }
-        },
+            label: qsTr("Filter aircraft")
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
 
         StyledText {
-            anchors {
-                verticalCenter: parent.verticalCenter
-                leftMargin: Style.margin
-                left: doFilterCheck.right
-                right: adjustRatingsText.left
-            }
-            text: _launcher.browseAircraftModel.summaryText
-        },
-
-        ClickableText {
-            id: adjustRatingsText
-            anchors.right: parent.right
-            anchors.rightMargin: Style.margin
-            text: qsTr("Adjust minimum ratings")
-            anchors.verticalCenter: parent.verticalCenter
-            onClicked:  {
-                // clear selection so we don't jump to the selected item
-                // each time the proxy model changes.
-                root.clearSelection();
-                editRatingsPanel.visible = true
-
-            }
-
-            Component.onCompleted: {
-                editTip.showOneShot()
-            }
-
-            GettingStartedTip {
-                id: editTip
-                tipId: "editRatingsTip"
-
-                anchors {
-                    horizontalCenter: parent.horizontalCenter
-                    top: parent.bottom
-                }
-                standalone: true
-                arrow: GettingStartedTip.TopRight
-                text: qsTr("Click here to change which aircraft are shown or hidden based on their ratings")
-            }
-        },
-
-        // mouse are behind panel to consume clicks
-        MouseArea {
-            width: 10000 // deliberately huge values here
-            height: 10000
+            text: qsTr("Aircraft are rated by the community based on four criteria, on a scale from " +
+                        "one to five. The ratings are designed to help make an informed guess how "+
+                        "complete and functional an aircraft is.")
+            width: parent.width - Style.inset
+            wrapMode: Text.WordWrap
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            visible: editRatingsPanel.visible
+        }
 
-            onClicked: {
-                editRatingsPanel.visible = false
-            }
-        },
+        RatingSlider {
+            label: qsTr("Minimum flight-model (FDM) rating")
+            ratingIndex: 0
+            enabled: _launcher.currentAircraftModel.ratingsFilterEnabled
+        }
+
+        RatingSlider {
+            label: qsTr("Minimum systems rating")
+            ratingIndex: 1
+            enabled: _launcher.currentAircraftModel.ratingsFilterEnabled
+        }
+
+        RatingSlider {
+            label: qsTr("Minimum cockpit visual rating")
+            ratingIndex: 2
+            enabled: _launcher.currentAircraftModel.ratingsFilterEnabled
+        }
+
+        RatingSlider {
+            label: qsTr("Minimum external visual model rating")
+            ratingIndex: 3
+            enabled: _launcher.currentAircraftModel.ratingsFilterEnabled
+        }
 
         Rectangle {
-            id: editRatingsPanel
-            visible: false
-            width: parent.width
-            y: parent.height - 1
-            height: childrenRect.height + (Style.margin * 2)
-
-            border.width: 1
-            border.color: "#9f9f9f"
-
-            Column {
-                y: Style.margin
-                spacing: (Style.margin * 2)
-
-                StyledText {
-                    text: qsTr("Aircraft are rated by the community based on four criteria, on a scale from " +
-                               "one to five. The ratings are designed to help make an informed guess how "+
-                               "complete and functional an aircraft is.")
-                    width: editRatingsPanel.width - Style.strutSize * 2
-                    wrapMode: Text.WordWrap
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-
-                RatingSlider {
-                    label: qsTr("Minimum flight-model (FDM) rating")
-                    ratings: _launcher.browseAircraftModel.ratings
-                    ratingIndex: 0
-                }
-
-                RatingSlider {
-                    label: qsTr("Minimum systems rating")
-                    ratings: _launcher.browseAircraftModel.ratings
-                    ratingIndex: 1
-                }
-
-                RatingSlider {
-                    label: qsTr("Minimum cockpit visual rating")
-                    ratings: _launcher.browseAircraftModel.ratings
-                    ratingIndex: 2
-                }
-
-                RatingSlider {
-                    label: qsTr("Minimum external visual model rating")
-                    ratings: _launcher.browseAircraftModel.ratings
-                    ratingIndex: 3
-                }
-            }
+            color: Style.frameColor
+            height: 1
+            width: parent.width - Style.inset
+            anchors.horizontalCenter: parent.horizontalCenter
         }
-    ]
+
+    } // of Column
 
 }

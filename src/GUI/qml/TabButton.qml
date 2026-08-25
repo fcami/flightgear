@@ -9,7 +9,6 @@ Rectangle {
 
     property alias text: buttonText.text
     property bool active: false
-    property bool enabled: true
 
     signal clicked
 

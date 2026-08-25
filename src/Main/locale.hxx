@@ -212,6 +212,18 @@ public:
                                         const std::string& context) const;
 
     /**
+     * Obtain the ids of all strings in a resource whose name starts with a
+     * given prefix (e.g. "tag-" to enumerate every aircraft catalog tag).
+     *
+     * @param prefix   the prefix to match ids against
+     * @param resource a string such as "menu", "options", "sys", etc.
+     *
+     * @return The matching ids, in ascending order, with no duplicates
+     */
+    std::vector<std::string> getLocalizedStringIdsWithPrefix(
+        const std::string& prefix, const std::string& resource) const;
+
+    /**
      * Obtain default font for current locale.
      */
     std::string getDefaultFont(const char* fallbackFont);

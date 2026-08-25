@@ -1,4 +1,7 @@
-#include "config.h" 
+// SPDX-FileCopyrightText: 2015 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "config.h"
 
 #include "LauncherMainWindow.hxx"
 
@@ -94,7 +97,7 @@ LauncherMainWindow::LauncherMainWindow(bool inSimMode) : QQuickView()
 #endif
 
         QAction* qa = new QAction(this);
-        qa->setMenuRole(QAction::QuitRole); // will be addeed accordingly
+        qa->setMenuRole(QAction::QuitRole); // will be added accordingly
         qa->setShortcut(QKeySequence("Ctrl+Q"));
         connect(qa, &QAction::triggered, m_controller, &LauncherController::quit);
     }
@@ -107,6 +110,7 @@ LauncherMainWindow::LauncherMainWindow(bool inSimMode) : QQuickView()
     }
 
     m_coloredIconProvider->loadStyleColors(engine(), styleTypeId);
+    m_controller->aircraftTagsModel()->loadStyleColors(engine(), styleTypeId);
 
     connect(this, &QQuickView::statusChanged, this, &LauncherMainWindow::onQuickStatusChanged);
 
@@ -190,6 +194,8 @@ bool LauncherMainWindow::checkQQC2Availability()
 
 LauncherMainWindow::~LauncherMainWindow()
 {
+    // mark the start of QQuickView (and its render-thread GL context) teardown
+    flightgear::addSentryBreadcrumb("destroying LauncherMainWindow (QQuickView)", "info");
 }
 
 bool LauncherMainWindow::event(QEvent *event)
@@ -203,7 +209,7 @@ bool LauncherMainWindow::event(QEvent *event)
 bool LauncherMainWindow::execInApp()
 {
 	m_controller->setInAppMode();
-    
+
     show();
 
     while (m_controller->keepRunningInAppMode()) {

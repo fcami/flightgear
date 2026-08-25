@@ -252,6 +252,20 @@ Rectangle {
                     } // of rating grid
                 }
 
+                AircraftUserRatingButton {
+                    width: parent.width
+                    average: aircraft.userRatingAverage
+                    votes: aircraft.userRatingVotes
+                    ownRating: aircraft.userOwnRating
+                    canRate: aircraft.userCanRate
+                    onRateRequested: function(rating) { aircraft.submitUserRating(rating); }
+                }
+
+                AircraftTagsRow {
+                    width: parent.width
+                    tags: aircraft.tags
+                }
+
                 StyledText {
                     text: qsTr("Local file location: %1").arg(aircraft.pathOnDisk);
                     width: parent.width

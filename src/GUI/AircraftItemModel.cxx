@@ -20,6 +20,7 @@
 
 // FlightGear
 #include "AircraftCompatibility.hxx"
+#include "AircraftRatingSubmission.hxx"
 #include "FavouriteAircraftData.hxx"
 #include "QmlAircraftInfo.hxx"
 #include <Main/globals.hxx>
@@ -326,6 +327,16 @@ QVariant AircraftItemModel::dataFromItem(AircraftItemPtr item, const DelegateSta
         return item->status(0 /* variant is always 0 */);
     } else if (role == AircraftCompatibleRole) {
         return item->declaredCompatible;
+    } else if (role == AircraftTagsRole) {
+        return item->tags;
+    } else if (role == AircraftUserRatingAverageRole) {
+        return 0.0;
+    } else if (role == AircraftUserRatingVotesRole) {
+        return 0;
+    } else if (role == AircraftUserOwnRatingRole) {
+        return -1;
+    } else if (role == AircraftUserCanRateRole) {
+        return false;
     }
 
     return QVariant();
@@ -396,7 +407,7 @@ QVariant AircraftItemModel::dataFromPackage(const PackageRef& item, const Delega
         return QUrl("package:" + QString::fromStdString(item->qualifiedId()));
     } else if (role == AircraftHasRatingsRole) {
         return item->properties()->hasChild("rating");
-    } else if ((role >= AircraftRatingRole) && (role < AircraftVariantDescriptionRole)) {
+    } else if ((role >= AircraftRatingRole) && (role < AircraftCombinedRatingRole)) {
         return packageRating(item, role - AircraftRatingRole);
     } else if (role == AircraftStatusRole) {
         return QmlAircraftInfo::packageAircraftStatus(item);
@@ -406,6 +417,21 @@ QVariant AircraftItemModel::dataFromPackage(const PackageRef& item, const Delega
         return item->hasTag("helicopter");
     } else if (role == AircraftIsSeaplaneRole) {
         return item->hasTag("seaplane") || item->hasTag("floats");
+    } else if (role == AircraftTagsRole) {
+        QStringList tags;
+        for (const auto& tag : item->tags()) {
+            tags.push_back(QString::fromStdString(tag));
+        }
+        return tags;
+    } else if (role == AircraftUserRatingAverageRole) {
+        return item->userRatingAverage();
+    } else if (role == AircraftUserRatingVotesRole) {
+        return item->userRatingVotes();
+    } else if (role == AircraftUserOwnRatingRole) {
+        return m_packageRoot->userRatingForPackage(item->qualifiedId());
+    } else if (role == AircraftUserCanRateRole) {
+        return m_packageRoot->isPackageFlownEnoughToRate(item->qualifiedId()) &&
+               (m_packageRoot->userRatingForPackage(item->qualifiedId()) < 0);
     }
 
     return QVariant();
@@ -435,6 +461,17 @@ bool AircraftItemModel::setData(const QModelIndex &index, const QVariant &value,
           if (changed) {
               emit dataChanged(index, index);
           }
+      } else if (role == AircraftUserOwnRatingRole) {
+          const auto pkg = data(index, AircraftPackageRefRole).value<PackageRef>();
+          if (!pkg) {
+              return false;
+          }
+
+          const int rating = value.toInt();
+          m_packageRoot->setUserRatingForPackage(pkg->qualifiedId(), rating);
+          flightgear::submitAircraftRating(pkg->qualifiedId(), rating);
+          emit dataChanged(index, index);
+          return true;
       }
 
       return false;
@@ -465,6 +502,13 @@ QHash<int, QByteArray> AircraftItemModel::roleNames() const
     result[AircraftRatingRole + 1] = "ratingSystems";
     result[AircraftRatingRole + 2] = "ratingCockpit";
     result[AircraftRatingRole + 3] = "ratingExterior";
+
+    result[AircraftTagsRole] = "tags";
+
+    result[AircraftUserRatingAverageRole] = "userRatingAverage";
+    result[AircraftUserRatingVotesRole] = "userRatingVotes";
+    result[AircraftUserOwnRatingRole] = "userOwnRating";
+    result[AircraftUserCanRateRole] = "userCanRate";
 
     return result;
 }

@@ -168,6 +168,17 @@ public:
     std::size_t getCount(const std::string& name) const;
 
     /**
+     * @brief Get the basic ids of all translatable strings whose name starts
+     *        with a given prefix.
+     *
+     * @param prefix  a string such as "tag-"
+     * @return A sorted vector containing the element name (aka “basic id”) of
+     *         every translation unit in this TranslationResource whose name
+     *         starts with @a prefix, with duplicates removed.
+     */
+    std::vector<std::string> getIdsWithPrefix(const std::string& prefix) const;
+
+    /**
      * @brief Set up a Nasal type that wraps TranslationResource
      */
     static void setupGhost();

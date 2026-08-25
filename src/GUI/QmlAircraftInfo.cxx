@@ -19,6 +19,7 @@
 #include <Main/globals.hxx>
 
 #include "AircraftCompatibility.hxx"
+#include "AircraftRatingSubmission.hxx"
 #include "FavouriteAircraftData.hxx"
 #include "LocalAircraftCache.hxx"
 
@@ -426,6 +427,51 @@ QVariantList QmlAircraftInfo::ratings() const
         return result;
     }
     return {};
+}
+
+double QmlAircraftInfo::userRatingAverage() const
+{
+    if (_package) {
+        return _package->userRatingAverage();
+    }
+    return 0.0;
+}
+
+int QmlAircraftInfo::userRatingVotes() const
+{
+    if (_package) {
+        return _package->userRatingVotes();
+    }
+    return 0;
+}
+
+int QmlAircraftInfo::userOwnRating() const
+{
+    if (_package) {
+        return globals->packageRoot()->userRatingForPackage(_package->qualifiedId());
+    }
+    return -1;
+}
+
+bool QmlAircraftInfo::userCanRate() const
+{
+    if (_package) {
+        auto root = globals->packageRoot();
+        return root->isPackageFlownEnoughToRate(_package->qualifiedId()) &&
+               (root->userRatingForPackage(_package->qualifiedId()) < 0);
+    }
+    return false;
+}
+
+void QmlAircraftInfo::submitUserRating(int rating)
+{
+    if (!_package) {
+        return;
+    }
+
+    globals->packageRoot()->setUserRatingForPackage(_package->qualifiedId(), rating);
+    flightgear::submitAircraftRating(_package->qualifiedId(), rating);
+    emit infoChanged();
 }
 
 QVariantList QmlAircraftInfo::previews() const
@@ -921,6 +967,21 @@ bool QmlAircraftInfo::hasTag(QString tag) const
     }
 
     return false;
+}
+
+QStringList QmlAircraftInfo::tags() const
+{
+    if (_item) {
+        return resolveItem()->tags;
+    } else if (_package) {
+        QStringList result;
+        for (const auto& tag : _package->tags()) {
+            result.push_back(QString::fromStdString(tag));
+        }
+        return result;
+    }
+
+    return {};
 }
 
 bool QmlAircraftInfo::favourite() const

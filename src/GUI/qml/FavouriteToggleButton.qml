@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2021 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 import QtQuick 2.4
 import FlightGear 1.0
 
@@ -14,8 +17,11 @@ Item {
     Image {
         id: icon
         source: {
-            var b = mouse.containsMouse ? !root.checked : root.checked;
-            return b ? "image://colored-icon/star-filled?theme" : "image://colored-icon/star-outline?text";
+            var b = root.checked;
+            if (mouse.containsMouse && !b) {
+                return "image://colored-icon/heart-plus?theme"
+            }
+            return b ? "image://colored-icon/heart-filled?theme" : "image://colored-icon/heart-outline?text";
         }
 
         anchors.centerIn: parent

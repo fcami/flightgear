@@ -31,7 +31,7 @@ variables:
   # create a root dir *above* the Simgear checkout, otherwise CMake
   # complains about INTERFACE_INCLUDE_DIRECTORIES being the source dir
   WIN_FG_DIR: $CI_BUILDS_DIR\flightgear
-  MAC_IMAGE: macos-14-xcode-15
+  MAC_IMAGE: macos-26-xcode-26
 
 # do not run pipelines on forks
 # build merge requests, tags and the protected branches
@@ -155,7 +155,9 @@ linux-build:
     paths:
       - $CCACHE_DIR
 
-linux-qt5-build:
+# disable until we decide what we're doing with minimum distro for this
+# due to Pango/Cairo update (need more recent HarfBuzz)
+.linux-qt5-build:
   extends: .ccache-variables
   image: ${CI_REGISTRY}/flightgear/flightgear-ci-docker/flightgear-qt5:latest
   stage: build
@@ -182,7 +184,7 @@ linux-qt5-build:
       artifacts: true
       ref: $[[ inputs.simgear-ref ]]
     - project: flightgear/openscenegraph
-      job: linux-build
+      job: linux-stable-build
       ref: $[[ inputs.openscenegraph-ref ]]
       artifacts: true
   cache:
@@ -296,7 +298,7 @@ macos-build:
       --fresh
       -D CMAKE_BUILD_TYPE=RelWithDebInfo
       -D CMAKE_INSTALL_PREFIX=$PREFIX_DIR
-      -D CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      -D CMAKE_OSX_ARCHITECTURES="arm64"
       -D CMAKE_PREFIX_PATH="$CI_PROJECT_DIR/osg-dist;$CI_PROJECT_DIR/simgear-dist"
       -D ENABLE_CCACHE=ON
 

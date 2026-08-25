@@ -55,15 +55,35 @@ FGClouds::FGClouds() : index(0)
 
     auto p = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
 
-    _cloudBaseM = p->getNode("cloud-base-m", true);
-    _cloudBaseZNorm = p->getNode("cloud-base-z-norm", true);
-    _cloudCenterX = p->getNode("cloud-center-x", true);
-    _cloudCenterY = p->getNode("cloud-center-y", true);
-    _cloudCenterZ = p->getNode("cloud-center-z", true);
-    _mirrorU = p->getNode("mirror-u", true);
-    _mirrorV = p->getNode("mirror-v", true);
-    _cloudFieldRepeating = p->getNode("cloud-field-repeating", true);
-    _activeVoxelFieldHeightNorm = p->getNode("active-voxel-field-height-norm", true);
+    _cloudBaseM = SGPropObjDouble(p, "cloud-base-m");
+    _cloudBaseM.setDefault(0.0);
+
+    _cloudBaseZNorm = SGPropObjDouble(p, "cloud-base-z-norm");
+    _cloudBaseZNorm.setDefault(0.0);
+
+    _cloudCenterX = SGPropObjDouble(p, "cloud-center-x");
+    _cloudCenterX.setDefault(0.0);
+
+    _cloudCenterY = SGPropObjDouble(p, "cloud-center-y");
+    _cloudCenterY.setDefault(0.0);
+
+    _cloudCenterZ = SGPropObjDouble(p, "cloud-center-z");
+    _cloudCenterZ.setDefault(0.0);
+
+    _mirrorU = SGPropObjBool(p, "mirror-u");
+    _mirrorU.setDefault(false);
+
+    _mirrorV = SGPropObjBool(p, "mirror-v");
+    _mirrorV.setDefault(false);
+
+    _cloudFieldRepeating = SGPropObjBool(p, "cloud-field-repeating");
+    _cloudFieldRepeating.setDefault(false);
+
+    _activeVoxelFieldHeightNorm = SGPropObjDouble(p, "active-voxel-field-height-norm");
+    _activeVoxelFieldHeightNorm.setDefault(0.0);
+
+    _shadeUpdateAngleDeg = SGPropObjDouble(p, "shade-update-angle-deg");
+    _shadeUpdateAngleDeg.setDefault(0.0);
 }
 
 FGClouds::~FGClouds()
@@ -72,6 +92,9 @@ FGClouds::~FGClouds()
     // destroying the placement map (the task holds raw pointers into it).
     if (_rebuildFuture.valid())
         _rebuildFuture.wait();
+
+    if (_shadeRebuildFuture.valid())
+        _shadeRebuildFuture.wait();
 
     globals->get_commands()->removeCommand("add-cloud");
     globals->get_commands()->removeCommand("del-cloud");
@@ -266,21 +289,32 @@ void FGClouds::buildLayer(int iLayer, const string& name, double coverage, doubl
         float fieldWidthM = (float)_detailedFieldWidth * (float)_detailedFieldVoxelSize;
         double cov = coverage * fieldWidthM * fieldWidthM;
 
-        while (cov > 0.0f) {
+        // Guard against a tight loop: buildCloud() returns 0.0 (no progress on
+        // cov) whenever the chosen variety's box/type can't be resolved.
+        int consecutiveNoProgress = 0;
+        const int maxConsecutiveNoProgress = 1000;
+
+        while (cov > 0.0f && consecutiveNoProgress < maxConsecutiveNoProgress) {
             double choice = mt_rand(&seed);
 
             for (int i = 0; i < CloudVarietyCount; i++) {
                 choice -= tCloudVariety[i].count * totalCount;
                 if (choice <= 0.0) {
-                    cov -= buildCloud(cloud_def_root,
-                                      box_def_root,
-                                      tCloudVariety[i].name,
-                                      altFt,
-                                      grid_z_rand,
-                                      layer);
+                    double extent = buildCloud(cloud_def_root,
+                                               box_def_root,
+                                               tCloudVariety[i].name,
+                                               altFt,
+                                               grid_z_rand,
+                                               layer);
+                    cov -= extent;
+                    consecutiveNoProgress = (extent > 0.0) ? 0 : consecutiveNoProgress + 1;
                     break;
                 }
             }
+        }
+
+        if (consecutiveNoProgress >= maxConsecutiveNoProgress) {
+            SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "buildLayer: giving up after " << consecutiveNoProgress << " consecutive cloud-placement failures - check cloudlayers.xml box/cloud definitions for this layer type");
         }
     }
 }
@@ -300,13 +334,23 @@ void FGClouds::buildCloudLayers(void)
     // Enable repeating of the voxel space as the clouds we generate should be global
     setCloudsRepeating(true);
 
+    // The upper cloud levels varies between the polar, temperate and tropical regions.
+    // See https://cloudatlas.wmo.int/en/clouds-definitions.html.
+    // We use the high limits quoted as we can generate middle altitude clouds
+    // more easily within the voxel field.
+    auto lat_abs = abs(fgGetNode("/position/latitude-deg")->getDoubleValue());
+    double upper_region_ft = 23000;              // Default to temperate
+    if (lat_abs < 23.5) upper_region_ft = 25000; // Tropical region
+    if (lat_abs > 66.5) upper_region_ft = 13000; // Polar region
+
     SGPropertyNode* metar_root = fgGetNode("/environment", true);
 
     //double wind_speed_kt	 = metar_root->getDoubleValue("wind-speed-kt");
     double temperature_degc = metar_root->getDoubleValue("temperature-sea-level-degc");
     double dewpoint_degc = metar_root->getDoubleValue("dewpoint-sea-level-degc");
-    double pressure_mb = metar_root->getDoubleValue("pressure-sea-level-inhg") * SG_INHG_TO_PA / 100.0;
     double rel_humidity = metar_root->getDoubleValue("relative-humidity");
+    bool rain = (metar_root->getDoubleValue("rain-norm") > 0.0);
+    bool snow = (metar_root->getDoubleValue("snow-norm") > 0.0);
 
     // formula d'Epsy, base d'un cumulus
     double cumulus_base = 122.0 * (temperature_degc - dewpoint_degc);
@@ -321,32 +365,58 @@ void FGClouds::buildCloudLayers(void)
         string coverage = cloud_root->getStringValue("coverage");
 
         double coverage_norm = 0.0;
-        if (coverage == "few")
+
+        // Cumulus develops into different varieties.  We use the coverage
+        // as a proxy for the likely type of Cumulus.
+        string cu_subtype = "";
+        if (coverage == "few") {
             coverage_norm = 2.0 / 8.0; // <1-2
-        else if (coverage == "scattered")
+            cu_subtype = "cu-hum";
+        } else if (coverage == "scattered") {
             coverage_norm = 4.0 / 8.0; // 3-4
-        else if (coverage == "broken")
+            cu_subtype = "cu-med";
+        } else if (coverage == "broken") {
             coverage_norm = 6.0 / 8.0; // 5-7
-        else if (coverage == "overcast")
+            cu_subtype = "cu-con";
+        } else if (coverage == "overcast") {
             coverage_norm = 8.0 / 8.0; // 8
+            cu_subtype = "cu-con";
+        }
 
         string layer_type = "nn";
 
         if (coverage == "cirrus") {
             layer_type = "ci";
-        } else if (alt_ft > 16500) {
+        } else if (alt_ft > upper_region_ft) {
             //			layer_type = "ci|cs|cc";
-            layer_type = "ci";
+            if (coverage_norm < 0.5) {
+                // Low coverage assumed to be cirrus
+                layer_type = "ci";
+            } else {
+                // We don't have any way to distinguish between
+                // cirrostratus and cirrocumulus, so we will
+                // assume the former.
+                layer_type = "cs";
+            }
         } else if (alt_ft > 6500) {
             //			layer_type = "as|ac|ns";
-            layer_type = "ac";
-            if (pressure_mb < 1005.0 && coverage_norm >= 0.5)
+            if (coverage_norm < 0.5) {
+                // Low coverage assumed to be Altocumulus
+                // as Alto-stratus and nimbo-stratus usually cover
+                // the entire sky.
+                layer_type = "ac";
+            } else if (rain || snow) {
+                // Any precipitation is associated with nimbostratus
                 layer_type = "ns";
+            } else {
+                // Alto-stratus is the only other medium level option
+                layer_type = "as";
+            }
         } else {
             //			layer_type = "st|cu|cb|sc";
             if (cumulus_base * 0.80 < alt_m && cumulus_base * 1.20 > alt_m) {
                 // +/- 20% from cumulus probable base
-                layer_type = "cu";
+                layer_type = cu_subtype;
             } else if (stratus_base * 0.80 < alt_m && stratus_base * 1.40 > alt_m) {
                 // +/- 20% from stratus probable base
                 layer_type = "st";
@@ -355,7 +425,7 @@ void FGClouds::buildCloudLayers(void)
                 if (alt_ft < 2000)
                     layer_type = "st";
                 else if (alt_ft < 4500)
-                    layer_type = "cu";
+                    layer_type = cu_subtype;
                 else
                     layer_type = "sc";
             }
@@ -506,9 +576,30 @@ bool FGClouds::repositionCloud(int index, float lon, float lat, float alt, float
     return true;
 }
 
+// Sun direction in voxel (Z-up, field-relative) space. Must be called on
+// the main thread (reads FGLight subsystem state and _cloudPosMatrix).
+osg::Vec3f FGClouds::computeSunDirVoxel() const
+{
+    assert(SGThread::isMainThread());
+    auto l = globals->get_subsystem<FGLight>();
+
+    // sun_vec() points from scene toward sun in world (ECEF) space
+    SGVec4f sunWorld = l->sun_vec();
+    osg::Vec3f sunOsg(sunWorld.x(), sunWorld.y(), sunWorld.z());
+
+    // Rotate into local Z-up frame: multiply by the inverse (transpose for orthonormal) of _cloudPosMatrix
+    // In OSG row-vector convention: v_local = v_world * M^-1
+    const osg::Matrixf worldToLocal = osg::Matrix::inverse(_cloudPosMatrix);
+    osg::Vec3f sunLocal = sunOsg * worldToLocal;
+    sunLocal.normalize();
+    return sunLocal;
+}
+
 FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 {
     RebuildSnapshot snap;
+
+    assert(SGThread::isMainThread());
 
     // Read config (always main-thread safe)
     auto cloudsProp = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
@@ -552,28 +643,10 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
 
-    _cloudCenterX->setFloatValue((float)_centerCart.x());
-    _cloudCenterY->setFloatValue((float)_centerCart.y());
-    _cloudCenterZ->setFloatValue((float)_centerCart.z());
-    _cloudFieldRepeating->setBoolValue(_fieldRepeating);
-
-
-    // Sun direction - read subsystem state on main thread
-    auto l = globals->get_subsystem<FGLight>();
-    const osg::Vec4f sunDirection = toOsg(l->sun_vec_inv());
-    const osg::Matrixf cameraZUp = osg::Matrix::inverse(_cloudPosMatrix);
-    osg::Vec4f s = cameraZUp * (-sunDirection);
-    snap.sunDirVoxel = osg::Vec3f(s.x(), s.y(),
-                                  s.z() * float(snap.detailedFieldWidth) / float(snap.detailedFieldHeight));
-    snap.sunDirVoxel.normalize();
-
-    // sunDirVoxel after normalisation gives the direction.
-    // However, we will actually step through the space in integer steps,
-    // and need to adjust the density calculations for non-orthogonal steps
-    osg::Vec3f intStep(round(snap.sunDirVoxel.x()),
-                       round(snap.sunDirVoxel.y()),
-                       round(snap.sunDirVoxel.z()));
-    snap.sunStepLength = intStep.length();
+    _cloudCenterX = _centerCart.x();
+    _cloudCenterY = _centerCart.y();
+    _cloudCenterZ = _centerCart.z();
+    _cloudFieldRepeating = _fieldRepeating;
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
@@ -631,7 +704,6 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "rebuildField - No cloud data in range");
         result.detailedVoxelData = dummyVoxelData;
         result.roughVoxelData = dummyVoxelData;
-        result.voxelShadeData = dummyVoxelData;
         return result;
     }
 
@@ -661,10 +733,10 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     result.detailedVoxelData->setFileName("Detailed Cloud Voxel Data");
     result.detailedVoxelData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
 
-    result.voxelShadeData = new osg::Image();
-    result.voxelShadeData->setName("Voxel Shade Data");
-    result.voxelShadeData->setFileName("Voxel Shade Data");
-    result.voxelShadeData->allocateImage(snap.detailedFieldWidth, snap.detailedFieldWidth, snap.detailedFieldHeight, GL_RGBA, GL_FLOAT);
+    // By default OSG will de-reference the image data once it's loaded into OpenGL (and the GPU) to save memory.
+    // However we need the voxel data in subsequent frames to regenerate the shade texture.  Set data variance to dynamic to disable this.
+    result.roughVoxelData->setDataVariance(osg::Object::DYNAMIC);
+    result.detailedVoxelData->setDataVariance(osg::Object::DYNAMIC);
 
     result.windOffsetData = new osg::Image();
     result.windOffsetData->setName("Wind Offset Data");
@@ -719,7 +791,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     for (const auto& cl : snap.detailedFieldList) {
         const SGVoxelCloud* c = cl.first;
         osg::Vec3f p = cl.second + zOffset;
-        float z = (float)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
+        double z = (double)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
         result.maxZ = std::max(z, result.maxZ);
     }
 
@@ -731,7 +803,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         for (const auto& cl : snap.roughFieldList) {
             const SGVoxelCloud* c = cl.first;
             osg::Vec3f p = cl.second + zOffset;
-            float z = (float)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
+            double z = (double)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
             result.maxZ = std::max(z, result.maxZ);
         }
 
@@ -739,98 +811,108 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         generateSDF(result.roughVoxelData);
     }
 
-    // Now build the shade image.  The R channel is the density towards the Sun.  The G channel the vertical density.
-    const float* voxelRaw = reinterpret_cast<const float*>(result.detailedVoxelData->data());
+    return result;
+}
+
+// Build the shade texture from the (already-built) detailed voxel field and the
+// current sun direction.  Run independently of runRebuild() above so that it can be
+// re-triggered whenever the sun direction has changed significantly, without having
+// to rebuild the rest of the voxel field.
+FGClouds::ShadeRebuildResult FGClouds::runShadeRebuild(ShadeSnapshot snap)
+{
+    ShadeRebuildResult result;
+
+    result.voxelShadeData = new osg::Image();
+    result.voxelShadeData->setName("Voxel Shade Data");
+    result.voxelShadeData->setFileName("Voxel Shade Data");
+    result.voxelShadeData->allocateImage(snap.width, snap.width, snap.height, GL_RGBA, GL_FLOAT);
+
+    const float* voxelRaw = snap.voxelData.data();
     float* shadeRaw = reinterpret_cast<float*>(result.voxelShadeData->data());
 
-    auto voxelIdx = [&](int i, int j, int k) {
-        return (k * snap.detailedFieldWidth * snap.detailedFieldWidth + j * snap.detailedFieldWidth + i) * 4;
-    };
-
+    // Zero the output
+    const size_t numFloats = (size_t)snap.width * snap.width * snap.height * 4;
+    std::fill(shadeRaw, shadeRaw + numFloats, 0.0f);
 
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Sun Direction Z-Up: " << snap.sunDirVoxel.x() << ", " << snap.sunDirVoxel.y() << ", " << snap.sunDirVoxel.z());
 
-    // Determine loop order for each axis based on sun direction
-    // so that when we process voxel (i,j,k), the sunward neighbour is already computed
-    int iStart, iEnd, iStep;
-    int jStart, jEnd, jStep;
-    int kStart, kEnd, kStep;
+    // sunDirVoxel Z needs to be scaled up because the voxel space is not a cube.
+    osg::Vec3f marchDir = snap.sunDirVoxel;
+    marchDir.z() = marchDir.z() * (float)snap.width / (float)snap.height;
+    const float marchDirLength = marchDir.normalize();
 
-    if (snap.sunDirVoxel.x() >= 0) {
-        iStart = int(snap.detailedFieldWidth) - 1;
-        iEnd = -1;
-        iStep = -1;
-    } else {
-        iStart = 0;
-        iEnd = int(snap.detailedFieldWidth);
-        iStep = 1;
-    }
+    // Protect against a tight loop if sun direction is not valid.
+    const bool haveValidSunDir = marchDirLength > 0.0f;
 
-    if (snap.sunDirVoxel.y() >= 0) {
-        jStart = int(snap.detailedFieldWidth) - 1;
-        jEnd = -1;
-        jStep = -1;
-    } else {
-        jStart = 0;
-        jEnd = int(snap.detailedFieldWidth);
-        jStep = 1;
-    }
+    // Step size in voxels - sub-voxel to avoid aliasing at low sun angles
+    const float STEP_SIZE = 0.5f;
+    const osg::Vec3f step = marchDir * STEP_SIZE;
 
-    if (snap.sunDirVoxel.z() >= 0) {
-        kStart = int(snap.detailedFieldHeight) - 1;
-        kEnd = -1;
-        kStep = -1;
-    } else {
-        kStart = 0;
-        kEnd = int(snap.detailedFieldHeight);
-        kStep = 1;
-    }
+    // Trilinear interpolation of density from the voxel field.
+    // p is in voxel coordinates [0..width) x [0..width) x [0..height).
+    // Returns 0 outside the field.
+    auto sampleDensity = [&](float px, float py, float pz) -> float {
+        // Clamp-to-border: outside field = no density
+        if (px < 0.0f || px >= float(snap.width) - 1.0f ||
+            py < 0.0f || py >= float(snap.width) - 1.0f ||
+            pz < 0.0f || pz >= float(snap.height) - 1.0f)
+            return 0.0f;
 
-    for (int k = kStart; k != kEnd; k += kStep) {
-        for (int j = jStart; j != jEnd; j += jStep) {
-            for (int i = iStart; i != iEnd; i += iStep) {
-                const int idx = voxelIdx(i, j, k);
-                float density = voxelRaw[idx + 2]; // .z channel
+        int x0 = int(px), y0 = int(py), z0 = int(pz);
+        int x1 = x0 + 1, y1 = y0 + 1, z1 = z0 + 1;
+        float fx = px - x0, fy = py - y0, fz = pz - z0;
 
-                // --- SUN OPTICAL DEPTH ---
-                // Step to the next voxel in the sun direction
+        auto d = [&](int x, int y, int z) -> float {
+            return voxelRaw[(z * snap.width * snap.width + y * snap.width + x) * 4 + 2];
+        };
+
+        // Trilinear interpolation
+        return (1 - fz) * ((1 - fy) * ((1 - fx) * d(x0, y0, z0) + fx * d(x1, y0, z0)) + fy * ((1 - fx) * d(x0, y1, z0) + fx * d(x1, y1, z0))) +
+               fz * ((1 - fy) * ((1 - fx) * d(x0, y0, z1) + fx * d(x1, y0, z1)) + fy * ((1 - fx) * d(x0, y1, z1) + fx * d(x1, y1, z1)));
+    };
+
+    // For each voxel, ray-march toward the sun accumulating optical depth
+    for (int k = 0; k < snap.height; ++k) {
+        for (int j = 0; j < snap.width; ++j) {
+            for (int i = 0; i < snap.width; ++i) {
                 float sunOpticalDepth = 0.0f;
 
-                int si = i + int(round(snap.sunDirVoxel.x()));
-                int sj = j + int(round(snap.sunDirVoxel.y()));
-                int sk = k + int(round(snap.sunDirVoxel.z()));
+                // Start half a step above this voxel (avoid self-shadowing)
+                float px = float(i) + step.x() * 0.5f;
+                float py = float(j) + step.y() * 0.5f;
+                float pz = float(k) + step.z() * 0.5f;
 
-                if (si >= 0 && si < int(snap.detailedFieldWidth) &&
-                    sj >= 0 && sj < int(snap.detailedFieldWidth) &&
-                    sk >= 0 && sk < int(snap.detailedFieldHeight)) {
-                    sunOpticalDepth = shadeRaw[voxelIdx(si, sj, sk)]; // .r channel
+                while (haveValidSunDir &&
+                       px >= 0.0f && px < float(snap.width) &&
+                       py >= 0.0f && py < float(snap.width) &&
+                       pz >= 0.0f && pz < float(snap.height)) {
+                    float density = sampleDensity(px, py, pz);
+                    sunOpticalDepth += density * snap.voxelOpticalDepth * STEP_SIZE;
+
+                    px += step.x();
+                    py += step.y();
+                    pz += step.z();
                 }
-                // else: at the sunward boundary, optical depth from outside is 0
 
-                // Add this voxel's contribution
-                // Use the step length in the sun direction (longer diagonal steps = more optical depth)
-                sunOpticalDepth += density * snap.voxelOpticalDepth * snap.sunStepLength;
-
+                const int idx = (k * snap.width * snap.width + j * snap.width + i) * 4;
                 shadeRaw[idx + 0] = sunOpticalDepth;
-                shadeRaw[idx + 1] = 0.0f; // Filled by dedicated top-down pass below.
+                shadeRaw[idx + 1] = 0.0f; // filled by vertical pass below
                 shadeRaw[idx + 2] = 0.0f;
                 shadeRaw[idx + 3] = 0.0f;
             }
         }
     }
 
-    // --- VERTICAL SKY DENSITY (always top-down, independent of sun) ---
-    // This represents how much density there is above each voxel.
-    // Must be computed top-down so each voxel can read the already-computed voxel above it.
-    for (int k = int(snap.detailedFieldHeight) - 1; k >= 0; --k) {
-        for (int j = 0; j < int(snap.detailedFieldWidth); ++j) {
-            for (int i = 0; i < int(snap.detailedFieldWidth); ++i) {
-                const int idx = voxelIdx(i, j, k);
+    // --- VERTICAL SKY DENSITY (top-down, independent of sun) ---
+    for (int k = snap.height - 1; k >= 0; --k) {
+        for (int j = 0; j < snap.width; ++j) {
+            for (int i = 0; i < snap.width; ++i) {
+                const int idx = (k * snap.width * snap.width + j * snap.width + i) * 4;
                 float density = voxelRaw[idx + 2];
 
                 float verticalOpticalDepth = 0.0f;
-                if (k < int(snap.detailedFieldHeight) - 1) {
-                    verticalOpticalDepth = shadeRaw[voxelIdx(i, j, k + 1) + 1];
+                if (k < snap.height - 1) {
+                    verticalOpticalDepth = shadeRaw[((k + 1) * snap.width * snap.width + j * snap.width + i) * 4 + 1];
                 }
                 verticalOpticalDepth += density * snap.voxelOpticalDepth;
                 shadeRaw[idx + 1] = verticalOpticalDepth;
@@ -846,22 +928,48 @@ void FGClouds::commitResult(RebuildResult result)
     // Setting property values needs to be done on the main thread as an atomic operation
 
     // We pad the cloud field height slightly so that we get smooth interpolation of density values in the shader.
-    const float cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
-    _activeVoxelFieldHeightNorm->setFloatValue(cloudFieldHeightM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    _cloudBaseM->setFloatValue(result.cloudbaseM);
-    _cloudBaseZNorm->setFloatValue(result.cloudbaseM / (float)(_detailedFieldHeight * _detailedFieldVoxelSize));
-    _mirrorU->setBoolValue(false);
-    _mirrorV->setBoolValue(false);
+    const double cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
+    _activeVoxelFieldHeightNorm = cloudFieldHeightM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseM = (double)result.cloudbaseM;
+    _cloudBaseZNorm = (double)result.cloudbaseM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _mirrorU = false;
+    _mirrorV = false;
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
     _roughVoxelData = result.roughVoxelData;
-    _voxelShadeData = result.voxelShadeData;
     _windOffsetData = result.windOffsetData;
 
     // Push them into the textures
-    simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, _voxelShadeData, result.fieldRepeating);
+    simgear::StateAttributeFactory::instance()->setCloudVoxelImages(_detailedVoxelData, _roughVoxelData, result.fieldRepeating);
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
+}
+
+FGClouds::ShadeSnapshot FGClouds::captureShadeSnapshot()
+{
+    assert(SGThread::isMainThread());
+
+    ShadeSnapshot snap;
+    snap.width = _detailedVoxelData->s();
+    snap.height = _detailedVoxelData->r();
+
+    // Copy the raw voxel data out of the live osg::Image on the main thread - see
+    // the comment on ShadeSnapshot::voxelData for why we don't just hand the
+    // background thread a ref_ptr to the (GPU-texture-backed) image itself.
+    const float* voxelRaw = reinterpret_cast<const float*>(_detailedVoxelData->data());
+    const size_t numFloats = (size_t)snap.width * (size_t)snap.width * (size_t)snap.height * 4;
+    snap.voxelData.assign(voxelRaw, voxelRaw + numFloats);
+
+    auto cloudsProp = globals->get_props()->getNode("/sim/rendering/hdr/clouds/");
+    snap.voxelOpticalDepth = cloudsProp->getFloatValue("voxel-optical-depth", 2.5);
+    snap.sunDirVoxel = computeSunDirVoxel();
+    return snap;
+}
+
+void FGClouds::commitShadeResult(ShadeRebuildResult result)
+{
+    _voxelShadeData = result.voxelShadeData;
+    simgear::StateAttributeFactory::instance()->setCloudShadeImage(_voxelShadeData);
 }
 
 void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
@@ -951,12 +1059,15 @@ void FGClouds::updateWindColumn(double dt, FGEnvironment* env)
 
 void FGClouds::updateFromOsgTraversal()
 {
+    bool shadeDirty = false;
+
     // Poll for a completed background rebuild first
     if (_rebuildFuture.valid() &&
         _rebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         commitResult(_rebuildFuture.get()); // non-blocking — already done
         // Don't clear _fieldDirty here; a new mutation may have arrived
         // while the last rebuild was in flight — see below.
+        shadeDirty = true;
     }
 
     // Launch a new rebuild if dirty and nothing is running
@@ -968,12 +1079,41 @@ void FGClouds::updateFromOsgTraversal()
                                     &FGClouds::runRebuild, std::move(snap));
     }
 
+    // Poll for a completed background shade rebuild first
+    if (_shadeRebuildFuture.valid() &&
+        _shadeRebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        commitShadeResult(_shadeRebuildFuture.get()); // non-blocking — already done
+    }
+
+    // Mark the shade texture dirty if the sun has moved more than the configured
+    // threshold since the last shade build. This lets the shade texture
+    // track the sun (e.g. time-of-day changes) independently of cloud rebuilds.
+    if (_detailedVoxelData && !shadeDirty) {
+        const osg::Vec3f sunDirVoxel = computeSunDirVoxel();
+        const float cosAngle = sunDirVoxel * _lastShadeSunDir;
+        const float thresholdDeg = _shadeUpdateAngleDeg;
+        if (cosAngle < std::cos(thresholdDeg * SG_DEGREES_TO_RADIANS)) {
+            shadeDirty = true;
+        }
+    }
+
+    // Launch a new shade rebuild if dirty, nothing is running, and there is
+    // some voxel data to shade.
+    if (shadeDirty && _detailedVoxelData &&
+        (!_shadeRebuildFuture.valid() ||
+         _shadeRebuildFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
+        ShadeSnapshot snap = captureShadeSnapshot();
+        _lastShadeSunDir = snap.sunDirVoxel;
+        _shadeRebuildFuture = std::async(std::launch::async,
+                                         &FGClouds::runShadeRebuild, std::move(snap));
+    }
+
     if (_fieldRepeating) updateRepeatingField();
 
     // Adjust the altitude of the cloud base
-    const float cloudBaseM = _cloudBaseM->getFloatValue();
-    const float fieldHeightM = (float)(_detailedFieldHeight * _detailedFieldVoxelSize);
-    _cloudBaseZNorm->setFloatValue(cloudBaseM / fieldHeightM);
+    const double cloudBaseM = _cloudBaseM;
+    const double fieldHeightM = (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _cloudBaseZNorm = cloudBaseM / fieldHeightM;
 
     // Write the wind offset data to the Uniform
     simgear::StateAttributeFactory::instance()->setCloudWindOffsetImage(_windOffsetData);
@@ -1010,20 +1150,20 @@ void FGClouds::updateRepeatingField()
         _centerCart = _centerCart + toSG(snapECEF);
 
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "_centerCart after snap: " << _centerCart.x() << ", " << _centerCart.y() << ", " << _centerCart.z());
-        _cloudCenterX->setFloatValue((float)_centerCart.x());
-        _cloudCenterY->setFloatValue((float)_centerCart.y());
-        _cloudCenterZ->setFloatValue((float)_centerCart.z());
+        _cloudCenterX = _centerCart.x();
+        _cloudCenterY = _centerCart.y();
+        _cloudCenterZ = _centerCart.z();
 
         // The detailed texture wrap is set to MIRROR to ensure that the SDF is correct across the UV boundaries.
         // However this means that shifting by U=1 or V=1 results in a mirrored image. To compensate we tell
         // the shader to mirror the coordinates.  We could shift by 2xfieldWidth, and therefore U=2, but this results
         // in too large a rotation of the up vector.
         if (std::abs(snapX) >= 1.0f) {
-            _mirrorU->setBoolValue(!_mirrorU->getBoolValue());
+            _mirrorU = !_mirrorU;
         }
 
         if (std::abs(snapY) >= 1.0f) {
-            _mirrorV->setBoolValue(!_mirrorV->getBoolValue());
+            _mirrorV = !_mirrorV;
         }
     }
 }

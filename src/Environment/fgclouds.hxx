@@ -17,6 +17,7 @@
 #include <mutex>
 
 #include <Environment/environment.hxx>
+#include <simgear/props/propertyObject.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 
 using std::vector;
@@ -40,19 +41,15 @@ private:
         std::vector<LocalPlacement> roughFieldList;
 
         // Config captured at snapshot time
-        int detailedFieldWidth;
-        int detailedFieldHeight;
-        int detailedFieldVoxelSize;
-        int roughFieldWidth;
-        int roughFieldHeight;
-        int roughFieldVoxelSize;
-        int roughVoxelSizeFactor;
-        float voxelOpticalDepth;
-        bool fieldRepeating;
-
-        // Sun direction (world-space, already transformed to Z-up)
-        osg::Vec3f sunDirVoxel;
-        float sunStepLength;
+        int detailedFieldWidth{};
+        int detailedFieldHeight{};
+        int detailedFieldVoxelSize{};
+        int roughFieldWidth{};
+        int roughFieldHeight{};
+        int roughFieldVoxelSize{};
+        int roughVoxelSizeFactor{};
+        float voxelOpticalDepth{};
+        bool fieldRepeating{};
 
         // Field center for fgSet* calls at commit time
         SGVec3<double> centerCart;
@@ -64,11 +61,34 @@ private:
     struct RebuildResult {
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
-        osg::ref_ptr<osg::Image> voxelShadeData;
         osg::ref_ptr<osg::Image> windOffsetData;
-        float maxZ = 0.0f;
+        double maxZ = 0.0f;
         float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
+    };
+
+    // Snapshot needed to (re)build just the shade texture, independently of
+    // the rest of the voxel field.  This is cheap enough to redo whenever the
+    // sun direction has moved significantly, without re-running the full
+    // cloud placement/voxel field rebuild.
+    struct ShadeSnapshot {
+        // A private copy of the detailed voxel field's raw RGBA float data, taken on
+        // the main thread.  We deliberately copy rather than share the osg::Image with
+        // the background shade-rebuild thread: that Image is also live in an
+        // osg::Texture3D and can be touched concurrently by the render/GPU-upload
+        // path, which is a data race even though osg::Referenced ref-counting itself
+        // is atomic.
+        std::vector<float> voxelData;
+        int width{};
+        int height{};
+        float voxelOpticalDepth{};
+
+        // Sun direction (world-space, already transformed to Z-up)
+        osg::Vec3f sunDirVoxel;
+    };
+
+    struct ShadeRebuildResult {
+        osg::ref_ptr<osg::Image> voxelShadeData;
     };
 
     // Protects _cloudPlacementMap from concurrent access between
@@ -81,8 +101,15 @@ private:
     // The running or completed async task.  checked in updateFromOsgTraversal.
     std::future<RebuildResult> _rebuildFuture;
 
+    // The running or completed async shade-only rebuild task.
+    std::future<ShadeRebuildResult> _shadeRebuildFuture;
+
     // Set to true by the background thread when it finishes.
     std::atomic<bool> _rebuildComplete{false};
+
+    // Sun direction (Z-up, voxel space) used for the most recently launched
+    // shade build, so we can detect when it has drifted enough to need redoing.
+    osg::Vec3f _lastShadeSunDir;
 
     size_t _roughFieldWidth;
     size_t _roughFieldHeight;
@@ -117,15 +144,18 @@ private:
     osg::ref_ptr<simgear::SGReaderWriterOptions> _options;
 
     // Properties that are subsequently mapped to Uniforms by the Effects system
-    SGPropertyNode_ptr _cloudBaseM;
-    SGPropertyNode_ptr _cloudBaseZNorm;
-    SGPropertyNode_ptr _cloudCenterX;
-    SGPropertyNode_ptr _cloudCenterY;
-    SGPropertyNode_ptr _cloudCenterZ;
-    SGPropertyNode_ptr _mirrorU;
-    SGPropertyNode_ptr _mirrorV;
-    SGPropertyNode_ptr _cloudFieldRepeating;
-    SGPropertyNode_ptr _activeVoxelFieldHeightNorm;
+    SGPropObjDouble _cloudBaseM;
+    SGPropObjDouble _cloudBaseZNorm;
+    SGPropObjDouble _cloudCenterX;
+    SGPropObjDouble _cloudCenterY;
+    SGPropObjDouble _cloudCenterZ;
+    SGPropObjBool _mirrorU;
+    SGPropObjBool _mirrorV;
+    SGPropObjBool _cloudFieldRepeating;
+    SGPropObjDouble _activeVoxelFieldHeightNorm;
+
+    // Minimum sun direction change (in degrees) that triggers a shade rebuild.
+    SGPropObjDouble _shadeUpdateAngleDeg;
 
     // A node in the scenegraph purely used to ensure that the voxel data
     // is modified during the update traversal.
@@ -162,10 +192,21 @@ private:
     static void generateSDF(osg::ref_ptr<osg::Image>);
     osg::Vec3f getFinalPos(SGGeod loc, float x, float y);
 
+    // Sun direction in voxel (Z-up, field-relative) space. Shared
+    // by both the full rebuild snapshot and the shade-only snapshot.
+    osg::Vec3f computeSunDirVoxel() const;
+
     // Asynchronous rebuild of the cloud layers.
     RebuildSnapshot captureSnapshot();
-    static RebuildResult runRebuild(RebuildSnapshot snap); // static = no 'this' access
+    static RebuildResult runRebuild(RebuildSnapshot snap);
     void commitResult(RebuildResult result);
+
+    // Asynchronous rebuild of just the shade texture - independent of the
+    // cloud placement/voxel field rebuild above, so it can be re-run whenever
+    // the sun direction changes significantly without rebuilding everything.
+    ShadeSnapshot captureShadeSnapshot();
+    static ShadeRebuildResult runShadeRebuild(ShadeSnapshot snap); // static = no 'this' access
+    void commitShadeResult(ShadeRebuildResult result);
 
 public:
     FGClouds();

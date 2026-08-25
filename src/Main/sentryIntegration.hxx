@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <map>
 #include <simgear/misc/strutils.hxx>
 #include <string>
 
@@ -32,6 +33,20 @@ void addSentryTag(const char* tag, const char* value);
 void addSentryTag(const std::string& tag, const std::string& value);
 
 void updateSentryTag(const std::string& tag, const std::string& value);
+
+/**
+ * @brief attach a named block of structured data to subsequent events.
+ */
+void setSentryContext(const std::string& name,
+                      const std::map<std::string, std::string>& values);
+
+/**
+ * @brief on Windows, enumerate the modules loaded into our process and attach
+ * the non-standard ones (i.e likely third-party overlay/injection DLLs) as a
+ * Sentry context, to help diagnose crashes which look like they occur inside
+ * a graphics driver. No-op on other platforms.
+ */
+void addLoadedModulesSentryContext();
 
 
 void sentryReportNasalError(const std::string& msg, const string_list& stack);

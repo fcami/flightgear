@@ -13,6 +13,8 @@
 #include <simgear/sg_inlines.h>
 
 #include <cstdlib>    //    size_t
+#include <cmath>
+#include <sstream>
 #include <string>
 
 #include <simgear/constants.h>
@@ -20,6 +22,7 @@
 #include <simgear/math/sg_geodesy.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/structure/commands.hxx>
+#include <simgear/structure/exception.hxx>
 #include <simgear/bvh/BVHMaterial.hxx>
 
 #include <FDM/flight.hxx>
@@ -28,6 +31,7 @@
 #include <Aircraft/controls.hxx>
 #include <Main/globals.hxx>
 #include <Main/fg_props.hxx>
+#include <Main/sentryIntegration.hxx>
 
 #include "JSBSim.hxx"
 #include <FDM/JSBSim/FGFDMExec.h>
@@ -706,7 +710,15 @@ bool FGJSBsim::copy_to_JSBsim()
         fuelDensity = 6.0; // Use average fuel value
 
       tank->SetDensity(fuelDensity);
-      tank->SetContents(node->getDoubleValue("level-lbs"));
+
+      // a non-finite level would propagate into FGMassBalance's total weight,
+      // and from there into the CG and every gear location
+      const double levelLbs = node->getDoubleValue("level-lbs");
+      if (std::isfinite(levelLbs)) {
+        tank->SetContents(levelLbs);
+      } else {
+        SG_LOG(SG_FLIGHT, SG_DEV_ALERT, "JSBSim: ignoring non-finite fuel level for tank " << i);
+      }
     }
 
     Propulsion->SetFuelFreeze((fgGetNode("/sim/freeze/fuel",true))->getBoolValue());
@@ -1338,6 +1350,65 @@ bool FGJSBsim::update_ground_cache(const FGLocation& cart, double dt)
   return cache_ok;
 }
 
+void
+FGJSBsim::reportNonFiniteContactPoint(const FGColumnVector3& loc)
+{
+  const double weight = MassBalance->GetWeight();
+  const FGColumnVector3& cg = MassBalance->GetXYZcg();
+  const FGLocation& vehicle = Propagate->GetLocation();
+
+  auto finite3 = [](const FGColumnVector3& v) {
+    return std::isfinite(v(1)) && std::isfinite(v(2)) && std::isfinite(v(3));
+  };
+
+  // FGMassBalance divides the mass moment by the total weight, so a zero or
+  // non-finite weight silently poisons the CG and hence every gear location.
+  const char* culprit = "gear location";
+  if (!std::isfinite(weight) || weight <= 0.0) {
+    culprit = "aircraft weight";
+  } else if (!finite3(cg)) {
+    culprit = "centre of gravity";
+  } else if (!std::isfinite(vehicle(1)) || !std::isfinite(vehicle(2)) ||
+             !std::isfinite(vehicle(3))) {
+    culprit = "vehicle position";
+  }
+
+  const std::string msg = std::string{"FGJSBsim: non-finite ground query point, caused by invalid "} + culprit;
+
+  if (!_reportedNonFiniteContactPoint) {
+    _reportedNonFiniteContactPoint = true;
+
+    auto vec3 = [](const FGColumnVector3& v) {
+      std::ostringstream os;
+      os << v(1) << ", " << v(2) << ", " << v(3);
+      return os.str();
+    };
+
+    std::ostringstream tanks;
+    for (unsigned int i = 0; i < Propulsion->GetNumTanks(); ++i) {
+      if (i > 0) tanks << ", ";
+      tanks << Propulsion->GetTank(i)->GetContents();
+    }
+
+    flightgear::setSentryContext("fdm-state", {
+      {"culprit", culprit},
+      {"weight-lbs", std::to_string(weight)},
+      {"empty-weight-lbs", std::to_string(MassBalance->GetEmptyWeight())},
+      {"cg-in", vec3(cg)},
+      {"vehicle-ecef-ft", vec3(vehicle)},
+      {"query-ecef-ft", vec3(loc)},
+      {"euler-rad", vec3(Propagate->GetEuler())},
+      {"tank-contents-lbs", tanks.str()},
+      {"trimming", fdmex->GetTrimStatus() ? "yes" : "no"},
+      {"initialised", get_inited() ? "yes" : "no"}
+    });
+
+    SG_LOG(SG_FLIGHT, SG_ALERT, msg);
+  }
+
+  throw sg_range_exception(msg);
+}
+
 double
 FGJSBsim::get_agl_ft(double t, const FGColumnVector3& loc, double alt_off,
                      double contact[3], double normal[3], double vel[3],
@@ -1346,6 +1417,10 @@ FGJSBsim::get_agl_ft(double t, const FGColumnVector3& loc, double alt_off,
   const simgear::BVHMaterial* material = nullptr;
   simgear::BVHNode::Id id;
   double pt[3] {loc(1), loc(2), loc(3)};
+
+  if (!std::isfinite(pt[0]) || !std::isfinite(pt[1]) || !std::isfinite(pt[2])) {
+    reportNonFiniteContactPoint(loc);
+  }
 
   if (!FGInterface::get_agl_ft(t, pt, alt_off, contact, normal, vel,
                           angularVel, material, id))

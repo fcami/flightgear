@@ -302,11 +302,15 @@ namespace flightgear
 
 static std::unique_ptr<QApplication> static_qApp;
 
+// the currently installed dynamic (non-fallback) launcher-UI translator, if
+// any; tracked so switchUILanguage() can remove it again when the language
+// is changed live, without disturbing the always-installed English fallback
+static std::unique_ptr<QTranslator> static_dynamicTranslator;
 
 // because QTranslator::load (find_translation, internally) doesn't handle the
 // script part of a language code like: zh-Hans-CN, use this code borrowed from
 // Qt Creator to do the search manually.
-void selectUITranslation()
+void selectSystemUITranslation()
 {
     QStringList uiLanguages = QLocale::system().uiLanguages();
     //qWarning() << "UI languages:" << uiLanguages;
@@ -316,15 +320,44 @@ void selectUITranslation()
         locale = QLocale(locale).name();
         locale.replace('-', '_');
 
-        QTranslator* translator = new QTranslator;
-        ;
+        auto translator = std::make_unique<QTranslator>();
 
         if (translator->load("FlightGear_" + locale, QLatin1String(":/"))) {
-            static_qApp->installTranslator(translator);
+            static_qApp->installTranslator(translator.get());
+            static_dynamicTranslator = std::move(translator);
             return;
         }
+    }
+}
 
-        delete translator;
+void switchUILanguage(const std::string& code)
+{
+    if (static_dynamicTranslator) {
+        static_qApp->removeTranslator(static_dynamicTranslator.get());
+        static_dynamicTranslator.reset();
+    }
+
+    if (code.empty()) {
+        selectSystemUITranslation();
+        return;
+    }
+
+    // we have an explicit choice
+    QString locale = QString::fromStdString(code);
+    locale.replace('-', '_');
+    // the en_US translation is only embedded under the short 'en' alias, see
+    // CMakeModules/Translations.cmake
+    if (locale == "en_US") {
+        locale = "en";
+    }
+
+    auto translator = std::make_unique<QTranslator>();
+    if (translator->load("FlightGear_" + locale, QLatin1String(":/"))) {
+        qInfo() << "Loaded launcher translations for language:" << locale;
+        static_qApp->installTranslator(translator.get());
+        static_dynamicTranslator = std::move(translator);
+    } else {
+        qInfo() << "No launcher translations found for language:" << locale;
     }
 }
 
@@ -387,25 +420,25 @@ void initApp(int& argc, char** argv, bool doInitQSettings)
             static_qApp->installTranslator(fallbackTranslator);
         }
 
-        // check for --language=xx option and prefer that over QLocale
-        // detection of the locale if it exists
+        // needed here so we can read a persisted language override below
+        if (doInitQSettings) {
+            initQSettings();
+        }
+
+        // language precedence: --language=xx option, then a persisted
+        // launcher setting, then system-locale detection (selectUITranslation)
         auto lang = simgear::strutils::replace(
             Options::getArgValue(argc, argv, "--language"),
             "-",
             "_");
-        if (!lang.empty()) {
-            QTranslator* translator = new QTranslator(static_qApp.get());
-            QString localeFile = "FlightGear_" + QString::fromStdString(lang);
-            if (translator->load(localeFile, QLatin1String(":/"))) {
-                qInfo() << "Loaded translations based on --language from:" << localeFile;
-                static_qApp->installTranslator(translator);
-            } else {
-                qInfo() << "--language was set, but no translations found at:" << localeFile;
-                delete translator;
+        if (lang.empty() && doInitQSettings) {
+            const QString persisted = getQSettings().value("language").toString();
+            if (!persisted.isEmpty()) {
+                lang = persisted.toStdString();
             }
-        } else {
-            selectUITranslation();
         }
+
+        switchUILanguage(lang);
 
         // reset numeric / collation locales as described at:
         // http://doc.qt.io/qt-5/qcoreapplication.html#details
@@ -627,11 +660,17 @@ bool runLauncherDialog()
 
     fgInitPackageRoot();
 
-    // setup package language
+    // setup package language: --language option, then a persisted launcher
+    // setting, then let FGLocale detect the system language itself (passing
+    // an empty string)
     auto lang = options->valueForOption("language");
     if (lang.empty()) {
-        const auto langName = QLocale::languageToString(QLocale{}.language());
-        lang = langName.toStdString();
+        auto settings = flightgear::getQSettings();
+        const QString persisted = settings.value("language").toString();
+        if (!persisted.isEmpty()) {
+            lang = persisted.toStdString();
+            options->setOption("language", lang);
+        }
     }
 
     // we will re-do this later, but we want to access translated strings
@@ -649,15 +688,20 @@ bool runLauncherDialog()
 
     FGHTTPClient::getOrCreate();
 
-    LauncherMainWindow dlg(false);
+    int appResult = 0;
+    {
+        LauncherMainWindow dlg(false);
 
-    if (options->isOptionSet("fullscreen")) {
-        dlg.showFullScreen();
-    } else {
-        dlg.setVisible(true);
-    }
+        if (options->isOptionSet("fullscreen")) {
+            dlg.showFullScreen();
+        } else {
+            dlg.setVisible(true);
+        }
 
-    int appResult = qApp->exec();
+        appResult = qApp->exec();
+    } // dlg destroyed here, tearing down its QQuickView render-thread GL context
+    flightgear::addSentryBreadcrumb("launcher QQuickView destroyed", "info");
+
     // avoid crashes / NavCache races if the loader is still running after
     // the launcher exits
     if (naturalEarthLoader) {

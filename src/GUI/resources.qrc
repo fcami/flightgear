@@ -26,12 +26,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="airport-closed-icon">assets/airport-closed-icon.png</file>
         <file>qml/AircraftList.qml</file>
         <file>qml/AircraftRating.qml</file>
+        <file>qml/AircraftUserRatingButton.qml</file>
         <file>qml/ArrowButton.qml</file>
         <file>qml/AircraftDownloadPanel.qml</file>
         <file>qml/Button.qml</file>
         <file>qml/AircraftWarningPanel.qml</file>
         <file>qml/AircraftDetailsView.qml</file>
         <file>qml/AircraftCompactDelegate.qml</file>
+        <file>qml/AircraftTagsRow.qml</file>
         <file>qml/SearchButton.qml</file>
         <file>qml/AircraftPreviewPanel.qml</file>
         <file>qml/TabButton.qml</file>
@@ -109,6 +111,9 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file>qml/RouteLegsView.qml</file>
         <file>qml/OverlayMenu.qml</file>
         <file>qml/PopupChoiceItem.qml</file>
+        <file>qml/TagLozenge.qml</file>
+        <file>qml/AddTagLozenge.qml</file>
+        <file>qml/TagFilterPanel.qml</file>
         <file>qml/AircraftGridDelegate.qml</file>
         <file>qml/AircraftGridView.qml</file>
         <file>qml/AircraftListView.qml</file>
@@ -151,14 +156,14 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="hide">assets/mask-hide.png</file>
         <file alias="preview">assets/mask-preview.png</file>
         <file alias="up-down">assets/mask-up-down.png</file>
-        <file alias="star-filled">assets/mask-star-filled.png</file>
-        <file alias="star-outline">assets/mask-star-outline.png</file>
+
         <file alias="back">assets/mask-back.png</file>
         <file alias="cancel-small">assets/mask-cancel-small.png</file>
         <file alias="reorder-list">assets/mask-reorder-list.png</file>
         <file alias="reorder-small">assets/mask-reorder-small.png</file>
         <file alias="cancel">assets/mask-cancel.png</file>
         <file alias="add">assets/mask-add.png</file>
+        <file alias="add-small">assets/mask-add-compact.png</file>
         <file alias="toolbox-help">assets/mask-toolbox-help.png</file>
         <file alias="ellipsis">assets/mask-ellipsis.png</file>
 
@@ -176,5 +181,15 @@ SPDX-License-Identifier: GPL-2.0-or-later
         <file alias="toolbox-fly-heli">assets/icons8-helicopter.svg</file>
 
         <file alias="aircraft-carrier">assets/aircraft-carrier-icon.svg</file>
+
+        <file alias="heart-filled">assets/tabler-mask-heart-filled.svg</file>
+        <file alias="heart-outline">assets/tabler-mask-heart-outline.svg</file>
+        <file alias="heart-plus">assets/tabler-mask-heart-plus.svg</file>
+
+        <file alias="star-filled">assets/tabler-mask-star-filled.svg</file>
+        <file alias="star-outline">assets/tabler-mask-star-outline.svg</file>
+
+        <file alias="tag-filled">assets/tabler-mask-tag-filled.svg</file>
+        <file alias="tag-outline">assets/tabler-mask-tag-outline.svg</file>
     </qresource>
 </RCC>
