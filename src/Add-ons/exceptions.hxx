@@ -36,9 +36,11 @@ namespace errors
 class error : public sg_exception
 {
 public:
-  explicit error(const std::string& message,
-                 const std::string& origin = std::string());
-  explicit error(const char* message, const char* origin = nullptr);
+    explicit error(const std::string& message,
+                   const std::string& origin = std::string(),
+                   bool report = true);
+    explicit error(const char* message, const char* origin = nullptr,
+                   bool report = true);
 };
 
 class error_loading_config_file : public error
