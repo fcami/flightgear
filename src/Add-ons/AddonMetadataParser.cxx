@@ -91,8 +91,11 @@ Addon::MetadataParser::parseMetadataFile(const SGPath& addonPath)
   Addon::Metadata metadata;
 
   if (!metadataFile.exists()) {
-    throw errors::no_metadata_file_found(
-      "unable to find add-on metadata file '" + metadataFile.utf8Str() + "'");
+      // expected when the user picks a folder without metadata via the
+      // "add anyway?" launcher prompt; already caught and logged, not a crash
+      throw errors::no_metadata_file_found(
+          "unable to find add-on metadata file '" + metadataFile.utf8Str() + "'",
+          /* origin */ {}, /* report */ false);
   }
 
   try {
