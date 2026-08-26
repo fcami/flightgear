@@ -402,7 +402,8 @@ void FGTileMgr::dumpActivePagedLODs() const
     summary << "dumpActivePagedLODs: " << report.size() << " entries written to " << outPath << " (by level:";
     for (const auto& kv : levelCounts)
         summary << " L" << kv.first << "=" << kv.second;
-    summary << ")";
+    summary << ")" << " terrain_branch numChildren=" << globals->get_scenery()->get_terrain_branch()->getNumChildren()
+            << " tile_cache size=" << tile_cache.get_size();
     SG_LOG(SG_TERRAIN, SG_ALERT, summary.str());
 }
 
