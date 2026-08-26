@@ -44,13 +44,16 @@ function(export_debug_symbols target)
 
     if (CMAKE_SYSTEM_NAME MATCHES "Linux")
         # split the DWARF debug info out into its own file, in the format
-        # sentry-cli/sentry.io expect for uploading Linux ELF symbols. The
-        # original binary is left untouched; both files share the same GNU
-        # build-id note, which sentry-cli uses to associate them again when
-        # symbolicating.
+        # sentry-cli/sentry.io expect for uploading Linux ELF symbols, then
+        # strip it from the shipped binary (smaller AppImage) while keeping
+        # them linked via a gnu-debuglink for local gdb/objdump use. Both
+        # files still share the same GNU build-id note, which is what
+        # sentry-cli uses to associate them again when symbolicating.
         add_custom_target(${target}.debug
-            COMMENT "Extracting debug symbols for ${target}"
+            COMMENT "Extracting and stripping debug symbols for ${target}"
             COMMAND ${CMAKE_OBJCOPY} --only-keep-debug $<TARGET_FILE:${target}> ${CMAKE_BINARY_DIR}/symbols/${target}.debug
+            COMMAND ${CMAKE_STRIP} --strip-debug --strip-unneeded $<TARGET_FILE:${target}>
+            COMMAND ${CMAKE_OBJCOPY} --add-gnu-debuglink=${CMAKE_BINARY_DIR}/symbols/${target}.debug $<TARGET_FILE:${target}>
             DEPENDS ${target}
         )
 
