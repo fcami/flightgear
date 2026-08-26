@@ -162,6 +162,21 @@ Item {
                 value: model.combinedRating
             }
 
+            AircraftUserRatingButton {
+                id: userRating
+
+                anchors.left: combinedRating.right
+                anchors.leftMargin: Style.margin
+                anchors.verticalCenter: parent.verticalCenter
+
+                visible: (model.package !== undefined)
+                average: model.userRatingAverage
+                votes: model.userRatingVotes
+                ownRating: model.userOwnRating
+                canRate: model.userCanRate
+                onRateRequested: function(rating) { model.userOwnRating = rating; }
+            }
+
             // right justified, fills the remaining space
             AircraftDownloadPanel
             {
@@ -175,19 +190,9 @@ Item {
 
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right
-                anchors.left: combinedRating.right
+                anchors.left: userRating.right
                 anchors.leftMargin: Style.strutSize
             }
-        }
-
-        AircraftUserRatingButton {
-            width: parent.width
-            visible: (model.package !== undefined)
-            average: model.userRatingAverage
-            votes: model.userRatingVotes
-            ownRating: model.userOwnRating
-            canRate: model.userCanRate
-            onRateRequested: function(rating) { model.userOwnRating = rating; }
         }
     } // of content column
 
