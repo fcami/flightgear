@@ -162,7 +162,7 @@ void submitAircraftRating(const simgear::pkg::PackageRef& pkg, int rating)
     }
 
     const std::string baseUrl = fgGetString("/sim/package-system/ratings-service/url",
-        DEFAULT_RATINGS_SERVICE_URL);
+                                            DEFAULT_RATINGS_SERVICE_URL);
     if (baseUrl.empty()) {
         return; // no backend configured, nothing to do
     }

@@ -16,8 +16,8 @@
 #include <simgear/structure/exception.hxx>
 #include <simgear/props/props_io.hxx>
 
-#include <Main/globals.hxx>
 #include <Main/AircraftRatingTracker.hxx>
+#include <Main/globals.hxx>
 
 #include "AircraftCompatibility.hxx"
 #include "FavouriteAircraftData.hxx"
