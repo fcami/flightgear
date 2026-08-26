@@ -81,6 +81,13 @@ protected:
         }
     }
 
+    void packageDataChanged(const PackageRef& pkg) override
+    {
+        if (pkg == p->packageRef()) {
+            p->infoChanged();
+        }
+    }
+
 private:
 
     QmlAircraftInfo* p;
@@ -475,9 +482,7 @@ void QmlAircraftInfo::submitUserRating(int rating)
         return;
     }
 
-    _package->setUserRating(rating);
-    flightgear::submitAircraftRating(_package->qualifiedId(), rating);
-    emit infoChanged();
+    flightgear::submitAircraftRating(_package, rating);
 }
 
 QVariantList QmlAircraftInfo::previews() const

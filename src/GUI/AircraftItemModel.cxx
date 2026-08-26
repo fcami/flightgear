@@ -109,6 +109,12 @@ protected:
         m_model->installedAircraftCountChanged();
     }
 
+    void packageDataChanged(const PackageRef& pkg) override
+    {
+        QModelIndex mi(indexForPackage(pkg));
+        m_model->dataChanged(mi, mi);
+    }
+
 private:
     QModelIndex indexForPackage(const PackageRef& ref) const
     {
@@ -467,9 +473,7 @@ bool AircraftItemModel::setData(const QModelIndex &index, const QVariant &value,
           }
 
           const int rating = value.toInt();
-          pkg->setUserRating(rating);
-          flightgear::submitAircraftRating(pkg->qualifiedId(), rating);
-          emit dataChanged(index, index);
+          flightgear::submitAircraftRating(pkg, rating);
           return true;
       }
 

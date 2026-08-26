@@ -32,11 +32,12 @@ bool canRateAircraft(const simgear::pkg::PackageRef& pkg);
 /**
  * @brief POST a rating submission to the configured ratings backend (see
  * fgprop /sim/package-system/ratings-service/url). A no-op if no backend URL
- * is configured. Fire-and-forget: failures (including an unreachable
- * backend) are simply logged, since the rating has already been recorded
- * locally via simgear::pkg::Package::setUserRating() by the time this is
- * called.
+ * is configured. The rating is only recorded locally (via
+ * simgear::pkg::Package::setUserRating(), which notifies
+ * simgear::pkg::Delegate::packageDataChanged()) once the backend confirms
+ * the submission with an HTTP 200 response; on any failure (network error,
+ * timeout, non-200 response) the local package data is left untouched.
  */
-void submitAircraftRating(const std::string& qualifiedPackageId, int rating);
+void submitAircraftRating(const simgear::pkg::PackageRef& pkg, int rating);
 
 } // namespace flightgear
