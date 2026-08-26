@@ -42,7 +42,7 @@ private:
     // schedule a needed buckets for loading
     void schedule_needed(const SGBucket& curr_bucket, double rangeM);
 
-    bool isTileDirSyncing(const std::string& tileFileName) const;
+    bool isTileDirSyncing(const TileEntry* tile) const;
 
     SGBucket previous_bucket;
     SGBucket current_bucket;
@@ -103,4 +103,9 @@ public:
     // notify the tile manahger the material library was reloaded,
     // so it can pass this through to its options object
     void materialLibChanged();
+
+    // Write a census of every PagedLOD currently tracked by the DatabasePager to a text file
+    // (one line per entry, plus a per-VPB-level summary), for offline paging analysis.
+    // Triggered by setting /sim/rendering/database-pager/dump-active-paged-lods to true.
+    void dumpActivePagedLODs() const;
 };

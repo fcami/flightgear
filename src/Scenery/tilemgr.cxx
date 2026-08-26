@@ -8,20 +8,24 @@
 #include <config.h>
 
 #include <algorithm>
+#include <cctype>
 #include <functional>
+#include <map>
+#include <sstream>
 
 #include <osgViewer/Viewer>
 #include <osgDB/Registry>
 
 #include <simgear/constants.h>
 #include <simgear/debug/logstream.hxx>
+#include <simgear/io/iostreams/sgstream.hxx>
+#include <simgear/misc/sg_path.hxx>
 #include <simgear/structure/exception.hxx>
 #include <simgear/scene/model/modellib.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
 #include <simgear/scene/tgdb/VPBTechnique.hxx>
 #include <simgear/scene/tgdb/VPBLineFeatureRenderer.hxx>
 #include <simgear/scene/tsync/terrasync.hxx>
-#include <simgear/misc/strutils.hxx>
 #include <simgear/scene/material/matlib.hxx>
 
 #include <Main/fg_props.hxx>
@@ -101,9 +105,11 @@ public:
         _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
         _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
         _lodRough(fgGetNode("/sim/rendering/static-lod/rough", true)),
-        _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true))
+        _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true)),
+        _dumpActivePagedLODsProp(fgGetNode("/sim/rendering/database-pager/dump-active-paged-lods", true))
     {
         _useVBOsProp->addChangeListener(this, true);
+        _dumpActivePagedLODsProp->addChangeListener(this, false);
 
         _enableCacheProp->addChangeListener(this, true);
         if (_enableCacheProp->getType() == simgear::props::NONE) {
@@ -130,6 +136,7 @@ public:
         _lodDetailed->removeChangeListener(this);
         _lodBareDelta->removeChangeListener(this);
         _lodRoughDelta->removeChangeListener(this);
+        _dumpActivePagedLODsProp->removeChangeListener(this);
     }
 
     void valueChanged(SGPropertyNode* prop) override
@@ -154,6 +161,11 @@ public:
             // the scenery but in a more efficient way.
             _lodRough->setDoubleValue(_lodDetailed->getDoubleValue() + _lodRoughDelta->getDoubleValue());
             _lodBare->setDoubleValue(_lodRough->getDoubleValue() + _lodBareDelta->getDoubleValue());
+        } else if (prop == _dumpActivePagedLODsProp) {
+            if (prop->getBoolValue()) {
+                _manager->dumpActivePagedLODs();
+                prop->setBoolValue(false);
+            }
         }
 
         flightgear::addSentryBreadcrumb("Property:" + prop->getNameString() + " is now " +
@@ -170,7 +182,8 @@ private:
       _lodRoughDelta,
       _lodBareDelta,
       _lodRough,
-      _lodBare
+      _lodBare,
+      _dumpActivePagedLODsProp
         ;
 };
 
@@ -264,11 +277,13 @@ void FGTileMgr::reinit()
     double bare     = fgGetDouble("/sim/rendering/static-lod/bare", SG_OBJECT_RANGE_BARE) + rough;
     double tile_min_expiry = fgGetDouble("/sim/rendering/plod-minimum-expiry-time-secs", SG_TILE_MIN_EXPIRY);
     flightgear::addSentryBreadcrumb("PLod-minimum-expiry time=" + std::to_string(tile_min_expiry), "info");
+    double vpb_tile_min_expiry = fgGetDouble("/sim/rendering/vpb-plod-minimum-expiry-time-secs", SG_VPB_TILE_MIN_EXPIRY);
 
     _options->setPluginStringData("SimGear::LOD_RANGE_BARE", std::to_string(bare));
     _options->setPluginStringData("SimGear::LOD_RANGE_ROUGH", std::to_string(rough));
     _options->setPluginStringData("SimGear::LOD_RANGE_DETAILED", std::to_string(detailed));
     _options->setPluginStringData("SimGear::PAGED_LOD_EXPIRY", std::to_string(tile_min_expiry));
+    _options->setPluginStringData("SimGear::VPB_PAGED_LOD_EXPIRY", std::to_string(vpb_tile_min_expiry));
 
     string_list scenerySuffixes;
     for (auto node : fgGetNode("/sim/rendering/", true)->getChildren("scenery-path-suffix")) {
@@ -337,6 +352,60 @@ void FGTileMgr::reinit()
 void FGTileMgr::materialLibChanged()
 {
     _options->setMaterialLib(globals->get_matlib());
+}
+
+void FGTileMgr::dumpActivePagedLODs() const
+{
+    if (!_pager) {
+        SG_LOG(SG_TERRAIN, SG_ALERT, "dumpActivePagedLODs: no pager available");
+        return;
+    }
+
+    std::vector<osgDB::DatabasePager::PagedLODReportEntry> report;
+    _pager->reportActivePagedLODs(report);
+
+    osg::FrameStamp* framestamp = globals->get_renderer()->getFrameStamp();
+    double now = framestamp ? framestamp->getReferenceTime() : 0.0;
+    unsigned int frameNumber = framestamp ? framestamp->getFrameNumber() : 0;
+
+    SGPath outPath = globals->get_fg_home() / "active-paged-lods.txt";
+    sg_ofstream out(outPath);
+    if (!out.is_open()) {
+        SG_LOG(SG_TERRAIN, SG_ALERT, "dumpActivePagedLODs: failed to open " << outPath);
+        return;
+    }
+
+    out << "# active-paged-lods dump, total=" << report.size() << " time=" << now << " frame=" << frameNumber << "\n";
+    out << "# level\tfile\tnumChildren\tnumFileNames\tageSecs\tminExpiryTime\tpriorityScale\tframesSinceTraversal\n";
+
+    // "_L<n>_" appears in every VPB tile filename (e.g. ws_w004n55_L4_X2_Y6_subtile.osgb);
+    // entries with no such marker (STG Objects paging, or a not-yet-pending slot) are reported as level -1.
+    std::map<int, unsigned int> levelCounts;
+    for (const auto& entry : report) {
+        int level = -1;
+        size_t pos = entry.filename.find("_L");
+        if (pos != std::string::npos) {
+            size_t digitsStart = pos + 2;
+            size_t digitsEnd = digitsStart;
+            while (digitsEnd < entry.filename.size() && isdigit((unsigned char)entry.filename[digitsEnd]))
+                ++digitsEnd;
+            if (digitsEnd > digitsStart)
+                level = atoi(entry.filename.substr(digitsStart, digitsEnd - digitsStart).c_str());
+        }
+        levelCounts[level]++;
+
+        out << level << "\t" << entry.filename << "\t" << entry.numChildren << "\t" << entry.numFileNames
+            << "\t" << (now - entry.timeStamp) << "\t" << entry.minExpiryTime << "\t" << entry.priorityScale
+            << "\t" << (frameNumber - entry.frameNumberOfLastTraversal) << "\n";
+    }
+    out.close();
+
+    std::ostringstream summary;
+    summary << "dumpActivePagedLODs: " << report.size() << " entries written to " << outPath << " (by level:";
+    for (const auto& kv : levelCounts)
+        summary << " L" << kv.first << "=" << kv.second;
+    summary << ")";
+    SG_LOG(SG_TERRAIN, SG_ALERT, summary.str());
 }
 
 /* schedule a tile for loading, keep request for given amount of time.
@@ -508,7 +577,7 @@ void FGTileMgr::update_queues(bool& isDownloadingScenery)
 
             if (!e->is_loaded()) {
                 bool nonExpiredOrCurrent = !e->is_expired(current_time) || e->is_current_view();
-                bool downloading = isTileDirSyncing(e->tileFileName);
+                bool downloading = isTileDirSyncing(e);
                 isDownloadingScenery |= downloading;
                 if ( !downloading && nonExpiredOrCurrent) {
                     // schedule tile for loading with osg pager
@@ -541,7 +610,7 @@ void FGTileMgr::update_queues(bool& isDownloadingScenery)
     {
         long drop_index = _enableCache ? tile_cache.get_drop_tile() :
                                          tile_cache.get_first_expired_tile();
-        while ( drop_index > -1 )
+        while ( drop_index != -1 )
         {
             // schedule tile for deletion with osg pager
             TileEntry* old = tile_cache.get_tile(drop_index);
@@ -580,6 +649,9 @@ void FGTileMgr::update(double)
 
     bool waitingOnTerrasync = false;
     update_queues(waitingOnTerrasync);
+
+    fgGetNode("/sim/rendering/statistics/tile-cache/size", true)->setIntValue((int)tile_cache.get_size());
+    fgGetNode("/sim/rendering/statistics/tile-cache/max-size", true)->setIntValue((int)tile_cache.get_max_cache_size());
 
     if (_pager) {
         // Update various useful statistics
@@ -745,16 +817,10 @@ bool FGTileMgr::isSceneryLoaded()
     return schedule_scenery(globals->get_view_position(), range_m, 0.0);
 }
 
-bool FGTileMgr::isTileDirSyncing(const std::string& tileFileName) const
+bool FGTileMgr::isTileDirSyncing(const TileEntry* tile) const
 {
     auto terraSync = globals->get_subsystem<simgear::SGTerraSync>();
     if (!terraSync) {
-        return false;
-    }
-
-    // hack to keep things quiet until we fix:
-    // https://gitlab.com/flightgear/flightgear/-/work_items/3408
-    if (simgear::strutils::starts_with(tileFileName, "vpb/")) {
         return false;
     }
 
@@ -766,17 +832,14 @@ bool FGTileMgr::isTileDirSyncing(const std::string& tileFileName) const
 
     #ifdef SG_TORRENT
     if (s_torrentRuntimeEnabled) {
-        return torrentIsSyncing(tileFileName);
+        return torrentIsSyncing(tile->tileFileName);
     }
     #endif
-    try {
-        std::string nameWithoutExtension = tileFileName.substr(0, tileFileName.size() - 4);
-        long int bucketIndex = simgear::strutils::to_int(nameWithoutExtension);
-        SGBucket bucket(bucketIndex);
 
-        return terraSync->isTileDirPending(bucket.gen_base_path());
-    } catch (const std::exception& e) {
-        SG_LOG(SG_TERRAIN, SG_DEV_ALERT, "Error checking if tile '" << tileFileName << "' is syncing: " << e.what());
-        return false;
-    }
+    // Use the tile's bucket directly rather than trying to recover it from
+    // tileFileName: for STG tiles the file name is a bucket index, but for
+    // VPB tiles it's a path (vpb/<gen_vpb_base()>.osgb), so it can't be
+    // parsed as an int. gen_base_path() is what scheduleTile() also syncs
+    // against, for every scenery suffix (Objects/Terrain/vpb).
+    return terraSync->isTileDirPending(tile->get_tile_bucket().gen_base_path());
 }
