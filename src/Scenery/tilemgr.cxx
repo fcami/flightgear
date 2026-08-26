@@ -20,13 +20,13 @@
 #include <simgear/debug/logstream.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
 #include <simgear/misc/sg_path.hxx>
-#include <simgear/structure/exception.hxx>
-#include <simgear/scene/model/modellib.hxx>
-#include <simgear/scene/util/SGReaderWriterOptions.hxx>
-#include <simgear/scene/tgdb/VPBTechnique.hxx>
-#include <simgear/scene/tgdb/VPBLineFeatureRenderer.hxx>
-#include <simgear/scene/tsync/terrasync.hxx>
 #include <simgear/scene/material/matlib.hxx>
+#include <simgear/scene/model/modellib.hxx>
+#include <simgear/scene/tgdb/VPBLineFeatureRenderer.hxx>
+#include <simgear/scene/tgdb/VPBTechnique.hxx>
+#include <simgear/scene/tsync/terrasync.hxx>
+#include <simgear/scene/util/SGReaderWriterOptions.hxx>
+#include <simgear/structure/exception.hxx>
 
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
@@ -96,17 +96,16 @@ static void torrentScheduleTile(const SGBucket& bucket)
 class FGTileMgr::TileManagerListener : public SGPropertyChangeListener
 {
 public:
-    TileManagerListener(FGTileMgr* manager) :
-        _manager(manager),
-        _useVBOsProp(fgGetNode("/sim/rendering/use-vbos", true)),
-        _enableCacheProp(fgGetNode("/sim/tile-cache/enable", true)),
-        _pagedLODMaximumProp(fgGetNode("/sim/rendering/max-paged-lod", true)),
-        _lodDetailed(fgGetNode("/sim/rendering/static-lod/detailed", true)),
-        _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
-        _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
-        _lodRough(fgGetNode("/sim/rendering/static-lod/rough", true)),
-        _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true)),
-        _dumpActivePagedLODsProp(fgGetNode("/sim/rendering/database-pager/dump-active-paged-lods", true))
+    TileManagerListener(FGTileMgr* manager) : _manager(manager),
+                                              _useVBOsProp(fgGetNode("/sim/rendering/use-vbos", true)),
+                                              _enableCacheProp(fgGetNode("/sim/tile-cache/enable", true)),
+                                              _pagedLODMaximumProp(fgGetNode("/sim/rendering/max-paged-lod", true)),
+                                              _lodDetailed(fgGetNode("/sim/rendering/static-lod/detailed", true)),
+                                              _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
+                                              _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
+                                              _lodRough(fgGetNode("/sim/rendering/static-lod/rough", true)),
+                                              _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true)),
+                                              _dumpActivePagedLODsProp(fgGetNode("/sim/rendering/database-pager/dump-active-paged-lods", true))
     {
         _useVBOsProp->addChangeListener(this, true);
         _dumpActivePagedLODsProp->addChangeListener(this, false);
@@ -176,15 +175,14 @@ public:
 private:
     FGTileMgr* _manager;
     SGPropertyNode_ptr _useVBOsProp,
-      _enableCacheProp,
-      _pagedLODMaximumProp,
-      _lodDetailed,
-      _lodRoughDelta,
-      _lodBareDelta,
-      _lodRough,
-      _lodBare,
-      _dumpActivePagedLODsProp
-        ;
+        _enableCacheProp,
+        _pagedLODMaximumProp,
+        _lodDetailed,
+        _lodRoughDelta,
+        _lodBareDelta,
+        _lodRough,
+        _lodBare,
+        _dumpActivePagedLODsProp;
 };
 
 FGTileMgr::FGTileMgr() : state(Start),
@@ -610,8 +608,7 @@ void FGTileMgr::update_queues(bool& isDownloadingScenery)
     {
         long drop_index = _enableCache ? tile_cache.get_drop_tile() :
                                          tile_cache.get_first_expired_tile();
-        while ( drop_index != -1 )
-        {
+        while (drop_index != -1) {
             // schedule tile for deletion with osg pager
             TileEntry* old = tile_cache.get_tile(drop_index);
             SG_LOG(SG_TERRAIN, SG_DEBUG, "Dropping:" << old->get_tile_bucket());
