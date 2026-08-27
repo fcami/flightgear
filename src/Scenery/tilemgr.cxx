@@ -26,6 +26,7 @@
 #include <simgear/scene/tgdb/VPBTechnique.hxx>
 #include <simgear/scene/tsync/terrasync.hxx>
 #include <simgear/scene/util/SGReaderWriterOptions.hxx>
+#include <simgear/structure/commands.hxx>
 #include <simgear/structure/exception.hxx>
 
 #include <Main/fg_props.hxx>
@@ -104,11 +105,9 @@ public:
                                               _lodRoughDelta(fgGetNode("/sim/rendering/static-lod/rough-delta", true)),
                                               _lodBareDelta(fgGetNode("/sim/rendering/static-lod/bare-delta", true)),
                                               _lodRough(fgGetNode("/sim/rendering/static-lod/rough", true)),
-                                              _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true)),
-                                              _dumpActivePagedLODsProp(fgGetNode("/sim/rendering/database-pager/dump-active-paged-lods", true))
+                                              _lodBare(fgGetNode("/sim/rendering/static-lod/bare", true))
     {
         _useVBOsProp->addChangeListener(this, true);
-        _dumpActivePagedLODsProp->addChangeListener(this, false);
 
         _enableCacheProp->addChangeListener(this, true);
         if (_enableCacheProp->getType() == simgear::props::NONE) {
@@ -135,7 +134,6 @@ public:
         _lodDetailed->removeChangeListener(this);
         _lodBareDelta->removeChangeListener(this);
         _lodRoughDelta->removeChangeListener(this);
-        _dumpActivePagedLODsProp->removeChangeListener(this);
     }
 
     void valueChanged(SGPropertyNode* prop) override
@@ -160,11 +158,6 @@ public:
             // the scenery but in a more efficient way.
             _lodRough->setDoubleValue(_lodDetailed->getDoubleValue() + _lodRoughDelta->getDoubleValue());
             _lodBare->setDoubleValue(_lodRough->getDoubleValue() + _lodBareDelta->getDoubleValue());
-        } else if (prop == _dumpActivePagedLODsProp) {
-            if (prop->getBoolValue()) {
-                _manager->dumpActivePagedLODs();
-                prop->setBoolValue(false);
-            }
         }
 
         flightgear::addSentryBreadcrumb("Property:" + prop->getNameString() + " is now " +
@@ -181,8 +174,7 @@ private:
         _lodRoughDelta,
         _lodBareDelta,
         _lodRough,
-        _lodBare,
-        _dumpActivePagedLODsProp;
+        _lodBare;
 };
 
 FGTileMgr::FGTileMgr() : state(Start),
@@ -218,10 +210,15 @@ FGTileMgr::FGTileMgr() : state(Start),
                 );
         #endif
     }
+
+    globals->get_commands()->addCommand("dump-active-plods", this, &FGTileMgr::do_dump_active_plods);
 }
 
 
-FGTileMgr::~FGTileMgr() = default;
+FGTileMgr::~FGTileMgr()
+{
+    globals->get_commands()->removeCommand("dump-active-plods");
+}
 
 // Initialize the Tile Manager subsystem
 void FGTileMgr::init()
@@ -352,7 +349,7 @@ void FGTileMgr::materialLibChanged()
     _options->setMaterialLib(globals->get_matlib());
 }
 
-void FGTileMgr::dumpActivePagedLODs() const
+void FGTileMgr::dumpActivePagedLODs(SGPath outputPath) const
 {
     if (!_pager) {
         SG_LOG(SG_TERRAIN, SG_ALERT, "dumpActivePagedLODs: no pager available");
@@ -366,10 +363,9 @@ void FGTileMgr::dumpActivePagedLODs() const
     double now = framestamp ? framestamp->getReferenceTime() : 0.0;
     unsigned int frameNumber = framestamp ? framestamp->getFrameNumber() : 0;
 
-    SGPath outPath = globals->get_fg_home() / "active-paged-lods.txt";
-    sg_ofstream out(outPath);
+    sg_ofstream out(outputPath);
     if (!out.is_open()) {
-        SG_LOG(SG_TERRAIN, SG_ALERT, "dumpActivePagedLODs: failed to open " << outPath);
+        SG_LOG(SG_TERRAIN, SG_ALERT, "dumpActivePagedLODs: failed to open " << outputPath);
         return;
     }
 
@@ -399,12 +395,22 @@ void FGTileMgr::dumpActivePagedLODs() const
     out.close();
 
     std::ostringstream summary;
-    summary << "dumpActivePagedLODs: " << report.size() << " entries written to " << outPath << " (by level:";
+    summary << "dumpActivePagedLODs: " << report.size() << " entries written to " << outputPath << " (by level:";
     for (const auto& kv : levelCounts)
         summary << " L" << kv.first << "=" << kv.second;
     summary << ")" << " terrain_branch numChildren=" << globals->get_scenery()->get_terrain_branch()->getNumChildren()
             << " tile_cache size=" << tile_cache.get_size();
     SG_LOG(SG_TERRAIN, SG_ALERT, summary.str());
+}
+
+bool FGTileMgr::do_dump_active_plods(const SGPropertyNode * arg, SGPropertyNode * root)
+{
+    SGPath outputPath = SGPath::desktop() / "active-paged-lods.txt";
+    auto p = arg->getStringValue("path");
+    if (p != "") outputPath = SGPath(p).validate(true);
+
+    dumpActivePagedLODs(outputPath);
+    return true;
 }
 
 /* schedule a tile for loading, keep request for given amount of time.

@@ -106,6 +106,11 @@ public:
 
     // Write a census of every PagedLOD currently tracked by the DatabasePager to a text file
     // (one line per entry, plus a per-VPB-level summary), for offline paging analysis.
-    // Triggered by setting /sim/rendering/database-pager/dump-active-paged-lods to true.
-    void dumpActivePagedLODs() const;
+    // Triggered via the "dump-active-plods" command (see do_dump_active_plods).
+    void dumpActivePagedLODs(SGPath outPath) const;
+
+    // Command handler for "dump-active-plods", bound directly to this instance at
+    // construction time (see addCommand(name, obj, method) in commands.hxx). Takes an
+    // optional "path" argument, defaulting to ~/Desktop/active-paged-lods.txt.
+    bool do_dump_active_plods(const SGPropertyNode * arg, SGPropertyNode * root);
 };
