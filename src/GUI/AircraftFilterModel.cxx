@@ -21,6 +21,8 @@ AircraftFilterModel::AircraftFilterModel(QObject* pr, QAbstractItemModel* source
     connect(this, &QAbstractItemModel::rowsInserted, this, &AircraftFilterModel::countChanged);
     connect(this, &QAbstractItemModel::rowsRemoved, this, &AircraftFilterModel::countChanged);
     connect(this, &QAbstractItemModel::modelReset, this, &AircraftFilterModel::countChanged);
+
+    loadCompatibilityAndRatingsSettings();
 }
 
 AircraftItemModel* AircraftFilterModel::resolveItemModel() const
@@ -50,6 +52,7 @@ void AircraftFilterModel::setRatings(QList<int> ratings)
         return;
     m_ratings = ratings;
     invalidate();
+    saveCompatibilityAndRatingsSettings();
     emit filtersChanged();
     emit summaryTextChanged();
 }
@@ -62,6 +65,8 @@ void AircraftFilterModel::setRatingFilterEnabled(bool e)
 
     m_ratingsFilter = e;
     invalidate();
+    saveCompatibilityAndRatingsSettings();
+
     emit filtersChanged();
     emit summaryTextChanged();
     emit countChanged();
@@ -75,6 +80,8 @@ void AircraftFilterModel::setFilteringEnabled(bool e)
 
     m_filteringEnabled = e;
     invalidate();
+    saveCompatibilityAndRatingsSettings();
+
     emit filtersChanged();
     emit summaryTextChanged();
     emit countChanged();
@@ -88,6 +95,8 @@ void AircraftFilterModel::setCompatibilityFilterEnabled(bool e)
 
     m_compatibilityFilter = e;
     invalidate();
+    saveCompatibilityAndRatingsSettings();
+
     emit filtersChanged();
     emit summaryTextChanged();
     emit countChanged();
@@ -157,6 +166,7 @@ void AircraftFilterModel::saveCompatibilityAndRatingsSettings()
         vRatings.append(m_ratings.at(i));
     }
     settings.setValue("ratings-filter", vRatings);
+    settings.setValue("enable-aircraft-filter", m_filteringEnabled);
 }
 
 int AircraftFilterModel::filteredOutCount() const

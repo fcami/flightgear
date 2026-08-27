@@ -24,7 +24,6 @@ FocusScope
     state: "installed"
 
     Component.onCompleted: {
-        _launcher.currentAircraftModel.loadCompatibilityAndRatingsSettings();
         _launcher.selectedModel = root.state;
 
         // if the user has favourites defined, default to that tab
