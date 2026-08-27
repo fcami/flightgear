@@ -112,5 +112,5 @@ public:
     // Command handler for "dump-active-plods", bound directly to this instance at
     // construction time (see addCommand(name, obj, method) in commands.hxx). Takes an
     // optional "path" argument, defaulting to ~/Desktop/active-paged-lods.txt.
-    bool do_dump_active_plods(const SGPropertyNode * arg, SGPropertyNode * root);
+    bool do_dump_active_plods(const SGPropertyNode* arg, SGPropertyNode* root);
 };

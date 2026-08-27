@@ -403,7 +403,7 @@ void FGTileMgr::dumpActivePagedLODs(SGPath outputPath) const
     SG_LOG(SG_TERRAIN, SG_ALERT, summary.str());
 }
 
-bool FGTileMgr::do_dump_active_plods(const SGPropertyNode * arg, SGPropertyNode * root)
+bool FGTileMgr::do_dump_active_plods(const SGPropertyNode* arg, SGPropertyNode* root)
 {
     SGPath outputPath = SGPath::desktop() / "active-paged-lods.txt";
     auto p = arg->getStringValue("path");
