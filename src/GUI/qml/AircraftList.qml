@@ -378,7 +378,7 @@ FocusScope
             PropertyChanges {
                 target: root
                 __model: _launcher.currentAircraftModel
-                __header: emtyHeaderFooter
+                __header: emptyHeaderFooter
                 __footer: searchMoreFooter
             }
 
