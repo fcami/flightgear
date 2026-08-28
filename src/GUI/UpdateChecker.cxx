@@ -177,7 +177,7 @@ void UpdateChecker::receivedUpdateXML(QByteArray body)
                 m_updateUri = QUrl(QString::fromStdString(newVersionUri));
                 emit statusChanged(m_status);
 
-                nc->postNotification("flightgear-update-major", QUrl{"qrc:///qml/NewVersionNotification.qml"});
+                nc->postNotification("flightgear-update-major", QUrl{"qrc:///qt/qml/NewVersionNotification.qml"});
 
                 return; // don't consider minor updates
             }
@@ -196,7 +196,7 @@ void UpdateChecker::receivedUpdateXML(QByteArray body)
                 m_updateUri = QUrl(QString::fromStdString(newVersionUri));
                 emit statusChanged(m_status);
 
-                nc->postNotification("flightgear-update-point", QUrl{"qrc:///qml/NewVersionNotification.qml"});
+                nc->postNotification("flightgear-update-point", QUrl{"qrc:///qt/qml/NewVersionNotification.qml"});
             }
         }
     } catch (const sg_exception &e) {

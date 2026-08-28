@@ -13,40 +13,13 @@
 #include "SettingsWrapper.hxx"
 #include "TipBackgroundBox.hxx"
 
-struct TipGeometryByArrowLocation
-{
-    TipGeometryByArrowLocation(GettingStartedTip::Arrow a, const QRectF& g, Qt::Alignment al) :
-        arrow(a),
-        geometry(g),
-        verticalAlignment(al)
-    {
-    }
-
-    GettingStartedTip::Arrow arrow;
-    QRectF geometry;
-    // specify how vertical space is adjusted; is the top, bottom or center fixed
-    Qt::Alignment verticalAlignment = Qt::AlignVCenter;
-};
-
+// the on-screen width of a tip box, and the width of its border stroke;
+// the geometry of the box and its arrow (in terms of these) is owned by
+// TipBackgroundBox. GettingStartedTipDisplay.qml binds TipBackgroundBox's
+// borderWidth to controller.tipBorderWidth, so this is the single source
+// of truth for both the drawn border and the geometry padding it needs.
 const double tipBoxWidth = 300.0;
-const double halfBoxWidth = tipBoxWidth * 0.5;
-const double arrowSideOffset = TipBackgroundBox::arrowSideOffset();
-const double rightSideOffset = -tipBoxWidth + arrowSideOffset;
-const double dummyHeight = 200.0;
-const double topHeightOffset = -TipBackgroundBox::arrowHeight();
-
-static std::initializer_list<TipGeometryByArrowLocation> static_tipGeometries = {
-    {GettingStartedTip::Arrow::BottomRight, QRectF{rightSideOffset, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignBottom},
-    {GettingStartedTip::Arrow::BottomCenter, QRectF{halfBoxWidth, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignBottom},
-    {GettingStartedTip::Arrow::TopCenter, QRectF{-halfBoxWidth, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignTop},
-    {GettingStartedTip::Arrow::TopRight, QRectF{rightSideOffset, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignTop},
-    {GettingStartedTip::Arrow::TopLeft, QRectF{-arrowSideOffset, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignTop},
-    {GettingStartedTip::Arrow::LeftCenter, QRectF{0.0, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignVCenter},
-    {GettingStartedTip::Arrow::RightCenter, QRectF{-(tipBoxWidth + TipBackgroundBox::arrowHeight()), 0.0, tipBoxWidth, dummyHeight}, Qt::AlignVCenter},
-    {GettingStartedTip::Arrow::LeftTop, QRectF{0.0, topHeightOffset, tipBoxWidth, dummyHeight}, Qt::AlignTop},
-    {GettingStartedTip::Arrow::NoArrow, QRectF{-halfBoxWidth, 0.0, tipBoxWidth, dummyHeight}, Qt::AlignVCenter},
-
-};
+const double tipBorderWidthValue = 3.0;
 
 /**
  * @brief The GettingStartedTipsController::ItemPositionObserver class
@@ -327,44 +300,7 @@ QRectF GettingStartedTipsController::tipGeometry() const
     if (!t)
         return {};
 
-    const auto arrow = t->arrow();
-    auto it = std::find_if(static_tipGeometries.begin(), static_tipGeometries.end(),
-                           [arrow](const TipGeometryByArrowLocation& tg)
-    {
-        return tg.arrow == arrow;
-    });
-
-    if (it == static_tipGeometries.end()) {
-        qWarning() << Q_FUNC_INFO << "Missing tip geometry" << arrow;
-        return {};
-    }
-
-    QRectF g = it->geometry;
-    if ((arrow == GettingStartedTip::Arrow::LeftCenter) 
-            || (arrow == GettingStartedTip::Arrow::RightCenter)
-            || (arrow == GettingStartedTip::Arrow::LeftTop)
-            || (arrow == GettingStartedTip::Arrow::NoArrow))
-    {
-        g.setHeight(_activeTipHeight);
-    } else {
-        g.setHeight(_activeTipHeight + TipBackgroundBox::arrowHeight());
-    }
-
-    switch (it->verticalAlignment) {
-    case Qt::AlignBottom:
-        g.moveBottom(0);
-        break;
-
-    case Qt::AlignTop:
-        g.moveTop(0);
-        break;
-
-    case Qt::AlignVCenter:
-        g.moveTop(_activeTipHeight * -0.5);
-        break;
-    }
-
-    return g;
+    return TipBackgroundBox::boxGeometryForArrow(t->arrow(), tipBoxWidth, _activeTipHeight, tipBorderWidthValue);
 }
 
 bool GettingStartedTipsController::tipPositionValid() const
@@ -390,30 +326,16 @@ int GettingStartedTipsController::activeTipHeight() const
 
 QRectF GettingStartedTipsController::contentGeometry() const
 {
-    QRectF g(0.0, 0.0, tipBoxWidth, 200.0);
-
     auto t = tip();
     if (!t)
-        return g;
+        return QRectF(0.0, 0.0, tipBoxWidth, 200.0);
 
-    const auto arrow = t->arrow();
-    if ((arrow == GettingStartedTip::Arrow::TopCenter) ||
-            (arrow == GettingStartedTip::Arrow::TopLeft) ||
-            (arrow == GettingStartedTip::Arrow::TopRight))
-    {
-        g.moveTop(TipBackgroundBox::arrowHeight());
-    }
+    return TipBackgroundBox::contentGeometryForArrow(t->arrow(), tipBoxWidth, tipBorderWidthValue);
+}
 
-    if (arrow == GettingStartedTip::Arrow::RightCenter) {
-        g.setWidth(tipBoxWidth - TipBackgroundBox::arrowHeight());
-    }
-
-    if (arrow == GettingStartedTip::Arrow::LeftCenter) {
-        g.setWidth(tipBoxWidth - TipBackgroundBox::arrowHeight());
-        g.moveLeft(TipBackgroundBox::arrowHeight());
-    }
-
-    return g;
+int GettingStartedTipsController::tipBorderWidth() const
+{
+    return static_cast<int>(tipBorderWidthValue);
 }
 
 void GettingStartedTipsController::close()
