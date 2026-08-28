@@ -54,7 +54,7 @@ void LauncherPackageDelegate::catalogRefreshed(simgear::pkg::CatalogRef aCatalog
             QJSValue args = nc->jsEngine()->newObject();
             args.setProperty("catalogUri", QString::fromStdString(aCatalog->url()));
             nc->postNotification("catalog-refresh-failed",
-                                 QUrl{"qrc:///qml/CatalogRefreshFailedNotification.qml"},
+                                 QUrl{"qrc:///qt/qml/CatalogRefreshFailedNotification.qml"},
                                  args);
         }
     }
@@ -70,11 +70,11 @@ void LauncherPackageDelegate::catalogRefreshed(simgear::pkg::CatalogRef aCatalog
 
         if (aCatalog->id() == _defaultCatalogId) {
             nc->postNotification("did-migrate-official-catalog-to-" + QString::fromStdString(_defaultCatalogId),
-                                 QUrl{"qrc:///qml/DidMigrateOfficialCatalogNotification.qml"},
+                                 QUrl{"qrc:///qt/qml/DidMigrateOfficialCatalogNotification.qml"},
                                  args);
         } else {
             nc->postNotification("did-migrate-catalog-to-" + QString::fromStdString(aCatalog->id()),
-                                 QUrl{"qrc:///qml/DidMigrateOtherCatalogNotification.qml"},
+                                 QUrl{"qrc:///qt/qml/DidMigrateOtherCatalogNotification.qml"},
                                  args);
         }
     }

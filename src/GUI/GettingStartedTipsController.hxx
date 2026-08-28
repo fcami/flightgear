@@ -31,6 +31,7 @@ class GettingStartedTipsController : public QObject
     Q_PROPERTY(QRectF tipGeometry READ tipGeometry NOTIFY tipGeometryChanged)
     Q_PROPERTY(int activeTipHeight READ activeTipHeight WRITE setActiveTipHeight NOTIFY activeTipHeightChanged)
     Q_PROPERTY(QRectF contentGeometry READ contentGeometry NOTIFY tipChanged)
+    Q_PROPERTY(int tipBorderWidth READ tipBorderWidth CONSTANT)
 
     Q_PROPERTY(QQuickItem* visualArea READ visualArea WRITE setVisualArea NOTIFY visualAreaChanged)
 
@@ -74,6 +75,8 @@ public:
      * set by activeTipHeight
      */
     QRectF contentGeometry() const;
+
+    int tipBorderWidth() const;
 
 public slots:
 

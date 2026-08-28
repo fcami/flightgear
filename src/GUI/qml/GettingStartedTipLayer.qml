@@ -32,7 +32,7 @@ Item {
     // for the tip, in the common case that no tip is displayed.
     Loader {
         id: load
-        source: (ctl.active && ctl.tipPositionValid) ? "qrc:///qml/GettingStartedTipDisplay.qml" : ""
+        source: (ctl.active && ctl.tipPositionValid) ? "qrc:/qt/qml/GettingStartedTipDisplay.qml" : ""
         x: ctl.tipPositionInVisualArea.x
         y: ctl.tipPositionInVisualArea.y
     }

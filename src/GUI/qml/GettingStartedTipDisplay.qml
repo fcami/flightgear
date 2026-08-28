@@ -25,8 +25,8 @@ Item {
         id: tipBox
 
         fill: Style.themeColor
-        borderWidth: 1
-        borderColor: Qt.darker(Style.themeColor)
+        borderWidth: controller.tipBorderWidth
+        borderColor: "#A0ffffff"
 
         x: tipGeom.x
         y: tipGeom.y

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <QQuickPaintedItem>
 #include <QColor>
+#include <QQuickPaintedItem>
+#include <QRectF>
 
 #include <GUI/GettingStartedTip.hxx>
 
@@ -29,6 +30,18 @@ public:
     static int arrowSideOffset();
 
     static int arrowHeight();
+
+    // where the background box should be positioned/sized, in coordinates
+    // relative to the tip's anchor point (0,0), for a given arrow position,
+    // box width, desired content height and border width. The box is padded
+    // to fit the border stroke, which is centered on (and so bleeds outside)
+    // the drawn shape.
+    static QRectF boxGeometryForArrow(GettingStartedTip::Arrow arrow, double boxWidth, double contentHeight, double borderWidth);
+
+    // where the content (text) area should be positioned/sized within the
+    // background box, leaving room for the arrow and the border padding
+    // boxGeometryForArrow() applies
+    static QRectF contentGeometryForArrow(GettingStartedTip::Arrow arrow, double boxWidth, double borderWidth);
 
 public slots:
     void setArrowPosition(GettingStartedTip::Arrow arrow);
