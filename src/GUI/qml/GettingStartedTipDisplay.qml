@@ -25,8 +25,8 @@ Item {
         id: tipBox
 
         fill: Style.themeColor
-        borderWidth: 2
-        borderColor: "#000000"
+        borderWidth: controller.tipBorderWidth
+        borderColor: "#A0ffffff"
 
         x: tipGeom.x
         y: tipGeom.y
