@@ -58,7 +58,6 @@ Rectangle
 
             onCheckedChanged: {
                 _launcher.currentAircraftModel.compatibilityFilterEnabled = checked
-                _launcher.saveUISetting("enable-compatibility-filter", checked);
             }
 
             label: qsTr("Only display compatible aircraft")
@@ -79,7 +78,6 @@ Rectangle
 
             onCheckedChanged: {
                 _launcher.currentAircraftModel.ratingsFilterEnabled = checked
-                _launcher.saveUISetting("enable-ratings-filter", checked);
             }
 
             label: qsTr("Filter aircraft")

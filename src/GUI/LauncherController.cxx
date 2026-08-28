@@ -134,8 +134,6 @@ LauncherController::LauncherController(QObject *parent, QWindow* window) :
     // Single filter model; its source is swapped by setSelectedModel().
     // Initial state is "installed" (the default QML tab).
     m_aircraftFilterModel = new AircraftFilterModel(this, m_aircraftInstalledModel);
-    m_aircraftFilterModel->setRatingFilterEnabled(true);
-    m_aircraftFilterModel->setCompatibilityFilterEnabled(true);
 
     m_aircraftTagsModel = new AircraftTagsModel(this);
 

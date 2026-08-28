@@ -17,6 +17,5 @@ Slider {
 
     onValueChanged: {
         _launcher.currentAircraftModel.ratings[ratingIndex] = value
-        _launcher.currentAircraftModel.saveCompatibilityAndRatingsSettings();
     }
 }
