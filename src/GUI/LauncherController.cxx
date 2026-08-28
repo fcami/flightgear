@@ -1046,7 +1046,7 @@ void LauncherController::checkForOldDownloadDir()
         args.setProperty("newLocation", newLocURI.toString());
         args.setProperty("persistent-dismiss", true);
 
-        nc->postNotification("have-old-downloads-location", QUrl{"qrc:///qml/DownloadsInDocumentsWarning.qml"}, args);
+        nc->postNotification("have-old-downloads-location", QUrl{"qrc:///qt/qml/DownloadsInDocumentsWarning.qml"}, args);
     }
 #endif
 }
