@@ -46,7 +46,7 @@ void XMLLoader::load(FGGroundNetwork* net)
 
       if (visitor.hasErrors() && fgGetBool("/sim/terrasync/enabled")) {
           flightgear::updateSentryTag("ground-net", net->airport()->ident());
-          
+
           // disabled for 2024.1.4 to reduce Sentry quota spam
           //flightgear::sentryReportException("Ground-net load error", path.utf8Str());
       }

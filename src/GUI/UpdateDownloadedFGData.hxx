@@ -50,7 +50,7 @@ public:
         // then fail to check again later.
         m_repo->setRecheckTimeoutEnabled(false);
         m_repo->setMaximumPermittedFailureCount(0);
-        
+
         m_repo->update();
 
         connect(&m_updateTimer, &QTimer::timeout, this, &UpdateFGData::onUpdateRepo);

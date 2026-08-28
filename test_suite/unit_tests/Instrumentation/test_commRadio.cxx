@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2020 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #include "test_commRadio.hxx"
 
 #include <cstring>

@@ -640,8 +640,7 @@ void FGAirport::processThreshold(SGPropertyNode* aThreshold)
 
   if (id == 0) {
     const auto runwayIdent = ident() + "/" + rwyIdent;
-    SG_LOG(SG_NAVAID, SG_DEV_WARN, "Threshold.xml contains runway not included in apt.dat:" << 
-      sg_location{aThreshold}.asString() << ": runway=" << runwayIdent);
+    SG_LOG(SG_NAVAID, SG_DEV_WARN, "Threshold.xml contains runway not included in apt.dat:" << sg_location{aThreshold}.asString() << ": runway=" << runwayIdent);
 #if 0
     // enable this code when threshold.xml contains sufficient data to
     // fully specify a new runway, *and* we figure out how to assign runtime
