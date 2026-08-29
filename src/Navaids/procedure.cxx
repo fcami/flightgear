@@ -12,6 +12,7 @@
 #include <simgear/structure/exception.hxx>
 
 #include <Airports/airport.hxx>
+#include <Airports/airports_fwd.hxx>
 #include <Airports/runways.hxx>
 #include <Navaids/waypoint.hxx>
 
@@ -31,6 +32,17 @@ static void markWaypoints(WayptVec& wps, WayptFlag f)
 Procedure::Procedure(const string& aIdent) :
   _ident(aIdent)
 {
+}
+
+bool Procedure::isForRunway(FGRunwayRef rwy) const
+{
+    // this implementation is a bit wasteful but we don't call
+    // this on any hot paths
+    const auto rwys = runways();
+    auto it = std::find_if(rwys.cbegin(), rwys.cend(), [rwy](const FGRunwayRef& r) {
+        return r == rwy;
+    });
+    return it != rwys.end();
 }
 
 Approach::Approach(const string& aIdent, ProcedureType ty) : Procedure(aIdent),
@@ -116,12 +128,13 @@ bool Approach::route(FGRunwayRef runway, WayptRef aIAF, WayptVec& aWps)
     if (!haveTrans) {
       if (_primary.front()->matches(aIAF)) {
         // direct IAF on the approach, no transition is needed
+      } else if (aIAF->type() == "vectors") {
+          // IAF is actually VECTORS, so assume ATC will vector us to the approach
       } else {
-        // we couldn't find the IAF at the front of any obvious thing - either
-        // the primary waypoints or any transition we have defined.
-        // warn and just use the primary waypoints down below
-        SG_LOG(SG_NAVAID, SG_INFO, "approach " << ident() << " has no transition " <<
-               "for IAF: " << aIAF->ident());
+          // we couldn't find the IAF at the front of any obvious thing - either
+          // the primary waypoints or any transition we have defined.
+          // warn and just use the primary waypoints down below
+          SG_LOG(SG_NAVAID, SG_INFO, "approach " << ident() << " has no transition " << "for IAF: " << aIAF->ident());
       }
     }
   }

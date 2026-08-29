@@ -21,6 +21,8 @@
 
 #include <Traffic/Schedule.hxx>
 
+#include <Main/sentryIntegration.hxx>
+
 #include "AIAircraft.hxx"
 #include "AIFlightPlan.hxx"
 #include "performancedata.hxx"
@@ -80,119 +82,130 @@ bool FGAIFlightPlan::createPushBack(FGAIAircraft* ac,
         return true;
     }
 
-    FGGroundNetwork* groundNet = dep->groundNetwork();
-    FGParking* parking = gate.parking();
-    if (!parking) {
-        SG_LOG(SG_AI, SG_DEV_WARN, "Parking pointer is null in createPushBack for " << dep->getId());
-        return false;
-    }
-    if (parking && parking->getPushBackPoint() != nullptr) {
-        // Classic pushback with defined pushback point
-        FGTaxiRoute route = groundNet->findShortestRoute(parking, parking->getPushBackPoint(), false);
-        SG_LOG(SG_AI, SG_BULK, "Creating Pushback from " << parking->ident() << " to " << parking->getPushBackPoint()->getIndex());
-
-        int size = route.size();
-        if (size < 2) {
-            SG_LOG(SG_AI, SG_DEV_WARN, "Push back route from gate " << parking->ident() << " has only " << size << " nodes.\n"
-                                                                    << "Using  " << parking->getPushBackPoint());
+    // catch because taxiRoute creation sometimes fails, see eg
+    // https://gitlab.com/flightgear/flightgear/-/issues/3289
+    try {
+        FGGroundNetwork* groundNet = dep->groundNetwork();
+        FGParking* parking = gate.parking();
+        if (!parking) {
+            SG_LOG(SG_AI, SG_DEV_WARN, "Parking pointer is null in createPushBack for " << dep->getId());
+            return false;
         }
+        if (parking && parking->getPushBackPoint() != nullptr) {
+            // Classic pushback with defined pushback point
+            FGTaxiRoute route = groundNet->findShortestRoute(parking, parking->getPushBackPoint(), false);
+            SG_LOG(SG_AI, SG_BULK, "Creating Pushback from " << parking->ident() << " to " << parking->getPushBackPoint()->getIndex());
 
-        route.first();
-        FGTaxiNodeRef node;
-        int rte;
+            int size = route.size();
+            if (size < 2) {
+                SG_LOG(SG_AI, SG_DEV_WARN, "Push back route from gate " << parking->ident() << " has only " << size << " nodes.\n"
+                                                                        << "Using  " << parking->getPushBackPoint());
+            }
 
-        if (!waypoints.empty()) {
-            // This will be a parking from a previous leg which still contains the forward speed
-            waypoints.back()->setSpeed(vTaxiBackward);
-        }
+            route.first();
+            FGTaxiNodeRef node;
+            int rte;
 
-        while (route.next(node, &rte)) {
-            char buffer[20];
-            snprintf(buffer, sizeof(buffer), "pushback-%03d", (short)node->getIndex());
-            FGAIWaypoint* wpt = createOnGround(ac, string(buffer), node->geod(), dep->getElevation(), vTaxiBackward);
-            wpt->setRouteIndex(rte);
-            pushBackWaypoint(wpt);
-        }
-        // some special considerations for the last point:
-        // This will trigger the release of parking
-        waypoints.back()->setName(string("PushBackPoint"));
-        waypoints.back()->setSpeed(vTaxi);
-        ac->setTaxiClearanceRequest(true);
-    } else { // In case of a push forward departure... or missing pushback route
-        ac->setTaxiClearanceRequest(false);
-        double az2 = 0.0;
+            if (!waypoints.empty()) {
+                // This will be a parking from a previous leg which still contains the forward speed
+                waypoints.back()->setSpeed(vTaxiBackward);
+            }
 
-        FGGroundNetwork* groundnet = dep->groundNetwork();
-        FGTaxiSegment* pushForwardSegment = groundnet->findSegmentByHeading(parking, parking->getHeading());
+            while (route.next(node, &rte)) {
+                char buffer[20];
+                snprintf(buffer, sizeof(buffer), "pushback-%03d", (short)node->getIndex());
+                FGAIWaypoint* wpt = createOnGround(ac, string(buffer), node->geod(), dep->getElevation(), vTaxiBackward);
+                wpt->setRouteIndex(rte);
+                pushBackWaypoint(wpt);
+            }
+            // some special considerations for the last point:
+            // This will trigger the release of parking
+            waypoints.back()->setName(string("PushBackPoint"));
+            waypoints.back()->setSpeed(vTaxi);
+            ac->setTaxiClearanceRequest(true);
+        } else { // In case of a push forward departure... or missing pushback route
+            ac->setTaxiClearanceRequest(false);
+            double az2 = 0.0;
 
-        if (!pushForwardSegment) {
-            // there aren't any routes for this parking, so create a simple segment straight ahead for 2 meters based on the parking heading
-            if (parking->getType() == "gate") {
-                SG_LOG(SG_AI, SG_DEBUG, "Gate " << parking->ident() << " is a pushback gate.");
+            FGGroundNetwork* groundnet = dep->groundNetwork();
+            FGTaxiSegment* pushForwardSegment = groundnet->findSegmentByHeading(parking, parking->getHeading());
 
-                auto intersection = groundnet->findIntersectionSegment(parking->geod(), parking->getReverseHeading());
-                if (!intersection) {
-                    SG_LOG(SG_AI, SG_DEV_WARN, "No pushforward intersection found for pushback gate " << dep->getId() << "/" << parking->ident());
+            if (!pushForwardSegment) {
+                // there aren't any routes for this parking, so create a simple segment straight ahead for 2 meters based on the parking heading
+                if (parking->getType() == "gate") {
+                    SG_LOG(SG_AI, SG_DEBUG, "Gate " << parking->ident() << " is a pushback gate.");
+
+                    auto intersection = groundnet->findIntersectionSegment(parking->geod(), parking->getReverseHeading());
+                    if (!intersection) {
+                        SG_LOG(SG_AI, SG_DEV_WARN, "No pushforward intersection found for pushback gate " << dep->getId() << "/" << parking->ident());
+                        return false;
+                    }
+
+                    FGTaxiRoute routeFromStart = findBestTaxiRouteToRunway(ac, dep, rwy, groundnet, intersection->getStart());
+                    FGTaxiRoute routeFromEnd = findBestTaxiRouteToRunway(ac, dep, rwy, groundnet, intersection->getEnd());
+
+                    if (routeFromStart.empty() && routeFromEnd.empty()) {
+                        SG_LOG(SG_AI, SG_DEV_WARN, "No route from pushforward intersection to runway.");
+                    }
+                    const double curveRadius = 20.0;
+                    if (routeFromStart.getDistance() > routeFromEnd.getDistance()) {
+                        const double segmentHeading = SGGeodesy::courseDeg(intersection->getStart()->geod(), intersection->getEnd()->geod());
+                        const double enclosedAngle = SGMiscd::normalizePeriodic(0.0, 360.0, segmentHeading - parking->getHeading());
+                        const double distance = (curveRadius / std::sin(enclosedAngle / 2.0));
+                        auto circleCenter = SGGeodesy::direct(intersection->getIntersection(), parking->getHeading() - (enclosedAngle / 2.0), distance);
+                        createArc(ac, circleCenter, parking->getReverseHeading() - 90, parking->getReverseHeading() - 90 + enclosedAngle, 10, curveRadius, dep->getElevation(), vTaxiReduced, "circlePushback%d");
+                    } else {
+                        const double segmentHeading = SGGeodesy::courseDeg(intersection->getEnd()->geod(), intersection->getStart()->geod());
+                        const double enclosedAngle = SGMiscd::normalizePeriodic(0.0, 360.0, segmentHeading - parking->getHeading());
+                        const double distance = (curveRadius / std::sin(enclosedAngle / 2.0));
+                        auto circleCenter = SGGeodesy::direct(intersection->getIntersection(), parking->getHeading() + (enclosedAngle / 2.0), distance);
+                        createArc(ac, circleCenter, parking->getReverseHeading() - 90, parking->getReverseHeading() - 90 - enclosedAngle, -10, curveRadius, dep->getElevation(), vTaxiReduced, "circlePushback%d");
+                    }
+                    return true;
+                } else {
+                    SG_LOG(SG_AI, SG_DEV_WARN, "Gate " << parking->ident() << " is NOT a pushback gate.");
                     return false;
                 }
-
-                FGTaxiRoute routeFromStart = findBestTaxiRouteToRunway(ac, dep, rwy, groundnet, intersection->getStart());
-                FGTaxiRoute routeFromEnd = findBestTaxiRouteToRunway(ac, dep, rwy, groundnet, intersection->getEnd());
-
-                if (routeFromStart.empty() && routeFromEnd.empty()) {
-                    SG_LOG(SG_AI, SG_DEV_WARN, "No route from pushforward intersection to runway.");
-                }
-                const double curveRadius = 20.0;
-                if (routeFromStart.getDistance() > routeFromEnd.getDistance()) {
-                    const double segmentHeading = SGGeodesy::courseDeg(intersection->getStart()->geod(), intersection->getEnd()->geod());
-                    const double enclosedAngle = SGMiscd::normalizePeriodic(0.0, 360.0, segmentHeading - parking->getHeading());
-                    const double distance = (curveRadius / std::sin(enclosedAngle / 2.0));
-                    auto circleCenter = SGGeodesy::direct(intersection->getIntersection(), parking->getHeading() - (enclosedAngle / 2.0), distance);
-                    createArc(ac, circleCenter, parking->getReverseHeading() - 90, parking->getReverseHeading() - 90 + enclosedAngle, 10, curveRadius, dep->getElevation(), vTaxiReduced, "circlePushback%d");
-                } else {
-                    const double segmentHeading = SGGeodesy::courseDeg(intersection->getEnd()->geod(), intersection->getStart()->geod());
-                    const double enclosedAngle = SGMiscd::normalizePeriodic(0.0, 360.0, segmentHeading - parking->getHeading());
-                    const double distance = (curveRadius / std::sin(enclosedAngle / 2.0));
-                    auto circleCenter = SGGeodesy::direct(intersection->getIntersection(), parking->getHeading() + (enclosedAngle / 2.0), distance);
-                    createArc(ac, circleCenter, parking->getReverseHeading() - 90, parking->getReverseHeading() - 90 - enclosedAngle, -10, curveRadius, dep->getElevation(), vTaxiReduced, "circlePushback%d");
-                }
-                return true;
-            } else {
-                SG_LOG(SG_AI, SG_DEV_WARN, "Gate " << parking->ident() << " is NOT a pushback gate.");
-                return false;
             }
+
+            lastNodeVisited = pushForwardSegment->getEnd();
+            double distance = pushForwardSegment->getLength();
+
+            double parkingHeading = parking->getHeading();
+
+            SG_LOG(SG_AI, SG_BULK, "Creating Pushforward from ID " << pushForwardSegment->getEnd()->getIndex() << " Length : \t" << distance);
+            // Add the parking if on first leg and not repeat
+            if (waypoints.empty()) {
+                pushBackWaypoint(createOnGround(ac, parking->getName(), parking->geod(), dep->getElevation(), vTaxiReduced));
+            }
+            // Make sure we have at least three WPs
+            int numSegments = distance > 15 ? (distance / 5.0) : 3;
+            for (int i = 1; i < numSegments; i++) {
+                SGGeod pushForwardPt;
+
+                SGGeodesy::direct(parking->geod(), parkingHeading,
+                                  (((double)i / numSegments) * distance), pushForwardPt, az2);
+                char buffer[20];
+                snprintf(buffer, sizeof(buffer), "pushforward-%03d", (short)i);
+                FGAIWaypoint* wpt = createOnGround(ac, string(buffer), pushForwardPt, dep->getElevation(), vTaxiReduced);
+
+                wpt->setRouteIndex(pushForwardSegment->getIndex());
+                pushBackWaypoint(wpt);
+            }
+
+            // This will trigger the release of parking
+            waypoints.back()->setName(string("PushBackPoint-pushforward"));
         }
 
-        lastNodeVisited = pushForwardSegment->getEnd();
-        double distance = pushForwardSegment->getLength();
-
-        double parkingHeading = parking->getHeading();
-
-        SG_LOG(SG_AI, SG_BULK, "Creating Pushforward from ID " << pushForwardSegment->getEnd()->getIndex() << " Length : \t" << distance);
-        // Add the parking if on first leg and not repeat
-        if (waypoints.empty()) {
-            pushBackWaypoint(createOnGround(ac, parking->getName(), parking->geod(), dep->getElevation(), vTaxiReduced));
-        }
-        // Make sure we have at least three WPs
-        int numSegments = distance > 15 ? (distance / 5.0) : 3;
-        for (int i = 1; i < numSegments; i++) {
-            SGGeod pushForwardPt;
-
-            SGGeodesy::direct(parking->geod(), parkingHeading,
-                              (((double)i / numSegments) * distance), pushForwardPt, az2);
-            char buffer[20];
-            snprintf(buffer, sizeof(buffer), "pushforward-%03d", (short)i);
-            FGAIWaypoint* wpt = createOnGround(ac, string(buffer), pushForwardPt, dep->getElevation(), vTaxiReduced);
-
-            wpt->setRouteIndex(pushForwardSegment->getIndex());
-            pushBackWaypoint(wpt);
-        }
-
-        // This will trigger the release of parking
-        waypoints.back()->setName(string("PushBackPoint-pushforward"));
+        return true;
+    } catch (sg_exception& e) {
+        SG_LOG(SG_AI, SG_DEV_WARN, "Exception while creating pushback route: " << e.what() << "\nUsing fallback pushback.");
+        flightgear::sentryReportException("Failed to create pushback route for " + dep->ident() + " " + gate.parking()->ident() +
+                                          ": " + e.getFormattedMessage());
+        createPushBackFallBack(ac, firstFlight, dep,
+                               radius, fltType, aircraftType, airline);
+        return true;
     }
-
-    return true;
 }
 /*******************************************************************
 * createPushBackFallBack

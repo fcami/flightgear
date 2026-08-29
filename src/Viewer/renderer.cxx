@@ -782,6 +782,8 @@ FGRenderer::addCanvasCamera(osg::Camera* camera)
     // Add it as a slave to the viewer
     _composite_viewer->getView(0)->addSlave(camera, false);
     simgear::installEffectCullVisitor(camera);
+    // Disable stats
+    camera->setStats(0);
 
     if (should_restart_threading) {
         getViewerBase()->startThreading();

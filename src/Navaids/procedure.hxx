@@ -45,7 +45,10 @@ public:
 
   virtual RunwayVec runways() const
   { return RunwayVec(); }
-protected:
+
+  bool isForRunway(FGRunwayRef rwy) const;
+
+  protected:
   Procedure(const std::string& aIdent);
 
   std::string _ident;

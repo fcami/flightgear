@@ -937,6 +937,7 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
                 aircraftId = aircraftId.substr(lastDot + 1);
             }
             aircraftProp->setStringValue(aircraftId);
+            fgSetBool("/sim/aircraft-from-package", true);
 
             // run the traditional-code path below
         } else {
@@ -958,6 +959,9 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
     if (!f.loadAircraft()) {
         return flightgear::FG_OPTIONS_ERROR;
     }
+
+    const auto acdp = SGPath::fromUtf8(aircraftDirProp->getStringValue());
+    flightgear::addSentryTag("aircraft-dir", acdp.file());
 
     return flightgear::FG_OPTIONS_OK;
 }

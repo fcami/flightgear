@@ -48,7 +48,6 @@
 
 using namespace std::chrono_literals;
 
-const quint32 static_basePackagePatchLevel = 1;
 const qint64 fourMB = 4 * 1024 * 1024;
 
 namespace {
@@ -205,14 +204,14 @@ public:
             }
         }
 
-        QString templateUrl = m_servers.front() + QStringLiteral("/release-%1/FlightGear-%2.%3-data.txz");
+        QString templateUrl = m_servers.front() + QStringLiteral("/release-%1/FlightGear-%2-data.txz");
         if (templateUrl.startsWith("https://sourceforge.net/")) {
             // deal with different SF syntax
             templateUrl += QStringLiteral("/download");
         }
 
         QString majorMinorVersion = QString(FLIGHTGEAR_MAJOR_MINOR_VERSION);
-        m_downloadUrl = QUrl(templateUrl.arg(majorMinorVersion).arg(majorMinorVersion).arg(static_basePackagePatchLevel));
+        m_downloadUrl = QUrl(templateUrl.arg(majorMinorVersion).arg(FLIGHTGEAR_VERSION));
 
         qInfo() << "Download URI:" << m_downloadUrl;
 
@@ -275,8 +274,12 @@ public:
     {
         std::unique_lock g(m_mutex);
         const int percent = calculateProgressPercentage(m_extractedBytes, m_totalSize);
-        auto fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
-        fullPathStr.erase(0, m_pathPrefixLength);
+        std::string fullPathStr;
+        if (m_archive) {
+            fullPathStr = m_archive->mostRecentExtractedPath().utf8Str();
+            fullPathStr.erase(0, m_pathPrefixLength);
+        }
+
         emit installProgress(QString::fromStdString(fullPathStr), percent);
     }
 
@@ -606,7 +609,6 @@ bool SetupRootDialog::runDialog(PromptState prompt, const SGPath& checkedPath)
     return true;
 }
 
-
 flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgpath)
 {
     const auto readOnly = fgGetBool("/sim/fghome-readonly", false);
@@ -622,9 +624,7 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
 
     if (ask || (path == QStringLiteral("!ask"))) {
         if (readOnly) {
-            // assume the primary copy will ask, so just bail out
-            SG_LOG(SG_GENERAL, SG_MANDATORY_INFO, "restoreUserSelectedRoot: choice is 'ask', but we are read-only, exiting.");
-            return flightgear::SetupRootResult::UserExit;
+            return flightgear::SetupRootResult::ExitDueToReadOnly;
         }
 
         bool ok = runDialog(ManualChoiceRequested, SGPath{});
@@ -645,6 +645,10 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
 
     if (path.isEmpty()) {
         if (downloadedDataExistsButStale()) {
+            if (readOnly) {
+                return flightgear::SetupRootResult::ExitDueToReadOnly;
+            }
+
             bool ok = runDialog(NeedToUpdateDownloadedData, options->downloadedDataRoot());
             if (!ok) {
                 return flightgear::SetupRootResult::UserExit;
@@ -687,6 +691,11 @@ flightgear::SetupRootResult SetupRootDialog::restoreUserSelectedRoot(SGPath& sgp
         }
     }
 
+    // runDialog assumes writeable mode, so just bail out here and inform the user
+    if (readOnly) {
+        return flightgear::SetupRootResult::ExitDueToReadOnly;
+    }
+
     // okay, we don't have an acceptable FG_DATA anywhere we can find, we
     // have to ask the user what they want to do.
     bool ok = false;
@@ -727,8 +736,7 @@ bool SetupRootDialog::validatePath(QString path)
  */
 bool SetupRootDialog::validateVersion(QString path)
 {
-    std::string minBasePackageVersion = std::to_string(FLIGHTGEAR_MAJOR_VERSION) + "." + std::to_string(FLIGHTGEAR_MINOR_VERSION) + "." + std::to_string(static_basePackagePatchLevel);
-
+    const std::string minBasePackageVersion{FLIGHTGEAR_VERSION};
     std::string ver = fgBasePackageVersion(SGPath::fromUtf8(path.toStdString()));
 
     // ensure major & minor fields match exactly
@@ -736,7 +744,7 @@ bool SetupRootDialog::validateVersion(QString path)
         return false;
     }
 
-    return simgear::strutils::compare_versions(minBasePackageVersion, ver) >= 0;
+    return simgear::strutils::compare_versions(minBasePackageVersion, ver) <= 0;
 }
 
 bool SetupRootDialog::downloadedDataAcceptable()
@@ -754,7 +762,7 @@ bool SetupRootDialog::downloadedDataExistsButStale()
         return false;
     }
 
-    std::string minBasePackageVersion = std::to_string(FLIGHTGEAR_MAJOR_VERSION) + "." + std::to_string(FLIGHTGEAR_MINOR_VERSION) + "." + std::to_string(static_basePackagePatchLevel);
+    const std::string minBasePackageVersion{FLIGHTGEAR_VERSION};
     std::string ver = fgBasePackageVersion(r);
 
     // major or minor mismatch, we can't use it
@@ -781,7 +789,7 @@ bool SetupRootDialog::downloadedDataExistsButStale()
         return true;
     }
 
-    // update needed if the on-disk base package version is *lower* than static_basePackagePatchLevel
+    // update needed if the on-disk base package version is *lower* than our patch version
     return simgear::strutils::compare_versions(ver, minBasePackageVersion) < 0;
 }
 

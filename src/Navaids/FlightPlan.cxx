@@ -547,6 +547,11 @@ void FlightPlan::setDeparture(FGRunway* rwy)
     _departure = rwy->airport();
     clearSID();
   }
+
+  if (_sid && !_sid->isForRunway(_departureRunway)) {
+      clearSID();
+  }
+
   unlockDelegates();
 }
 
@@ -588,6 +593,10 @@ void FlightPlan::setSID(Transition* trans)
 
 void FlightPlan::clearSID()
 {
+    if (_sid == nullptr) {
+        return;
+    }
+
   lockDelegates();
   _departureChanged = true;
   _sid = nullptr;
@@ -631,6 +640,10 @@ void FlightPlan::setDestination(FGRunway* rwy)
   if (rwy && (_destination != rwy->airport())) {
     _destination = rwy->airport();
     clearSTAR();
+  }
+
+  if (_star && !_star->isForRunway(_destinationRunway)) {
+      clearSTAR();
   }
 
   unlockDelegates();
@@ -688,6 +701,9 @@ void FlightPlan::setSTAR(Transition* trans)
 
 void FlightPlan::clearSTAR()
 {
+    if (_star == nullptr) {
+        return;
+    }
 
   lockDelegates();
   _arrivalChanged = true;
@@ -925,7 +941,7 @@ bool FlightPlan::load(const SGPath& path)
 
         // however, we do want to run the normal delegate if no procedure was
         // defined. We'll use the presence of waypoints tagged to decide
-        const bool hasArrival = anyWaypointsWithFlag(this, WPT_ARRIVAL);
+        const bool hasArrival = anyWaypointsWithFlag(this, WPT_ARRIVAL) || anyWaypointsWithFlag(this, WPT_APPROACH);
         const bool hasDeparture = anyWaypointsWithFlag(this, WPT_DEPARTURE);
         _arrivalChanged = !hasArrival;
         _departureChanged = !hasDeparture;
@@ -1211,9 +1227,14 @@ void FlightPlan::loadXMLRouteHeader(SGPropertyNode_ptr routeData)
           // to parse this value as a SID, and look for a separate sid_trans
           // value
           const string trans = dep->getStringValue("sid_trans");
-          const auto sid = dep->getStringValue("sid");
-          setSID(_departure->findSIDWithIdent(sid), trans);
-      }
+          const auto sidIdent = dep->getStringValue("sid");
+          auto sid = _departure->findSIDWithIdent(sidIdent);
+          if (!sid) {
+              SG_LOG(SG_NAVAID, SG_WARN, "FlightPlan specifies unknown SID:" << sidIdent);
+          } else {
+              setSID(sid, trans);
+          }
+      } // of have a SID identifier
     }
   }
 
@@ -1230,16 +1251,26 @@ void FlightPlan::loadXMLRouteHeader(SGPropertyNode_ptr routeData)
       if (dst->hasChild("star")) {
           // prior to 2020.2 we would attempt to treat 'star' as a
           // transiiton ID, but this is ambiguous. Look for a separate value now
-          const auto star = dst->getStringValue("star");
+          const auto starIdent = dst->getStringValue("star");
           const string trans = dst->getStringValue("star_trans");
-          setSTAR(_destination->findSTARWithIdent(star), trans);
+          auto star = _destination->findSTARWithIdent(starIdent);
+
+          if (star) {
+              setSTAR(star, trans);
+          } else {
+              SG_LOG(SG_NAVAID, SG_WARN, "FlightPlan specifies unknown STAR:" << starIdent);
+          }
       } // of STAR processing
 
       if (dst->hasChild("approach")) {
           auto app = _destination->findApproachWithIdent(dst->getStringValue("approach"));
           const auto trans = dst->getStringValue("approach_trans");
-          setApproach(app, trans);
-      }
+          if (app) {
+              setApproach(app, trans);
+          } else {
+              SG_LOG(SG_NAVAID, SG_WARN, "FlightPlan specifies unknown approach:" << dst->getStringValue("approach"));
+          }
+      } // of have approach in the XML
     }
   }
 
@@ -1802,14 +1833,8 @@ void FlightPlan::lockDelegates()
   }
 }
 
-void FlightPlan::unlockDelegates()
+void FlightPlan::runDelegates()
 {
-  assert(_delegateLock > 0);
-  if (_delegateLock > 1) {
-    --_delegateLock;
-    return;
-  }
-
     if (_didLoadFP) {
         _didLoadFP = false;
         for (auto d : _delegates) {
@@ -1853,7 +1878,25 @@ void FlightPlan::unlockDelegates()
     }
   }
 
-  --_delegateLock;
+  const auto cascadingUpdate = _departureChanged | _arrivalChanged | _waypointsChanged | _currentWaypointChanged;
+  if (cascadingUpdate) {
+      // one of our callbacks, caused a cascading change, so go around again.
+      // we assume the delegates will converge after one or more cascades, so we don't check for infinite looping here
+      SG_LOG(SG_AUTOPILOT, SG_INFO, "FlightPlan::runDelegates will re-run");
+      runDelegates();
+  }
+}
+
+void FlightPlan::unlockDelegates()
+{
+    assert(_delegateLock > 0);
+    if (_delegateLock > 1) {
+        --_delegateLock;
+        return;
+    }
+
+    runDelegates();
+    --_delegateLock;
 }
 
 void FlightPlan::registerDelegateFactory(DelegateFactoryRef df)

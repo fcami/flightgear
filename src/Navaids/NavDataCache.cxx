@@ -1307,7 +1307,7 @@ bool NavDataCache::NavDataCachePrivate::areDatFilesModified(
 
 
 // NavDataCache's static member variables
-static NavDataCache* static_instance = NULL;
+static NavDataCache* static_instance = nullptr;
 
 const string NavDataCache::datTypeStr[] = {
     string("apt"),
@@ -1351,7 +1351,7 @@ NavDataCache::NavDataCache()
         flightgear::fatalMessageBoxThenExit(
             "Missing navigation cache",
             "Unable to open navigation cache in read-only mode. Please run FlightGear in normal (writeable) mode at least once to create the cache file.",
-            "No navigation data was found at '" + dbPath.utf8Str() + "'");
+            "No navigation data was found at: " + dbPath.utf8Str() + "", 1 /* exit status */, false /* don't report */);
     }
 
     const int MAX_TRIES = readOnly ? 1 : 3;
@@ -1436,6 +1436,7 @@ void NavDataCache::shutdown()
 {
     if (static_instance) {
         delete static_instance;
+        // destructor will clear static_instance pointer
     }
 }
 

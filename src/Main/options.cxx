@@ -3481,6 +3481,12 @@ OptionResult Options::setupRoot(int argc, char** argv)
         auto restoreResult = restoreUserSelectedRoot(root);
         if (restoreResult == SetupRootResult::UserExit) {
             return FG_OPTIONS_EXIT;
+        } else if (restoreResult == SetupRootResult::ExitDueToReadOnly) {
+            flightgear::fatalMessageBoxWithoutExit(
+                "Base package not found",
+                "The base package data files were not found, and this copy of FlightGear is running in read-only mode.", "",
+                false);
+            return FG_OPTIONS_EXIT;
         } else if (restoreResult == SetupRootResult::UseDefault) {
             root = SGPath{}; // clear any value, so we fall through in root.isNull() below
         }
