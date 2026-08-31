@@ -141,7 +141,7 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
 }
 
 // Destructor - VPB Variant
-VPBTileEntry::~VPBTileEntry ()
+VPBTileEntry::~VPBTileEntry()
 {
 }
 
@@ -184,7 +184,7 @@ void VPBTileEntry::addOceanPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptio
     // genuinely is open ocean - see maybeRefreshPlaceholder()).
     double lat = floor(tile_bucket.get_center_lat()) + 0.5;
     double lon = floor(tile_bucket.get_center_lon()) + 0.5;
-    SG_LOG( SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
+    SG_LOG(SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
 
     // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.
     // 1 degree latitude and 1 degree of longitude at the equator is 111km, 15 points

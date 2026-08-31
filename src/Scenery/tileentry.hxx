@@ -146,7 +146,7 @@ public:
      * showing an Ocean placeholder while TerraSync catches up (see maybeRefreshPlaceholder()).
      */
     enum class TileState {
-        VPBData,     // Real VPB data
+        VPBData,      // Real VPB data
         AwaitingSync, // TerraSync hasn't yet been observed actively syncing this tile.
         Syncing,      // TerraSync is currently syncing this tile.
         OceanData     // Ocean. Either legitimate ocean or a sync failure that TerraSync won't retry.
