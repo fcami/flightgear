@@ -174,7 +174,8 @@ void VPBTileEntry::useVPBData()
     // Give a default LOD range so that traversals that traverse
     // active children (like the groundcache lookup) will work before
     // tile manager has had a chance to update this node.
-    _node->setRange(0, 0.0, 160000.0);
+    // This is the maximum 1x1 degree tile radius in km.
+    _node->setRange(0, 0.0, 157000.0);
 }
 
 void VPBTileEntry::addOceanPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptions> options)
