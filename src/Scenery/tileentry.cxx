@@ -17,6 +17,7 @@
 #include <simgear/bucket/newbucket.hxx>
 #include <simgear/debug/logstream.hxx>
 #include <simgear/scene/tgdb/SGOceanTile.hxx>
+#include <simgear/scene/tsync/terrasync.hxx>
 
 #include "tileentry.hxx"
 
@@ -129,48 +130,96 @@ STGTileEntry::~STGTileEntry ()
 VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWriterOptions> options ) : TileEntry(b)
 {
     tileFileName = "vpb/" + b.gen_vpb_base() + ".osgb";
-    std::string zipFileName = "vpb/" + b.gen_base_path() + ".zip";
 
-    bool found = false;
-    auto filePathList = options->getDatabasePathList();
-    for (auto path : filePathList) {
-        SGPath p(path, tileFileName);
-        if (p.exists()) {
-            found = true;
-            break;
-        }
-
-        SGPath archive(path, zipFileName);
-        if (archive.exists()) {
-            found = true;
-            break;
-        }
-
-    }
-
-    if (found) {
-        // File exists - set it up for loading later
-        _node->setName(tileFileName);
-
-        // Give a default LOD range so that traversals that traverse
-        // active children (like the groundcache lookup) will work before
-        // tile manager has had a chance to update this node.
-        _node->setRange(0, 0.0, 160000.0);
+    if (checkForVPBData(options)) {
+        _tileState = TileState::VPBData;
+        useVPBData();
     } else {
-        // File doesn't exist, so add a 1x1 degree Ocean tile.
-        double lat = floor(b.get_center_lat()) + 0.5;
-        double lon = floor(b.get_center_lon()) + 0.5;
-        SG_LOG( SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
-
-        // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.
-        // 1 degree latitude and 1 degree of longitude at the equator is 111km, 15 points
-        // are equivalent resolution.
-        osg::Node* oceanTile = SGOceanTile(lat, lon, 1.0, 1.0, options->getMaterialLib(), 15, 15);
-        _node->addChild(oceanTile, 0, 250000.0);
+        _tileState = TileState::AwaitingSync;
+        addOceanPlaceholder(options);
     }
 }
 
 // Destructor - VPB Variant
 VPBTileEntry::~VPBTileEntry ()
 {
+}
+
+bool VPBTileEntry::checkForVPBData(osg::ref_ptr<simgear::SGReaderWriterOptions> options) const
+{
+    // The tile can either be a simple file, or contained within a 1x1 degree zipfile.
+    std::string zipFileName = "vpb/" + tile_bucket.gen_base_path() + ".zip";
+
+    auto filePathList = options->getDatabasePathList();
+    for (auto path : filePathList) {
+        SGPath p(path, tileFileName);
+        if (p.exists()) {
+            return true;
+        }
+
+        SGPath archive(path, zipFileName);
+        if (archive.exists()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void VPBTileEntry::useVPBData()
+{
+    // File exists - set it up for loading later, removing any existing Ocean placeholder
+    _node->removeChildren(0, _node->getNumChildren());
+    _node->setName(tileFileName);
+
+    // Give a default LOD range so that traversals that traverse
+    // active children (like the groundcache lookup) will work before
+    // tile manager has had a chance to update this node.
+    _node->setRange(0, 0.0, 160000.0);
+}
+
+void VPBTileEntry::addOceanPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptions> options)
+{
+    // Real data doesn't exist (yet) - add a 1x1 degree Ocean tile so there's
+    // something to render while TerraSync catches up (or forever, if this
+    // genuinely is open ocean - see maybeRefreshPlaceholder()).
+    double lat = floor(tile_bucket.get_center_lat()) + 0.5;
+    double lon = floor(tile_bucket.get_center_lon()) + 0.5;
+    SG_LOG( SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
+
+    // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.
+    // 1 degree latitude and 1 degree of longitude at the equator is 111km, 15 points
+    // are equivalent resolution.
+    osg::Node* oceanTile = SGOceanTile(lat, lon, 1.0, 1.0, options->getMaterialLib(), 15, 15);
+    _node->addChild(oceanTile, 0, 250000.0);
+}
+
+void VPBTileEntry::maybeRefreshPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptions> options)
+{
+    if (_tileState == TileState::VPBData || _tileState == TileState::OceanData) {
+        return;
+    }
+
+    auto terraSync = globals->get_subsystem<simgear::SGTerraSync>();
+    bool pending = terraSync && terraSync->isTileDirPending(tile_bucket.gen_base_path());
+
+    if (pending) {
+        // Still syncing (or syncing again) - nothing to check yet.
+        _tileState = TileState::Syncing;
+        return;
+    }
+
+    if (_tileState != TileState::Syncing) {
+        // Never observed TerraSync actively syncing this tile, so nothing
+        // has changed since we last looked - don't bother re-checking disk.
+        return;
+    }
+
+    // TerraSync was syncing this tile and has now finished, one way or
+    // another - our one chance to notice if real data has arrived.
+    if (checkForVPBData(options)) {
+        _tileState = TileState::VPBData;
+        useVPBData();
+    } else {
+        _tileState = TileState::OceanData;
+    }
 }
