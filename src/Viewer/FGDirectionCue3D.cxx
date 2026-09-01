@@ -60,8 +60,8 @@ FGDirectionCue3D::FGDirectionCue3D(osg::Node* target)
         return;
     }
 
-    osg::Node* node = simgear::SGModelLib::loadModel(resolvedPath.utf8Str(),
-                                                     globals->get_props());
+    osg::ref_ptr<osg::Node> node = simgear::SGModelLib::loadModel(resolvedPath.utf8Str(),
+                                                                  globals->get_props());
     if (node) {
         // And add the model node to the switch
         sw->addChild(node, false);

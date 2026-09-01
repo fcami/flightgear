@@ -21,7 +21,8 @@
 #include <osgDB/WriteFile>
 #include <osgDB/Registry>
 
-osg::Node* fgCreateMarkerNode(const osgText::String& label, float font_size, float pin_height, float tip_height, const osg::Vec4f& color)
+osg::ref_ptr<osg::Node>
+fgCreateMarkerNode(const osgText::String& label, float font_size, float pin_height, float tip_height, const osg::Vec4f& color)
 {
     auto mainNode = new osg::Group;
 
