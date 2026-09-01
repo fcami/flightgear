@@ -67,9 +67,7 @@ void TileEntry::_create_orthophoto() {
 }
 
 // Destructor
-TileEntry::~TileEntry ()
-{
-}
+TileEntry::~TileEntry() = default;
 
 // Update the ssg transform node for this tile so it can be
 // properly drawn relative to our (0,0,0) point
@@ -141,14 +139,12 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
 }
 
 // Destructor - VPB Variant
-VPBTileEntry::~VPBTileEntry()
-{
-}
+VPBTileEntry::~VPBTileEntry() = default;
 
 bool VPBTileEntry::checkForVPBData(osg::ref_ptr<simgear::SGReaderWriterOptions> options) const
 {
     // The tile can either be a simple file, or contained within a 1x1 degree zipfile.
-    std::string zipFileName = "vpb/" + tile_bucket.gen_base_path() + ".zip";
+    const auto zipFileName = "vpb/" << tile_bucket.gen_base_path() << ".zip";
 
     auto filePathList = options->getDatabasePathList();
     for (auto path : filePathList) {
@@ -183,8 +179,8 @@ void VPBTileEntry::addOceanPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptio
     // Real data doesn't exist (yet) - add a 1x1 degree Ocean tile so there's
     // something to render while TerraSync catches up (or forever, if this
     // genuinely is open ocean - see maybeRefreshPlaceholder()).
-    double lat = floor(tile_bucket.get_center_lat()) + 0.5;
-    double lon = floor(tile_bucket.get_center_lon()) + 0.5;
+    const double lat = floor(tile_bucket.get_center_lat()) + 0.5;
+    const double lon = floor(tile_bucket.get_center_lon()) + 0.5;
     SG_LOG(SG_TERRAIN, SG_DEBUG, "Generating Ocean Tile for " << lat << ", " << lon);
 
     // Standard for WS2.0 is 5 points per bucket (~30km), or 8km spacing.
@@ -201,7 +197,7 @@ void VPBTileEntry::maybeRefreshPlaceholder(osg::ref_ptr<simgear::SGReaderWriterO
     }
 
     auto terraSync = globals->get_subsystem<simgear::SGTerraSync>();
-    bool pending = terraSync && terraSync->isTileDirPending(tile_bucket.gen_base_path());
+    const bool pending = terraSync && terraSync->isTileDirPending(tile_bucket.gen_base_path());
 
     if (pending) {
         // Still syncing (or syncing again) - nothing to check yet.
