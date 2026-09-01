@@ -144,7 +144,7 @@ VPBTileEntry::~VPBTileEntry() = default;
 bool VPBTileEntry::checkForVPBData(osg::ref_ptr<simgear::SGReaderWriterOptions> options) const
 {
     // The tile can either be a simple file, or contained within a 1x1 degree zipfile.
-    const auto zipFileName = "vpb/" << tile_bucket.gen_base_path() << ".zip";
+    const auto zipFileName = "vpb/" + tile_bucket.gen_base_path() + ".zip";
 
     auto filePathList = options->getDatabasePathList();
     for (auto path : filePathList) {
