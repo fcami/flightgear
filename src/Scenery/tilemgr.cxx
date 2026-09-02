@@ -463,13 +463,22 @@ bool FGTileMgr::sched_tile( const SGBucket& b, double priority, bool current_vie
         }
 
         SG_LOG(SG_TERRAIN, SG_DEBUG, "  New tile cache size " << (int)tile_cache.get_size());
+    } else {
+        // Still showing an Ocean placeholder? See if TerraSync has finished
+        // syncing the real data since we last looked.
+        v->maybeRefreshPlaceholder(_options);
     }
 
     // update tile's properties.  We ensure the top level VPB tiles have maximum priority.
     // The LOD system will take care of appropriate prioritization of the sub-tiles
     tile_cache.request_tile(v, 1.0, current_view, duration);
 
-    return t->is_loaded();
+    // Tile is only considered loaded if the STG tile is loaded and
+    // the tile is either an Ocean tile, or we have real VPB data (via terrasync)
+    // and we've finished loading it.
+    bool vReady = v->getTileState() == VPBTileEntry::TileState::OceanData ||
+                  (v->getTileState() == VPBTileEntry::TileState::VPBData && v->is_loaded());
+    return t->is_loaded() && vReady;
 }
 
 /* schedule needed buckets for the current view position for loading,

@@ -141,7 +141,36 @@ public:
 class VPBTileEntry : public TileEntry
 {
 public:
+    /**
+     * Current tile state.  Whether real WS3.0 terrain data was found for this tile, or we're
+     * showing an Ocean placeholder while TerraSync catches up (see maybeRefreshPlaceholder()).
+     */
+    enum class TileState {
+        VPBData,      // Real VPB data
+        AwaitingSync, // TerraSync hasn't yet been observed actively syncing this tile.
+        Syncing,      // TerraSync is currently syncing this tile.
+        OceanData     // Ocean. Either legitimate ocean or a sync failure that TerraSync won't retry.
+    };
+
     VPBTileEntry(const SGBucket& b, osg::ref_ptr<simgear::SGReaderWriterOptions> options);
     ~VPBTileEntry();
     inline TileEntry::Extension getExtension() { return TileEntry::Extension::VPB; };
+
+    TileState getTileState() const { return _tileState; }
+
+    /**
+     * If still showing the Ocean placeholder, check whether TerraSync's sync of this
+     * tile has progressed since we last looked, and once it finishes, make one final
+     * check for the real data having arrived - replacing the placeholder with a normal
+     * load if so. No-op once settled (VPBData or Settled), so a genuine ocean tile is
+     * only ever re-checked once, not every frame it stays in view.
+     */
+    void maybeRefreshPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptions> options);
+
+private:
+    bool checkForVPBData(osg::ref_ptr<simgear::SGReaderWriterOptions> options) const;
+    void addOceanPlaceholder(osg::ref_ptr<simgear::SGReaderWriterOptions> options);
+    void useVPBData();
+
+    TileState _tileState = TileState::VPBData;
 };
