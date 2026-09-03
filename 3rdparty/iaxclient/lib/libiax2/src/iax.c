@@ -3307,7 +3307,34 @@ struct iax_event *iax_get_event(int blocking)
 				/* It's been acked.  No need to send it.   Destroy the old
 				   frame. If final, destroy the session. */
 				if (frame->final)
+				{
+					/* Rather than silently calling destroy_session() here,
+					   synthesize a HANGUP event and pass it through
+					   handle_event() (which is what actually destroys the
+					   session, same as for a normally-received hangup).
+					   That way the client gets a chance to notice the
+					   session is gone and clear any bookkeeping (e.g.
+					   iaxclient's calls[] table) *before* it goes on to
+					   dereference the now-freed session -- silently
+					   destroying it here left callers with a dangling
+					   pointer and no notification, a heap
+					   use-after-free waiting to happen. */
+					struct iax_event *hangup = (struct iax_event *)malloc(sizeof(struct iax_event));
+					if (hangup)
+					{
+						hangup->etype = IAX_EVENT_HANGUP;
+						hangup->session = frame->session;
+						hangup->datalen = 0;
+						if (frame->data)
+							free(frame->data);
+						free(frame);
+						free(cur);
+						return handle_event(hangup);
+					}
+					/* malloc failed: fall back to the old behaviour rather
+					   than leaking the session */
 					destroy_session(frame->session);
+				}
 				if (frame->data)
 					free(frame->data);
 				free(frame);
@@ -3328,6 +3355,24 @@ struct iax_event *iax_get_event(int blocking)
 					   final frame, destroy the session, otherwise, pass up timeout */
 					if (frame->final)
 					{
+						/* See the comment above, in the frame->retries < 0
+						   case: destroy the session via a synthesized HANGUP
+						   event instead of destroying it silently, so the
+						   client can clear its own bookkeeping first. */
+						struct iax_event *hangup = (struct iax_event *)malloc(sizeof(struct iax_event));
+						if (hangup)
+						{
+							hangup->etype = IAX_EVENT_HANGUP;
+							hangup->session = frame->session;
+							hangup->datalen = 0;
+							if (frame->data)
+								free(frame->data);
+							free(frame);
+							free(cur);
+							return handle_event(hangup);
+						}
+						/* malloc failed: fall back to the old behaviour
+						   rather than leaking the session */
 						destroy_session(frame->session);
 						if (frame->data)
 							free(frame->data);
