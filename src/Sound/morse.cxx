@@ -222,8 +222,9 @@ SGSoundSample *FGMorse::make_ident( const std::string& id, const int freq ) {
     buf_ptr += SPACE_SIZE;
 
     // 4. create the simple sound and return
-    SGSoundSample *sample = new SGSoundSample( std::move(buffer), length,
-                                               BYTES_PER_SECOND );
+    SGSoundSample* sample = new SGSoundSample("morse-" + id,
+                                              std::move(buffer), length,
+                                              BYTES_PER_SECOND);
 
     sample->set_reference_dist( 10.0 );
     sample->set_max_dist( 20.0 );
