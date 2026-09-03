@@ -15,7 +15,10 @@
 #include <deque>
 #include <map>
 #include <mutex>
+#include <set>
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 #include <simgear/debug/ErrorReportingCallback.hxx>
 #include <simgear/debug/LogCallback.hxx>
@@ -230,6 +233,94 @@ public:
     string _fgdataPathPrefix;
     string _aircraftDirectoryName;
 
+    std::set<std::string> _sharedModelsManifest;
+    bool _manifestLoaded = false;
+
+    /**
+     * @brief Lazily load the SharedModelsManifest.json from FGData.
+     * Must be called with _lock already held.
+     */
+    void loadManifestIfNeeded()
+    {
+        if (_manifestLoaded) return;
+        _manifestLoaded = true; // set before loading to prevent re-entry
+
+        const SGPath manifestPath = globals->findDataPath("SharedModelsManifest.json");
+        sg_gzifstream in(manifestPath);
+        if (!in.is_open()) {
+            SG_LOG(SG_GENERAL, SG_WARN, "SharedModelsManifest.json not found at: " << manifestPath);
+            return;
+        }
+
+        const auto content = in.read_all();
+        auto j = nlohmann::json::parse(content.begin(), content.end(), nullptr, false);
+        if (j.is_discarded()) {
+            SG_LOG(SG_GENERAL, SG_DEV_ALERT, "Failed to parse SharedModelsManifest.json");
+            return;
+        }
+
+        if (j.value("schemaVersion", 0) != 1) {
+            SG_LOG(SG_GENERAL, SG_DEV_ALERT, "Unsupported schema version in SharedModelsManifest.json");
+            return;
+        }
+
+        const auto files = j.find("files");
+        if ((files != j.end()) && files->is_array()) {
+            for (const auto& item : *files) {
+                if (item.is_string()) {
+                    _sharedModelsManifest.insert(item.get<std::string>());
+                }
+            }
+        }
+
+        SG_LOG(SG_GENERAL, SG_INFO, "Loaded SharedModelsManifest.json with " << _sharedModelsManifest.size() << " entries");
+    }
+
+    /**
+     * @brief Check if a model origin path refers to a known shared model file
+     * listed in the manifest. Strips fgdata/terrasync prefixes before lookup.
+     * Must be called with _lock already held.
+     */
+    bool isModelPathInManifest(const std::string& originPath)
+    {
+        loadManifestIfNeeded();
+        if (_sharedModelsManifest.empty()) {
+            return false;
+        }
+
+        std::string relPath;
+        if (!_fgdataPathPrefix.empty() && simgear::strutils::starts_with(originPath, _fgdataPathPrefix)) {
+            relPath = originPath.substr(_fgdataPathPrefix.size());
+        } else if (!_terrasyncPathPrefix.empty() && simgear::strutils::starts_with(originPath, _terrasyncPathPrefix)) {
+            relPath = originPath.substr(_terrasyncPathPrefix.size());
+        } else {
+            // try custom scenery paths
+            for (const auto& sceneryPath : globals->get_fg_scenery()) {
+                const auto pathStr = sceneryPath.utf8Str();
+                if (simgear::strutils::starts_with(originPath, pathStr)) {
+                    relPath = originPath.substr(pathStr.size());
+                    break;
+                }
+            }
+        }
+
+        if (relPath.empty()) {
+            return false; // path doesn't match any known prefix, can't be in manifest
+        }
+
+        // Remove any leading separator
+        if (relPath.front() == '/' || relPath.front() == '\\') {
+            relPath = relPath.substr(1);
+        }
+
+        // quick reject of non Model/ paths
+        if (!simgear::strutils::starts_with(relPath, "Models/")) {
+            return false;
+        }
+
+        return _sharedModelsManifest.count(relPath) > 0;
+    }
+
     /**
         @brief heuristic to identify relative paths as origination from the main aircraft as opposed
                 to something else. This is based on containing the aircraft directory name.
@@ -404,6 +495,11 @@ public:
             return;
         }
 
+        // shared-model errors indicate an outdated local install, not a bug
+        // worth reporting.
+        if (report.type == Aggregation::SharedModels) {
+            return;
+        }
 
         if (report.type == Aggregation::TerraSync) {
             if (report.allOccurences([](const ErrorOcurrence& oc) {
@@ -468,14 +564,6 @@ auto ErrorReporter::ErrorReporterPrivate::getAggregateForOccurence(const ErrorRe
         return getAggregate(Aggregation::OutOfMemory, {});
     }
 
-    // errors about shared models typically indicate that the shared Models are
-    // missing or out of date.
-    if ((oc.type == simgear::LoadFailure::NotFound) || (oc.type == simgear::LoadFailure::BadData)) {
-        if (oc.detailedInfo.find("OBJECT_SHARED") != std::string::npos) {
-            return getAggregate(Aggregation::SharedModels);
-        }
-    }
-
     if (oc.hasContextKey("primary-aircraft")) {
         return mainAircraftAggregate();
     }
@@ -513,6 +601,15 @@ auto ErrorReporter::ErrorReporterPrivate::getAggregateForOccurence(const ErrorRe
 
     if (oc.hasContextKey("terrain-stg") || oc.hasContextKey("btg")) {
         // determine if it's custom scenery, TerraSync or FGData
+
+        // Before attribution by STG/BTG path, check if the failing resource is a
+        // known shared-model file. If the manifest lists it, the user's shared
+        // models installation is outdated rather than the scenery being at fault.
+        if (oc.origin.isValid()) {
+            if (isModelPathInManifest(oc.origin.getPath())) {
+                return getAggregate(Aggregation::SharedModels);
+            }
+        }
 
         // bucket is no use here, we need to check the BTG/XML/STG path etc.
         // STG is probably the best bet. This ensures if a custom scenery
@@ -622,6 +719,7 @@ auto ErrorReporter::ErrorReporterPrivate::getAggregate(Aggregation ag, const std
     switch (ag) {
     case Aggregation::OutOfMemory:
     case Aggregation::NetworkFailure:
+    case Aggregation::SharedModels:
         it->isMessage = true;
     default:
         break;
