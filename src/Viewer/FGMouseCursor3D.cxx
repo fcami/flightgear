@@ -59,7 +59,7 @@ FGMouseCursor3D::FGMouseCursor3D()
             continue;
         }
 
-        osg::Node* node = nullptr;
+        osg::ref_ptr<osg::Node> node;
         for (auto cursor : cursor->getChildren("cursor")) {
             std::string cursorStr = cursor->getStringValue();
             unsigned int cursorId = (int)FGMouseCursor::cursorFromString(cursorStr);
