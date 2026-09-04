@@ -9,6 +9,7 @@
 
 #include <simgear/math/SGMath.hxx> // keep before any cppbind include to enable
                                    // SGVec2<T> conversion.
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_dir.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/nasal/cppbind/NasalCode.hxx>
@@ -192,7 +193,9 @@ private:
 
     void loadPropertyScripts();
     void loadPropertyScripts(SGPropertyNode* n);
-    void loadScriptDirectory(simgear::Dir nasalDir, SGPropertyNode* loadorder,
+    void loadNasalScripts();
+    void loadScriptDirectory(std::vector<simgear::ResourceManager::FoundFile> scripts,
+                             SGPropertyNode* loadorder,
                              bool excludeUnspecifiedInLoadOrder);
     void addModule(std::string moduleName, simgear::PathList scripts);
     static void logError(naContext);

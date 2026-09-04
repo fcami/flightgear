@@ -38,7 +38,7 @@
 #include <simgear/bucket/newbucket.hxx>
 #include <simgear/debug/logstream.hxx>
 #include <simgear/io/sg_file.hxx>
-#include <simgear/misc/sg_dir.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/sg_inlines.h>
@@ -143,6 +143,29 @@ public:
     {
     }
 };
+
+// Derive the provider base (scenery root or FG_ROOT) from a FoundFile by
+// stripping all components of relPath from the file path.
+static SGPath sceneryPathFromFoundFile(const simgear::ResourceManager::FoundFile& f)
+{
+    const size_t depth = 1 + std::count(f.relPath.begin(), f.relPath.end(), '/');
+    SGPath result = f.path;
+    for (size_t i = 0; i < depth; ++i) result = result.dirPath();
+    return result;
+}
+
+static simgear::ResourceManager::FileType navDatFileType(flightgear::NavDataCache::DatFileType t)
+{
+    using FT = simgear::ResourceManager::FileType;
+    switch (t) {
+    case flightgear::NavDataCache::DATFILETYPE_APT: return FT::NavDatAPT;
+    case flightgear::NavDataCache::DATFILETYPE_NAV: return FT::NavDatNAV;
+    case flightgear::NavDataCache::DATFILETYPE_FIX: return FT::NavDatFIX;
+    case flightgear::NavDataCache::DATFILETYPE_POI: return FT::NavDatPOI;
+    default:
+        throw sg_exception("unexpected DatFileType in navDatFileType");
+    }
+}
 
 } // anonymous namespace
 
@@ -1163,12 +1186,13 @@ bool NavDataCache::NavDataCachePrivate::isCachedFileModified(const SGPath& path,
   return isModified;
 }
 
-// Find the list of $scenery_path/NavData/<type>/*.dat[.gz] files found
-// inside scenery paths, plus the default file for the given type (e.g.,
-// $FG_ROOT/Airports/apt.dat.gz for the 'apt' type).
-// Also compute the total size of all these files (in bytes), which is useful
-// for progress information.
-// The result is stored in the datFilesInfo field.
+// Find dat files for the given type via ResourceManager. Scenery paths are
+// registered as SceneryPathProvider (PRIORITY_NORMAL) by
+// FGGlobals::append_fg_scenery(), and data paths (FG_ROOT and any
+// additional data paths) as DataPathProvider (PRIORITY_DEFAULT-ish) by
+// FGGlobals::set_fg_root()/append_data_path().
+// Scenery-path files come first (higher priority provider), the default
+// data-path file last.
 void NavDataCache::NavDataCachePrivate::findDatFiles(
   NavDataCache::DatFileType datFileType)
 {
@@ -1176,54 +1200,11 @@ void NavDataCache::NavDataCachePrivate::findDatFiles(
   result.datFileType = datFileType;
   result.totalSize = 0;
 
-  // we don't always add FG_ROOT/Scenery to the path list. But if it exists,
-  // we want to pick up NavData files from it, since we have shipped
-  // scenery (for BIKF) which uses newer data than the default files
-  // in Airports/
-  auto paths = globals->get_fg_scenery();
-  const auto fgrootScenery = globals->get_fg_root() / "Scenery";
-  if (fgrootScenery.exists()) {
-    auto it = std::find(paths.begin(), paths.end(), fgrootScenery);
-    if (it == paths.end()) {
-       paths.push_back(fgrootScenery);
-    }
-  }
-
-  for (const auto& path: paths) {
-    if (! path.isDir()) {
-      SG_LOG(SG_NAVCACHE, SG_WARN, path <<
-             ": given as a scenery path, but is not a directory");
-      continue;
-    }
-
-    const SGPath datFilesDir =
-      path / "NavData" / NavDataCache::datTypeStr[datFileType];
-
-    if (datFilesDir.isDir()) {
-      // Deterministic because the return value of simgear::Dir::children() is
-      // already sorted
-      const PathList files = simgear::Dir(datFilesDir).children(
-        simgear::Dir::TYPE_FILE | simgear::Dir::NO_DOT_OR_DOTDOT);
-
-      for (const auto& f : files) {
-        const std::string name = f.file();
-        if (simgear::strutils::ends_with(name, ".dat") ||
-            simgear::strutils::ends_with(name, ".dat.gz")) {
-          result.paths.push_back({f, path});
-          result.totalSize += f.sizeInBytes();
-        }
-      }
-    }
-  } // of loop over the list of scenery paths
-
-  // Add the default file (e.g., $FG_ROOT/Airports/apt.dat.gz), at least for
-  // now
-  SGPath defaultDatFile(globals->get_fg_root());
-  defaultDatFile.append(NavDataCache::defaultDatFile[datFileType]);
-  if ((result.paths.empty() || result.paths.back().datPath != defaultDatFile) &&
-      defaultDatFile.isFile()) {
-    result.paths.push_back({defaultDatFile, globals->get_fg_root()});
-    result.totalSize += defaultDatFile.sizeInBytes();
+  const auto files =
+      simgear::ResourceManager::instance()->findAllOfType(navDatFileType(datFileType));
+  for (const auto& f : files) {
+      result.paths.push_back({f.path, sceneryPathFromFoundFile(f)});
+      result.totalSize += f.path.sizeInBytes();
   }
 
   datFilesInfo[datFileType] = result;
@@ -1318,17 +1299,6 @@ const string NavDataCache::datTypeStr[] = {
     string("poi"),
     string("carrier"),
     string("TACAN_freq")
-};
-
-const string NavDataCache::defaultDatFile[] = {
-    string("Airports/apt.dat.gz"),
-    string("Airports/metar.dat.gz"),
-    string("Navaids/awy.dat.gz"),
-    string("Navaids/nav.dat.gz"),
-    string("Navaids/fix.dat.gz"),
-    string("Navaids/poi.dat.gz"),
-    string("Navaids/carrier.dat.gz"),
-    string("Navaids/TACAN_freq.dat.gz")
 };
 
 NavDataCache::NavDataCache()
@@ -1443,29 +1413,44 @@ void NavDataCache::shutdown()
 // Update the lists of dat files used for NavCache freshness checking and
 // rebuilding.
 void NavDataCache::updateListsOfDatFiles() {
-  // All $scenery_path/NavData/apt/*.dat[.gz] files found inside scenery
-  // paths, plus $FG_ROOT/Airports/apt.dat.gz (order matters).
-  d->findDatFiles(DATFILETYPE_APT);
+    // Make sure $FG_ROOT/Scenery's NavData/<type>/*.dat[.gz] files are
+    // picked up below. This registers the path directly with
+    // ResourceManager rather than via FGGlobals::append_fg_scenery():
+    // $FG_ROOT/Scenery is only a legacy internal NavData location here, not
+    // a real scenery/terrain search path.
+    const SGPath fgrootScenery = (globals->get_fg_root() / "Scenery").realpath();
+    if (fgrootScenery.exists()) {
+        auto* resMgr = simgear::ResourceManager::instance();
+        const auto knownPaths = resMgr->basePaths();
+        if (knownPaths.find(fgrootScenery) == knownPaths.end()) {
+            resMgr->addSceneryPath(fgrootScenery);
+        }
+    }
 
-  // All $scenery_path/NavData/{nav,fix}/*.dat[.gz] files found inside scenery
-  // paths, plus $FG_ROOT/Navaids/{nav,fix}.dat.gz (order matters).
-  d->findDatFiles(DATFILETYPE_NAV);
-  d->findDatFiles(DATFILETYPE_FIX);
-  d->findDatFiles(DATFILETYPE_POI);
+    // Scenery paths and data paths (FG_ROOT, additional data paths) are
+    // already registered as persistent ResourceManager providers, by the
+    // block above and by set_fg_root()/append_data_path()/
+    // FGGlobals::append_fg_scenery() respectively, so findDatFiles() can
+    // query ResourceManager directly.
 
-  // These ones are still managed the "old" way (no search through scenery
-  // paths).
-  d->metarDatPath = SGPath(globals->get_fg_root());
-  d->metarDatPath.append("Airports/metar.dat.gz");
+    // All $scenery_path/NavData/apt/*.dat[.gz] files found inside scenery
+    // paths, plus $FG_ROOT/Airports/apt.dat.gz (order matters).
+    d->findDatFiles(DATFILETYPE_APT);
 
-  // d->poiDatPath = SGPath(globals->get_fg_root());
-  // d->poiDatPath.append("Navaids/poi.dat.gz");
+    // All $scenery_path/NavData/{nav,fix,poi}/*.dat[.gz] files, plus defaults.
+    d->findDatFiles(DATFILETYPE_NAV);
+    d->findDatFiles(DATFILETYPE_FIX);
+    d->findDatFiles(DATFILETYPE_POI);
 
-  d->carrierDatPath = SGPath(globals->get_fg_root());
-  d->carrierDatPath.append("Navaids/carrier_nav.dat.gz");
+    // These ones are still managed the "old" way (no search through scenery
+    // paths).
+    d->metarDatPath = simgear::ResourceManager::instance()->findDataPath("Airports/metar.dat.gz");
 
-  d->airwayDatPath = SGPath(globals->get_fg_root());
-  d->airwayDatPath.append("Navaids/awy.dat.gz");
+    // d->poiDatPath = simgear::ResourceManager::instance()->findDataPath("Navaids/poi.dat.gz");
+
+    d->carrierDatPath = simgear::ResourceManager::instance()->findDataPath("Navaids/carrier_nav.dat.gz");
+
+    d->airwayDatPath = simgear::ResourceManager::instance()->findDataPath("Navaids/awy.dat.gz");
 }
 
 const NavDataCache::DatFilesGroupInfo&

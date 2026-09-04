@@ -9,11 +9,12 @@
 
 #include "TimeManager.hxx"
 
-#include <simgear/misc/sg_path.hxx>
-#include <simgear/timing/lowleveltime.h>
-#include <simgear/structure/commands.hxx>
-#include <simgear/timing/sg_time.hxx>
 #include <simgear/math/SGMath.hxx>
+#include <simgear/misc/ResourceManager.hxx>
+#include <simgear/misc/sg_path.hxx>
+#include <simgear/structure/commands.hxx>
+#include <simgear/timing/lowleveltime.h>
+#include <simgear/timing/sg_time.hxx>
 
 #include <Main/fg_props.hxx>
 #include <Main/globals.hxx>
@@ -547,7 +548,8 @@ void TimeManager::reposition()
 void TimeManager::updateLocalTime()
 {
     _lastTimeZoneCheckPosition = globals->get_aircraft_position_cart();
-    _impl->updateLocal(globals->get_aircraft_position(), globals->get_fg_root() / "Timezone");
+    _impl->updateLocal(globals->get_aircraft_position(),
+                       simgear::ResourceManager::instance()->findPath("Timezone/timezone16.bin").dirPath());
     // synchronous update, since somebody might need that
     updateLocalTimeString();
 }

@@ -18,9 +18,10 @@
 
 #include <simgear/compiler.h>
 #include <simgear/debug/logstream.hxx>
+#include <simgear/misc/sg_dir.hxx>
 #include <simgear/props/props_io.hxx>
-#include <simgear/structure/exception.hxx>
 #include <simgear/scene/util/OsgIoCapture.hxx>
+#include <simgear/structure/exception.hxx>
 
 #include <osg/Camera>
 #include <osg/GraphicsContext>
