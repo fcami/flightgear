@@ -8,13 +8,14 @@
 #include "config.h"
 
 #include <simgear/compiler.h>
-#include <simgear/structure/exception.hxx>
-#include <simgear/props/props_io.hxx>
-#include <simgear/misc/strutils.hxx>
-#include <simgear/timing/sg_time.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_path.hxx>
+#include <simgear/misc/strutils.hxx>
+#include <simgear/props/props_io.hxx>
 #include <simgear/scene/model/particles.hxx>
 #include <simgear/sound/soundmgr.hxx>
+#include <simgear/structure/exception.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include <GUI/gui.h>
 
@@ -435,9 +436,7 @@ fgLoadProps (const std::string& path, SGPropertyNode * props, bool in_fg_root, i
 {
     SGPath fullpath;
     if (in_fg_root) {
-        SGPath loadpath(globals->get_fg_root());
-        loadpath.append(path);
-        fullpath = loadpath;
+        fullpath = simgear::ResourceManager::instance()->findPath(path);
     } else {
         fullpath = SGPath::fromUtf8(path);
     }

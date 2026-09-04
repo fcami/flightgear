@@ -327,7 +327,7 @@ FGRenderer::init()
     // on other subsystems to be inited, eg Ephemeris
     _sky = new SGSky;
 
-    const SGPath texture_path = globals->get_fg_root() / "Textures" / "Sky";
+    const SGPath texture_path = globals->findDataPath("Textures/Sky");
     for (int i = 0; i < FGEnvironmentMgr::MAX_CLOUD_LAYERS; i++) {
         SGCloudLayer * layer = new SGCloudLayer(texture_path);
         _sky->add_cloud_layer(layer);
@@ -403,7 +403,7 @@ FGRenderer::setupView()
     //
     auto ephemerisSub = globals->get_subsystem<Ephemeris>();
     osg::ref_ptr<simgear::SGReaderWriterOptions> opt;
-    opt = simgear::SGReaderWriterOptions::fromPath(globals->get_fg_root());
+    opt = simgear::SGReaderWriterOptions::fromPaths(globals->get_data_paths());
     opt->setPropertyNode(globals->get_props());
     _sky->build(80000.0, 80000.0,
                 232.5, 180.8,

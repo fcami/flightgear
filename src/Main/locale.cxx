@@ -330,7 +330,7 @@ std::string FGLocale::getLanguageId() const
 void FGLocale::loadCoreResourcesForDefaultTranslation()
 {
     const simgear::Dir d = simgear::Dir(
-        globals->get_fg_root() / "Translations" / "default");
+        globals->findDataPath("Translations/default"));
 
     loadDefaultTranslation(d, "core");
 }

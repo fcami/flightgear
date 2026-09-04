@@ -37,6 +37,7 @@
 #include <simgear/debug/logstream.hxx>
 #include <simgear/embedded_resources/EmbeddedResourceManager.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_dir.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
@@ -1110,8 +1111,8 @@ void fgCreateSubsystems(bool duringReset) {
                 );
 
         // Initialize the material property subsystem.
-        SGPath mpath( globals->get_fg_root() );
-        mpath.append( fgGetString("/sim/rendering/materials-file") );
+        const SGPath mpath = simgear::ResourceManager::instance()->findPath(
+            fgGetString("/sim/rendering/materials-file"));
         if ( ! globals->get_matlib()->load(globals->get_fg_root(), mpath, globals->get_props()) ) {
            throw sg_io_exception("Error loading materials file", mpath);
         }
