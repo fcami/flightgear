@@ -26,7 +26,6 @@ function(setup_fgfs_libraries target)
     target_link_libraries(${target} PRIVATE
         SimGearCore
         SimGearScene
-        Boost::boost
         ${EVENT_INPUT_LIBRARIES}
         ${OPENGL_LIBRARIES}
         ${OPENSCENEGRAPH_LIBRARIES}
