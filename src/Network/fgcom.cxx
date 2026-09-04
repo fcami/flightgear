@@ -1,20 +1,7 @@
 // fgcom.cxx -- FGCom: Voice communication
 //
-// Written by Clement de l'Hamaide, started May 2013.
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+// SPDX-FileCopyrightText: 2013 Clement de l'Hamaide
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 # include <config.h>
 
@@ -174,7 +161,7 @@ void FGCom::bind()
 
   _mpTransmitFrequencyNode = fgGetNode("sim/multiplay/comm-transmit-frequency-hz", 0, true);
   _mpTransmitPowerNode = fgGetNode("sim/multiplay/comm-transmit-power-norm", 0, true);
-      
+
   _selectedOutput_node->addChangeListener(this);
   _selectedInput_node->addChangeListener(this);
   _speakerLevel_node->addChangeListener(this);
@@ -228,7 +215,7 @@ void FGCom::postinit()
     if( !_enabled ) {
         return;
     }
-    
+
     //WARNING: this _must_ be executed after sound system is totally initialized !
     if( iaxc_initialize(NUM_CALLS) ) {
         SG_LOG(SG_IO, SG_ALERT, "FGCom: cannot initialize iaxclient");
@@ -239,7 +226,7 @@ void FGCom::postinit()
     assert( static_instance == NULL );
     static_instance = this;
     iaxc_set_event_callback( iaxc_callback );
-    
+
     // FIXME: To be implemented in IAX audio driver
     //iaxc_mic_boost_set( _micBoost_node->getIntValue() );
     std::string app = "FGFS-";
@@ -254,7 +241,7 @@ void FGCom::postinit()
 
     // Now IAXClient is initialized
     _initialized = true;
-    
+
     if ( _register ) {
       _regId = iaxc_register( const_cast<char*>(_username.c_str()),
                               const_cast<char*>(_password.c_str()),
@@ -268,8 +255,8 @@ void FGCom::postinit()
     /*
       Here we will create the list of available audio devices
       Each audio device has a name, an ID, and a list of capabilities
-      If an audio device can output sound, available-output=true 
-      If an audio device can input sound, available-input=true 
+      If an audio device can output sound, available-output=true
+      If an audio device can input sound, available-input=true
 
       /sim/fgcom/selected-input (int)
       /sim/fgcom/selected-output (int)
@@ -305,15 +292,15 @@ void FGCom::postinit()
       _deviceInput_node[i] = in_node->getChild("available-input", 0, true);
       if( devs[i].capabilities & IAXC_AD_INPUT )
         _deviceInput_node[i]->setBoolValue(true);
-      else 
-        _deviceInput_node[i]->setBoolValue(false);
+      else
+          _deviceInput_node[i]->setBoolValue(false);
 
       // output capability
       _deviceOutput_node[i] = in_node->getChild("available-output", 0, true);
       if( devs[i].capabilities & IAXC_AD_OUTPUT )
         _deviceOutput_node[i]->setBoolValue(true);
-      else 
-        _deviceOutput_node[i]->setBoolValue(false);
+      else
+          _deviceOutput_node[i]->setBoolValue(false);
 
       // use default device at start
       if( devs[i].capabilities & IAXC_AD_INPUT_DEFAULT )
@@ -345,7 +332,7 @@ double FGCom::getCurrentCommVolume() const {
     return rv;
 }
 double FGCom::getCurrentFrequencyKhz() const {
-    return 10 * static_cast<int>(_currentCommFrequency * 100 + 0.25); 
+    return 10 * static_cast<int>(_currentCommFrequency * 100 + 0.25);
 }
 
 void FGCom::setupCommFrequency(int channel) {
@@ -412,7 +399,7 @@ void FGCom::connectToCommFrequency() {
             iaxc_dump_call_number(_currentCallIdent);
             SG_LOG(SG_IO, SG_INFO, "FGCom: disconnect as freq 0: current call " << _currentCallIdent);
             _currentCallIdent = -1;
-        }        
+        }
         return;
     }
 
@@ -482,14 +469,16 @@ void FGCom::shutdown()
   _initialized = false;
   _enabled = false;
 
+  // Stop the network processing thread *before* touching any state it
+  // reads/writes
+  iaxc_stop_processing_thread();
   iaxc_set_event_callback(NULL);
   iaxc_unregister(_regId);
-  iaxc_stop_processing_thread();
   iaxc_shutdown();
 
     // added to help debugging lingering IAX thread after fgOSCloseWindow
     flightgear::addSentryBreadcrumb("Did shutdown FGCom", "info");
-    
+
   assert( static_instance == this );
   static_instance = NULL;
 }
@@ -501,7 +490,7 @@ void FGCom::valueChanged(SGPropertyNode *prop)
       if (_enabled == isEnabled) {
           return;
       }
-      
+
     if( isEnabled ) {
       init();
       postinit();
@@ -541,7 +530,7 @@ void FGCom::valueChanged(SGPropertyNode *prop)
 
   if (prop == _ptt_node && _enabled) {
       if (_ptt_node->getIntValue()) {
-          // ensure that we are on the right channel by calling setupCommFrequency  
+          // ensure that we are on the right channel by calling setupCommFrequency
           setupCommFrequency();
           iaxc_output_level_set(0.0);
           iaxc_input_level_set(_micLevel_node->getFloatValue()); //0.0 = min , 1.0 = max
@@ -687,17 +676,17 @@ std::string FGCom::getAirportCode(const double& freq)
 std::string FGCom::computePhoneNumber(const double& freq, const std::string& icao) const
 {
   if( icao.empty() )
-    return std::string(); 
+      return std::string();
 
   char phoneNumber[256];
-  char exten[32];
+  char extension[32];
   char tmp[5];
 
   /*Convert ICAO to ASCII */
   snprintf(tmp, 5, "%4s", icao.c_str());
 
   /*Built the phone number */
-  snprintf(exten, 32,
+  snprintf(extension, 32,
            "%02d%02d%02d%02d%02d%06d",
            01,
            tmp[0],
@@ -705,15 +694,15 @@ std::string FGCom::computePhoneNumber(const double& freq, const std::string& ica
            tmp[2],
            tmp[3],
            (int)(freq * 1000 + 0.5));
-  exten[16] = '\0';
+  extension[16] = '\0';
 
-  snprintf( phoneNumber,
-            sizeof (phoneNumber),
-            "%s:%s@%s/%s",
-            _username.c_str(),
-            _password.c_str(),
-	    _server.c_str(),
-            exten);
+  snprintf(phoneNumber,
+           sizeof(phoneNumber),
+           "%s:%s@%s/%s",
+           _username.c_str(),
+           _password.c_str(),
+           _server.c_str(),
+           extension);
 
   return phoneNumber;
 }
