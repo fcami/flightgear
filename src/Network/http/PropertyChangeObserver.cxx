@@ -2,75 +2,48 @@
 //
 // Written by Torsten Dreyer, started April 2014.
 //
-// Copyright (C) 2014  Torsten Dreyer
+// SPDX-FileCopyrightText: 2014 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "PropertyChangeObserver.hxx"
 
 #include <Main/fg_props.hxx>
+
 using std::string;
 namespace flightgear {
 namespace http {
 
 
+PropertyChangeObserver::PropertyChangeObserver() = default;
 
-PropertyChangeObserver::PropertyChangeObserver()
-{
-}
-
-PropertyChangeObserver::~PropertyChangeObserver()
-{
-  //
-}
+PropertyChangeObserver::~PropertyChangeObserver() = default;
 
 void PropertyChangeObserver::check()
 {
+    for (Entries_t::iterator it = _entries.begin(); it != _entries.end();) {
+        if (!(*it)->_node.isShared()) {
+            // node is no longer used but by us - remove the entry
+            it = _entries.erase(it);
+            continue; // erase() already returned the next element -- don't also ++it
+        }
 
-  for (Entries_t::iterator it = _entries.begin(); it != _entries.end(); ++it) {
-    if (!(*it)->_node.isShared()) {
-      // node is no longer used but by us - remove the entry
-      it = _entries.erase(it);
-      continue;
+        const std::string current = (*it)->_node->getStringValue();
+        if ((*it)->_prevValue != current) {
+            (*it)->_prevValue = current;
+            ++(*it)->_version;
+        }
+        ++it;
     }
-
-    if(!(*it)->_changed ) {
-      (*it)->_changed = (*it)->_prevValue != (*it)->_node->getStringValue();
-      if ((*it)->_changed)
-        (*it)->_prevValue = (*it)->_node->getStringValue();
-
-    }
-  }
-}
-
-void PropertyChangeObserver::uncheck()
-{
-  for (Entries_t::iterator it = _entries.begin(); it != _entries.end(); ++it) {
-    (*it)->_changed = false;
-  }
 }
 
 const SGPropertyNode_ptr PropertyChangeObserver::addObservation( const string propertyName)
 {
   for (Entries_t::iterator it = _entries.begin(); it != _entries.end(); ++it) {
     if (propertyName == (*it)->_node->getPath(true) ) {
-      // if a new observer is added to a property, mark it as changed to ensure the observer
-      // gets notified on initial call. This also causes a notification for all other observers of this
-      // property.
-      (*it)->_changed = true;
-      return (*it)->_node;
+        // A newly-subscribing connection's own "last seen version" always
+        // starts at 0 (see checkAndConsume())
+        return (*it)->_node;
     }
   }
 
@@ -88,14 +61,17 @@ const SGPropertyNode_ptr PropertyChangeObserver::addObservation( const string pr
   return empty;
 }
 
-bool PropertyChangeObserver::isChangedValue(const SGPropertyNode_ptr node)
+bool PropertyChangeObserver::checkAndConsume(const SGPropertyNode_ptr& node, unsigned long& lastSeenVersion)
 {
   for (Entries_t::iterator it = _entries.begin(); it != _entries.end(); ++it) {
     PropertyChangeObserverEntryRef entry = *it;
+    if (entry->_node != node) continue;
 
-    if( entry->_node == node && entry->_changed ) {
-      return true;
+    if (entry->_version != lastSeenVersion) {
+        lastSeenVersion = entry->_version;
+        return true;
     }
+    return false;
   }
 
   return false;
