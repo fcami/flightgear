@@ -22,6 +22,7 @@
 
 #include "QtLauncher.hxx"
 
+#include <cctype>
 #include <locale.h>
 
 // Qt
@@ -309,8 +310,36 @@ enum class OpenGLStatus
     OpenGL21,
     Unknown,
     GDIGeneric,
-    Intel14
+    Intel14,
+    LeakyMesa
 };
+
+// range of Mesa versions known to have a serious memory-leak bug affecting
+// FlightGear; (leak introduced in 25.3, fixed in 26.1.2)
+static const std::string LEAKY_MESA_MIN_VERSION = "25.3";
+static const std::string LEAKY_MESA_FIXED_VERSION = "26.1.2";
+
+// parse a GL_VERSION string of the form:
+//   "<major>.<minor> (Compatibility Profile) Mesa 25.3.0"
+// or similar, and return the trailing Mesa version, or an empty string if
+// the string doesn't look like a Mesa version string
+static std::string extractMesaVersion(const std::string& glVersionString)
+{
+    const std::string marker = "Mesa ";
+    auto pos = glVersionString.rfind(marker);
+    if (pos == std::string::npos) {
+        return {};
+    }
+
+    pos += marker.size();
+    auto end = pos;
+    while (end < glVersionString.size() &&
+           (std::isdigit(static_cast<unsigned char>(glVersionString[end])) || glVersionString[end] == '.')) {
+        ++end;
+    }
+
+    return glVersionString.substr(pos, end - pos);
+}
 
 // the currently installed dynamic (non-fallback) launcher-UI translator, if
 // any; tracked so switchUILanguage() can remove it again when the language
@@ -357,6 +386,16 @@ OpenGLStatus checkForWorkingOpenGL()
             if (ctx.format().majorVersion() < 2) {
                 flightgear::addSentryBreadcrumb("Detected Intel < 2.1 renderer", "info");
                 result = OpenGLStatus::Intel14;
+            }
+        } else if (renderer.find("Mesa") != std::string::npos) {
+            std::string versionString = (char*)glGetString(GL_VERSION);
+            std::string mesaVersion = extractMesaVersion(versionString);
+            if (!mesaVersion.empty() &&
+                (simgear::strutils::compare_versions(mesaVersion, LEAKY_MESA_MIN_VERSION) >= 0) &&
+                (simgear::strutils::compare_versions(mesaVersion, LEAKY_MESA_FIXED_VERSION) < 0))
+            {
+                flightgear::addSentryBreadcrumb("Detected leaky Mesa version: " + mesaVersion, "info");
+                result = OpenGLStatus::LeakyMesa;
             }
         }
 
@@ -699,7 +738,13 @@ void launcherSetSceneryPaths()
 bool runLauncherDialog()
 {
     auto glCheckResult = checkForWorkingOpenGL();
-    if (glCheckResult != OpenGLStatus::OpenGL21) {
+    if (glCheckResult == OpenGLStatus::LeakyMesa) {
+        QMessageBox::warning(nullptr, "Graphics driver known to have issues",
+                             "Your system is using a version of the Mesa graphics driver (25.3 up to, "
+                             "but not including, 26.1.2) which is known to leak memory, and will cause "
+                             "FlightGear to run out of memory during a flight. Please consider updating "
+                             "your Mesa drivers if this happens.");
+    } else if (glCheckResult != OpenGLStatus::OpenGL21) {
         QMessageBox::critical(nullptr, "Failed to find graphics drivers",
                               "This computer is missing suitable graphics drivers (OpenGL) to run FlightGear. "
                               "Please download and install drivers from your graphics card vendor.");
