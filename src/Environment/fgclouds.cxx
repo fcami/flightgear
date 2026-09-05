@@ -440,7 +440,6 @@ void FGClouds::buildCloudLayers(void)
  * Adds a 3D cloud to a cloud layer.
  *
  * Property arguments
- * layer - the layer index to add this cloud to. (Defaults to 0)
  * index - the index for this cloud (to be used later)
  * lon/lat/alt - the position for the cloud
  * (Various) - cloud definition properties. See README.3DClouds
@@ -466,7 +465,6 @@ bool FGClouds::add3DCloud(const SGPropertyNode* arg, SGPropertyNode* root)
   *
   * Property arguments
   *
-  * layer - the layer index to remove this cloud from. (defaults to 0)
   * index - the cloud index
   *
   */
@@ -480,7 +478,6 @@ bool FGClouds::delete3DCloud(const SGPropertyNode* arg, SGPropertyNode* root)
  * Move a cloud within a 3D layer
  *
  * Property arguments
- * layer - the layer index to add this cloud to. (Defaults to 0)
  * index - the cloud index to move.
  * lon/lat/alt - the position for the cloud
  *
