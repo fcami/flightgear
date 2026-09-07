@@ -246,9 +246,14 @@ public:
         _manifestLoaded = true; // set before loading to prevent re-entry
 
         const SGPath manifestPath = globals->findDataPath("SharedModelsManifest.json");
+        if (!manifestPath.exists()) {
+            SG_LOG(SG_GENERAL, SG_WARN, "SharedModelsManifest.json not found");
+            return;
+        }
+
         sg_gzifstream in(manifestPath);
         if (!in.is_open()) {
-            SG_LOG(SG_GENERAL, SG_WARN, "SharedModelsManifest.json not found at: " << manifestPath);
+            SG_LOG(SG_GENERAL, SG_WARN, "SharedModelsManifest.json could not be opened (at " << manifestPath << ")");
             return;
         }
 
