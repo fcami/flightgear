@@ -124,7 +124,8 @@ void FGClouds::Init(void)
     globals->get_commands()->addCommand("add-cloud", this, &FGClouds::add3DCloud);
     globals->get_commands()->addCommand("del-cloud", this, &FGClouds::delete3DCloud);
     globals->get_commands()->addCommand("move-cloud", this, &FGClouds::move3DCloud);
-    globals->get_commands()->addCommand("set-clouds-repeating", this, &FGClouds::setCloudsRepeating);
+    globals->get_commands()->addCommand("set-clouds-repeating", this,
+        static_cast<bool (FGClouds::*)(const SGPropertyNode*, SGPropertyNode*)>(&FGClouds::setCloudsRepeating));
 
     _fieldDirty = true;
     _fieldRepeating = true;
@@ -655,10 +656,25 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     // Save off the current location, which will be used in transforms.
     // We will determine the altitude later, so make sure it's 0 for
     // the various conversions between ECF and local coordinates.
+    // Quantize to the detailed voxel grid so that re-rasterizing clouds that
+    // haven't moved doesn't shift them by a fraction of a voxel just because
+    // the field's own origin moved by a non-aligned amount.
     SGGeod geod = globals->get_view_position();
     geod.setElevationM(0);
 
+    const double voxelSizeM = (double)snap.detailedFieldVoxelSize;
+    double unusedAz;
+    SGGeod northOfGeod, eastOfGeod;
+    geo_direct_wgs_84(geod, 0.0, voxelSizeM, northOfGeod, &unusedAz);
+    geo_direct_wgs_84(geod, 90.0, voxelSizeM, eastOfGeod, &unusedAz);
+    const double degLatPerVoxel = northOfGeod.getLatitudeDeg() - geod.getLatitudeDeg();
+    const double degLonPerVoxel = eastOfGeod.getLongitudeDeg() - geod.getLongitudeDeg();
+
+    geod.setLatitudeDeg(std::round(geod.getLatitudeDeg() / degLatPerVoxel) * degLatPerVoxel);
+    geod.setLongitudeDeg(std::round(geod.getLongitudeDeg() / degLonPerVoxel) * degLonPerVoxel);
+
     SGGeodesy::SGGeodToCart(geod, _centerCart);
+
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
 
@@ -810,7 +826,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         osg::Vec3f p = cl.second + zOffset;
         double z = (double)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
         // Convert to meters (with half a voxel of padding)
-        result.maxZM = std::max((z + 0.5) * snap.detailedFieldVoxelSize, result.maxZ);
+        result.maxZM = std::max((z + 0.5) * snap.detailedFieldVoxelSize, result.maxZM);
     }
 
     // Generate SDF
@@ -823,7 +839,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
             osg::Vec3f p = cl.second + zOffset;
             double z = (double)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
             // Convert to meters (with half a voxel of padding)
-            result.maxZ = std::max((z + 0.5) * snap.roughFieldVoxelSize, result.maxZ);
+            result.maxZM = std::max((z + 0.5) * snap.roughFieldVoxelSize, result.maxZM);
         }
 
         // Generate an SDF
