@@ -1232,10 +1232,7 @@ void FGClouds::updateNonRepeatingField()
     osg::Vec3f localDrift = currentPosMatrix * (toOsg(currentCart) - toOsg(_centerCart));
 
     if (std::abs(localDrift.x()) > thresholdM || std::abs(localDrift.y()) > thresholdM) {
-        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Non-repeating cloud field: camera drift " << localDrift.x()
-                                                                                      << ", " << localDrift.y()
-                                                                                      << "m exceeds recenter threshold "
-                                                                                      << thresholdM << "m - triggering rebuild.");
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Non-repeating cloud field: camera drift " << localDrift.x() << ", " << localDrift.y() << "m exceeds recenter threshold " << thresholdM << "m - triggering rebuild.");
         _fieldDirty = true;
     }
 }
