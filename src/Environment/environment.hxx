@@ -36,17 +36,15 @@ public:
   virtual void Tie( SGPropertyNode_ptr base, bool setArchivable = true );
   virtual void Untie();
 
-  virtual time_t getLastRequestTime() const { return lastRequestTime; }
-  virtual time_t getLastUpdateTime() const { return lastUpdateTime; }
+  virtual double getLastRequestTime() const { return lastRequestTime; }
+  virtual double getLastUpdateTime() const { return lastUpdateTime; }
 
-  virtual void setLastRequestTime(time_t t) { lastRequestTime = t; }
-  virtual void setLastUpdateTime(time_t t) { lastUpdateTime = t; }
+  virtual void setLastRequestTime(double t) { lastRequestTime = t; }
+  virtual void setLastUpdateTime(double t) { lastUpdateTime = t; }
 
   virtual void setGeod(const SGGeod& geod)
   {
       mPosition = geod;
-      set_latitude_deg(geod.getLatitudeDeg());
-      set_longitude_deg(geod.getLongitudeDeg());
   }
 
   virtual const SGGeod& geod() const
@@ -131,8 +129,8 @@ private:
   void _recalc_alt_pt ();
 
   SGGeod mPosition;
-  time_t lastRequestTime;
-  time_t lastUpdateTime;
+  double lastRequestTime;
+  double lastUpdateTime;
   double elevation_ft;
   double visibility_m;
 

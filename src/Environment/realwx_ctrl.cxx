@@ -90,12 +90,6 @@ LiveMetarProperties::~LiveMetarProperties()
 
 void LiveMetarProperties::update( double dt )
 {
-    SGCommandMgr* cmd = globals->get_commands();
-    if (cmd->getCommand("canvas-message-box") != NULL) {
-        throw sg_exception();
-    }
-
-
     _timeToLive -= dt;
     _pollingTimer -= dt;
     if( _timeToLive <= 0.0 ) {
@@ -415,7 +409,7 @@ void BasicRealWxController::populateMetarCache()
             if (it != _metarProperties.end()) {
                 //                SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reusing metar properties at " << n->getPath());
                 if ((*it)->getStationId() != nearestAirport->ident()) {
-                    SG_LOG(SG_ENVIRONMENT, SG_INFO, "Updating station ID for metar properties at " << n->getPath() << " to " << nearestAirport->ident());
+                    SG_LOG(SG_ENVIRONMENT, SG_BULK, "Updating station ID for metar properties at " << n->getPath() << " to " << nearestAirport->ident());
                     (*it)->setStationId(nearestAirport->ident());
                     (*it)->resetTimeToLive();
                 }
@@ -430,7 +424,7 @@ void BasicRealWxController::populateMetarCache()
             SG_LOG(SG_ENVIRONMENT, SG_INFO, "Adding metar properties at " << n->getPath() << " for " << nearestAirport->ident());
         }
     } catch (sg_exception& e) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN, "RealWxController::populateMetarCache() failed to populate METAR cache: " << e.what());
+        SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "RealWxController::populateMetarCache() failed to populate METAR cache: " << e.what());
         return;
     }
 }

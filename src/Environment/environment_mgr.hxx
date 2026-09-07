@@ -13,6 +13,7 @@
 #include <simgear/structure/subsystem_mgr.hxx>
 
 #include <cmath>
+#include <memory>
 
 class FGEnvironment;
 class FGClimate;
@@ -25,17 +26,10 @@ struct FGEnvironmentMgrMultiplayerListener;
 * Base class for environment information management to enable mocking.
 */
 
-class EnvironmentManager : public SGSubsystemGroup
+class AbstractEnvironmentManager : public SGSubsystemGroup
 {
 public:
-    virtual ~EnvironmentManager() = default;
-    // Subsystem API.
-    void bind() = 0;
-    InitStatus incrementalInit() = 0;
-    void reinit() = 0;
-    void shutdown() = 0;
-    void unbind() = 0;
-    void update(double dt) = 0;
+    virtual ~AbstractEnvironmentManager() = default;
     // Subsystem identification.
     static const char* staticSubsystemClassId() { return "environment"; }
 
@@ -49,7 +43,7 @@ public:
 /**
  * Manage environment information.
  */
-class FGEnvironmentMgr : public EnvironmentManager
+class FGEnvironmentMgr : public AbstractEnvironmentManager
 {
 public:
     enum {
@@ -99,7 +93,7 @@ private:
 
     FGClimate* _climate = nullptr;
     FGEnvironment* _environment = nullptr; // always the same, for now
-    std::vector<FGEnvironment*> environmentCache;
+    std::vector<std::unique_ptr<FGEnvironment>> environmentCache;
 
     FGClouds* fgClouds = nullptr;
     int max_tower_height_feet;
