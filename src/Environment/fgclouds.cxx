@@ -125,7 +125,7 @@ void FGClouds::Init(void)
     globals->get_commands()->addCommand("del-cloud", this, &FGClouds::delete3DCloud);
     globals->get_commands()->addCommand("move-cloud", this, &FGClouds::move3DCloud);
     globals->get_commands()->addCommand("set-clouds-repeating", this,
-        static_cast<bool (FGClouds::*)(const SGPropertyNode*, SGPropertyNode*)>(&FGClouds::setCloudsRepeating));
+                                        static_cast<bool (FGClouds::*)(const SGPropertyNode*, SGPropertyNode*)>(&FGClouds::setCloudsRepeating));
 
     _fieldDirty = true;
     _fieldRepeating = true;
