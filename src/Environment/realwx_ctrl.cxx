@@ -33,51 +33,17 @@ namespace Environment {
 
 
 /* -------------------------------------------------------------------------------- */
-
-class MetarRequester;
-
+// MetarRequester and LiveMetarProperties are now declared in realwx_ctrl.hxx so
+// FGEnvironmentMgr can drive its own fetchers directly - see getMetarRequester().
 /* -------------------------------------------------------------------------------- */
 
-class LiveMetarProperties : public MetarProperties {
-public:
-    LiveMetarProperties( SGPropertyNode_ptr rootNode, MetarRequester * metarRequester, int maxAge );
-    virtual ~LiveMetarProperties();
-    virtual void update( double dt );
-
-    virtual double getTimeToLive() const { return _timeToLive; }
-    virtual void resetTimeToLive()
-    { _timeToLive = 0.00; _pollingTimer = 0.0; }
-
-    // implementation of MetarDataHandler
-    virtual void handleMetarData( const std::string & data );
-    virtual void handleMetarFailure();
-
-    static const unsigned MAX_POLLING_INTERVAL_SECONDS = 10;
-    static const unsigned DEFAULT_TIME_TO_LIVE_SECONDS = 900;
-
-private:
-    double _timeToLive;
-    double _pollingTimer;
-    MetarRequester * _metarRequester;
-    int _maxAge;
-    bool _failure;
-};
-
-typedef SGSharedPtr<LiveMetarProperties> LiveMetarProperties_ptr;
-
-class MetarRequester {
-public:
-    virtual void requestMetar( LiveMetarProperties_ptr metarDataHandler, const std::string & id ) = 0;
-};
-
-
-LiveMetarProperties::LiveMetarProperties( SGPropertyNode_ptr rootNode, MetarRequester * metarRequester, int maxAge ) :
-    MetarProperties( rootNode ),
-    _timeToLive(0.0),
-    _pollingTimer(0.0),
-    _metarRequester(metarRequester),
-    _maxAge(maxAge),
-    _failure(false)
+LiveMetarProperties::LiveMetarProperties(SGPropertyNode_ptr rootNode, MetarRequester* metarRequester, int maxAge, double refreshIntervalSeconds) : MetarProperties(rootNode),
+                                                                                                                                                   _timeToLive(0.0),
+                                                                                                                                                   _pollingTimer(0.0),
+                                                                                                                                                   _metarRequester(metarRequester),
+                                                                                                                                                   _maxAge(maxAge),
+                                                                                                                                                   _failure(false),
+                                                                                                                                                   _refreshIntervalSeconds(refreshIntervalSeconds)
 {
     _tiedProperties.Tie("time-to-live", &_timeToLive );
     _tiedProperties.Tie("failure", &_failure);
@@ -107,7 +73,7 @@ void LiveMetarProperties::update( double dt )
 void LiveMetarProperties::handleMetarData( const std::string & data )
 {
     SG_LOG( SG_ENVIRONMENT, SG_DEBUG, "LiveMetarProperties::handleMetarData() received METAR for " << getStationId() << ": " << data );
-    _timeToLive = DEFAULT_TIME_TO_LIVE_SECONDS;
+    _timeToLive = _refreshIntervalSeconds;
 
     SGSharedPtr<FGMetar> m;
     static bool haveReportedMETARFailure = false;
@@ -171,9 +137,10 @@ public:
     typedef std::vector<LiveMetarProperties_ptr> MetarPropertiesList;
     MetarPropertiesList::iterator findMetarAtPath(const std::string &propPath);
 
+    MetarRequester* getMetarRequester() override { return _requester; }
+
 protected:
     void checkNearbyMetar();
-    void populateMetarCache();
 
     long getMetarMaxAgeMin() const { return _max_age_n == NULL ? 0 : _max_age_n->getLongValue(); }
 
@@ -297,7 +264,6 @@ void BasicRealWxController::unbind()
 
 void BasicRealWxController::update( double dt )
 {
-    populateMetarCache();
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "BasicRealWxController::update() enabled: " << _enabled << ", wasEnabled: " << _wasEnabled << ", metar properties count: " << _metarProperties.size());
     if (_enabled) {
         bool firstIteration = !_wasEnabled;
@@ -391,44 +357,6 @@ void BasicRealWxController::checkNearbyMetar()
       return;
     }
 }
-
-void BasicRealWxController::populateMetarCache()
-{
-    try {
-        auto metarNodes = fgGetNode("/environment", true)->getChildren("metar");
-        FGAirport* nearestAirport;
-        for (auto n : metarNodes) {
-            // check for duplicate entries
-            MetarPropertiesList::iterator it = findMetarAtPath(n->getPath());
-            auto pos = SGGeod::fromDeg(n->getDoubleValue("longitude-deg"), n->getDoubleValue("latitude-deg"));
-            if (pos.getLatitudeDeg() == 0.0 && pos.getLongitudeDeg() == 0.0) {
-                // Non cached legacy entry without position, skip
-                continue;
-            }
-            nearestAirport = FGAirport::findClosest(pos, 10000.0, MetarAirportFilter::instance());
-            if (it != _metarProperties.end()) {
-                //                SG_LOG(SG_ENVIRONMENT, SG_INFO, "Reusing metar properties at " << n->getPath());
-                if ((*it)->getStationId() != nearestAirport->ident()) {
-                    SG_LOG(SG_ENVIRONMENT, SG_BULK, "Updating station ID for metar properties at " << n->getPath() << " to " << nearestAirport->ident());
-                    (*it)->setStationId(nearestAirport->ident());
-                    (*it)->resetTimeToLive();
-                }
-                continue;
-            }
-
-            SGPropertyNode_ptr metarNode = fgGetNode(n->getPath(), true);
-            LiveMetarProperties_ptr p(new LiveMetarProperties(metarNode, _requester, getMetarMaxAgeMin()));
-            _metarProperties.push_back(p);
-            p->setStationId(nearestAirport ? nearestAirport->ident() : "");
-            p->resetTimeToLive();
-            SG_LOG(SG_ENVIRONMENT, SG_INFO, "Adding metar properties at " << n->getPath() << " for " << nearestAirport->ident());
-        }
-    } catch (sg_exception& e) {
-        SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "RealWxController::populateMetarCache() failed to populate METAR cache: " << e.what());
-        return;
-    }
-}
-
 
 /* -------------------------------------------------------------------------------- */
 

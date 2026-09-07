@@ -15,6 +15,8 @@
 #include <cmath>
 #include <memory>
 
+#include "realwx_ctrl.hxx"
+
 class FGEnvironment;
 class FGClimate;
 class FGClouds;
@@ -69,6 +71,8 @@ public:
 
     virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos);
 
+    void updateEnvironmentCache(double dt);
+
 private:
     friend FGEnvironmentMgrMultiplayerListener;
     void updateClosestAirport();
@@ -91,9 +95,30 @@ private:
     double get_cloud_layer_maxalpha(int index) const;
     void set_cloud_layer_maxalpha(int index, double maxalpha);
 
+    /// A cached per-position environment: the FGEnvironment itself, the
+    /// property node itsTie() is bound to, and the fetcher this
+    /// subsystem owns and drives directly to keep it populated with real
+    /// METAR data - see getEnvironmentAtPosition() and update().
+    struct CachedEnvironment {
+        std::unique_ptr<FGEnvironment> env;
+        SGPropertyNode_ptr node;
+        Environment::LiveMetarProperties_ptr fetcher;
+    };
+
+    void syncCacheEntryFromNode(FGEnvironment& env, const SGPropertyNode* node) const;
+    Environment::MetarRequester* getMetarRequester();
+    void requestMetarFor(CachedEnvironment& entry, const class FGAirport* nearestAirport);
+
+    /**
+     * The cache-match radius (in meters) to use when looking up/reusing a
+     * cache entry for @p aPos: tight near the player's own position, coarse
+     * far away from it - see getEnvironmentAtPosition().
+     */
+    double cacheMatchRadiusM(const SGGeod& aPos) const;
+
     FGClimate* _climate = nullptr;
     FGEnvironment* _environment = nullptr; // always the same, for now
-    std::vector<std::unique_ptr<FGEnvironment>> environmentCache;
+    std::vector<CachedEnvironment> environmentCache;
 
     FGClouds* fgClouds = nullptr;
     int max_tower_height_feet;

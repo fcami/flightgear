@@ -36,10 +36,10 @@
 using namespace std::string_literals;
 using namespace flightgear;
 
-class MockEnvironmentMgr : public EnvironmentManager
+class MockEnvironmentMgr : public AbstractEnvironmentManager
 {
 public:
-    MockEnvironmentMgr() : EnvironmentManager() {}
+    MockEnvironmentMgr() : AbstractEnvironmentManager() {}
 
     // Subsystem API overrides
     void bind() override {}
@@ -58,7 +58,7 @@ public:
         return FGEnvironment();
     }
 
-    // Inherited via EnvironmentManager
+    // Inherited via AbstractEnvironmentManager
     const FGEnvironment* getAircraftEnvironment() const override
     {
         return nullptr;
@@ -69,6 +69,10 @@ public:
         env.setGeod(aPos);
         env.set_wind_from_heading_deg(350);
         env.set_wind_speed_kt(50);
+        // Simulate having already received real METAR data, so code that
+        // gates on isValid() (e.g. positioninit.cxx's finalizeMetar()) proceeds
+        // immediately instead of waiting, as tests expect.
+        env.setValid(true);
         return env;
     }
     // Add more overrides if needed

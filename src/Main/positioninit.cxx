@@ -34,6 +34,8 @@
 #include <AIModel/AIManager.hxx>
 
 #include <Aircraft/AircraftPerformance.hxx>
+#include <Environment/environment.hxx>
+#include <Environment/environment_mgr.hxx>
 #include <GUI/MessageBox.hxx>
 #include <Scenery/scenery.hxx>
 #include <Viewer/renderer.hxx>
@@ -753,14 +755,16 @@ bool finalizeMetar()
             return true;
         }
 
-        //FIXME get via environment mgr
-        if (!fgGetBool("/environment/metar/valid")) {
+        const FGAirport* airport = fgFindAirportID(apt);
+        auto envMgr = globals->get_subsystem<AbstractEnvironmentManager>();
+        const FGEnvironment env = (airport && envMgr) ? envMgr->getEnvironmentAtPosition(airport->geod()) : FGEnvironment();
+        if (!airport || !envMgr || !env.isValid()) {
             return false;
         }
 
         SG_LOG(SG_ENVIRONMENT, SG_INFO,
-               "Using METAR for runway selection: '" << fgGetString("/environment/metar/data") << "'");
-        setPosFromAirportIDandHdg(apt, hdg);
+               "Using METAR for runway selection at " << apt << ": wind heading " << env.get_wind_from_heading_deg() << "deg");
+        setPosFromAirportIDandHdg(apt, env.get_wind_from_heading_deg());
         // fall through to return true
     } // of need-metar case
 

@@ -688,7 +688,9 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
 {
     SG_LOG(SG_ATC, SG_BULK, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
 
-    if (!fgGetBool("/environment/metar/valid")) {
+    auto envMgr = globals->get_subsystem<AbstractEnvironmentManager>();
+    auto env = envMgr ? envMgr->getEnvironmentAtPosition(parent()->geod()) : FGEnvironment();
+    if (!envMgr || !env.isValid()) {
         SG_LOG(SG_GENERAL, SG_DEV_WARN, "innerGetActiveRunway METAR invalid");
         return false;
     }
@@ -704,9 +706,6 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         takeoff.clear();
         lastUpdate = dayStart;
         prevTrafficType = trafficType;
-
-        auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
-        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
 
         double windSpeed = env.get_wind_speed_kt();
         double windHeading = env.get_wind_from_heading_deg();
