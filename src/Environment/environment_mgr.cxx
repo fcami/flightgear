@@ -211,10 +211,22 @@ void FGEnvironmentMgr::update(double dt)
 
     updateTowerPosition();
 
+    updateEnvironmentCache(dt);
+
     fgClouds->updateWindColumn(dt, _environment);
 
     fgSetDouble("/environment/gravitational-acceleration-mps2",
                 Environment::Gravity::instance()->getGravity(aircraftPos));
+}
+
+void FGEnvironmentMgr::updateEnvironmentCache(double dt)
+{
+    for (auto& entry : environmentCache) {
+        if (entry.fetcher) {
+            entry.fetcher->update(dt);
+        }
+        syncCacheEntryFromNode(*entry.env, entry.node);
+    }
 }
 
 void FGEnvironmentMgr::updateTowerPosition()
@@ -371,65 +383,183 @@ const FGEnvironment* FGEnvironmentMgr::getAircraftEnvironment() const
     return _environment;
 }
 
+void FGEnvironmentMgr::syncCacheEntryFromNode(FGEnvironment& env, const SGPropertyNode* node) const
+{
+    // Raw METAR data lives under a "metar-data" child subtree, entirely
+    // separate from this FGEnvironment's own tied properties on `node`.
+    // This is deliberate: simgear::MetarProperties/LiveMetarProperties (see
+    // metarproperties.cxx) ties its own ~30 leaf names for its raw parsed
+    // fields, several of which (temperature-degc, dewpoint-degc,
+    // pressure-inhg, ...) are also FGEnvironment property names
+    const SGPropertyNode* metarData = node ? node->getChild("metar-data") : nullptr;
+    if (!metarData || !metarData->getBoolValue("valid", false)) {
+        env.setValid(false);
+        return;
+    }
+
+    // The three primary readings; FGEnvironment derives the sea-level
+    // variants, density, relative humidity etc. from these automatically
+    // (see set_temperature_degc/set_dewpoint_degc/set_pressure_inhg).
+    env.set_temperature_degc(metarData->getDoubleValue("temperature-degc", env.get_temperature_degc()));
+    env.set_dewpoint_degc(metarData->getDoubleValue("dewpoint-degc", env.get_dewpoint_degc()));
+    env.set_pressure_inhg(metarData->getDoubleValue("pressure-inhg", env.get_pressure_inhg()));
+
+    // MetarProperties uses "base-wind-*"/"*-visibility-m" names (matching
+    // the legacy single /environment/metar node), not FGEnvironment's own
+    // "wind-*"/"visibility-m" - map them across explicitly.
+    env.set_wind_speed_kt(metarData->getDoubleValue("base-wind-speed-kt", env.get_wind_speed_kt()));
+    env.set_wind_from_heading_deg(metarData->getDoubleValue("base-wind-dir-deg", env.get_wind_from_heading_deg()));
+    const double minVisibilityM = metarData->getDoubleValue("min-visibility-m", -1.0);
+    if (minVisibilityM >= 0.0) {
+        env.set_visibility_m(minVisibilityM);
+    }
+
+    env.setValid(true);
+    env.setLastUpdateTime(globals->get_sim_time_sec());
+}
+
+double FGEnvironmentMgr::cacheMatchRadiusM(const SGGeod& aPos) const
+{
+    // Use a tight cache radius for positions near the player (so nearby
+    // airports/AI traffic get distinct, locally-accurate weather), and a
+    // much coarser one for distant positions (so the rest of the world
+    // doesn't need a separate cache entry per airport). Blended linearly by
+    // great-circle distance from the player's own position: 0nm away uses
+    // the near radius, halfway round the world (the most distant a position
+    // on Earth can be) uses the far radius.
+    const double nearRadiusNm = fgGetDouble("/sim/environment/metar/cache-distance-near-nm", 50.0);
+    const double farRadiusNm = fgGetDouble("/sim/environment/metar/cache-distance-far-nm", 640.0);
+    const double halfWorldNm = 10800.0; // half the Earth's great-circle circumference
+
+    const double distanceFromPlayerNm = SGGeodesy::distanceM(globals->get_aircraft_position(), aPos) * SG_METER_TO_NM;
+    const double t = SGMiscd::clip(distanceFromPlayerNm / halfWorldNm, 0.0, 1.0);
+    const double radiusNm = nearRadiusNm + t * (farRadiusNm - nearRadiusNm);
+    return radiusNm * SG_NM_TO_METER;
+}
+
 FGEnvironment
 FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
 {
-    const int cacheSize = fgGetInt("/sim/environment/metar/cache-size", 16);
-    auto old = [&](const std::unique_ptr<FGEnvironment>& a, const std::unique_ptr<FGEnvironment>& b) {
-        if (!a) {
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "a environment is null");
-        };
-        if (!b) {
-            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "b environment is null");
-        };
-        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Comparing environments for eviction: " << a->geod() << " last requested at " << a->getLastRequestTime() << " vs " << b->geod() << " last requested at " << b->getLastRequestTime());
-        return a->getLastRequestTime() < b->getLastRequestTime();
+    const int cacheSize = fgGetInt("/sim/environment/metar/cache-size", 128);
+    const double cacheDistanceM = cacheMatchRadiusM(aPos);
+    // How long an entry may go un-requested before it's considered stale and
+    // repurposed for a new position, even though the cache isn't full yet.
+    // Kept constant regardless of distance from the player, unlike the
+    // match radius above - staleness is about "has the weather likely
+    // changed", not about how precisely we're tracking the position.
+    const double cacheAgeSeconds = fgGetDouble("/sim/environment/metar/cache-age-seconds", 3600.0);
+    const double now = globals->get_sim_time_sec();
+
+    auto old = [](const CachedEnvironment& a, const CachedEnvironment& b) {
+        if (!a.env || !b.env) {
+            SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "Encountered a null cached environment during eviction comparison");
+            return false;
+        }
+        return a.env->getLastRequestTime() < b.env->getLastRequestTime();
     };
 
-    auto near = [&](const std::unique_ptr<FGEnvironment>& e) {
-        return distSqr(SGVec3d::fromGeod(e->geod()), SGVec3d::fromGeod(aPos)) < 10000.0 * 10000.0;
+    auto distanceSqrTo = [&](const CachedEnvironment& e) {
+        return distSqr(SGVec3d::fromGeod(e.env->geod()), SGVec3d::fromGeod(aPos));
     };
 
     auto nearestAirport = FGAirport::findClosest(aPos, 100.0);
+    const SGGeod snappedPos = nearestAirport ? nearestAirport->geod() : aPos;
 
-    auto it = std::find_if(environmentCache.begin(), environmentCache.end(), near);
-    if (it == environmentCache.end()) {
-        if (environmentCache.size() >= static_cast<size_t>(cacheSize)) {
-            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Environment cache is full. Evicting the oldest environment.");
-            auto oldest = std::min_element(environmentCache.begin(), environmentCache.end(), old);
-            if (oldest != environmentCache.end()) {
-                SG_LOG(SG_ENVIRONMENT, SG_BULK, "Evicting environment for position " << (*oldest)->geod() << " last requested at " << (*oldest)->getLastRequestTime());
-                (*oldest)->setGeod(nearestAirport ? nearestAirport->geod() : aPos);
-                (*oldest)->setLastRequestTime(globals->get_sim_time_sec());
-                return **oldest;
-            } else {
-                SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "Environment cache is full but no environment to evict found. This should not happen.");
-            }
-        } else {
-            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Creating new environment for position " << aPos << " Cache Size: " << environmentCache.size() << " " << fgGetNode("/environment/metar", true)->nChildren());
-            // cache miss; create a new environment for this position
-            auto env = std::make_unique<FGEnvironment>(*_environment);
-            env->set_elevation_ft(aPos.getElevationFt());
-            env->setGeod(aPos);
-            env->Tie(fgGetNode("/environment", true)->addChild("metar"));
+    auto closest = std::min_element(environmentCache.begin(), environmentCache.end(),
+                                    [&](const CachedEnvironment& a, const CachedEnvironment& b) {
+                                        return distanceSqrTo(a) < distanceSqrTo(b);
+                                    });
+    const bool haveClose = closest != environmentCache.end() && distanceSqrTo(*closest) < cacheDistanceM * cacheDistanceM;
+    const bool isStale = haveClose && (now - closest->env->getLastRequestTime()) > cacheAgeSeconds;
 
-            env->setLastRequestTime(globals->get_sim_time_sec());
-            const FGEnvironment result = *env;
-            environmentCache.push_back(std::move(env));
-            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Created new environment for position " << aPos << " Cache Size: " << environmentCache.size() << " " << fgGetNode("/environment/metar", true)->nChildren());
-            return result;
-        }
-    } else {
+    if (haveClose && !isStale) {
         // cache hit; return the cached environment
         SG_LOG(SG_ENVIRONMENT, SG_BULK, "Cache hit for position " << aPos);
-        return **it;
+        closest->env->setLastRequestTime(now);
+        return *closest->env;
     }
-    // Always returns the same environment
-    // for now; we'll make it interesting
-    // later.
-    FGEnvironment env = *_environment;
-    env.set_elevation_ft(aPos.getElevationFt());
-    return env;
+
+    if (haveClose && isStale) {
+        // Found an entry covering this position, but nobody has asked for it in
+        // a while: repurpose it in place (same cache slot, same property node,
+        // same fetcher - just re-target it) rather than growing the cache or
+        // evicting a different entry.
+        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Refreshing stale cached environment for position " << aPos);
+        closest->env->setGeod(snappedPos);
+        closest->env->setValid(false);
+        closest->env->setLastRequestTime(now);
+        requestMetarFor(*closest, nearestAirport);
+        return *closest->env;
+    }
+
+    if (environmentCache.size() >= static_cast<size_t>(cacheSize)) {
+        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Environment cache is full. Evicting the oldest environment.");
+        auto oldest = std::min_element(environmentCache.begin(), environmentCache.end(), old);
+        if (oldest != environmentCache.end()) {
+            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Evicting environment for position " << oldest->env->geod() << " last requested at " << oldest->env->getLastRequestTime());
+            oldest->env->setGeod(snappedPos);
+            oldest->env->setValid(false);
+            oldest->env->setLastRequestTime(now);
+            requestMetarFor(*oldest, nearestAirport);
+            return *oldest->env;
+        }
+        SG_LOG(SG_ENVIRONMENT, SG_DEV_ALERT, "Environment cache is full but no environment to evict found. This should not happen.");
+        FGEnvironment env = *_environment;
+        env.set_elevation_ft(aPos.getElevationFt());
+        return env;
+    }
+
+    SG_LOG(SG_ENVIRONMENT, SG_BULK, "Creating new environment for position " << aPos << " Cache Size: " << environmentCache.size());
+    // cache miss; create a new environment for this position
+    auto env = std::make_unique<FGEnvironment>(*_environment);
+    SGPropertyNode_ptr node = fgGetNode("/environment", true)->addChild("metar");
+    // Tie() first: it can push the (still-default) property values back
+    // through the setters, so it must run before we set this entry's real
+    // position/state below, not after.
+    env->Tie(node);
+    env->set_elevation_ft(aPos.getElevationFt());
+    env->setGeod(snappedPos);
+    env->setValid(false);
+    env->setLastRequestTime(now);
+
+    const FGEnvironment result = *env;
+    environmentCache.push_back(CachedEnvironment{std::move(env), node, nullptr});
+    requestMetarFor(environmentCache.back(), nearestAirport);
+    SG_LOG(SG_ENVIRONMENT, SG_BULK, "Created new environment for position " << aPos << " Cache Size: " << environmentCache.size());
+    return result;
+}
+
+Environment::MetarRequester* FGEnvironmentMgr::getMetarRequester()
+{
+    auto* realWx = dynamic_cast<Environment::RealWxController*>(get_subsystem("realwx"));
+    return realWx ? realWx->getMetarRequester() : nullptr;
+}
+
+void FGEnvironmentMgr::requestMetarFor(CachedEnvironment& entry, const FGAirport* nearestAirport)
+{
+    const std::string stationId = nearestAirport ? nearestAirport->ident() : std::string();
+
+    if (!entry.fetcher) {
+        auto* requester = getMetarRequester();
+        if (!requester) {
+            // No real-weather source configured (e.g. offline/canned weather);
+            // the cache entry stays at its snapshot-of-_environment defaults.
+            return;
+        }
+        // Raw METAR fields go under a "metar-data" child, not `entry.node`
+        // itself - see syncCacheEntryFromNode() for why.
+        SGPropertyNode_ptr metarDataNode = entry.node->getChild("metar-data", 0, true);
+        // A coarser refresh interval than LiveMetarProperties' own default
+        // (900s, tuned for the single primary/aircraft station): with up to
+        // cache-size entries potentially live at once, refreshing every one
+        // of them every 15 minutes is a lot of unnecessary fetching for
+        // airports nobody is closely watching.
+        const double refreshIntervalSeconds = fgGetDouble("/sim/environment/metar/cache-refresh-seconds", 1800.0);
+        entry.fetcher = new Environment::LiveMetarProperties(metarDataNode, requester, /*maxAge*/ 0, refreshIntervalSeconds);
+    }
+
+    entry.fetcher->setStationId(stationId);
+    entry.fetcher->resetTimeToLive(); // force an immediate (re-)fetch
 }
 
 double

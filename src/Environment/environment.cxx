@@ -101,6 +101,9 @@ void FGEnvironment::_init()
 {
   is_isa = false;
   live_update = false;
+  mValid = false;
+  lastRequestTime = 0.0;
+  lastUpdateTime = 0.0;
   elevation_ft = 0;
   visibility_m = 32000;
   temperature_sea_level_degc = 15;
@@ -174,6 +177,10 @@ FGEnvironment::copy (const FGEnvironment &env)
     altitude_tropo_top_m = env.altitude_tropo_top_m;
     live_update = env.live_update;
     is_isa = env.is_isa;
+    mValid = env.mValid;
+    mPosition = env.mPosition;
+    lastRequestTime = env.lastRequestTime;
+    lastUpdateTime = env.lastUpdateTime;
 }
 
 static inline bool
@@ -272,6 +279,10 @@ void FGEnvironment::Tie( SGPropertyNode_ptr base, bool archivable )
   _tiedProperties.Tie("elevation-ft", this,
                       &FGEnvironment::get_elevation_ft,
                       &FGEnvironment::set_elevation_ft);
+
+  _tiedProperties.Tie("valid", this,
+                      &FGEnvironment::isValid,
+                      &FGEnvironment::setValid);
 
   _tiedProperties.Tie("temperature-sea-level-degc", this,
                       &FGEnvironment::get_temperature_sea_level_degc,

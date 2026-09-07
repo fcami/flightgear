@@ -9,6 +9,7 @@ foreach(unit_test_category
         FDM
         Input
         Main
+        Environment
         Navaids
         Network
         Instrumentation
