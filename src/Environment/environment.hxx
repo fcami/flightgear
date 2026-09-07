@@ -42,6 +42,10 @@ public:
   virtual void setLastRequestTime(double t) { lastRequestTime = t; }
   virtual void setLastUpdateTime(double t) { lastUpdateTime = t; }
 
+  /** Whether this environment has ever received real (e.g. METAR-sourced) data. */
+  virtual bool isValid() const { return mValid; }
+  virtual void setValid(bool v) { mValid = v; }
+
   virtual void setGeod(const SGGeod& geod)
   {
       mPosition = geod;
@@ -131,6 +135,7 @@ private:
   SGGeod mPosition;
   double lastRequestTime;
   double lastUpdateTime;
+  bool mValid;
   double elevation_ft;
   double visibility_m;
 
