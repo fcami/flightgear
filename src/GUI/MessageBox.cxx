@@ -94,13 +94,8 @@ win32MessageBox(const std::string& caption,
         fullMsg += "\n\n" + moreText;
     }
 
-    UINT mbType = MB_OK | MB_ICONWARNING;
-	std::wstring wMsg(convertUtf8ToWString(fullMsg)),
-		wCap(convertUtf8ToWString(caption));
-    SG_LOG(SG_GENERAL, SG_ALERT, fullMsg);
-
-    ::PostMessage(ownerWindow, WM_SYSCOMMAND, SC_MINIMIZE, 0);
-	::MessageBoxExW(ownerWindow, wMsg.c_str(), wCap.c_str(),
+    UINT mbType = MB_OK;
+    ::MessageBoxExW(ownerWindow, wMsg.c_str(), wCap.c_str(),
                     mbType, 0 /* system lang */);
 
 	return flightgear::MSG_BOX_OK;
