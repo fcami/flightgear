@@ -91,8 +91,6 @@ public:
 
     SGGeod getTowerLocation() const;
 
-    //    void setMetar(bool value) { _has_metar = value; }
-
     FGAirportDynamicsRef getDynamics() const;
 
     FGGroundNetwork* groundNetwork() const;
@@ -356,7 +354,7 @@ private:
 
     std::string _name;
     bool _has_metar = false;
-    SGSharedPtr<FGMetar> _metar = nullptr;
+    SGSharedPtr<FGMetar> _metar;
     const SGPath _sceneryPath;
 
     void loadRunways() const;

@@ -76,9 +76,7 @@ FGAirport::FGAirport(PositionedID aGuid,
 }
 
 
-FGAirport::~FGAirport()
-{
-}
+FGAirport::~FGAirport() = default;
 
 bool FGAirport::isAirport() const
 {

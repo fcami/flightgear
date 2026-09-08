@@ -135,7 +135,7 @@ private:
   SGGeod mPosition;
   double lastRequestTime;
   double lastUpdateTime;
-  bool mValid;
+  bool mValid = false;
   double elevation_ft;
   double visibility_m;
 
@@ -163,7 +163,7 @@ private:
   double wind_from_east_fps;
   double wind_from_down_fps;
 
-  bool     live_update;
-  bool is_isa;
+  bool live_update = false;
+  bool is_isa = false;
   simgear::TiedPropertyList _tiedProperties;
 };

@@ -118,7 +118,7 @@ bool FGAIFlightPlan::create(FGAIAircraft* ac, FGAirport* dep,
         break;
     default:
         //exit(1);
-        SG_LOG(SG_AI, SG_ALERT,
+        SG_LOG(SG_AI, SG_DEV_ALERT,
                "AIFlightPlan::create() attempting to create unknown leg"
                " this is probably an internal program error");
         break;
@@ -127,12 +127,12 @@ bool FGAIFlightPlan::create(FGAIAircraft* ac, FGAirport* dep,
     // to do so, mark the last waypoint with a special status flag
     if (retVal) {
         if (waypoints.empty()) {
-            SG_LOG(SG_AI, SG_WARN, ac->getCallSign() << "|AIFlightPlan::create() Leg " << legNr << " created empty waypoints.");
+            SG_LOG(SG_AI, SG_DEV_WARN, ac->getCallSign() << "|AIFlightPlan::create() Leg " << legNr << " created empty waypoints.");
             return retVal;
         }
         wpt_iterator = waypoints.begin() + currWpt;
         if (waypoints.back()->getName().size() == 0) {
-            SG_LOG(SG_AI, SG_WARN, ac->getCallSign() << " Empty wpt name");
+            SG_LOG(SG_AI, SG_DEV_WARN, ac->getCallSign() << " Empty wpt name");
         }
         waypoints.back()->setName(waypoints.back()->getName() + string("legend"));
         // "It's pronounced Leg-end" (Roger Glover (Deep Purple): come Hell or High Water DvD, 1993)
