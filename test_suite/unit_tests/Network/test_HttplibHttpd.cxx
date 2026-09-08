@@ -47,7 +47,6 @@ void HttplibHttpdTests::setUp()
     FGTestApi::setUp::initNavDataCache();
 
     // FlightHistoryUriHandler dereferences this subsystem with no null
-    // check (see MONGOOSE_TO_HTTPLIB_PLAN.md's Phase 4 survey) -- it must
     // be registered before any request reaches /flighthistory/.
     auto history = globals->get_subsystem_mgr()->add<FGFlightHistory>();
     history->init();
@@ -84,12 +83,6 @@ void HttplibHttpdTests::setUp()
     _httpd->bind();
     waitUntilServerIsUp();
 
-    // HttplibHttpd's main-thread hop (see runOnMainThread() in
-    // HttplibHttpd.cxx) is now driven by SGEventMgr, not by HttplibHttpd::
-    // update() itself -- so it's the event manager that needs pumping here
-    // to drain it, via its sim-time queue (advanced directly by the dt
-    // passed to update(), rather than the real-time queue's property).
-    //
     // This runs on its own thread rather than the thread that called
     // initTestGlobals() (which is what a real app's single main thread
     // would be), so testRunHandler still logs SGCommandMgr::execute()'s

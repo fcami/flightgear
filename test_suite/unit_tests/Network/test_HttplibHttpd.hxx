@@ -16,11 +16,7 @@
 /**
  * Integration tests for HttplibHttpd: unlike the other tests in this
  * directory, these spin up a real HttplibHttpd (bound to a real socket)
- * and hit it with a real HTTP/WebSocket client (httplib's own), covering
- * static file serving, the URL-rewrite fallthrough to static files, each
- * URI handler route (except /screenshot/, which needs a real OSG camera
- * unavailable in a headless unit test -- see MONGOOSE_TO_HTTPLIB_PLAN.md
- * Phase 4), and both WebSocket endpoints.
+ * and hit it with a real HTTP/WebSocket client.
  */
 class HttplibHttpdTests : public CppUnit::TestFixture
 {
@@ -60,8 +56,6 @@ public:
     // GET /navdb/?q=airport&id=<unknown> -> empty but valid GeoJSON.
     void testNavdbHandler();
     // GET /flighthistory/track.json with the FGFlightHistory subsystem
-    // registered (required -- see MONGOOSE_TO_HTTPLIB_PLAN.md's survey of
-    // this handler's lack of a null check).
     void testFlightHistoryHandler();
     // Connect to /PropertyListener, addListener, change the property,
     // and receive the pushed notification.
@@ -75,11 +69,6 @@ private:
     SGPath _docRoot;
     int _port = 0;
 
-    // There's no real main loop in this test to call SGEventMgr::update(dt)
-    // on its own -- which is what drains the main-thread hop used by
-    // ScreenshotUriHandler's and RunUriHandler's first call (see
-    // HttplibHttpd.cxx's runOnMainThread()). Without this, those requests
-    // would block forever waiting for a drain that never happens.
     std::thread _updatePumpThread;
     std::atomic<bool> _stopUpdatePump{false};
 

@@ -197,17 +197,6 @@ public:
         }
     }
 
-    // Runs `fn` on the main thread and blocks the calling (httplib worker)
-    // thread until it has run. Used only for the one operation that isn't
-    // safe to do from an arbitrary worker thread: installing the screenshot
-    // handler's osg::Camera::DrawCallback the first time, and RunUriHandler's
-    // SGCommandMgr::execute() call. Scheduling is delegated to SGEventMgr --
-    // a zero-delay one-shot event runs on the main thread during its next
-    // update(), which is exactly the hop we need. This uses the sim-time
-    // queue (advanced directly by the delta_time_sec passed to
-    // SGEventMgr::update()) rather than the real-time queue, which instead
-    // relies on a separately-maintained property -- the sim queue needs
-    // nothing but the subsystem manager's normal update() calls to progress.
     void runOnMainThread(const std::function<void()>& fn)
     {
         std::mutex m;
@@ -493,8 +482,6 @@ void HttplibHttpd::unbind()
     d->uriHandler.clear();
 }
 
-void HttplibHttpd::update(double dt)
+void HttplibHttpd::update(double)
 {
-    // The main-thread hop is now driven by SGEventMgr (see runOnMainThread()
-    // above), so there's nothing left to do here per-tick.
 }

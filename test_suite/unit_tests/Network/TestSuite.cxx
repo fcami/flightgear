@@ -14,8 +14,6 @@
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(JsonUriHandlerTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(PropertyChangeWebsocketTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(MirrorPropertyTreeWebsocketTests, "Unit tests");
-// Integration tests: a real HttplibHttpd against a real client -- see
-// MONGOOSE_TO_HTTPLIB_PLAN.md Phase 4.
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(HttplibHttpdTests, "Unit tests");
 #if defined(ENABLE_SWIFT)
 

@@ -121,16 +121,10 @@ using std::string;
 
     // SGPropertyChangeListener callbacks fire synchronously on whichever
     // thread writes (or adds/removes) a watched property. Under
-    // MongooseHttpd that's always the single main thread, same as poll()
-    // and makeJSONData() below, so this was never a concern. Under
     // HttplibHttpd, a property write from any URI handler's httplib
     // worker thread can now fire these callbacks on that thread,
     // concurrently with this connection's own poll thread reading/
     // clearing the same state -- so every entry point locks _mutex.
-    // Methods that recurse into each other (valueChanged/registerSubtree,
-    // recursiveAdd) have a lock-free "Locked" implementation that assumes
-    // the caller already holds the lock, to avoid deadlocking a
-    // non-recursive mutex.
     class MirrorTreeListener : public SGPropertyChangeListener
     {
     public:
