@@ -15,6 +15,7 @@
 #include <simgear/package/Root.hxx>
 #include <simgear/props/props.hxx>
 #include <simgear/structure/commands.hxx>
+#include <simgear/structure/event_mgr.hxx>
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -83,18 +84,24 @@ void HttplibHttpdTests::setUp()
     _httpd->bind();
     waitUntilServerIsUp();
 
+    // HttplibHttpd's main-thread hop (see runOnMainThread() in
+    // HttplibHttpd.cxx) is now driven by SGEventMgr, not by HttplibHttpd::
+    // update() itself -- so it's the event manager that needs pumping here
+    // to drain it, via its sim-time queue (advanced directly by the dt
+    // passed to update(), rather than the real-time queue's property).
+    //
     // This runs on its own thread rather than the thread that called
     // initTestGlobals() (which is what a real app's single main thread
     // would be), so testRunHandler still logs SGCommandMgr::execute()'s
     // "different thread than expected" debug warning even though the
     // main-thread hop itself works (the request succeeds, and does not
-    // deadlock). In the real app, update(dt) is always called from the
-    // same main thread that constructs SGCommandMgr, so that warning
+    // deadlock). In the real app, the event manager is always updated from
+    // the same main thread that constructs SGCommandMgr, so that warning
     // doesn't fire there.
     _stopUpdatePump = false;
     _updatePumpThread = std::thread([this] {
         while (!_stopUpdatePump.load()) {
-            _httpd->update(0.0);
+            globals->get_event_mgr()->update(0.005);
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     });

@@ -75,11 +75,11 @@ private:
     SGPath _docRoot;
     int _port = 0;
 
-    // There's no real main loop in this test to call HttplibHttpd::
-    // update(dt) on its own -- which is what drains the main-thread hop
-    // used by ScreenshotUriHandler's and RunUriHandler's first call (see
-    // HttplibHttpd.cxx). Without this, those requests would block
-    // forever waiting for a drain that never happens.
+    // There's no real main loop in this test to call SGEventMgr::update(dt)
+    // on its own -- which is what drains the main-thread hop used by
+    // ScreenshotUriHandler's and RunUriHandler's first call (see
+    // HttplibHttpd.cxx's runOnMainThread()). Without this, those requests
+    // would block forever waiting for a drain that never happens.
     std::thread _updatePumpThread;
     std::atomic<bool> _stopUpdatePump{false};
 

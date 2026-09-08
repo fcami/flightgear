@@ -12,7 +12,6 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <ctime>
-#include <deque>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -37,11 +36,13 @@
 #include "urihandler.hxx"
 
 #include <Main/fg_props.hxx>
+#include <Main/globals.hxx>
 
 #include <simgear/debug/logstream.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/structure/SGSharedPtr.hxx>
+#include <simgear/structure/event_mgr.hxx>
 
 #include <httplib.h>
 
@@ -196,41 +197,37 @@ public:
         }
     }
 
-    // Runs `fn` on the main thread during the next update(dt) call, and
-    // blocks the calling (httplib worker) thread until it has run. Used only
-    // for the one operation that isn't safe to do from an arbitrary worker
-    // thread: installing the screenshot handler's osg::Camera::DrawCallback
-    // the first time
+    // Runs `fn` on the main thread and blocks the calling (httplib worker)
+    // thread until it has run. Used only for the one operation that isn't
+    // safe to do from an arbitrary worker thread: installing the screenshot
+    // handler's osg::Camera::DrawCallback the first time, and RunUriHandler's
+    // SGCommandMgr::execute() call. Scheduling is delegated to SGEventMgr --
+    // a zero-delay one-shot event runs on the main thread during its next
+    // update(), which is exactly the hop we need. This uses the sim-time
+    // queue (advanced directly by the delta_time_sec passed to
+    // SGEventMgr::update()) rather than the real-time queue, which instead
+    // relies on a separately-maintained property -- the sim queue needs
+    // nothing but the subsystem manager's normal update() calls to progress.
     void runOnMainThread(const std::function<void()>& fn)
     {
         std::mutex m;
         std::condition_variable cv;
         bool done = false;
 
-        {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            mainThreadQueue.push_back([&]() {
+        globals->get_event_mgr()->addEvent(
+            "httpd-main-thread-hop",
+            [&]() {
                 fn();
                 {
-                    std::lock_guard<std::mutex> lock2(m);
+                    std::lock_guard<std::mutex> lock(m);
                     done = true;
                 }
                 cv.notify_one();
-            });
-        }
+            },
+            0.0, /* delay */ true /* sim time */);
 
         std::unique_lock<std::mutex> lock(m);
         cv.wait(lock, [&] { return done; });
-    }
-
-    void drainMainThreadQueue()
-    {
-        std::deque<std::function<void()>> queue;
-        {
-            std::lock_guard<std::mutex> lock(queueMutex);
-            queue.swap(mainThreadQueue);
-        }
-        for (auto& task : queue) task();
     }
 
     // Dispatches one request to whichever URIHandler matches, or
@@ -346,9 +343,6 @@ public:
     httplib::Server server;
     std::thread listenThread;
     URIHandlerMap uriHandler;
-
-    std::mutex queueMutex;
-    std::deque<std::function<void()>> mainThreadQueue;
 };
 
 HttplibHttpd::HttplibHttpd(SGPropertyNode_ptr configNode)
@@ -501,5 +495,6 @@ void HttplibHttpd::unbind()
 
 void HttplibHttpd::update(double dt)
 {
-    d->drainMainThreadQueue();
+    // The main-thread hop is now driven by SGEventMgr (see runOnMainThread()
+    // above), so there's nothing left to do here per-tick.
 }
