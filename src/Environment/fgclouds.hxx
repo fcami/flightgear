@@ -69,7 +69,7 @@ private:
         // Field center this result was built for - applied to the shader-facing
         // cloud-center-* uniforms at commit time, in lockstep with the voxel data
         // itself (see the comment on RebuildSnapshot::centerCart).
-        SGVec3<double> centerCart;
+        SGVec3d centerCart;
     };
 
     // Snapshot needed to (re)build just the shade texture, independently of

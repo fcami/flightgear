@@ -1220,8 +1220,8 @@ void FGClouds::updateNonRepeatingField()
     // camera leaves the currently-committed detailed footprint.
     if (_fieldDirty) return; // a rebuild is already going to happen; nothing more to check
 
-    const float fieldWidthM = (float)_detailedFieldWidth * (float)_detailedFieldVoxelSize;
-    const float thresholdM = 0.5f * fieldWidthM * (float)_recenterMarginNorm;
+    const float fieldWidthM = _detailedFieldWidth * _detailedFieldVoxelSize;
+    const float thresholdM = 0.5f * fieldWidthM * _recenterMarginNorm;
 
     SGGeod currentGeod = globals->get_view_position();
     currentGeod.setElevationM(0);
