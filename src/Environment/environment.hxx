@@ -10,6 +10,7 @@
 #include <simgear/compiler.h>
 
 #include <cmath>
+#include <simgear/math/SGGeod.hxx>
 #include <simgear/props/tiedpropertylist.hxx>
 
 /**
