@@ -473,22 +473,8 @@ RealWxController * RealWxController::createInstance( SGPropertyNode_ptr rootNode
   return new NoaaMetarRealWxController( rootNode );
 }
 
-/*
-SGSharedPtr<SGPropertyNode_ptr> RealWxController::getMetarProperties(const std::string& icao)
-{
-    SG_LOG
-    (
-        SG_ENVIRONMENT,
-        SG_INFO,
-        "RealWxController::getMetarProperties()"
-        "spawning load request for station-id '" << icao << "'"
-    );
-    return SGSharedPtr<LiveMetarProperties>();
-}
-*/
-RealWxController::~RealWxController()
-{
-}
+
+RealWxController::~RealWxController() = default;
 
 /* -------------------------------------------------------------------------------- */
 
