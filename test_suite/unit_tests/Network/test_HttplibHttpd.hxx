@@ -37,6 +37,7 @@ class HttplibHttpdTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testFlightHistoryHandler);
     CPPUNIT_TEST(testPropertyListenerWebsocket);
     CPPUNIT_TEST(testPropertyTreeMirrorWebsocket);
+    CPPUNIT_TEST(testDefaultsToLoopback);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -81,6 +82,9 @@ public:
     // Connect to /PropertyTreeMirror/<path> and receive the initial
     // subtree snapshot, then a change notification.
     void testPropertyTreeMirrorWebsocket();
+    // With no listening-address configured, the server must default to
+    // loopback-only.
+    void testDefaultsToLoopback();
 
 private:
     std::unique_ptr<flightgear::HttplibHttpd> _httpd;

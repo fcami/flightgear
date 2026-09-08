@@ -12,6 +12,7 @@
 #include <simgear/debug/LogCallback.hxx>
 #include <simgear/debug/logstream.hxx>
 #include <simgear/misc/sg_dir.hxx>
+#include <simgear/misc/strutils.hxx>
 #include <simgear/structure/exception.hxx>
 #include <simgear/timing/sg_time.hxx>
 
@@ -1053,12 +1054,46 @@ fgOptJpgHttpd( const char * arg )
 static int
 fgOptHttpd( const char * arg )
 {
-    // port may be any valid address:port notation
+    using namespace simgear::strutils;
+
+    // arg may be any valid address:port notation
     // like 127.0.0.1:8080
     // or just the port 8080
-    string port = simgear::strutils::strip(string(arg));
-    if( port.empty() ) return FG_OPTIONS_ERROR;
-    fgSetString( string(flightgear::http::PROPERTY_ROOT).append("/options/listening-port").c_str(), port );
+    // An explicit --httpd, with or without an address, preserves the
+    // long-standing behaviour of binding all interfaces -- only the
+    // *implicit* (no --httpd at all) default is loopback-only.
+    string spec = simgear::strutils::strip(string(arg));
+    if (spec.empty()) {
+        return FG_OPTIONS_ERROR;
+    }
+
+    const string root = flightgear::http::PROPERTY_ROOT;
+    string address = "0.0.0.0";
+    int port = 8080;
+    try {
+        string::size_type colon = spec.rfind(':');
+        if (colon != string::npos) {
+            address = spec.substr(0, colon);
+            port = readNonNegativeInt<int>(spec.substr(colon + 1));
+        } else {
+            port = readNonNegativeInt<int>(spec);
+        }
+
+        if (port > 65535) {
+            SG_LOG(SG_GENERAL, SG_ALERT, "Invalid httpd port number:" << port);
+            return FG_OPTIONS_ERROR;
+        }
+    } catch (sg_exception&) {
+        SG_LOG(SG_GENERAL, SG_ALERT,
+               "Coudln't parse --httpd argument '" << spec << "'");
+        return FG_OPTIONS_ERROR;
+    }
+
+    fgSetString(root + "/options/listening-address"s, address);
+    fgSetInt(root + "/options/listening-port"s, port);
+    // an explicit --httpd always (re-)enables the server, even if it was
+    // disabled by defaults or a previous --disable-httpd
+    fgSetBool(root + "/options/enabled"s, true);
     return FG_OPTIONS_OK;
 }
 
@@ -1909,6 +1944,8 @@ const std::initializer_list<OptionDesc> fgOptionArray = {
     {"atcsim",                       ParamType::REGULAR,  OptionType::OPT_CHANNEL, "", false, "dummy", 0 },
     {"atlas",                        ParamType::REGULAR,  OptionType::OPT_CHANNEL | OPTION_MULTI, "", false, "", 0 },
     {"httpd",                        ParamType::REGULAR,  OptionType::OPT_FUNC,    "", false, "", fgOptHttpd },
+    {"enable-httpd",                 ParamType::NONE,     OptionType::OPT_BOOL,    "/sim/http/options/enabled", true,  "", nullptr },
+    {"disable-httpd",                ParamType::NONE,     OptionType::OPT_BOOL,    "/sim/http/options/enabled", false, "", nullptr },
     {"jpg-httpd",                    ParamType::REGULAR,  OptionType::OPT_FUNC,    "", false, "", fgOptJpgHttpd },
     {"native",                       ParamType::REGULAR,  OptionType::OPT_CHANNEL | OPTION_MULTI, "", false, "", 0 },
     {"native-ctrls",                 ParamType::REGULAR,  OptionType::OPT_CHANNEL | OPTION_MULTI, "", false, "", 0 },

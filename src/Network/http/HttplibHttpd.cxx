@@ -415,13 +415,25 @@ void HttplibHttpd::bind()
     });
 
     n = configNode->getNode("options");
+    // Default: loopback-only, binding only to loopback avoids triggering the
+    // Windows Firewall "allow access"
+    // prompt (which is only raised for sockets that could accept external
+    // connections). A specific port and/or a non-loopback address can still
+    // be requested explicitly via --httpd=[address:]port or by setting
+    // options/listening-address and options/listening-port directly.
+    string listeningAddress = "127.0.0.1";
     int listeningPort = 8080;
+
     if (n.valid()) {
         const string fgRoot = fgGetString("/sim/fg-root");
         string docRoot = n->getStringValue("document-root", fgRoot);
-        if (docRoot.empty() || docRoot[0] != '/') docRoot.insert(0, "/").insert(0, fgRoot);
+        if (docRoot.empty() || docRoot[0] != '/') {
+            docRoot.insert(0, "/").insert(0, fgRoot);
+        }
+
         server.set_mount_point("/", docRoot);
 
+        listeningAddress = n->getStringValue("listening-address", listeningAddress);
         listeningPort = n->getIntValue("listening-port", listeningPort);
 
         // URL rewrites map directly onto httplib's mount points (a URL prefix
@@ -485,14 +497,14 @@ void HttplibHttpd::bind()
         }
     }
 
-    if (!server.bind_to_port("0.0.0.0", listeningPort)) {
-        SG_LOG(SG_NETWORK, SG_ALERT, "httpd: failed to bind to port " << listeningPort);
+    if (!server.bind_to_port(listeningAddress, listeningPort)) {
+        SG_LOG(SG_NETWORK, SG_ALERT, "httpd: failed to bind to " << listeningAddress << ":" << listeningPort);
         return;
     }
     d->listenThread = std::thread([this] { d->server.listen_after_bind(); });
 
     configNode->setBoolValue("running", true);
-    SG_LOG(SG_NETWORK, SG_INFO, "httpd: cpp-httplib backend listening on port " << listeningPort);
+    SG_LOG(SG_NETWORK, SG_INFO, "httpd: cpp-httplib backend listening on " << listeningAddress << ":" << listeningPort);
 }
 
 void HttplibHttpd::unbind()
