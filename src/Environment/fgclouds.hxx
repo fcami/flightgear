@@ -49,6 +49,7 @@ private:
         int roughFieldVoxelSize{};
         int roughVoxelSizeFactor{};
         float voxelOpticalDepth{};
+        float sdfMaxDistanceVoxels{};
         bool fieldRepeating{};
 
         // Field center for fgSet* calls at commit time
@@ -200,7 +201,7 @@ private:
     bool repositionCloud(int index, float lon, float lat, float alt, float x, float y);
 
     // Utility functions
-    static void generateSDF(osg::ref_ptr<osg::Image>);
+    static void generateSDF(osg::ref_ptr<osg::Image>, float maxDistanceVoxels);
     osg::Vec3f getFinalPos(SGGeod loc, float x, float y);
 
     // Sun direction in voxel (Z-up, field-relative) space. Shared

@@ -25,6 +25,7 @@
 #include <simgear/scene/util/StateAttributeFactory.hxx>
 #include <simgear/sound/soundmgr.hxx>
 #include <simgear/structure/commands.hxx>
+#include <simgear/timing/timestamp.hxx>
 
 #include <Airports/airport.hxx>
 #include <Environment/environment_ctrl.hxx>
@@ -625,6 +626,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
     snap.detailedFieldHeight = cloudsProp->getIntValue("detailed-voxel-field-height", 64);
     snap.detailedFieldVoxelSize = cloudsProp->getIntValue("detailed-voxel-size-m", 200);
     snap.voxelOpticalDepth = cloudsProp->getFloatValue("voxel-optical-depth", 2.5);
+    snap.sdfMaxDistanceVoxels = cloudsProp->getFloatValue("sdf-max-distance-voxels", 64.0);
     snap.fieldRepeating = _fieldRepeating;
     snap.cloudbaseM = 99999.0f;
 
@@ -720,6 +722,8 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 // Build the cloud field centered on the current location.
 FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
 {
+    const SGTimeStamp t_start = SGTimeStamp::now();
+
     RebuildResult result;
     result.fieldRepeating = snap.fieldRepeating;
     result.cloudbaseM = snap.cloudbaseM;
@@ -829,7 +833,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     }
 
     // Generate SDF
-    generateSDF(result.detailedVoxelData);
+    generateSDF(result.detailedVoxelData, snap.sdfMaxDistanceVoxels);
 
     if (!snap.fieldRepeating) {
         // Now generate the rough voxel space in a similar manner
@@ -842,8 +846,11 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         }
 
         // Generate an SDF
-        generateSDF(result.roughVoxelData);
+        generateSDF(result.roughVoxelData, snap.sdfMaxDistanceVoxels);
     }
+
+    SG_LOG(SG_ENVIRONMENT, SG_INFO, "Cloud voxel field rebuild took " << (SGTimeStamp::now() - t_start).toMSecs() << "ms"
+                                                                       << " (repeating=" << snap.fieldRepeating << ")");
 
     return result;
 }
@@ -1009,7 +1016,7 @@ void FGClouds::commitShadeResult(ShadeRebuildResult result)
     simgear::StateAttributeFactory::instance()->setCloudShadeImage(_voxelShadeData);
 }
 
-void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
+void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage, float maxDistanceVoxels)
 {
     // Build the SDF from a set of voxel data.
     vector<std::array<int, 3>> cloudBoundaryIndices;
@@ -1049,7 +1056,8 @@ void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
             gridSize,
             cloudBoundaryIndices,
             cloudBoundaryDistances,
-            fmm::DistanceSolver<float, 3>(1.0));
+            fmm::DistanceSolver<float, 3>(1.0),
+            maxDistanceVoxels);
 
         // The SDF is now calculated, so write it back to the voxel data.
         float* raw = reinterpret_cast<float*>(voxelImage->data());
@@ -1057,7 +1065,12 @@ void FGClouds::generateSDF(osg::ref_ptr<osg::Image> voxelImage)
         for (std::size_t k = 0; k < height; ++k) {
             for (std::size_t j = 0; j < width; ++j) {
                 for (std::size_t i = 0; i < width; ++i, ++idx) {
-                    float distance = sdf[idx];
+                    // sdf[idx] is the raw FMM result, which for a cell beyond
+                    // maxDistanceVoxels is either exactly that cap (marching
+                    // stopped there) or the pre-march sentinel (never reached
+                    // at all) - std::min folds both cases into the same safe
+                    // lower-bound value used by the shader's adaptive jump.
+                    float distance = std::min(sdf[idx], maxDistanceVoxels);
                     maxDistance = std::max(maxDistance, distance);
                     size_t pixIdx = (k * width * width + j * width + i) * 4;
                     if (raw[pixIdx + 3] > 0.0f) {
