@@ -55,7 +55,9 @@
 class AircraftResourceProvider : public simgear::ResourceProvider
 {
 public:
-    AircraftResourceProvider() : simgear::ResourceProvider(simgear::ResourceManager::PRIORITY_HIGH)
+    AircraftResourceProvider() : simgear::ResourceProvider(simgear::ResourceManager::PRIORITY_HIGH,
+                                                           {simgear::ResourceManager::FileType::Font},
+                                                           simgear::ResourceManager::ProviderCategory::Aircraft)
     {
     }
 
@@ -101,20 +103,25 @@ public:
         return SGPath(); // not found
     }
 
-    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        std::vector<SGPath> paths;
+        std::vector<simgear::ResourceManager::FoundFile> files;
         for (const SGPath& path : globals->get_aircraft_paths()) {
-            findAllOfTypeHelper(path, type, paths);
+            findAllOfTypeHelper(path, type, files);
         }
-        return paths;
+        return files;
     }
 };
 
 class CurrentAircraftDirProvider : public simgear::ResourceProvider
 {
 public:
-    CurrentAircraftDirProvider() : simgear::ResourceProvider(simgear::ResourceManager::PRIORITY_HIGH)
+    // Note we currently don't scan the current aircraft for Nasal,
+    // since this would likely duplicate explicit loading inside -set.xml
+    CurrentAircraftDirProvider() : simgear::ResourceProvider(simgear::ResourceManager::PRIORITY_HIGH,
+                                                             {simgear::ResourceManager::FileType::Font,
+                                                              simgear::ResourceManager::FileType::GUIDialog},
+                                                             simgear::ResourceManager::ProviderCategory::Aircraft)
     {
     }
 
@@ -125,11 +132,14 @@ public:
         return p.exists() ? p : SGPath();
     }
 
-    virtual std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    virtual std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
-        std::vector<SGPath> paths;
-        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, paths);
-        return paths;
+        std::vector<simgear::ResourceManager::FoundFile> files;
+        findAllOfTypeHelper(SGPath::fromUtf8(fgGetString("/sim/aircraft-dir")), type, files);
+        for (auto& f : files) {
+            f.origin = "current-aircraft";
+        }
+        return files;
     }
 };
 
@@ -256,7 +266,7 @@ FGGlobals::~FGGlobals()
 
     props.clear();
 
-    delete simgear::ResourceManager::instance();
+    simgear::ResourceManager::reset();
 }
 
 // set the fg_root path
@@ -297,7 +307,7 @@ void FGGlobals::set_fg_root(const SGPath& root)
     n->setStringValue(fg_root.utf8Str());
     n->setAttribute(SGPropertyNode::WRITE, false);
 
-    simgear::ResourceManager::instance()->addBasePath(fg_root,
+    simgear::ResourceManager::instance()->addDataPath(fg_root,
                                                       simgear::ResourceManager::PRIORITY_DEFAULT);
 }
 
@@ -353,37 +363,17 @@ void FGGlobals::append_data_path(const SGPath& path, bool afterFGRoot)
     if (afterFGRoot) {
         _dataPathsAfterFGRoot.push_back(path);
         // after FG_ROOT
-        resManager->addBasePath(path, static_cast<RM::Priority>(RM::PRIORITY_DEFAULT - 10));
+        resManager->addDataPath(path, static_cast<RM::Priority>(RM::PRIORITY_DEFAULT - 10));
     } else {
         additional_data_paths.push_back(path);
         // after NORMAL priority, but ahead of FG_ROOT
-        resManager->addBasePath(path, static_cast<RM::Priority>(RM::PRIORITY_DEFAULT + 10));
+        resManager->addDataPath(path, static_cast<RM::Priority>(RM::PRIORITY_DEFAULT + 10));
     }
 }
 
 SGPath FGGlobals::findDataPath(const std::string& pathSuffix) const
 {
-    for (SGPath p : additional_data_paths) {
-        p.append(pathSuffix);
-        if (p.exists()) {
-            return p;
-        }
-    }
-
-    SGPath rootPath(fg_root);
-    rootPath.append(pathSuffix);
-    if (rootPath.exists()) {
-        return rootPath;
-    }
-
-    for (SGPath p : _dataPathsAfterFGRoot) {
-        p.append(pathSuffix);
-        if (p.exists()) {
-            return p;
-        }
-    }
-
-    return SGPath{};
+    return simgear::ResourceManager::instance()->findDataPath(pathSuffix);
 }
 
 void FGGlobals::append_fg_scenery(const PathList& paths)
@@ -417,8 +407,9 @@ void FGGlobals::append_fg_scenery(const SGPath& path)
     }
 
     // tell the ResourceManager about the scenery path
-    // needed to load Models from this scenery path
-    simgear::ResourceManager::instance()->addBasePath(abspath, simgear::ResourceManager::PRIORITY_DEFAULT);
+    // needed to load Models from this scenery path, and to search for
+    // NavData/<type>/*.dat[.gz] files in this scenery path
+    simgear::ResourceManager::instance()->addSceneryPath(abspath, simgear::ResourceManager::PRIORITY_NORMAL);
 
     fg_scenery.push_back(abspath);
     extra_read_allowed_paths.push_back(abspath);

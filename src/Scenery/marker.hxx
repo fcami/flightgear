@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <osg/ref_ptr>
+
 namespace osgText {
     class String;
 }
@@ -13,4 +15,5 @@ namespace osg {
     class Vec4f;
 }
 
-osg::Node* fgCreateMarkerNode(const osgText::String&, float font_size, float pin_height, float tip_height, const osg::Vec4f& color);
+osg::ref_ptr<osg::Node>
+fgCreateMarkerNode(const osgText::String&, float font_size, float pin_height, float tip_height, const osg::Vec4f& color);

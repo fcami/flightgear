@@ -9,6 +9,7 @@
 #include <config.h>
 
 #include "airport.hxx"
+#include "simgear/debug/debug_types.h"
 
 #include <algorithm>
 #include <cassert>
@@ -639,13 +640,12 @@ void FGAirport::processThreshold(SGPropertyNode* aThreshold)
 
   if (id == 0) {
     const auto runwayIdent = ident() + "/" + rwyIdent;
+    SG_LOG(SG_NAVAID, SG_DEV_WARN, "Threshold.xml contains runway not included in apt.dat:" << sg_location{aThreshold}.asString() << ": runway=" << runwayIdent);
+#if 0
     // enable this code when threshold.xml contains sufficient data to
     // fully specify a new runway, *and* we figure out how to assign runtime
     // Positioned IDs and insert temporary items into the spatial map.
-    throw sg_io_exception("Found runway not defined in global data:" + runwayIdent,
-                          sg_location{aThreshold}, "FGAirport::processThreshold", false);
 
-#if 0
     double newLength = 0.0, newWidth = 0.0;
     int surfaceCode = 0;
     FGRunway* rwy = new FGRunway(id, guid(), rwyIdent, newThreshold,

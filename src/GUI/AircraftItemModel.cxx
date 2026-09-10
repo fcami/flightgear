@@ -20,9 +20,9 @@
 
 // FlightGear
 #include "AircraftCompatibility.hxx"
-#include "AircraftRatingSubmission.hxx"
 #include "FavouriteAircraftData.hxx"
 #include "QmlAircraftInfo.hxx"
+#include <Main/AircraftRatingTracker.hxx>
 #include <Main/globals.hxx>
 #include <Main/sentryIntegration.hxx>
 
@@ -107,6 +107,12 @@ protected:
         QModelIndex mi(indexForPackage(pkg));
         m_model->dataChanged(mi, mi);
         m_model->installedAircraftCountChanged();
+    }
+
+    void packageDataChanged(const PackageRef& pkg) override
+    {
+        QModelIndex mi(indexForPackage(pkg));
+        m_model->dataChanged(mi, mi);
     }
 
 private:
@@ -428,10 +434,9 @@ QVariant AircraftItemModel::dataFromPackage(const PackageRef& item, const Delega
     } else if (role == AircraftUserRatingVotesRole) {
         return item->userRatingVotes();
     } else if (role == AircraftUserOwnRatingRole) {
-        return m_packageRoot->userRatingForPackage(item->qualifiedId());
+        return item->userRating();
     } else if (role == AircraftUserCanRateRole) {
-        return m_packageRoot->isPackageFlownEnoughToRate(item->qualifiedId()) &&
-               (m_packageRoot->userRatingForPackage(item->qualifiedId()) < 0);
+        return flightgear::canRateAircraft(item);
     }
 
     return QVariant();
@@ -468,9 +473,7 @@ bool AircraftItemModel::setData(const QModelIndex &index, const QVariant &value,
           }
 
           const int rating = value.toInt();
-          m_packageRoot->setUserRatingForPackage(pkg->qualifiedId(), rating);
-          flightgear::submitAircraftRating(pkg->qualifiedId(), rating);
-          emit dataChanged(index, index);
+          flightgear::submitAircraftRating(pkg, rating);
           return true;
       }
 

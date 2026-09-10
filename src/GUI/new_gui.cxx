@@ -23,12 +23,10 @@
 
 #include <simgear/compiler.h>
 #include <simgear/debug/ErrorReportingCallback.hxx>
-#include <simgear/misc/sg_dir.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/structure/exception.hxx>
 
-#include <Add-ons/Addon.hxx>
-#include <Add-ons/AddonManager.hxx>
 #include <Main/fg_props.hxx>
 #include <Main/sentryIntegration.hxx>
 #include <Scripting/NasalSys.hxx>
@@ -131,26 +129,25 @@ NewGUI::init ()
           &NewGUI::getMenuBarOverlapHide, &NewGUI::setMenuBarOverlapHide);
 
     setStyle();
-    SGPath p(globals->get_fg_root(), "gui/dialogs");
-    readDir(p, "core");
+    {
+        auto* cache = flightgear::NavDataCache::instance();
+        flightgear::NavDataCache::Transaction txn(cache);
+        auto* highlight = globals->get_subsystem<Highlight>();
 
-    if (fgGetBool("/sim/gui/startup") == false) {
-        SGPath aircraftDialogDir(fgGetString("/sim/aircraft-dir"), "gui/dialogs");
-        if (aircraftDialogDir.exists()) {
-            readDir(aircraftDialogDir, "current-aircraft");
-        }
+        // While still in the startup/launcher GUI, only core dialogs are loaded
+        const bool inStartupGui = fgGetBool("/sim/gui/startup");
 
-        // Read XML dialogs made available by registered add-ons
-        const auto& addonManager = flightgear::addons::AddonManager::instance();
-        if (addonManager) {
-            for (const auto& addon : addonManager->registeredAddons()) {
-                SGPath addonDialogDir = addon->getBasePath() / "gui/dialogs";
-
-                if (addonDialogDir.exists()) {
-                    readDir(addonDialogDir, "addons/" + addon->getId());
-                }
+        using RM = simgear::ResourceManager;
+        for (const auto& f : RM::instance()->findUniqueFilesOfType(RM::FileType::GUIDialog)) {
+            // f.origin is set by CurrentAircraftDirProvider ("current-aircraft")
+            // and flightgear::addons::ResourceProvider ("addons/<id>"); it is
+            // empty for core (FG_ROOT / extra data path) dialogs.
+            if (!f.origin.empty() && inStartupGui) {
+                continue;
             }
+            readDialogFile(f.path, cache, highlight, f.origin.empty() ? "core" : f.origin);
         }
+        txn.commit();
     }
 
     if (_menubar) {
@@ -518,82 +515,68 @@ NewGUI::newDialog (SGPropertyNode* props)
 }
 
 
-void
-NewGUI::readDir (const SGPath& path, const std::string& translationDomain)
+void NewGUI::readDialogFile(const SGPath& xmlPath, flightgear::NavDataCache* cache,
+                            Highlight* highlight, const std::string& translationDomain)
 {
-    simgear::Dir dir(path);
-    if( !dir.exists() )
-    {
-      SG_LOG(SG_INPUT, SG_INFO, "directory does not exist: " << path);
-      return;
-    }
+    SGPropertyNode_ptr props = new SGPropertyNode;
+    SGPropertyNode* nameprop = nullptr;
+    std::string name;
 
-    flightgear::NavDataCache* cache = flightgear::NavDataCache::instance();
-    flightgear::NavDataCache::Transaction txn(cache);
-    auto highlight = globals->get_subsystem<Highlight>();
-    for (SGPath xmlPath : dir.children(simgear::Dir::TYPE_FILE, ".xml")) {
-
-      SGPropertyNode_ptr props = new SGPropertyNode;
-      SGPropertyNode *nameprop = nullptr;
-      std::string name;
-
-      /* Always parse the dialog even if cache->isCachedFileModified() says
-      it is cached, so that we can register property-dialog associations with
-      Highlight::add_property_dialog(). */
-      try {
+    /* Always parse the dialog even if cache->isCachedFileModified() says
+    it is cached, so that we can register property-dialog associations with
+    Highlight::add_property_dialog(). */
+    try {
         readProperties(xmlPath, props);
-      } catch (const sg_exception &) {
+    } catch (const sg_exception&) {
         SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
         props.reset();
-      }
-      if (props) {
+    }
+    if (props) {
         nameprop = props->getNode("name");
         if (nameprop) {
-          name = nameprop->getStringValue();
-          // Look for 'property' nodes within the dialog. (could
-          // also look for "dialog-name" to catch things like
-          // dialog-show.)
-          std::vector<std::string> property_paths;
-          findAllLeafValues(props, "property", property_paths);
-          for (auto property_path: property_paths) {
-              // We could maybe hoist this test for highlight to avoid reaching
-              // here if it is null, but that's difficult to test, so we do it
-              // here instead.
-              if (highlight) {
-                  highlight->addPropertyDialog(property_path, name);
-              }
-          }
-        }
-      }
+            // Look for 'property' nodes within the dialog. (could
+            // also look for "dialog-name" to catch things like
+            // dialog-show.)
 
-      if (!cache->isCachedFileModified(xmlPath)) {
+            name = nameprop->getStringValue();
+            std::vector<std::string> property_paths;
+            findAllLeafValues(props, "property", property_paths);
+            for (auto property_path : property_paths) {
+                // We could maybe hoist this test for highlight to avoid reaching
+                // here if it is null, but that's difficult to test, so we do it
+                // here instead.
+                if (highlight) {
+                    highlight->addPropertyDialog(property_path, name);
+                }
+            }
+        }
+    }
+
         // cached, easy
-        string name = cache->readStringProperty(xmlPath.utf8Str());
-        // The translation domain can be overridden from the xmlPath contents
-        setDialogMetadata(name, xmlPath, translationDomain);
-        continue;
-      }
+        if (!cache->isCachedFileModified(xmlPath)) {
+            string name = cache->readStringProperty(xmlPath.utf8Str());
+            // The translation domain can be overridden from the xmlPath contents
+            setDialogMetadata(name, xmlPath, translationDomain);
+            return;
+        }
 
       // we need to parse the actual XML
-      if (!props) {
-        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
-        continue;
-      }
+        if (!props) {
+            SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
+            return;
+        }
 
-      if (!nameprop) {
-        SG_LOG(SG_INPUT, SG_WARN, "dialog " << xmlPath << " has no name; skipping.");
-        continue;
-      }
+        if (!nameprop) {
+            SG_LOG(SG_INPUT, SG_WARN, "dialog " << xmlPath << " has no name; skipping.");
+            return;
+        }
 
-      setDialogMetadata(name, xmlPath, translationDomain);
       // update cached values
-      if (!cache->isReadOnly()) {
-        cache->stampCacheFile(xmlPath);
-        cache->writeStringProperty(xmlPath.utf8Str(), name);
-      }
-    } // of directory children iteration
-
-    txn.commit();
+        setDialogMetadata(name, xmlPath, translationDomain);
+        if (!cache->isReadOnly()) {
+            cache->stampCacheFile(xmlPath);
+            cache->writeStringProperty(xmlPath.utf8Str(), name);
+        }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -618,23 +601,6 @@ NewGUI::setStyle (void)
     _colors["inputfield"] = new FGColor(0.8f, 0.7f, 0.7f, 1.0f);
 
     //puSetDefaultStyle();
-
-
-    if (0) {
-        // Re-read gui/style/*.xml files so that one can edit them and see the
-        // results without restarting flightgear.
-        SGPath  p(globals->get_fg_root(), "gui/styles");
-        SGPropertyNode* sim_gui = globals->get_props()->getNode("sim/gui/", true);
-        simgear::Dir dir(p);
-        int i = 0;
-        for (SGPath xml: dir.children(simgear::Dir::TYPE_FILE, ".xml")) {
-            SGPropertyNode_ptr node = sim_gui->getChild("style", i, true);
-            node->removeAllChildren();
-            SG_LOG(SG_GENERAL, SG_WARN, "reading from " << xml << " into " << node->getPath());
-            readProperties(xml, node);
-            i += 1;
-        }
-    }
 
     int which = fgGetInt("/sim/gui/current-style", 0);
     SGPropertyNode *sim = globals->get_props()->getNode("sim/gui", true);

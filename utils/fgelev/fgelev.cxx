@@ -160,7 +160,7 @@ int main(int argc, char** argv)
         SG_LOG(SG_GENERAL, SG_ALERT, "Problems loading FlightGear materials.\n"
                                          << "Probably FG_ROOT is not properly set.");
     }
-    simgear::SGModelLib::init(fg_root, props);
+    simgear::SGModelLib::init(simgear::PathList{SGPath(fg_root)}, props);
 
     // Set up the reader/writer options
     osg::ref_ptr<simgear::SGReaderWriterOptions> options;

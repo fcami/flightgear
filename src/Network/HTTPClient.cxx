@@ -108,6 +108,7 @@ void FGHTTPClient::init()
   if (packageRoot) {
     // package system needs access to the HTTP engine too
     packageRoot->setHTTPClient(_http.get());
+    packageRoot->setEventManager(globals->get_event_mgr());
   }
 
     _inited = true;

@@ -46,6 +46,11 @@ public:
         const auto rp = flightgear::Options::sharedInstance()->downloadedDataRoot();
         m_repo.reset(new simgear::HTTPRepository(rp, &m_http));
         m_repo->setBaseUrl(m_updateServerUri);
+        // in rapid RC scenarios, this can cause us to skip updates we need, and
+        // then fail to check again later.
+        m_repo->setRecheckTimeoutEnabled(false);
+        m_repo->setMaximumPermittedFailureCount(0);
+
         m_repo->update();
 
         connect(&m_updateTimer, &QTimer::timeout, this, &UpdateFGData::onUpdateRepo);

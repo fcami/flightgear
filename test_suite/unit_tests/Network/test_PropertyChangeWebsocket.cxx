@@ -38,8 +38,10 @@ void PropertyChangeWebsocketTests::testAddListenerAndPoll()
     PropertyChangeWebsocket ws(&observer);
     MockWebsocketWriter writer;
 
-    // addListener registers the observation; initial _changed flag is true so
-    // the very first poll() will emit the current value without needing check()
+    // addListener registers the observation; a freshly-watched node's own
+    // "last seen version" starts at 0 while the observer entry's version
+    // starts at 1, so the very first poll() will emit the current value
+    // without needing check() first
     auto req = buildRequest("GET", "/PropertyListener",
                             R"({"command":"addListener","node":"/test/pcws/value"})");
     ws.handleRequest(req, writer);
@@ -98,12 +100,14 @@ void PropertyChangeWebsocketTests::testNoChangePollEmitsNothing()
                             R"({"command":"addListener","node":"/test/pcws/stable"})");
     ws.handleRequest(req, writer);
 
-    // The observer's _prevValue starts empty, so two full check/poll/uncheck
-    // cycles are needed before it stabilises on the current value.
+    // The observer's _prevValue starts empty, so the first check() call
+    // sees a change (empty -> "constant") and the following poll() emits
+    // it once (change detection is a per-entry version counter, not a
+    // shared consume-once flag -- see PropertyChangeObserver.hxx). A
+    // second cycle confirms it stays quiet once stable.
     for (int i = 0; i < 2; ++i) {
         observer.check();
         ws.poll(writer);
-        observer.uncheck();
     }
 
     // Third cycle: value is unchanged → poll must be silent

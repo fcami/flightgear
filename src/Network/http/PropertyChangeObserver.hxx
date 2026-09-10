@@ -2,24 +2,11 @@
 //
 // Written by Torsten Dreyer, started April 2014.
 //
-// Copyright (C) 2014  Torsten Dreyer
+// SPDX-FileCopyrightText: 2014 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#ifndef PROPERTYCHANGEOBSERVER_HXX_
-#define PROPERTYCHANGEOBSERVER_HXX_
+#pragma once
 
 #include <simgear/props/props.hxx>
 #include <string>
@@ -29,36 +16,41 @@ namespace flightgear {
 namespace http {
 
 struct PropertyChangeObserverEntry : public SGReferenced {
-  PropertyChangeObserverEntry()
-      : _changed(true)
-  {
-  }
-  SGPropertyNode_ptr _node;
-  std::string _prevValue;
-  bool _changed;
+    SGPropertyNode_ptr _node;
+    std::string _prevValue;
+    // Bumped by check() whenever _node's value actually changes. Starts at 1
+    // (rather than 0) so that a fresh subscriber -- whose own "last seen"
+    // counter always starts at 0, see checkAndConsume() -- is notified once
+    // immediately
+    unsigned long _version = 1;
 };
 
 typedef SGSharedPtr<PropertyChangeObserverEntry> PropertyChangeObserverEntryRef;
+
 
 class PropertyChangeObserver {
 public:
   PropertyChangeObserver();
   virtual ~PropertyChangeObserver();
 
-  const SGPropertyNode_ptr addObservation( const std::string propertyName);
-  bool isChangedValue(const SGPropertyNode_ptr node);
+  const SGPropertyNode_ptr addObservation(const std::string propertyName);
 
+  // Returns true if `node`'s value has changed since `lastSeenVersion` was
+  // last updated by this call, updating it to the latest version either
+  // way. Callers must keep their own lastSeenVersion (initialized to 0)
+  // per node they watch.
+  bool checkAndConsume(const SGPropertyNode_ptr& node, unsigned long& lastSeenVersion);
+
+  // Recomputes each observed node's value and bumps its version on
+  // change. Called from PropertyChangeWebsocket::poll() itself, so does
+  // not generally need calling directly.
   void check();
-  void uncheck();
 
   void clear() { _entries.clear(); }
 
 private:
   typedef std::vector<PropertyChangeObserverEntryRef> Entries_t;
   Entries_t _entries;
-
 };
 }  // namespace http
-}  // namespace flightgear
-
-#endif /* PROPERTYCHANGEOBSERVER_HXX_ */
+} // namespace flightgear

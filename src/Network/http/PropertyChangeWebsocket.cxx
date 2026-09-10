@@ -2,21 +2,9 @@
 //
 // Written by Torsten Dreyer, started April 2014.
 //
-// Copyright (C) 2014  Torsten Dreyer
+// SPDX-FileCopyrightText: 2014 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "PropertyChangeWebsocket.hxx"
 #include "PropertyChangeObserver.hxx"
@@ -46,7 +34,7 @@ static void handleSetCommand(const string_list& nodes, const json& json, Websock
     // single value case
     if (json.contains("value")) {
         if (nodes.size() > 1) {
-            SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficent values for nodes:" << nodes.size());
+            SG_LOG(SG_NETWORK, SG_WARN, "httpd: WS set: insufficient values for nodes:" << nodes.size());
             return;
         }
 
@@ -125,7 +113,7 @@ void PropertyChangeWebsocket::handleGetCommand(const string_list& nodes, Websock
         writer.writeText(JSON::toJsonString(false, n, 0, t));
     } // of nodes iteration
 }
-  
+
 void PropertyChangeWebsocket::handleRequest(const HTTPRequest & request, WebsocketWriter &writer)
 {
   if (request.Content.empty()) return;
@@ -186,10 +174,14 @@ void PropertyChangeWebsocket::poll(WebsocketWriter & writer)
     _lastTrigger = now;
   }
 
-  for (auto node : _watchedNodes) {
-      if (_propertyChangeObserver->isChangedValue(node)) {
-          string out = JSON::toJsonString(false, node, 0, now);
-          SG_LOG(SG_NETWORK, SG_BULK, "PropertyChangeWebsocket::poll() new Value for " << node->getPath(true) << " '" << node->getStringValue() << "' #" << id << ": " << out);
+  // Detect changes since the last poll() call. Each cpnnection owns its
+  // PropertyChangeObserver exclusively
+  _propertyChangeObserver->check();
+
+  for (auto& watched : _watchedNodes) {
+      if (_propertyChangeObserver->checkAndConsume(watched.node, watched.lastSeenVersion)) {
+          string out = JSON::toJsonString(false, watched.node, 0, now);
+          SG_LOG(SG_NETWORK, SG_BULK, "PropertyChangeWebsocket::poll() new Value for " << watched.node->getPath(true) << " '" << watched.node->getStringValue() << "' #" << id << ": " << out);
           writer.writeText(out);
       }
   }
@@ -200,22 +192,22 @@ void PropertyChangeWebsocket::WatchedNodesList::handleCommand(const string & com
 {
   if (command == "addListener") {
     for (iterator it = begin(); it != end(); ++it) {
-      if (node == (*it)->getPath(true)) {
-        SG_LOG(SG_NETWORK, SG_WARN, "httpd: " << command << " '" << node << "' ignored (duplicate)");
-        return; // dupliate
-      }
+        if (node == it->node->getPath(true)) {
+            SG_LOG(SG_NETWORK, SG_WARN, "httpd: " << command << " '" << node << "' ignored (duplicate)");
+            return; // duplicate
+        }
     }
     SGPropertyNode_ptr n = propertyChangeObserver->addObservation(node);
-    if (n.valid()) push_back(n);
+    if (n.valid()) push_back(WatchedNode{n});
     SG_LOG(SG_NETWORK, SG_INFO, "httpd: " << command << " '" << node << "' success");
 
   } else if (command == "removeListener") {
     for (iterator it = begin(); it != end(); ++it) {
-      if (node == (*it)->getPath(true)) {
-        this->erase(it);
-        SG_LOG(SG_NETWORK, SG_INFO, "httpd: " << command << " '" << node << "' success");
-        return;
-      }
+        if (node == it->node->getPath(true)) {
+            this->erase(it);
+            SG_LOG(SG_NETWORK, SG_INFO, "httpd: " << command << " '" << node << "' success");
+            return;
+        }
     }
     SG_LOG(SG_NETWORK, SG_WARN, "httpd: " << command << " '" << node << "' ignored (not found)");
   }

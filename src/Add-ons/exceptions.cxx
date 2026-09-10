@@ -29,12 +29,12 @@ namespace errors
 
 // Prepending a prefix such as "Add-on error: " would be redundant given the
 // messages used in, e.g., the Addon class code.
-error::error(const string& message, const string& origin)
-  : sg_exception(message, origin)
+error::error(const string& message, const string& origin, bool report)
+    : sg_exception(message, origin, {}, report)
 { }
 
-error::error(const char* message, const char* origin)
-  : error(string(message), string(origin))
+error::error(const char* message, const char* origin, bool report)
+    : error(string(message), origin ? string(origin) : string(), report)
 { }
 
 } // of namespace errors

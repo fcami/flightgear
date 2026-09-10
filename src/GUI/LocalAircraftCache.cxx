@@ -327,7 +327,7 @@ public:
         _currentAircraftPath = p;
     }
 
-    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         return {};
     }
@@ -364,7 +364,7 @@ public:
         return SGPath{};
     }
 
-    std::vector<SGPath> findAllOfType(simgear::ResourceManager::FileType type) const override
+    std::vector<simgear::ResourceManager::FoundFile> findAllOfType(simgear::ResourceManager::FileType type) const override
     {
         return {};
     }

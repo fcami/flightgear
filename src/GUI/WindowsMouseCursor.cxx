@@ -1,21 +1,5 @@
-// WindowsMouseCursor.cxx - mouse cursor using Windows APIs
-
-// Copyright (C) 2013 James Turner <zakalawe@mac.com>
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-//
+// SPDX-FileCopyrightText: 2013 James Turner <zakalawe@mac.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #ifdef HAVE_CONFIG_H
     #include "config.h"
@@ -45,22 +29,9 @@ HCURSOR windowsCursorForKey(FGMouseCursor::Cursor aKey)
     case FGMouseCursor::CURSOR_HAND: return LoadCursor(NULL, IDC_HAND);
     case FGMouseCursor::CURSOR_CROSSHAIR: return LoadCursor(NULL, IDC_CROSS);
     case FGMouseCursor::CURSOR_IBEAM: return LoadCursor(NULL, IDC_IBEAM);
-	case FGMouseCursor::CURSOR_LEFT_RIGHT: return LoadCursor( NULL, IDC_SIZEWE );
-    
-#if 0       
-    case FGMouseCursor::CURSOR_SPIN_CW:
-        path = [path stringByAppendingPathComponent:@"cursor-spin-cw.png"];
-        img = [[NSImage alloc] initWithContentsOfFile:path];
-        return [[NSCursor alloc] initWithImage:img hotSpot:NSMakePoint(16,16)];
-            
-    case FGMouseCursor::CURSOR_SPIN_CCW:
-        path = [path stringByAppendingPathComponent:@"cursor-spin-cw.png"];
-        img = [[NSImage alloc] initWithContentsOfFile:path];
-        return [[NSCursor alloc] initWithImage:img hotSpot:NSMakePoint(16,16)];
-#endif       
+    case FGMouseCursor::CURSOR_LEFT_RIGHT: return LoadCursor(NULL, IDC_SIZEWE);
     default: return LoadCursor(NULL, IDC_ARROW);
     }
-    
 }
 
 WindowsMouseCursor::WindowsMouseCursor() :
@@ -72,8 +43,6 @@ WindowsMouseCursor::WindowsMouseCursor() :
 
 WindowsMouseCursor::~WindowsMouseCursor()
 {
-    
-    
 }
 
 
@@ -82,7 +51,7 @@ void WindowsMouseCursor::setCursor(Cursor aCursor)
     if (aCursor == d->activeCursorKey) {
         return;
     }
-    
+
     d->activeCursorKey = aCursor;
     if (d->cursors.find(aCursor) == d->cursors.end()) {
         d->cursors[aCursor] = windowsCursorForKey(aCursor);
@@ -102,7 +71,7 @@ void WindowsMouseCursor::hideCursorUntilMouseMove()
     if (d->hideUntilMove) {
         return;
     }
-    
+
     d->hideUntilMove = true;
     ShowCursor(false);
 }

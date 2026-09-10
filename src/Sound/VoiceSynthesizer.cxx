@@ -117,8 +117,10 @@ SGSoundSample * FLITEVoiceSynthesizer::synthesize(const std::string & text, doub
     reinterpret_cast<unsigned char*>( data ),
     free
   };
-  return new SGSoundSample(std::move(buf),
-                           count * sizeof(short),
-                           rate,
-                           SG_SAMPLE_MONO16);
+  return new SGSoundSample(
+      "flite-" + text,
+      std::move(buf),
+      count * sizeof(short),
+      rate,
+      SG_SAMPLE_MONO16);
 }

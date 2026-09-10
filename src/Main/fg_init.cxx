@@ -37,6 +37,7 @@
 #include <simgear/debug/logstream.hxx>
 #include <simgear/embedded_resources/EmbeddedResourceManager.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
+#include <simgear/misc/ResourceManager.hxx>
 #include <simgear/misc/sg_dir.hxx>
 #include <simgear/misc/sg_path.hxx>
 #include <simgear/misc/strutils.hxx>
@@ -937,6 +938,7 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
                 aircraftId = aircraftId.substr(lastDot + 1);
             }
             aircraftProp->setStringValue(aircraftId);
+            fgSetBool("/sim/aircraft-from-package", true);
 
             // run the traditional-code path below
         } else {
@@ -958,6 +960,9 @@ int fgInitAircraft(bool reinit, bool didUseLauncher)
     if (!f.loadAircraft()) {
         return flightgear::FG_OPTIONS_ERROR;
     }
+
+    const auto acdp = SGPath::fromUtf8(aircraftDirProp->getStringValue());
+    flightgear::addSentryTag("aircraft-dir", acdp.file());
 
     return flightgear::FG_OPTIONS_OK;
 }
@@ -1106,8 +1111,8 @@ void fgCreateSubsystems(bool duringReset) {
                 );
 
         // Initialize the material property subsystem.
-        SGPath mpath( globals->get_fg_root() );
-        mpath.append( fgGetString("/sim/rendering/materials-file") );
+        const SGPath mpath = simgear::ResourceManager::instance()->findPath(
+            fgGetString("/sim/rendering/materials-file"));
         if ( ! globals->get_matlib()->load(globals->get_fg_root(), mpath, globals->get_props()) ) {
            throw sg_io_exception("Error loading materials file", mpath);
         }

@@ -46,7 +46,9 @@ void XMLLoader::load(FGGroundNetwork* net)
 
       if (visitor.hasErrors() && fgGetBool("/sim/terrasync/enabled")) {
           flightgear::updateSentryTag("ground-net", net->airport()->ident());
-          flightgear::sentryReportException("Ground-net load error", path.utf8Str());
+
+          // disabled for 2024.1.4 to reduce Sentry quota spam
+          //flightgear::sentryReportException("Ground-net load error", path.utf8Str());
       }
   } catch (sg_exception& e) {
     SG_LOG(SG_NAVAID, SG_DEV_WARN, "parsing groundnet XML failed:" << e.getFormattedMessage());
@@ -62,7 +64,8 @@ void XMLLoader::loadFromStream(FGGroundNetwork* net, std::istream& inData)
       readXML(inData, visitor);
 
       if (visitor.hasErrors()) {
-          flightgear::sentryReportException("Ground-net load error", {});
+          // disabled for 2024.1.4 to reduce Sentry quota spam
+          // flightgear::sentryReportException("Ground-net load error", {});
       }
   } catch (sg_exception& e) {
     SG_LOG(SG_NAVAID, SG_DEV_WARN, "parsing groundnet XML failed:" << e.getFormattedMessage());
@@ -77,7 +80,8 @@ void XMLLoader::loadFromPath(FGGroundNetwork* net, const SGPath& path)
 
       if (visitor.hasErrors() && fgGetBool("/sim/terrasync/enabled")) {
           flightgear::updateSentryTag("ground-net", net->airport()->ident());
-          flightgear::sentryReportException("Ground-net load error", path.utf8Str());
+          // disabled for 2024.1.4 to reduce Sentry quota spam
+          // flightgear::sentryReportException("Ground-net load error", path.utf8Str());
       }
   } catch (sg_exception& e) {
     SG_LOG(SG_NAVAID, SG_DEV_WARN, "parsing groundnet XML failed:" << e.getFormattedMessage());

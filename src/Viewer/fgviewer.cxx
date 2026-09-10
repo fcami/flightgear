@@ -197,7 +197,8 @@ fgviewerMain(int argc, char** argv)
 
     osgDB::FilePathList filePathList
         = osgDB::Registry::instance()->getDataFilePathList();
-    filePathList.push_back(globals->get_fg_root().local8BitStr());
+    for (const auto& dp : globals->get_data_paths())
+        filePathList.push_back(dp.local8BitStr());
 
     const PathList& path_list = globals->get_fg_scenery();
     for (unsigned i = 0; i < path_list.size(); ++i) {
@@ -205,7 +206,7 @@ fgviewerMain(int argc, char** argv)
     }
 
     globals->set_matlib( new SGMaterialLib );
-    simgear::SGModelLib::init(globals->get_fg_root().local8BitStr(), globals->get_props());
+    simgear::SGModelLib::init(globals->get_data_paths(), globals->get_props());
 
     // Initialize the material property subsystem.
 

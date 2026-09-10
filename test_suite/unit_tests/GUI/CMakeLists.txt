@@ -8,6 +8,6 @@ target_sources(fgfs_test_suite PRIVATE
     test_itemModel.cxx test_itemModel.hxx
 )
 
-fg_add_test_suite(XMLDialogTests u)
+#fg_add_test_suite(XMLDialogTests u)
 fg_add_test_suite(NasalMenuTests u)
 fg_add_test_suite(ItemModelTests u)

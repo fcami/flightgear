@@ -515,7 +515,7 @@ CameraInfo* CameraGroup::buildCamera(SGPropertyNode* cameraNode)
     }
 
     osg::ref_ptr<SGReaderWriterOptions> options =
-        SGReaderWriterOptions::fromPath(globals->get_fg_root());
+        SGReaderWriterOptions::fromPaths(globals->get_data_paths());
     options->setPropertyNode(globals->get_props());
 
     SViewSetCompositorParams(options, compositor_path);
@@ -642,7 +642,7 @@ void CameraGroup::buildGUICamera(SGPropertyNode* cameraNode,
 
     // Create the Compositor using XML configuration.
     osg::ref_ptr<SGReaderWriterOptions> options =
-        SGReaderWriterOptions::fromPath(globals->get_fg_root());
+        SGReaderWriterOptions::fromPaths(globals->get_data_paths());
     osg::ref_ptr<osg::Viewport> viewport = new osg::Viewport(
         0, 0, window->gc->getTraits()->width, window->gc->getTraits()->height);
     Compositor* compositor = Compositor::create(_viewer,
@@ -979,7 +979,7 @@ void reloadCompositors(CameraGroup *cgroup)
         osg::ref_ptr<osg::GraphicsContext> gc =
             info->compositor->getGraphicsContext();
         osg::ref_ptr<SGReaderWriterOptions> options =
-            SGReaderWriterOptions::fromPath(globals->get_fg_root());
+            SGReaderWriterOptions::fromPaths(globals->get_data_paths());
         options->setPropertyNode(globals->get_props());
 
         if (info->reloadCompositorCallback.valid())

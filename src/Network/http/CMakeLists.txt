@@ -3,6 +3,7 @@
 
 target_sources(fgfsObjects PRIVATE
 	httpd.cxx
+	HttplibHttpd.cxx
 	ScreenshotUriHandler.cxx
 	PropertyUriHandler.cxx
 	JsonUriHandler.cxx
@@ -17,6 +18,7 @@ target_sources(fgfsObjects PRIVATE
 	SimpleDOM.cxx
 	urihandler.hxx
 	httpd.hxx
+	HttplibHttpd.hxx
 	ScreenshotUriHandler.hxx
 	PropertyUriHandler.hxx
 	JsonUriHandler.hxx

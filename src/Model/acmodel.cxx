@@ -29,8 +29,8 @@
 #include "acmodel.hxx"
 
 
-static osg::Node *
-fgLoad3DModel(const SGPath &path, SGPropertyNode *prop_root)
+static simgear::SGModelLib::NodeRef
+fgLoad3DModel(const SGPath& path, SGPropertyNode* prop_root)
 {
     bool autoTooltipsMaster = fgGetBool("/sim/rendering/automatic-animation-tooltips/enabled");
     int autoTooltipsMasterMax = fgGetInt("/sim/rendering/automatic-animation-tooltips/max-count");
@@ -38,7 +38,7 @@ fgLoad3DModel(const SGPath &path, SGPropertyNode *prop_root)
             << " autoTooltipsMaster=" << autoTooltipsMaster
             << " autoTooltipsMasterMax=" << autoTooltipsMasterMax
             );
-    osg::Node* node = simgear::SGModelLib::loadModel(path.utf8Str(), prop_root, NULL, autoTooltipsMaster, autoTooltipsMasterMax);
+    auto node = simgear::SGModelLib::loadModel(path.utf8Str(), prop_root, NULL, autoTooltipsMaster, autoTooltipsMasterMax);
     if (node)
         node->setNodeMask(~SG_NODEMASK_TERRAIN_BIT);
     return node;
@@ -49,18 +49,13 @@ fgLoad3DModel(const SGPath &path, SGPropertyNode *prop_root)
 ////////////////////////////////////////////////////////////////////////
 
 FGAircraftModel::FGAircraftModel()
-    : _velocity(SGVec3d::zeros()),
-      _speed_n(0),
-      _speed_e(0),
-      _speed_d(0)
+    : _velocity(SGVec3d::zeros())
 {
 }
 
 FGAircraftModel::~FGAircraftModel ()
 {
-  // drop reference
-  _fx = 0;
-  shutdown();
+    shutdown();
 }
 
 
@@ -167,7 +162,7 @@ FGAircraftModel::init ()
             continue;
         }
 
-        osg::Node* node = NULL;
+        osg::ref_ptr<osg::Node> node;
         try {
             node = fgLoad3DModel(resolvedPath, globals->get_props());
         } catch (const sg_exception &ex) {
@@ -201,7 +196,7 @@ FGAircraftModel::init ()
     // no models loaded, load the glider instead
     if (!_aircraft.get()) {
         SG_LOG(SG_AIRCRAFT, SG_ALERT, "(Falling back to glider.ac.)");
-        osg::Node* model = fgLoad3DModel(SGPath::fromUtf8("Models/Geometry/glider.ac"),
+        auto model = fgLoad3DModel(SGPath::fromUtf8("Models/Geometry/glider.ac"),
                                    globals->get_props());
         _aircraft.reset(new SGModelPlacement);
         _aircraft->init(model);
@@ -224,11 +219,10 @@ FGAircraftModel::init ()
 void
 FGAircraftModel::reinit()
 {
-  shutdown();
-  _fx->reinit();
-  init();
-  // TODO globally create signals for all subsystems (re)initialized
-  fgSetBool("/sim/signals/model-reinit", true);
+    shutdown();
+    init();
+    // TODO globally create signals for all subsystems (re)initialized
+    fgSetBool("/sim/signals/model-reinit", true);
 }
 
 void
@@ -250,6 +244,14 @@ FGAircraftModel::shutdown()
 
     _aircraft.reset();
     _interior.reset();
+
+    if (_fx) {
+        // because the sound-manager keeps a ref to our FX itself, we need to manually call
+        // shutdown() to unregister from the Sound-manager, otherwise the ref will persist,
+        // and prevent us re-registering a new FGFX on reset/reinit
+        _fx->shutdown();
+        _fx.reset();
+    }
 }
 
 void
@@ -263,7 +265,9 @@ FGAircraftModel::bind ()
 void
 FGAircraftModel::unbind ()
 {
-  _fx->unbind();
+    _speed_n.reset();
+    _speed_e.reset();
+    _speed_d.reset();
 }
 
 void
@@ -307,6 +311,8 @@ FGAircraftModel::update (double dt)
   float humidity = fgGetFloat("/environment/relative-humidity");
   float pressure = fgGetFloat("/environment/pressure-inhg")*SG_INHG_TO_PA/1000.0f;
   _fx->set_atmosphere( temp_c, humidity, pressure );
+
+  // _fx->update() is run via SGSoundMgr, don't need to call it here
 }
 
 

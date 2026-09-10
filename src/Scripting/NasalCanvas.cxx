@@ -7,7 +7,6 @@
 
 
 #include "config.h"
-#include "simgear/canvas/elements/CanvasImage.hxx"
 
 #include "NasalCanvas.hxx"
 #include <Canvas/canvas_mgr.hxx>
@@ -23,6 +22,8 @@
 #include <simgear/canvas/Canvas.hxx>
 #include <simgear/canvas/CanvasWindow.hxx>
 #include <simgear/canvas/elements/CanvasElement.hxx>
+#include <simgear/canvas/elements/CanvasImage.hxx>
+#include <simgear/canvas/elements/CanvasRichText.hxx>
 #include <simgear/canvas/elements/CanvasText.hxx>
 #include <simgear/canvas/events/CanvasKeyBinding.hxx>
 #include <simgear/canvas/events/CustomEvent.hxx>
@@ -65,6 +66,7 @@ typedef nasal::Ghost<sc::CanvasPtr> NasalCanvas;
 typedef nasal::Ghost<sc::ElementPtr> NasalElement;
 typedef nasal::Ghost<sc::GroupPtr> NasalGroup;
 typedef nasal::Ghost<sc::TextPtr> NasalText;
+typedef nasal::Ghost<sc::RichTextPtr> NasalRichText;
 typedef nasal::Ghost<sc::ImagePtr> NasalImage;
 
 typedef nasal::Ghost<sc::LayoutItemRef> NasalLayoutItem;
@@ -641,6 +643,29 @@ naRef initNasalCanvas(naRef globals, naContext c)
     .method("lineLength", &sc::Text::lineLength)
     .method("getNearestCursor", &sc::Text::getNearestCursor)
     .method("getCursorPos", &sc::Text::getCursorPos);
+
+  NasalRichText::init("canvas.RichText")
+      .bases<NasalElement>()
+      .method("text", &sc::RichText::text)
+      .method("markup", &sc::RichText::markup)
+      .method("heightForWidth", &sc::RichText::heightForWidth)
+      .method("widthForHeight", &sc::RichText::widthForHeight)
+      .method("width", &sc::RichText::width)
+      .method("height", &sc::RichText::height)
+      .method("lineCount", &sc::RichText::lineCount)
+      .method("lineLength", &sc::RichText::lineLength)
+      .method("cursorRect", &sc::RichText::cursorRect)
+      .method("cursorByteIndex", &sc::RichText::cursorByteIndex)
+      .method("selection", &sc::RichText::selection)
+      .method("setSelection", &sc::RichText::setSelection)
+      .method("clearSelection", &sc::RichText::clearSelection)
+      .method("removeSelection", &sc::RichText::removeSelection)
+      .method("selectedText", &sc::RichText::selectedText)
+      .method("moveCursorToPosition", &sc::RichText::moveCursorToPosition)
+      .method("moveCursorToByteIndex", &sc::RichText::moveCursorToByteIndex)
+      .method("moveCursor", &sc::RichText::moveCursor)
+      .method("insertAtCursor", &sc::RichText::insertAtCursor)
+      .method("removeAtCursor", &sc::RichText::removeAtCursor);
 
   NasalImage::init("canvas.Image")
       .bases<NasalElement>()

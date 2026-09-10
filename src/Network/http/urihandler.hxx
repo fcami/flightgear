@@ -2,6 +2,9 @@
 //
 // Written by Torsten Dreyer, started April 2014.
 //
+// SPDX-FileCopyrightText: 2014 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
 // Copyright (C) 2014  Torsten Dreyer
 //
 // This program is free software; you can redistribute it and/or
@@ -39,9 +42,12 @@ public:
 
 class Connection {
 public:
-  void put( const std::string & key, SGSharedPtr<ConnectionData> value ) {
-    connectionData[key] = value;
-  }
+    virtual ~Connection() {}
+
+    void put(const std::string& key, SGSharedPtr<ConnectionData> value)
+    {
+        connectionData[key] = value;
+    }
   SGSharedPtr<ConnectionData> get(const std::string & key ) {
     return connectionData[key];
   }
@@ -69,7 +75,7 @@ public:
   /**
    * This method gets called from the httpd if a request has been detected on the connection
    * @param request The HTTP Request filled in by the httpd
-   * @param response the HTTP Response to be filled in by the hander
+   * @param response the HTTP Response to be filled in by the handler
    * @param connection Connection specific information, can be used to store persistent state
    * @return true if the request has been completely answered, false to get poll()ed
    */

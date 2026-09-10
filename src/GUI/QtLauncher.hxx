@@ -68,7 +68,8 @@ namespace flightgear
         RestoredOk,
         UserExit,
         UserSelected,
-        UseDefault
+        UseDefault,
+        ExitDueToReadOnly,
     };
 
     SetupRootResult restoreUserSelectedRoot(SGPath& path);

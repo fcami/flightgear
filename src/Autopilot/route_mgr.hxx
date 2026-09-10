@@ -87,9 +87,9 @@ public:
     bool loadRoute(const SGPath& p);
 
     /**
-        @brief Buiild a waypoint from a string description. Passed to the FlightPlan code to do
+        @brief Build a waypoint from a string description. Passed to the FlightPlan code to do
      the actual parsing, see that method for details of syntax.
-     
+
         Insert position is used to indicate which existing route waypoint(s) to use, to select between
      ambiguous names.
      */
@@ -179,7 +179,7 @@ private:
     void update_mirror();
 
     void currentWaypointChanged() override;
-    
+
     // tied getters and setters
     std::string getDepartureICAO() const;
     std::string getDepartureName() const;
@@ -190,6 +190,7 @@ private:
 
     std::string getSID() const;
     void setSID(const std::string& aIdent);
+    std::string getSIDWithTransition() const;
 
     std::string getDestinationICAO() const;
     std::string getDestinationName() const;
@@ -200,9 +201,11 @@ private:
 
     std::string getApproach() const;
     void setApproach(const std::string& aIdent);
+    std::string getApproachWithTransition() const;
 
     std::string getSTAR() const;
     void setSTAR(const std::string& aIdent);
+    std::string getSTARWithTransition() const;
 
     double getDepartureFieldElevation() const;
     double getDestinationFieldElevation() const;
@@ -223,4 +226,3 @@ private:
     std::string getAlternateName() const;
     void setAlternate(const std::string &icao);
 };
-
