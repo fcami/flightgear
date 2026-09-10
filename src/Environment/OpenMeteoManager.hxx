@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * SPDX-FileCopyrightText: 2026 The FlightGear Project
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
 
 #pragma once
 
@@ -11,11 +14,12 @@
 #include <simgear/props/props.hxx>
 #include <simgear/structure/subsystem_mgr.hxx>
 
-#include "openmeteo_request.hxx"
+#include "OpenMeteoRequest.hxx"
 
 namespace Environment {
 
 class OpenMeteoData;
+struct OpenMeteoSurfaceData;
 class WeatherPropertyWriter;
 
 class OpenMeteoManager : public SGSubsystem
@@ -36,7 +40,11 @@ private:
     void processCompletedRequest(std::time_t nowUtc);
     void handleFetchFailure(std::time_t nowUtc, const std::string& reason);
 
-    void applyCurrentWeather(std::time_t nowUtc);
+    void applyCurrentWeather(std::time_t nowUtc, double dt);
+
+    bool updateLightningState(double dt, const OpenMeteoSurfaceData& surfaceData);
+    void resetLightningState();
+    static double randomUnit();
 
     bool loadCache();
     void saveCache(const std::string& payload);
@@ -62,6 +70,11 @@ private:
     std::time_t _lastSuccessfulFetchTimeUtc = 0;
     std::time_t _nextRetryTimeUtc = 0;
     bool _hasSuccessfulFetch = false;
+
+    double _lightningElapsedSec = 0.0;
+    double _nextLightningIntervalSec = 0.0;
+    bool _lightningFlashing = false;
+    double _lightningFlashRemainingSec = 0.0;
 };
 
 } // namespace Environment

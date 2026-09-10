@@ -31,7 +31,7 @@
 #include "fgclouds.hxx"
 #include "gravity.hxx"
 #include "magvarmanager.hxx"
-#include "openmeteo_manager.hxx"
+#include "OpenMeteoManager.hxx"
 #include "precipitation_mgr.hxx"
 #include "realwx_ctrl.hxx"
 #include "ridge_lift.hxx"

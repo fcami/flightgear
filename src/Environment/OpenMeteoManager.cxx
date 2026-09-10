@@ -5,24 +5,27 @@
 
 #include "config.h"
 
-#include "openmeteo_manager.hxx"
+#include "OpenMeteoManager.hxx"
 
-#include "atmospheric_profile.hxx"
-#include "openmeteo_data.hxx"
-#include "weather_property_writer.hxx"
+#include "AtmosphericProfile.hxx"
+#include "OpenMeteoData.hxx"
+#include "WeatherPropertyWriter.hxx"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <ctime>
-#include <sstream>
+#include <iterator>
 #include <utility>
 
 #include <simgear/debug/logstream.hxx>
 #include <simgear/io/HTTPRequest.hxx>
 #include <simgear/io/iostreams/sgstream.hxx>
+#include <simgear/math/SGMath.hxx>
 #include <simgear/timing/sg_time.hxx>
 
-#include <Main/globals.hxx>
 #include <Main/fg_props.hxx>
+#include <Main/globals.hxx>
 #include <Network/HTTPClient.hxx>
 
 namespace {
@@ -30,6 +33,9 @@ namespace {
 constexpr double MIN_FETCH_INTERVAL_SEC = 1.0;
 constexpr double MIN_FETCH_DISTANCE_M = 1.0;
 constexpr double MIN_RETRY_INTERVAL_SEC = 1.0;
+
+constexpr double DEFAULT_LIGHTNING_CONVECTION_THRESHOLD = 0.55;
+constexpr double DEFAULT_ICING_THRESHOLD = 0.25;
 
 } // namespace
 
@@ -61,9 +67,14 @@ void OpenMeteoManager::init()
     _rootNode->setDoubleValue("refresh-seconds", _refreshIntervalSec);
     _rootNode->setDoubleValue("refresh-distance-m", _refreshDistanceM);
     _rootNode->setDoubleValue("retry-seconds", _retryIntervalSec);
+    _rootNode->setDoubleValue("lightning/convection-threshold",
+                              _rootNode->getDoubleValue("lightning/convection-threshold",
+                                                        DEFAULT_LIGHTNING_CONVECTION_THRESHOLD));
+    _rootNode->setDoubleValue("icing-threshold",
+                              _rootNode->getDoubleValue("icing-threshold", DEFAULT_ICING_THRESHOLD));
 
     if (_enabled) {
-        // Open-Meteo is the primary source in this pipeline.
+        // Open-Meteo is the primary weather source for this subsystem.
         fgSetBool("/environment/realwx/enabled", false);
         fgSetBool("/environment/params/metar-updates-environment", false);
         fgSetBool("/environment/params/metar-updates-winds-aloft", false);
@@ -78,23 +89,18 @@ void OpenMeteoManager::init()
         _rootNode->setStringValue("cache-file", _cachePath.utf8Str().c_str());
     }
 
-    _writer.reset(new WeatherPropertyWriter(fgGetNode("/environment/config", true)));
-
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] init enabled=" << (_enabled ? "true" : "false")
-           << " refresh=" << _refreshIntervalSec << "s"
-           << " distance=" << _refreshDistanceM << "m"
-           << " retry=" << _retryIntervalSec << "s"
-           << " cache=" << _cachePath);
+    _writer.reset(new WeatherPropertyWriter(fgGetNode("/environment/config", true),
+                                            fgGetNode("/environment", true)));
 
     if (loadCache()) {
         SG_LOG(SG_ENVIRONMENT, SG_INFO, "Loaded cached Open-Meteo response from " << _cachePath);
-        applyCurrentWeather(currentTimeUtc());
+        applyCurrentWeather(currentTimeUtc(), 0.0);
     }
 }
 
 void OpenMeteoManager::shutdown()
 {
+    resetLightningState();
     _activeRequest.reset();
 }
 
@@ -106,6 +112,7 @@ void OpenMeteoManager::update(double dt)
 
     _enabled = _rootNode->getBoolValue("enabled", _enabled);
     if (!_enabled) {
+        resetLightningState();
         return;
     }
 
@@ -121,7 +128,7 @@ void OpenMeteoManager::update(double dt)
     processCompletedRequest(nowUtc);
 
     if (_data) {
-        applyCurrentWeather(nowUtc);
+        applyCurrentWeather(nowUtc, dt);
     }
 
     const SGGeod currentPosition = globals->get_aircraft_position();
@@ -141,35 +148,23 @@ bool OpenMeteoManager::shouldFetch(const SGGeod& currentPosition, std::time_t no
     }
 
     if (!_hasSuccessfulFetch) {
-        SG_LOG(SG_ENVIRONMENT, SG_INFO,
-               "[TEMP][OpenMeteoManager] scheduling initial Open-Meteo fetch");
         return true;
     }
 
     const double elapsedSinceLastFetch = std::difftime(nowUtc, _lastSuccessfulFetchTimeUtc);
     if (elapsedSinceLastFetch >= _refreshIntervalSec) {
-        SG_LOG(SG_ENVIRONMENT, SG_INFO,
-               "[TEMP][OpenMeteoManager] scheduling fetch due to refresh interval elapsed="
-               << elapsedSinceLastFetch << "s");
         return true;
     }
 
     const double distanceM = SGGeodesy::distanceM(currentPosition, _fetchLocation);
-    if (distanceM >= _refreshDistanceM) {
-        SG_LOG(SG_ENVIRONMENT, SG_INFO,
-               "[TEMP][OpenMeteoManager] scheduling fetch due to movement distance="
-               << distanceM << "m");
-        return true;
-    }
-
-    return false;
+    return distanceM >= _refreshDistanceM;
 }
 
 void OpenMeteoManager::startFetch(const SGGeod& position, std::time_t nowUtc)
 {
     auto http = globals->get_subsystem<FGHTTPClient>();
     if (!http) {
-        handleFetchFailure(nowUtc, "HTTP subsystem unavailable");
+        handleFetchFailure(nowUtc, "Open-Meteo HTTP subsystem unavailable");
         return;
     }
 
@@ -178,11 +173,6 @@ void OpenMeteoManager::startFetch(const SGGeod& position, std::time_t nowUtc)
     _activeRequest = new OpenMeteoRequest(position.getLatitudeDeg(),
                                           position.getLongitudeDeg(),
                                           nowUtc);
-
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] startFetch lat=" << position.getLatitudeDeg()
-           << " lon=" << position.getLongitudeDeg()
-           << " utc=" << static_cast<double>(nowUtc));
 
     simgear::HTTP::Request_ptr request = _activeRequest;
     http->makeRequest(request);
@@ -205,10 +195,6 @@ void OpenMeteoManager::processCompletedRequest(std::time_t nowUtc)
         return;
     }
 
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] request completed state=" << static_cast<int>(state)
-           << " http=" << _activeRequest->responseCode());
-
     if ((state == simgear::HTTP::Request::DONE) && (_activeRequest->responseCode() == 200)) {
         const std::string body = _activeRequest->responseBody();
         auto parsedData = OpenMeteoData::parse(body);
@@ -226,27 +212,21 @@ void OpenMeteoManager::processCompletedRequest(std::time_t nowUtc)
             _rootNode->setDoubleValue("fetch-location/latitude-deg", _fetchLocation.getLatitudeDeg());
             _rootNode->setDoubleValue("fetch-location/longitude-deg", _fetchLocation.getLongitudeDeg());
 
-            SG_LOG(SG_ENVIRONMENT, SG_INFO,
-                   "[TEMP][OpenMeteoManager] parsed response bytes=" << body.size()
-                   << " fetchLat=" << _fetchLocation.getLatitudeDeg()
-                   << " fetchLon=" << _fetchLocation.getLongitudeDeg());
-
             saveCache(body);
         } else {
-            SG_LOG(SG_ENVIRONMENT, SG_WARN,
-                   "[TEMP][OpenMeteoManager] parse failed for payload bytes=" << body.size());
             handleFetchFailure(nowUtc, "Failed to parse Open-Meteo response");
         }
     } else {
-        std::ostringstream reason;
+        std::string reason;
         if (state == simgear::HTTP::Request::DONE) {
-            reason << "Open-Meteo request failed with HTTP " << _activeRequest->responseCode();
+            reason = "Open-Meteo request failed with HTTP "
+                + std::to_string(_activeRequest->responseCode());
         } else if (state == simgear::HTTP::Request::FAILED) {
-            reason << "Open-Meteo request failed";
+            reason = "Open-Meteo request failed";
         } else {
-            reason << "Open-Meteo request cancelled";
+            reason = "Open-Meteo request cancelled";
         }
-        handleFetchFailure(nowUtc, reason.str());
+        handleFetchFailure(nowUtc, reason);
     }
 
     _activeRequest.reset();
@@ -258,22 +238,18 @@ void OpenMeteoManager::handleFetchFailure(std::time_t nowUtc, const std::string&
     _rootNode->setStringValue("last-error", reason.c_str());
     _nextRetryTimeUtc = nowUtc + static_cast<std::time_t>(_retryIntervalSec);
 
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] retry scheduled for utc="
-           << static_cast<double>(_nextRetryTimeUtc));
-
     if (!_data) {
         if (loadCache()) {
             SG_LOG(SG_ENVIRONMENT, SG_INFO,
-                   "[TEMP][OpenMeteoManager] loaded cached weather after fetch failure");
+                   "Open-Meteo: loaded cached weather after fetch failure.");
         } else {
             SG_LOG(SG_ENVIRONMENT, SG_WARN,
-                   "[TEMP][OpenMeteoManager] no cache available after fetch failure");
+                   "Open-Meteo: no cache available after fetch failure.");
         }
     }
 }
 
-void OpenMeteoManager::applyCurrentWeather(std::time_t nowUtc)
+void OpenMeteoManager::applyCurrentWeather(std::time_t nowUtc, double dt)
 {
     if (!_data || !_writer) {
         return;
@@ -281,74 +257,141 @@ void OpenMeteoManager::applyCurrentWeather(std::time_t nowUtc)
 
     const AtmosphericProfile boundaryProfile = _data->buildBoundaryProfile(nowUtc);
     const AtmosphericProfile aloftProfile = _data->buildAloftProfile(nowUtc);
-
     if (boundaryProfile.empty() || aloftProfile.empty()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] skipping apply because a profile is empty");
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Open-Meteo: profile generation returned empty data.");
         return;
     }
 
-    const double pressureSeaLevelHpa = _data->seaLevelPressureHpa(nowUtc);
-    _writer->writeProfiles(boundaryProfile, aloftProfile, pressureSeaLevelHpa);
+    OpenMeteoSurfaceData surface = _data->surfaceData(nowUtc);
+    const std::vector<OpenMeteoCloudLayer> cloudLayers = _data->buildCloudLayers(nowUtc, 5);
 
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] applied weather boundaryLayers="
-           << boundaryProfile.size()
-           << " aloftLayers=" << aloftProfile.size()
-           << " pressureMSL=" << pressureSeaLevelHpa);
+    const bool lightningFlash = updateLightningState(dt, surface);
+
+    double icingSeverityNorm = surface.icingSeverityNorm;
+    const SGGeod aircraftPosition = globals->get_aircraft_position();
+    const AtmosphericLayer aloftAtAircraft = aloftProfile.sample(aircraftPosition.getElevationFt());
+    if (std::isfinite(aloftAtAircraft.icingSeverityNorm)) {
+        icingSeverityNorm = std::max(icingSeverityNorm, aloftAtAircraft.icingSeverityNorm);
+    }
+
+    const double pressureSeaLevelHpa = _data->seaLevelPressureHpa(nowUtc);
+    _writer->writeWeather(boundaryProfile,
+                          aloftProfile,
+                          pressureSeaLevelHpa,
+                          surface,
+                          cloudLayers,
+                          lightningFlash,
+                          icingSeverityNorm);
+
+    const double icingThreshold = _rootNode->getDoubleValue("icing-threshold", DEFAULT_ICING_THRESHOLD);
+    const bool icingActive = icingSeverityNorm >= icingThreshold;
+    fgSetBool("/hazards/icing/wing", icingActive);
+    fgSetDouble("/hazards/icing/severity-norm", icingSeverityNorm);
 
     _rootNode->setDoubleValue("last-profile-update-time-sec", static_cast<double>(nowUtc));
+    _rootNode->setDoubleValue("convective-severity-norm", surface.convectiveSeverityNorm);
+    _rootNode->setDoubleValue("icing-aircraft-severity-norm", icingSeverityNorm);
+    _rootNode->setBoolValue("lightning/flash", lightningFlash);
+}
+
+bool OpenMeteoManager::updateLightningState(double dt, const OpenMeteoSurfaceData& surfaceData)
+{
+    double convectionSeverity = surfaceData.convectiveSeverityNorm;
+    if (surfaceData.thunderstormLikely) {
+        convectionSeverity = std::max(convectionSeverity, 0.6);
+    }
+
+    const double threshold = _rootNode->getDoubleValue("lightning/convection-threshold",
+                                                       DEFAULT_LIGHTNING_CONVECTION_THRESHOLD);
+    if (convectionSeverity < threshold) {
+        resetLightningState();
+        return false;
+    }
+
+    if (_nextLightningIntervalSec <= 0.0) {
+        _nextLightningIntervalSec = SGMiscd::lerp(20.0, 3.0, convectionSeverity)
+            * SGMiscd::lerp(0.7, 1.3, randomUnit());
+    }
+
+    if (_lightningFlashing) {
+        _lightningFlashRemainingSec -= dt;
+        if (_lightningFlashRemainingSec > 0.0) {
+            return true;
+        }
+
+        _lightningFlashing = false;
+        _lightningFlashRemainingSec = 0.0;
+        _lightningElapsedSec = 0.0;
+        _nextLightningIntervalSec = SGMiscd::lerp(20.0, 3.0, convectionSeverity)
+            * SGMiscd::lerp(0.7, 1.3, randomUnit());
+        return false;
+    }
+
+    _lightningElapsedSec += dt;
+    if (_lightningElapsedSec < _nextLightningIntervalSec) {
+        return false;
+    }
+
+    _lightningFlashing = true;
+    _lightningFlashRemainingSec = SGMiscd::lerp(0.08, 0.22, randomUnit());
+    _lightningElapsedSec = 0.0;
+
+    const double angleRad = randomUnit() * SGMiscd::twopi();
+    const double rangeM = SGMiscd::lerp(8000.0, 1000.0, convectionSeverity)
+        * SGMiscd::lerp(0.8, 1.2, randomUnit());
+    fgSetDouble("/environment/lightning/lightning-pos-x", std::cos(angleRad) * rangeM);
+    fgSetDouble("/environment/lightning/lightning-pos-y", std::sin(angleRad) * rangeM);
+    fgSetDouble("/environment/lightning/lightning-range", rangeM);
+    return true;
+}
+
+void OpenMeteoManager::resetLightningState()
+{
+    _lightningElapsedSec = 0.0;
+    _nextLightningIntervalSec = 0.0;
+    _lightningFlashing = false;
+    _lightningFlashRemainingSec = 0.0;
+    fgSetBool("/environment/lightning/flash", false);
+}
+
+double OpenMeteoManager::randomUnit()
+{
+    return static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
 }
 
 bool OpenMeteoManager::loadCache()
 {
     if (_cachePath.isNull() || !_cachePath.exists()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] cache file unavailable: " << _cachePath);
         return false;
     }
 
     sg_ifstream input(_cachePath);
     if (!input.is_open()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] failed to open cache file: " << _cachePath);
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Open-Meteo: unable to open cache " << _cachePath);
         return false;
     }
 
-    std::ostringstream buffer;
-    buffer << input.rdbuf();
-    const std::string payload = buffer.str();
+    const std::string payload((std::istreambuf_iterator<char>(input)),
+                              std::istreambuf_iterator<char>());
     if (payload.empty()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] cache file empty: " << _cachePath);
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Open-Meteo: cache file is empty " << _cachePath);
         return false;
     }
 
     auto parsedData = OpenMeteoData::parse(payload);
     if (!parsedData) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] cache parse failed bytes=" << payload.size());
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Open-Meteo: cache parse failed.");
         return false;
     }
 
     _data = std::move(parsedData);
     _rootNode->setBoolValue("using-cache", true);
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] loaded cache bytes=" << payload.size());
     return true;
 }
 
 void OpenMeteoManager::saveCache(const std::string& payload)
 {
-    if (_cachePath.isNull()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] saveCache skipped because cache path is null");
-        return;
-    }
-
-    if (payload.empty()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN,
-               "[TEMP][OpenMeteoManager] saveCache skipped because payload is empty");
+    if (_cachePath.isNull() || payload.empty()) {
         return;
     }
 
@@ -359,14 +402,11 @@ void OpenMeteoManager::saveCache(const std::string& payload)
 
     sg_ofstream output(_cachePath, std::ios::out | std::ios::trunc);
     if (!output.is_open()) {
-        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Unable to write Open-Meteo cache: " << _cachePath);
+        SG_LOG(SG_ENVIRONMENT, SG_WARN, "Open-Meteo: unable to write cache file " << _cachePath);
         return;
     }
 
     output << payload;
-    SG_LOG(SG_ENVIRONMENT, SG_INFO,
-           "[TEMP][OpenMeteoManager] wrote cache bytes=" << payload.size()
-           << " path=" << _cachePath);
 }
 
 std::time_t OpenMeteoManager::currentTimeUtc() const
@@ -379,4 +419,3 @@ std::time_t OpenMeteoManager::currentTimeUtc() const
 }
 
 } // namespace Environment
-

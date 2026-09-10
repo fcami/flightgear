@@ -16,6 +16,11 @@ if(POLICY CMP0145)
   cmake_policy(SET CMP0145 NEW)
 endif()
 
+# Boost 'does Boost ship with its own BoostConfig or not' policy
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 OLD)
+endif()
+
 if (CMAKE_BUILD_TYPE)
     message("CMAKE Build type: ${CMAKE_BUILD_TYPE}")
 endif()
@@ -177,6 +182,7 @@ option(SP_FDMS           "Set to ON to build FlightGear with special-purpose FDM
 option(ENABLE_YASIM      "Set to ON to build FlightGear with YASIM FDM (default)" ON)
 option(ENABLE_JSBSIM     "Set to ON to build FlightGear with JSBSim FDM (default)" ON)
 option(EVENT_INPUT       "Set to ON to build FlightGear with event-based Input support" ${EVENT_INPUT_DEFAULT})
+option(ENABLE_RTI        "Set to ON to build FlightGear with RTI support" OFF)
 option(SYSTEM_SQLITE     "Set to ON to build FlightGear with the system's SQLite3 library" OFF)
 option(ENABLE_IAX        "Set to ON to build FlightGear with IAXClient/fgcom built-in (default)" ON)
 option(USE_DBUS          "Set to ON to build FlightGear with DBus screensaver interaction (default on Linux)" ${USE_DBUS_DEFAULT})
@@ -443,6 +449,11 @@ if (SG_HAVE_DDS)
 else()
     message(STATUS "Data Distribution Service support: DISABLED")
 endif()
+
+if(ENABLE_RTI)
+    message(STATUS "RTI: ENABLED")
+    set(FG_HAVE_HLA 1)
+endif(ENABLE_RTI)
 
 if (ENABLE_SIMD)
   message(STATUS "SSE/SSE2 support: ENABLED")
