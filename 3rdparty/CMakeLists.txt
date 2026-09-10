@@ -10,6 +10,7 @@ endif()
 # cpp-httplib: vendored independently of simgear's own (test-only) copy
 set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
 set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF)
+set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF)
 set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
 
 include(FetchContent)
