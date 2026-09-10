@@ -273,9 +273,7 @@ typedef nasal::Ghost<TimeStampObjRef> NasalTimeStampObj;
 
 ///////////////////////////////////////////////////////////////////////////
 
-NasalSysPrivate::~NasalSysPrivate()
-{
-}
+NasalSysPrivate::~NasalSysPrivate() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -1306,8 +1304,13 @@ void FGNasalSys::loadNasalScripts()
     // data-path
     std::unordered_set<std::string> seen;
     std::vector<RM::FoundFile> deduped;
-    for (auto& f : all)
-        if (seen.insert(f.relPath).second) deduped.push_back(f);
+    for (auto& f : all) {
+        if (seen.insert(f.relPath).second) {
+            deduped.push_back(f);
+        } else {
+            SG_LOG(SG_NASAL, SG_WARN, "Duplicate:" << f.relPath << f.path);
+        }
+    }
 
     // Partition into top-level scripts and module subdirectory scripts
     std::vector<RM::FoundFile> topLevel;
@@ -1346,6 +1349,7 @@ void FGNasalSys::loadScriptDirectory(std::vector<simgear::ResourceManager::Found
                                      return f.relPath == name;
                                  });
           if (it != scripts.end()) {
+              SG_LOG(SG_NASAL, SG_DEBUG, "Loading with priority:" << it->path);
               this->loadModule(it->path, it->path.file_base().c_str());
               scripts.erase(it);
           }
@@ -1359,6 +1363,7 @@ void FGNasalSys::loadScriptDirectory(std::vector<simgear::ResourceManager::Found
     }
 
     std::for_each(scripts.begin(), scripts.end(), [this](const simgear::ResourceManager::FoundFile& f) {
+        SG_LOG(SG_NASAL, SG_DEBUG, "Loading **without** priority:" << f.path);
         // simgear::Dir reports entries in a deterministic order, preserving a fixed loading sequence
         this->loadModule(f.path, f.path.file_base().c_str());
     });
@@ -1367,28 +1372,28 @@ void FGNasalSys::loadScriptDirectory(std::vector<simgear::ResourceManager::Found
 // Create module with list of scripts
 void FGNasalSys::addModule(string moduleName, simgear::PathList scripts)
 {
-    if (! scripts.empty())
-    {
-        SGPropertyNode* nasal = globals->get_props()->getNode("nasal", true);
-        SGPropertyNode* module_node = nasal->getChild(moduleName,0,true);
-        for (unsigned int i=0; i<scripts.size(); ++i) {
-            SGPropertyNode* pFileNode = module_node->getChild("file",i,true);
-            pFileNode->setStringValue(scripts[i].utf8Str());
-        }
-        if (!module_node->hasChild("enabled",0))
-        {
-            SGPropertyNode* node = module_node->getChild("enabled",0,true);
-            node->setBoolValue(false);
-            node->setAttribute(SGPropertyNode::USERARCHIVE,false);
-            #ifndef BUILDING_TESTSUITE
-                SG_LOG(SG_NASAL, SG_ALERT, "Nasal module " << moduleName
-                        << " present in FGDATA/Nasal but not configured in defaults.xml. "
-                        << " Please add an entry to defaults.xml, and set " << node->getPath()
-                        << "=true to load the module on-demand at runtime when required."
-                        );
-            #endif
-        }
+    if (scripts.empty()) {
+        return;
     }
+
+    SGPropertyNode* nasal = globals->get_props()->getNode("nasal", true);
+    SGPropertyNode* module_node = nasal->getChild(moduleName, 0, true);
+    for (unsigned int i = 0; i < scripts.size(); ++i) {
+        SGPropertyNode* pFileNode = module_node->getChild("file", i, true);
+        pFileNode->setStringValue(scripts[i].utf8Str());
+    }
+
+    if (!module_node->hasChild("enabled", 0)) {
+        SGPropertyNode* node = module_node->getChild("enabled", 0, true);
+        node->setBoolValue(false);
+        node->setAttribute(SGPropertyNode::USERARCHIVE, false);
+#ifndef BUILDING_TESTSUITE
+        SG_LOG(SG_NASAL, SG_ALERT, "Nasal module " << moduleName << " present in FGDATA/Nasal but not configured in defaults.xml. "
+                                                   << " Please add an entry to defaults.xml, and set " << node->getPath() << "=true to load the module on-demand at runtime when required.");
+#endif
+    }
+
+    SG_LOG(SG_NASAL, SG_DEBUG, "Added module:" << moduleName);
 }
 
 // Loads the scripts found under /nasal in the global tree
@@ -1414,6 +1419,7 @@ void FGNasalSys::loadPropertyScripts(SGPropertyNode* n)
         module = n->getStringValue("module");
     if (n->getBoolValue("enabled",true))
     {
+        SG_LOG(SG_NASAL, SG_INFO, "Loading scripts under:" << n->getPath());
         // allow multiple files to be specified within a single
         // Nasal module tag
         int j = 0;
@@ -1566,8 +1572,11 @@ bool FGNasalSys::createModule(const char* moduleName, const char* fileName,
             initNasalCanvas(d->_globals, d->_context);
             naHash_get(d->_globals, modname, &locals);
         } else {
+            SG_LOG(SG_NASAL, SG_DEBUG, "Creating new module hash:" << moduleName);
             locals = naNewHash(ctx);
         }
+    } else {
+        SG_LOG(SG_NASAL, SG_DEBUG, "Extending existing module hash:" << moduleName);
     }
 
     // store the filename in the module hash, so we could reload it
