@@ -7,7 +7,20 @@ if (ENABLE_IAX)
     add_subdirectory(iaxclient/lib)
 endif()
 
-add_subdirectory(mongoose)
+# cpp-httplib: vendored independently of simgear's own (test-only) copy
+set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF)
+set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF)
+set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
+
+include(FetchContent)
+FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG        v0.54.1
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(httplib)
+target_link_libraries(fgfsObjects PUBLIC httplib::httplib)
 
 add_subdirectory(flite_hts_engine)
 

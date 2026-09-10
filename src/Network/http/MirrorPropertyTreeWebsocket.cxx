@@ -7,8 +7,9 @@
 #include "jsonprops.hxx"
 
 #include <algorithm>
-#include <unordered_map>
+#include <mutex>
 #include <set>
+#include <unordered_map>
 
 #include <simgear/debug/logstream.hxx>
 #include <simgear/props/props.hxx>
@@ -118,6 +119,12 @@ using std::string;
         }
     };
 
+    // SGPropertyChangeListener callbacks fire synchronously on whichever
+    // thread writes (or adds/removes) a watched property. Under
+    // HttplibHttpd, a property write from any URI handler's httplib
+    // worker thread can now fire these callbacks on that thread,
+    // concurrently with this connection's own poll thread reading/
+    // clearing the same state -- so every entry point locks _mutex.
     class MirrorTreeListener : public SGPropertyChangeListener
     {
     public:
@@ -131,6 +138,12 @@ using std::string;
         }
 
         void valueChanged(SGPropertyNode* node) override
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            valueChangedLocked(node);
+        }
+
+        void valueChangedLocked(SGPropertyNode* node)
         {
             auto it = idHash.find(node);
             if (it == idHash.end()) {
@@ -149,6 +162,7 @@ using std::string;
         void childAdded(SGPropertyNode* parent, SGPropertyNode* child) override
         {
             SG_UNUSED(parent);
+            std::lock_guard<std::mutex> lock(_mutex);
             recursiveAdd(child);
         }
 
@@ -196,6 +210,7 @@ using std::string;
 
         void childRemoved(SGPropertyNode* parent, SGPropertyNode* child) override
         {
+            std::lock_guard<std::mutex> lock(_mutex);
             changedNodes.erase(child); // have to do this here with the pointer valid
             newNodes.erase(child);
 
@@ -219,15 +234,21 @@ using std::string;
 
         void registerSubtree(SGPropertyNode* node)
         {
+            std::lock_guard<std::mutex> lock(_mutex);
+            registerSubtreeLocked(node);
+        }
+
+        void registerSubtreeLocked(SGPropertyNode* node)
+        {
 #if defined(MIRROR_DEBUG)
             SG_LOG(SG_NETWORK, SG_INFO, "register subtree:" << node->getPath());
 #endif
-            valueChanged(node);
+            valueChangedLocked(node);
 
             // and recurse
             int child = 0;
             for (; child < node->nChildren(); ++child) {
-                registerSubtree(node->getChild(child));
+                registerSubtreeLocked(node->getChild(child));
             }
         }
 
@@ -247,6 +268,7 @@ using std::string;
 
         nlohmann::json makeJSONData()
         {
+            std::lock_guard<std::mutex> lock(_mutex);
             using njson = nlohmann::json;
 #if defined (MIRROR_DEBUG)
             SGTimeStamp st;
@@ -307,6 +329,7 @@ using std::string;
 
         bool haveChangesToSend() const
         {
+            std::lock_guard<std::mutex> lock(_mutex);
             return !newNodes.empty() || !changedNodes.empty() || !removedNodes.empty();
         }
     private:
@@ -318,6 +341,8 @@ using std::string;
         /// after with the same type, since we can make this much more efficient
         /// when sending over the wire.
         std::vector<RemovedNode> recentlyRemoved;
+
+        mutable std::mutex _mutex;
     };
 
 #if 0

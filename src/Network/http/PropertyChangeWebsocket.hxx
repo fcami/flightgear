@@ -2,24 +2,11 @@
 //
 // Written by Torsten Dreyer, started April 2014.
 //
-// Copyright (C) 2014  Torsten Dreyer
+// SPDX-FileCopyrightText: 2014 Torsten Dreyer
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of the
-// License, or (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful, but
-// WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-// General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-#ifndef PROPERTYCHANGEWEBSOCKET_HXX_
-#define PROPERTYCHANGEWEBSOCKET_HXX_
+#pragma once
 
 #include "Websocket.hxx"
 #include <simgear/props/props.hxx>
@@ -44,8 +31,20 @@ private:
   PropertyChangeObserver * _propertyChangeObserver;
 
   void handleGetCommand(const string_list& nodes, WebsocketWriter &writer);
-  
-  class WatchedNodesList: public std::vector<SGPropertyNode_ptr> {
+
+  // One entry per node this connection watches. lastSeenVersion is this
+  // connection's own read cursor into PropertyChangeObserver's per-node
+  // version counter (see PropertyChangeObserver.hxx) -- each connection
+  // tracks its own, rather than sharing one consume-once flag, so that
+  // multiple simultaneous /PropertyListener connections watching the same
+  // node each reliably see every change exactly once.
+  struct WatchedNode {
+      SGPropertyNode_ptr node;
+      unsigned long lastSeenVersion = 0;
+  };
+
+  class WatchedNodesList : public std::vector<WatchedNode>
+  {
   public:
     void handleCommand(const std::string & command, const std::string & node, PropertyChangeObserver * propertyChangeObserver);
   };
@@ -56,6 +55,4 @@ private:
 };
 
 }
-}
-
-#endif /* PROPERTYCHANGEWEBSOCKET_HXX_ */
+} // namespace flightgear

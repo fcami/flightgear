@@ -5,6 +5,7 @@
 
 #include "config.h"
 
+#include "test_HttplibHttpd.hxx"
 #include "test_JsonUriHandler.hxx"
 #include "test_MirrorPropertyTreeWebsocket.hxx"
 #include "test_PropertyChangeWebsocket.hxx"
@@ -13,6 +14,7 @@
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(JsonUriHandlerTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(PropertyChangeWebsocketTests, "Unit tests");
 CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(MirrorPropertyTreeWebsocketTests, "Unit tests");
+CPPUNIT_TEST_SUITE_NAMED_REGISTRATION(HttplibHttpdTests, "Unit tests");
 #if defined(ENABLE_SWIFT)
 
 #include "test_swiftAircraftManager.hxx"
