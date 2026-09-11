@@ -241,6 +241,9 @@ FGGlobals::~FGGlobals()
 
     fgCancelSnapShot();
 
+    simgear::PropertyObjectBase::setDefaultRoot(NULL);
+    simgear::SGModelLib::resetPropertyRoot();
+
     delete subsystem_mgr;
     subsystem_mgr = nullptr; // important so ::get_subsystem returns NULL
     set_matlib(NULL);
@@ -257,8 +260,6 @@ FGGlobals::~FGGlobals()
     delete commands;
     commands = nullptr;
 
-    simgear::PropertyObjectBase::setDefaultRoot(NULL);
-    simgear::SGModelLib::resetPropertyRoot();
     delete locale;
     locale = NULL;
 
