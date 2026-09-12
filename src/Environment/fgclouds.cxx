@@ -850,7 +850,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     }
 
     SG_LOG(SG_ENVIRONMENT, SG_INFO, "Cloud voxel field rebuild took " << (SGTimeStamp::now() - t_start).toMSecs() << "ms"
-                                                                       << " (repeating=" << snap.fieldRepeating << ")");
+                                                                      << " (repeating=" << snap.fieldRepeating << ")");
 
     return result;
 }
