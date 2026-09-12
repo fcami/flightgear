@@ -16,6 +16,7 @@
 #include <osg/Image>
 
 #include <simgear/constants.h>
+#include <simgear/math/SGGeodesy.hxx>
 #include <simgear/math/sg_geodesy.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/scene/sky/cloudfield.hxx>
@@ -84,6 +85,9 @@ FGClouds::FGClouds() : index(0)
 
     _shadeUpdateAngleDeg = SGPropObjDouble(p, "shade-update-angle-deg");
     _shadeUpdateAngleDeg.setDefault(0.0);
+
+    _recenterMarginNorm = SGPropObjDouble(p, "recenter-margin-norm");
+    _recenterMarginNorm.setDefault(0.6);
 }
 
 FGClouds::~FGClouds()
@@ -99,6 +103,7 @@ FGClouds::~FGClouds()
     globals->get_commands()->removeCommand("add-cloud");
     globals->get_commands()->removeCommand("del-cloud");
     globals->get_commands()->removeCommand("move-cloud");
+    globals->get_commands()->removeCommand("set-clouds-repeating");
 }
 
 int FGClouds::get_update_event(void) const
@@ -120,6 +125,8 @@ void FGClouds::Init(void)
     globals->get_commands()->addCommand("add-cloud", this, &FGClouds::add3DCloud);
     globals->get_commands()->addCommand("del-cloud", this, &FGClouds::delete3DCloud);
     globals->get_commands()->addCommand("move-cloud", this, &FGClouds::move3DCloud);
+    globals->get_commands()->addCommand("set-clouds-repeating", this,
+                                        static_cast<bool (FGClouds::*)(const SGPropertyNode*, SGPropertyNode*)>(&FGClouds::setCloudsRepeating));
 
     _fieldDirty = true;
     _fieldRepeating = true;
@@ -493,6 +500,20 @@ bool FGClouds::move3DCloud(const SGPropertyNode* arg, SGPropertyNode* root)
     return repositionCloud(i, lon, lat, alt, x, y);
 }
 
+/**
+ * Explicitly select the detailed+rough non-repeating field, or the (default) repeating field.
+ *
+ * Property arguments
+ * enabled - true selects the repeating field (default), false selects the non-repeating
+ *           detailed+rough field.
+ */
+bool FGClouds::setCloudsRepeating(const SGPropertyNode* arg, SGPropertyNode* root)
+{
+    setCloudsRepeating(arg->getBoolValue("enabled", true));
+    _fieldDirty = true; // force a rebuild now, so the mode switch takes effect immediately
+    return true;
+}
+
 bool FGClouds::addCloud(std::unique_ptr<const SGVoxelCloud> cloud, int index, float lon, float lat, float altFt)
 {
     return addCloud(std::move(cloud), index, lon, lat, altFt, 0.0f, 0.0f);
@@ -627,23 +648,34 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 
         // The rough field width is a factor of the detailed field width
         snap.roughFieldWidth = snap.detailedFieldWidth * cloudsProp->getIntValue("rough-voxel-field-factor", 2);
+
+        // The rough field height is dynamically set to have the same height in m as the detailed field.  This
+        // simplifies some calculations while ensuring that the texture size doesn't get too large.
         snap.roughFieldHeight = snap.detailedFieldHeight / snap.roughVoxelSizeFactor;
     }
 
     // Save off the current location, which will be used in transforms.
     // We will determine the altitude later, so make sure it's 0 for
     // the various conversions between ECF and local coordinates.
+    // Quantize to the detailed voxel grid so that re-rasterizing clouds that
+    // haven't moved doesn't shift them by a fraction of a voxel just because
+    // the field's own origin moved by a non-aligned amount.
     SGGeod geod = globals->get_view_position();
     geod.setElevationM(0);
 
+    const double voxelSizeM = (double)snap.detailedFieldVoxelSize;
+    SGGeod northOfGeod = SGGeodesy::direct(geod, 0.0, voxelSizeM);
+    SGGeod eastOfGeod = SGGeodesy::direct(geod, 90.0, voxelSizeM);
+    const double degLatPerVoxel = northOfGeod.getLatitudeDeg() - geod.getLatitudeDeg();
+    const double degLonPerVoxel = eastOfGeod.getLongitudeDeg() - geod.getLongitudeDeg();
+
+    geod.setLatitudeDeg(std::round(geod.getLatitudeDeg() / degLatPerVoxel) * degLatPerVoxel);
+    geod.setLongitudeDeg(std::round(geod.getLongitudeDeg() / degLonPerVoxel) * degLonPerVoxel);
+
     SGGeodesy::SGGeodToCart(geod, _centerCart);
+
     _cloudPosMatrix = makeZUpFrameRelative(geod);
     SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Rebuilding field at " << geod.getLatitudeDeg() << " " << geod.getLongitudeDeg() << " " << geod.getElevationFt());
-
-    _cloudCenterX = _centerCart.x();
-    _cloudCenterY = _centerCart.y();
-    _cloudCenterZ = _centerCart.z();
-    _cloudFieldRepeating = _fieldRepeating;
 
     snap.centerCart = _centerCart;
     snap.cloudPosMatrix = _cloudPosMatrix;
@@ -691,6 +723,7 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
     RebuildResult result;
     result.fieldRepeating = snap.fieldRepeating;
     result.cloudbaseM = snap.cloudbaseM;
+    result.centerCart = snap.centerCart;
 
     if ((snap.fieldRepeating && snap.detailedFieldList.empty()) ||
         (!snap.fieldRepeating && snap.roughFieldList.empty())) {
@@ -698,6 +731,8 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         osg::ref_ptr<osg::Image> dummyVoxelData = new osg::Image();
         dummyVoxelData->setName("Dummy Cloud Voxel Data");
         dummyVoxelData->allocateImage(1, 1, 1, GL_RGBA, GL_FLOAT);
+        // allocateImage() does not zero-initialize its buffer. Set an explicit clear-sky.
+        dummyVoxelData->setColor(osg::Vec4f(0.0f, 0.0f, 0.0f, 1.0f), 0, 0, 0);
         SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "rebuildField - No cloud data in range");
         result.detailedVoxelData = dummyVoxelData;
         result.roughVoxelData = dummyVoxelData;
@@ -789,7 +824,8 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
         const SGVoxelCloud* c = cl.first;
         osg::Vec3f p = cl.second + zOffset;
         double z = (double)c->addCloudToDetailedVoxelField(result.detailedVoxelData, (float)snap.detailedFieldVoxelSize, p);
-        result.maxZ = std::max(z, result.maxZ);
+        // Convert to meters (with half a voxel of padding)
+        result.maxZM = std::max((z + 0.5) * snap.detailedFieldVoxelSize, result.maxZM);
     }
 
     // Generate SDF
@@ -801,7 +837,8 @@ FGClouds::RebuildResult FGClouds::runRebuild(RebuildSnapshot snap)
             const SGVoxelCloud* c = cl.first;
             osg::Vec3f p = cl.second + zOffset;
             double z = (double)c->addCloudToRoughVoxelField(result.roughVoxelData, (float)snap.roughFieldVoxelSize, p);
-            result.maxZ = std::max(z, result.maxZ);
+            // Convert to meters (with half a voxel of padding)
+            result.maxZM = std::max((z + 0.5) * snap.roughFieldVoxelSize, result.maxZM);
         }
 
         // Generate an SDF
@@ -924,13 +961,16 @@ void FGClouds::commitResult(RebuildResult result)
 {
     // Setting property values needs to be done on the main thread as an atomic operation
 
-    // We pad the cloud field height slightly so that we get smooth interpolation of density values in the shader.
-    const double cloudFieldHeightM = (result.maxZ + 0.5f) * _detailedFieldVoxelSize;
-    _activeVoxelFieldHeightNorm = cloudFieldHeightM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
+    _activeVoxelFieldHeightNorm = result.maxZM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
     _cloudBaseM = (double)result.cloudbaseM;
     _cloudBaseZNorm = (double)result.cloudbaseM / (double)(_detailedFieldHeight * _detailedFieldVoxelSize);
     _mirrorU = false;
     _mirrorV = false;
+
+    _cloudCenterX = result.centerCart.x();
+    _cloudCenterY = result.centerCart.y();
+    _cloudCenterZ = result.centerCart.z();
+    _cloudFieldRepeating = result.fieldRepeating;
 
     // Keep the images alive as members of FGClouds
     _detailedVoxelData = result.detailedVoxelData;
@@ -1105,7 +1145,11 @@ void FGClouds::updateFromOsgTraversal()
                                          &FGClouds::runShadeRebuild, std::move(snap));
     }
 
-    if (_fieldRepeating) updateRepeatingField();
+    if (_fieldRepeating) {
+        updateRepeatingField();
+    } else {
+        updateNonRepeatingField();
+    }
 
     // Adjust the altitude of the cloud base
     const double cloudBaseM = _cloudBaseM;
@@ -1162,5 +1206,32 @@ void FGClouds::updateRepeatingField()
         if (std::abs(snapY) >= 1.0f) {
             _mirrorV = !_mirrorV;
         }
+    }
+}
+
+void FGClouds::updateNonRepeatingField()
+{
+    // Unlike updateRepeatingField()'s cheap whole-field-width "snap" (the repeating field looks
+    // identical after such a shift, so no rebuild is needed), the rough field has
+    // different content further from the center, so recentering here means a real, async
+    // rebuild. Mark the field dirty once the camera has drifted a configurable fraction of the
+    // way toward the detailed field's own edge, giving the rebuild time to complete before the
+    // camera leaves the currently-committed detailed footprint.
+    if (_fieldDirty) return; // a rebuild is already going to happen; nothing more to check
+
+    const float fieldWidthM = _detailedFieldWidth * _detailedFieldVoxelSize;
+    const float thresholdM = 0.5f * fieldWidthM * _recenterMarginNorm;
+
+    SGGeod currentGeod = globals->get_view_position();
+    currentGeod.setElevationM(0);
+    SGVec3<double> currentCart;
+    SGGeodesy::SGGeodToCart(currentGeod, currentCart);
+
+    osg::Matrixf currentPosMatrix = makeZUpFrameRelative(currentGeod);
+    osg::Vec3f localDrift = currentPosMatrix * (toOsg(currentCart) - toOsg(_centerCart));
+
+    if (std::abs(localDrift.x()) > thresholdM || std::abs(localDrift.y()) > thresholdM) {
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Non-repeating cloud field: camera drift " << localDrift.x() << ", " << localDrift.y() << "m exceeds recenter threshold " << thresholdM << "m - triggering rebuild.");
+        _fieldDirty = true;
     }
 }
