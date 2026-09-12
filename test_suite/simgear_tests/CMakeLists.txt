@@ -8,6 +8,7 @@ foreach(simgear_test_category
         canvas
         structure
         timing
+        fmm
     )
     add_subdirectory(${simgear_test_category})
 endforeach()
