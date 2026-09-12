@@ -467,7 +467,7 @@ void SignedArrivalTimeTests::testPointSourceAccuracy()
     }
 
     auto const distances = fmm::SignedArrivalTime(grid_size, boundary_indices, boundary_times,
-                                                   DistanceSolverType(grid_spacing[0]));
+                                                  DistanceSolverType(grid_spacing[0]));
     auto distance_grid = fmm_test::Grid<ScalarType const, kDimension>(grid_size, *distances.data());
 
     constexpr ScalarType kMaxAbsError = ScalarType(1.51);
@@ -519,7 +519,7 @@ void SignedArrivalTimeTests::testMaxDistanceCap()
     auto const boundary_times = std::vector<ScalarType>(std::size_t{1}, ScalarType{0});
 
     auto const uncapped = fmm::SignedArrivalTime(grid_size, boundary_indices, boundary_times,
-                                                  DistanceSolverType(grid_spacing[0]));
+                                                 DistanceSolverType(grid_spacing[0]));
 
     constexpr ScalarType kMaxDistance = ScalarType{5};
     auto const capped = fmm::SignedArrivalTime(grid_size, boundary_indices, boundary_times,
