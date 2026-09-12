@@ -4,10 +4,12 @@
 target_sources(fgfsObjects PRIVATE
   canvas_mgr.cxx
   FGCanvasSystemAdapter.cxx
+  OSWindowPlacement.cxx
   texture_replace.cxx
   canvas_mgr.hxx
   FGCanvasSystemAdapter.hxx
   gui_mgr.hxx
+  OSWindowPlacement.hxx
   texture_replace.hxx
 )
 set_property(GLOBAL APPEND PROPERTY FG_TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gui_mgr.cxx")

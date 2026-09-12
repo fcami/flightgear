@@ -15,6 +15,7 @@
 #include <simgear/canvas/Canvas.hxx>
 #include <simgear/scene/model/placement.hxx>
 
+#include "OSWindowPlacement.hxx"
 #include "texture_replace.hxx"
 
 namespace sc = simgear::canvas;
@@ -98,6 +99,7 @@ void CanvasMgr::init()
   });
   sc::Canvas::addPlacementFactory("scenery-object", &addSceneObjectPlacement);
   sc::Canvas::addPlacementFactory("dynamic-model", &addDynamicModelPlacement);
+  sc::Canvas::addPlacementFactory("os-window", &canvas::addOSWindowPlacement);
 
   simgear::canvas::CanvasMgr::init();
 }
@@ -110,6 +112,7 @@ void CanvasMgr::shutdown()
   sc::Canvas::removePlacementFactory("object");
   sc::Canvas::removePlacementFactory("scenery-object");
   sc::Canvas::removePlacementFactory("dynamic-model");
+  sc::Canvas::removePlacementFactory("os-window");
 }
 
 //------------------------------------------------------------------------------
