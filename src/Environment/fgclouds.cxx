@@ -16,8 +16,8 @@
 #include <osg/Image>
 
 #include <simgear/constants.h>
-#include <simgear/math/sg_geodesy.hxx>
 #include <simgear/math/SGGeodesy.hxx>
+#include <simgear/math/sg_geodesy.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/scene/sky/cloudfield.hxx>
 #include <simgear/scene/sky/newcloud.hxx>
@@ -665,7 +665,7 @@ FGClouds::RebuildSnapshot FGClouds::captureSnapshot()
 
     const double voxelSizeM = (double)snap.detailedFieldVoxelSize;
     SGGeod northOfGeod = SGGeodesy::direct(geod, 0.0, voxelSizeM);
-    SGGeod eastOfGeod =  SGGeodesy::direct(geod, 90.0, voxelSizeM);
+    SGGeod eastOfGeod = SGGeodesy::direct(geod, 90.0, voxelSizeM);
     const double degLatPerVoxel = northOfGeod.getLatitudeDeg() - geod.getLatitudeDeg();
     const double degLonPerVoxel = eastOfGeod.getLongitudeDeg() - geod.getLongitudeDeg();
 
