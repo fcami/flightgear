@@ -29,6 +29,16 @@ public:
     //
     void setQueryHeliports(bool b);
 
+    /**
+     * @brief Switch the model into (or out of) "nearby airports" mode.
+     *
+     * When rangeNm is positive, the model lists airports within that range
+     * of the current aircraft position, closest first, ignoring the search
+     * term. Passing zero (or negative) disables nearby mode and reverts to
+     * the normal search-term / recents behaviour.
+     */
+    void setNearbyRangeNm(double rangeNm);
+
     void addRecentEntry(const FGAirportRef apt);
 
     size_t count() const override;
@@ -37,9 +47,11 @@ public:
 private:
     void requery();
     void useRecentAirports();
+    void useNearbyAirports();
 
     std::string _searchTerm;
     bool _useHeliports = false;
+    double _nearbyRangeNm = 0.0;
     FGPositionedList _recents;
 
     std::vector<flightgear::NavDataCache::AirportDesc> _data;

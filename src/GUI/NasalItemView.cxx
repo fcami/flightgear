@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <any>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -109,7 +110,10 @@ public:
     size_t m_delegateHeight = 32;
     size_t m_scrollOffset = 0;
     size_t m_cacheHeight = 512;                   // how many pixels worth of delegates to cache outside of the visible area.
-    std::pair<size_t, size_t> m_lastExtent{0, 0}; // range of currently visible indices, for quick comparison on update
+
+    // Range of currently visible/cached indices, for quick comparison in
+    // update()
+    std::optional<std::pair<size_t, size_t>> m_lastExtent;
 
     using DelegateDataVec = std::vector<DelegateData>;
     DelegateDataVec m_delegates;
@@ -140,13 +144,19 @@ public:
 
     bool isVisibleOrCached(size_t index) const
     {
-        assert(m_lastExtent.first != m_lastExtent.second);
-        return index >= m_lastExtent.first && index <= m_lastExtent.second;
+        assert(m_lastExtent.has_value());
+        assert(m_lastExtent->first != m_lastExtent->second);
+        return index >= m_lastExtent->first && index <= m_lastExtent->second;
     }
 
     // this returns the cached model/row indices, not pixels
     std::pair<size_t, size_t> cachedExtent() const
     {
+        if (m_cachedCount == 0) {
+            // No rows at all: return an inverted (empty) range - first > second
+            return std::make_pair<size_t, size_t>(1, 0);
+        }
+
         const auto totalHeight = m_delegateHeight * m_cachedCount;
         const auto minCached = std::max(0, static_cast<int>(m_scrollOffset) - static_cast<int>(m_cacheHeight));
         const auto maxCached = std::min(totalHeight, m_scrollOffset + m_viewHeight + m_cacheHeight);
@@ -156,7 +166,7 @@ public:
 
     void resetExtent()
     {
-        m_lastExtent = std::make_pair(0, 0);
+        m_lastExtent = std::nullopt;
     }
 };
 
@@ -239,12 +249,17 @@ void NasalItemView::setDelegateHeight(int h)
 
 int NasalItemView::firstVisibleIndex() const
 {
-    return d->m_lastExtent.first;
+    return d->m_lastExtent.value_or(std::make_pair<size_t, size_t>(0, 0)).first;
 }
 
 int NasalItemView::lastVisibleIndex() const
 {
-    return std::min(d->m_lastExtent.second, d->m_cachedCount - 1);
+    if (d->m_cachedCount == 0) {
+        return 0;
+    }
+
+    return std::min(d->m_lastExtent.value_or(std::make_pair<size_t, size_t>(0, 0)).second,
+                    d->m_cachedCount - 1);
 }
 
 int NasalItemView::indexForViewPosition(int y) const
@@ -260,15 +275,26 @@ int NasalItemView::yPositionForIndex(int index) const
 
 int NasalItemView::scrollBarHeight() const
 {
-    return std::max(d->m_minScrollBarHeight,
-                    (d->m_cachedCount * d->m_delegateHeight) - d->m_viewHeight);
+    // How far the content overflows the viewport, in pixels - zero when all the
+    // content already fits, e.g. an empty or short model.
+    const int contentHeight = static_cast<int>(d->m_cachedCount * d->m_delegateHeight);
+    const int overflow = std::max(0, contentHeight - static_cast<int>(d->m_viewHeight));
+    return std::max(static_cast<int>(d->m_minScrollBarHeight), overflow);
 }
 
 int NasalItemView::scrollBarPosition() const
 {
-    const auto lastScrollOffset = (d->m_cachedCount * d->m_delegateHeight) - d->m_viewHeight;
-    const auto scrollRange = d->m_viewHeight - scrollBarHeight();
-    return scrollRange * d->m_scrollOffset / lastScrollOffset;
+    const int contentHeight = static_cast<int>(d->m_cachedCount * d->m_delegateHeight);
+    const int lastScrollOffset = contentHeight - static_cast<int>(d->m_viewHeight);
+    if (lastScrollOffset <= 0) {
+        // Nothing to scroll (including the empty-model case) - avoid both
+        // the unsigned underflow this used to do, and a division by zero
+        // below.
+        return 0;
+    }
+
+    const int scrollRange = static_cast<int>(d->m_viewHeight) - scrollBarHeight();
+    return scrollRange * static_cast<int>(d->m_scrollOffset) / lastScrollOffset;
 }
 
 int NasalItemView::cacheHeight() const
@@ -290,7 +316,7 @@ void NasalItemView::setCacheHeight(int h)
 void NasalItemView::update()
 {
     const auto cachedExtent = d->cachedExtent();
-    if (d->m_lastExtent == cachedExtent) {
+    if (d->m_lastExtent.has_value() && *d->m_lastExtent == cachedExtent) {
         return;
     }
 
@@ -451,7 +477,11 @@ void NasalItemView::setDelegateForIndex(size_t index, nasal::ObjectRef delegate)
 
 void NasalItemView::dumpDelegates() const
 {
-    SG_LOG(SG_GUI, SG_INFO, "Visible range:" << d->m_lastExtent.first << "-" << d->m_lastExtent.second);
+    if (d->m_lastExtent.has_value()) {
+        SG_LOG(SG_GUI, SG_INFO, "Visible range:" << d->m_lastExtent->first << "-" << d->m_lastExtent->second);
+    } else {
+        SG_LOG(SG_GUI, SG_INFO, "Visible range: <invalidated>");
+    }
     SG_LOG(SG_GUI, SG_INFO, "Current delegates:");
     for (const auto& dd : d->m_delegates) {
         SG_LOG(SG_GUI, SG_INFO, "  index:" << dd.index);

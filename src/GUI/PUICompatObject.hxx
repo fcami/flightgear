@@ -153,7 +153,7 @@ public:
 protected:
     PUICompatObject(naRef impl, const std::string& type);
 
-    virtual void activateBindings();
+    virtual void activateBindings(SGPropertyNode* params);
 
     virtual void updateGeometry(const SGRectd& newGeom);
 

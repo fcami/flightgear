@@ -420,8 +420,9 @@ NewGUI::getDialogProperties (const string &name)
 
       try {
         readProperties(path, props);
-      } catch (const sg_exception &) {
-        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog from " << path);
+      } catch (const sg_exception &e) {
+        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog from " << path << "\n"
+            << e.getFormattedMessage());
         return {};
       }
 
@@ -527,8 +528,9 @@ void NewGUI::readDialogFile(const SGPath& xmlPath, flightgear::NavDataCache* cac
     Highlight::add_property_dialog(). */
     try {
         readProperties(xmlPath, props);
-    } catch (const sg_exception&) {
-        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath);
+    } catch (const sg_exception& e) {
+        SG_LOG(SG_INPUT, SG_ALERT, "Error parsing dialog " << xmlPath << "\n"
+            << e.getFormattedMessage());
         props.reset();
     }
     if (props) {

@@ -39,6 +39,7 @@
 #include <simgear/nasal/cppbind/from_nasal.hxx>
 #include <simgear/nasal/cppbind/to_nasal.hxx>
 #include <simgear/nasal/cppbind/NasalHash.hxx>
+#include <simgear/nasal/cppbind/NasalObjectHolder.hxx>
 #include <simgear/nasal/cppbind/Ghost.hxx>
 
 extern naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
@@ -305,6 +306,12 @@ static naRef f_propElementData( simgear::PropertyBasedElement& el,
   return naNil();
 }
 
+// Keeps the original Nasal hash passed as an event's "detail" alive for as
+// long as the CustomEvent exists, so that
+// non-string values (ghosts, hashes, vectors, ...) survive round-tripping
+// through the event
+using NasalObjectRef = nasal::ObjectHolder<sc::OpaqueEventData>;
+
 static naRef f_createCustomEvent(const nasal::CallContext& ctx)
 {
   std::string const& type = ctx.requireArg<std::string>(0);
@@ -313,18 +320,22 @@ static naRef f_createCustomEvent(const nasal::CallContext& ctx)
 
   bool bubbles = false;
   simgear::StringMap detail;
+  naRef na_detail = naNil();
   if( ctx.isHash(1) )
   {
     nasal::Hash const& cfg = ctx.requireArg<nasal::Hash>(1);
-    naRef na_detail = cfg.get("detail");
+    na_detail = cfg.get("detail");
     if( naIsHash(na_detail) )
       detail = ctx.from_nasal<simgear::StringMap>(na_detail);
     bubbles = cfg.get<bool>("bubbles");
   }
 
-  return ctx.to_nasal(
-    sc::CustomEventPtr(new sc::CustomEvent(type, bubbles, detail))
-  );
+  sc::CustomEventPtr event(new sc::CustomEvent(type, bubbles, detail));
+  if( naIsHash(na_detail) ) {
+    event->detailNative = new NasalObjectRef(na_detail);
+  }
+
+  return ctx.to_nasal(event);
 }
 
 struct CustomEventDetailWrapper:
@@ -338,27 +349,41 @@ struct CustomEventDetailWrapper:
 
   }
 
-  bool _get( const std::string& key,
-             std::string& value_out ) const
+  bool _get( naContext c, const std::string& key, naRef& out ) const
   {
     if( !_event )
       return false;
+
+    if( _event->detailNative )
+    {
+      naRef na_detail =
+        static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
+      naRef na_key = nasal::to_nasal(c, key);
+      return naHash_get(na_detail, na_key, &out);
+    }
 
     simgear::StringMap::const_iterator it = _event->detail.find(key);
     if( it == _event->detail.end() )
       return false;
 
-    value_out = it->second;
+    out = nasal::to_nasal(c, it->second);
     return true;
   }
 
-  bool _set( const std::string& key,
-             const std::string& value )
+  bool _set( naContext c, const std::string& key, naRef value )
   {
     if( !_event )
       return false;
 
-    _event->detail[ key ] = value;
+    if( _event->detailNative )
+    {
+      naRef na_detail =
+        static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
+      nasal::Hash(na_detail, c).set(key, value);
+      return true;
+    }
+
+    _event->detail[ key ] = nasal::from_nasal<std::string>(c, value);
     return true;
   }
 };

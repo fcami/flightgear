@@ -4,6 +4,7 @@
 
 set(SOURCES
     AirportListModel.cxx
+    AirportParkingModel.cxx
     dialog.cxx
     gui_funcs.cxx
     menubar.cxx
@@ -23,6 +24,7 @@ set(SOURCES
 
 set(HEADERS
     AirportListModel.hxx
+    AirportParkingModel.hxx
     dialog.hxx
     gui.h
     menubar.hxx

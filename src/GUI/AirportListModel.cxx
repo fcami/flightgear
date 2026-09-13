@@ -9,6 +9,7 @@
 
 #include "Navaids/NavDataCache.hxx"
 #include <Airports/airport.hxx>
+#include <Main/globals.hxx>
 
 using namespace std::string_literals;
 
@@ -21,6 +22,7 @@ void AirportListModel::setSearchTerm(const std::string& search)
     }
 
     _searchTerm = search;
+    _nearbyRangeNm = 0.0; // clear this
     requery();
 }
 
@@ -31,9 +33,24 @@ void AirportListModel::setQueryHeliports(bool b)
     requery();
 }
 
+void AirportListModel::setNearbyRangeNm(double rangeNm)
+{
+    if (rangeNm == _nearbyRangeNm) {
+        return;
+    }
+
+    _nearbyRangeNm = rangeNm;
+    requery();
+}
+
 void AirportListModel::requery()
 {
     _data.clear();
+
+    if (_nearbyRangeNm > 0.0) {
+        useNearbyAirports();
+        return;
+    }
 
     if (_searchTerm.empty()) {
         useRecentAirports();
@@ -71,6 +88,28 @@ void AirportListModel::useRecentAirports()
     for (auto& apt : _recents) {
         _data.emplace_back(apt->name(), apt->ident(), apt->guid());
     }
+    didReset();
+}
+
+void AirportListModel::useNearbyAirports()
+{
+    _data.clear();
+
+    FGAirport::TypeRunwayFilter filter; // defaults to airports only
+    if (_useHeliports) {
+        filter.fromTypeString("heliport"s);
+    }
+
+    const SGGeod pos = globals->get_aircraft_position();
+    FGPositionedList apts = FGPositioned::findWithinRange(pos, _nearbyRangeNm, &filter);
+    FGPositioned::sortByRange(apts, pos);
+
+    for (const auto& a : apts) {
+        if (const auto apt = fgpositioned_cast<FGAirport>(a)) {
+            _data.emplace_back(apt->name(), apt->ident(), apt->guid());
+        }
+    }
+
     didReset();
 }
 

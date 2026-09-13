@@ -19,7 +19,7 @@ class FGMenuBar;
 class FGDialog;
 class FGColor;
 class FGNasalSys;
-class Highlight;
+struct Highlight;
 namespace flightgear {
 class NavDataCache;
 }

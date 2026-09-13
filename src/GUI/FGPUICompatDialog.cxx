@@ -70,6 +70,12 @@ naRef f_dialogRootObject(FGPUICompatDialog& dialog, naContext c)
     return nasal::to_nasal(c, dialog._root);
 }
 
+naRef f_dialogWidgetByName(FGPUICompatDialog& dialog, const nasal::CallContext& ctx)
+{
+    const auto nm = ctx.requireArg<std::string>(0);
+    return ctx.to_nasal(dialog.widgetByName(nm));
+}
+
 //----------------------------------------------------------------------------
 
 naRef f_makeDialogPeer(const nasal::CallContext& ctx)
@@ -99,7 +105,8 @@ void FGPUICompatDialog::setupGhost(nasal::Hash& compatModule)
         .member("uiVersion", &FGPUICompatDialog::uiVersion)
         .member("resizeable", f_dialogCanResize)
         .member("root", f_dialogRootObject)
-        .method("close", &FGPUICompatDialog::requestClose);
+        .method("close", &FGPUICompatDialog::requestClose)
+        .method("findWidget", f_dialogWidgetByName);
 
 
     using NasalDialogPeer = nasal::Ghost<SGSharedPtr<DialogPeer>>;
@@ -181,9 +188,14 @@ bool FGPUICompatDialog::init()
         _peer->setDialog(this);
         _peer->callMethod<void>("init", nas->wrappedPropsNode(_props));
 
+        // ensure this object is available on its own module
+        auto dialogModuleHash = nas->getModuleHash(_module, true);
+        dialogModuleHash.set("dialog", SelfRef{this});
+
         SGPropertyNode* nasal = _props->getNode("nasal");
         if (nasal && nas) {
             _nasal_close = nasal->getNode("close");
+
             SGPropertyNode* open = nasal->getNode("open");
             if (open) {
                 const auto s = open->getStringValue();

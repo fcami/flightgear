@@ -16,7 +16,10 @@
 
 #include <simgear/nasal/cppbind/NasalObject.hxx>
 
+#include <Airports/airport.hxx>
+
 #include <GUI/AirportListModel.hxx>
+#include <GUI/AirportParkingModel.hxx>
 #include <GUI/ItemModel.hxx>
 #include <Scripting/NasalSys.hxx>
 
@@ -413,6 +416,23 @@ static naRef f_makeAirportsModel(const nasal::CallContext& ctx)
         new AirportListModel()));
 }
 
+static naRef f_makeAirportParkingModel(const nasal::CallContext& ctx)
+{
+    AirportParkingModel* model = new AirportParkingModel();
+    if (ctx.isString(0)) {
+        model->setIcao(ctx.getArg<std::string>(0));
+    } else if (ctx.isGhost(0)) {
+        model->setAirport(ctx.getArg<FGAirportRef>(0));
+    }
+
+    const auto parkingType = ctx.getArg<std::string>(1);
+    if (!parkingType.empty()) {
+        model->setParkingType(parkingType);
+    }
+
+    return ctx.to_nasal(SGSharedPtr<AirportParkingModel>(model));
+}
+
 void ItemModel::setupGhosts(nasal::Hash& ns)
 {
     nasal::Ghost<ItemModelRef>::init("gui.AbstractItemModel")
@@ -441,8 +461,18 @@ void ItemModel::setupGhosts(nasal::Hash& ns)
     nasal::Ghost<SGSharedPtr<AirportListModel>>::init("gui.AirportsModel")
         .bases<ItemModelRef>()
         .member("search", &AirportListModel::setSearchTerm)
-        .member("heliports", &AirportListModel::setQueryHeliports);
+        .member("heliports", &AirportListModel::setQueryHeliports)
+        .member("nearbyRangeNm", &AirportListModel::setNearbyRangeNm);
 
     nasal::Hash aptmodel_hash = ns.createHash("AirportsModel");
     aptmodel_hash.set("new", &f_makeAirportsModel);
+
+    nasal::Ghost<SGSharedPtr<AirportParkingModel>>::init("gui.AirportParkingModel")
+        .bases<ItemModelRef>()
+        .member("icao", &AirportParkingModel::setIcao)
+        .member("airport", &AirportParkingModel::setAirport)
+        .member("parkingType", &AirportParkingModel::setParkingType);
+
+    nasal::Hash aptParkingModel_hash = ns.createHash("AirportParkingModel");
+    aptParkingModel_hash.set("new", &f_makeAirportParkingModel);
 }

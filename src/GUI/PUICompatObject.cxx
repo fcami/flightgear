@@ -488,7 +488,7 @@ void PUICompatObject::valueChanged(SGPropertyNode* node)
     _valueChanged = true;
 }
 
-void PUICompatObject::activateBindings()
+void PUICompatObject::activateBindings(SGPropertyNode* params)
 {
     if (!_enabled) {
         SG_LOG(SG_GUI, SG_DEV_ALERT, "Skipping binding activation for disabled widget:" << name());
@@ -499,7 +499,7 @@ void PUICompatObject::activateBindings()
     assert(guiSub);
 
     guiSub->setActiveDialog(dialog());
-    fireBindingList(_bindings);
+    fireBindingList(_bindings, params);
     guiSub->setActiveDialog(nullptr);
 }
 
