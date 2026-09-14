@@ -4,6 +4,7 @@
 
 target_sources(fgfsObjects PRIVATE
 	atmosphere.cxx
+	AtmosphericProfile.cxx
 	environment.cxx
 	environment_ctrl.cxx
 	environment_mgr.cxx
@@ -13,6 +14,9 @@ target_sources(fgfsObjects PRIVATE
 	fgmetar.cxx
 	metarairportfilter.cxx
 	metarproperties.cxx
+	OpenMeteoData.cxx
+	OpenMeteoManager.cxx
+	OpenMeteoRequest.cxx
 	precipitation_mgr.cxx
 	realwx_ctrl.cxx
 	ridge_lift.cxx
@@ -21,6 +25,7 @@ target_sources(fgfsObjects PRIVATE
 	gravity.cxx
     magvarmanager.cxx
 	atmosphere.hxx
+	AtmosphericProfile.hxx
 	environment.hxx
 	environment_ctrl.hxx
 	environment_mgr.hxx
@@ -30,11 +35,16 @@ target_sources(fgfsObjects PRIVATE
 	fgmetar.hxx
 	metarairportfilter.hxx
 	metarproperties.hxx
+	OpenMeteoData.hxx
+	OpenMeteoManager.hxx
+	OpenMeteoRequest.hxx
 	precipitation_mgr.hxx
 	realwx_ctrl.hxx
 	ridge_lift.hxx
 	terrainsampler.hxx
 	presets.hxx
 	gravity.hxx
-	magvarmanager.hxx
+    magvarmanager.hxx
+	WeatherPropertyWriter.cxx
+	WeatherPropertyWriter.hxx
 )
