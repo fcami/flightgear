@@ -44,4 +44,4 @@ MessageBoxResult fatalMessageBoxWithoutExit(
     bool reportToSentry = true);
 
 
-} // of namespace flightgear
+} // namespace flightgear

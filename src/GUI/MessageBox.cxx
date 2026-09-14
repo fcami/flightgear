@@ -103,7 +103,7 @@ win32MessageBox(const std::string& caption,
     ::MessageBoxExW(ownerWindow, wMsg.c_str(), wCap.c_str(),
                     mbType, 0 /* system lang */);
 
-	return flightgear::MSG_BOX_OK;
+    return flightgear::MSG_BOX_OK;
 }
 
 #endif
