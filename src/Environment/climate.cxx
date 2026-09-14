@@ -217,27 +217,24 @@ void FGClimate::update(double dt)
         _gl.dewpoint = _gl.temperature - ((100.0 - _gl.relative_humidity)/5.0);
 
         // calculate sea level parameters from ground level parameters
-        // adapted from metarproperties.cxx
-        FGEnvironment dummy;
-        dummy.set_is_isa(globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa());
-        dummy.set_live_update(false);
-        dummy.set_elevation_ft(_gl.elevation_m*SG_METER_TO_FEET);
-        dummy.set_dewpoint_degc(_gl.dewpoint);
-        dummy.set_pressure_inhg(_gl.pressure*atmodel::mbar/atmodel::inHg);
+        const bool is_isa = globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa();
+        const double elevation_ft = _gl.elevation_m * SG_METER_TO_FEET;
 
-        dummy.set_live_update(true);
-        dummy.set_temperature_degc(_gl.temperature);
+        double field_temperature;
+        std::tie(_sl.temperature, field_temperature) =
+            FGAtmo::seaLevelAndFieldTemperatureDegC(elevation_ft, _gl.temperature, is_isa);
 
-        _sl.dewpoint = dummy.get_dewpoint_sea_level_degc();
-        _sl.relative_humidity = dummy.get_relative_humidity();
-        _sl.temperature = dummy.get_temperature_sea_level_degc();
-        _sl.pressure = dummy.get_pressure_sea_level_inhg()*atmodel::inHg/atmodel::mbar;
+        _sl.dewpoint = FGAtmo::seaLevelDewpointDegC(elevation_ft, _gl.dewpoint, _sl.temperature);
+        _sl.relative_humidity = FGAtmo::relativeHumidityPercent(field_temperature, _gl.dewpoint);
+        _sl.pressure = FGAtmo::seaLevelPressureInHg(elevation_ft, _gl.pressure * atmodel::mbar / atmodel::inHg,
+                                                    field_temperature) *
+                       atmodel::inHg / atmodel::mbar;
 
-        dummy.set_temperature_degc(_gl.temperature_mean);
-        _sl.temperature_mean = dummy.get_temperature_sea_level_degc();
+        _sl.temperature_mean =
+            FGAtmo::seaLevelAndFieldTemperatureDegC(elevation_ft, _gl.temperature_mean, is_isa).first;
 
-        dummy.set_temperature_degc(_gl.temperature_water);
-        _sl.temperature_water = dummy.get_temperature_sea_level_degc();
+        _sl.temperature_water =
+            FGAtmo::seaLevelAndFieldTemperatureDegC(elevation_ft, _gl.temperature_water, is_isa).first;
 
         set_environment();
 

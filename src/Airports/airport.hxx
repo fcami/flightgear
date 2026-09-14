@@ -21,10 +21,9 @@
 
 #include "airports_fwd.hxx"
 #include "runways.hxx"
-#include <Environment/fgmetar.hxx>
 
 class FGGroundNetwork;
-
+class FGMetar;
 
 /***************************************************************************************
  *

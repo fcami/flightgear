@@ -289,13 +289,11 @@ void MetarProperties::setMetar( SGSharedPtr<FGMetar> m )
     }
 
     {    // calculate sea level temperature, dewpoint and pressure
-        FGEnvironment dummy; // instantiate a dummy so we can leech a method
-        dummy.set_is_isa( globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa() );
-        dummy.set_elevation_ft( _station_elevation );
-        dummy.set_temperature_degc( _temperature );
-        dummy.set_dewpoint_degc( _dewpoint );
-        _sea_level_temperature = dummy.get_temperature_sea_level_degc();
-        _sea_level_dewpoint = dummy.get_dewpoint_sea_level_degc();
+        const bool is_isa = globals->get_subsystem<FGEnvironmentMgr>()->getEnvironment().get_is_isa();
+        _sea_level_temperature =
+            FGAtmo::seaLevelAndFieldTemperatureDegC(_station_elevation, _temperature, is_isa).first;
+        _sea_level_dewpoint = FGAtmo::seaLevelDewpointDegC(_station_elevation, _dewpoint,
+                                                           _sea_level_temperature);
 
         double elevation_m = _station_elevation * SG_FEET_TO_METER;
         double fieldPressure = FGAtmo::fieldPressure( elevation_m, _pressure * atmodel::inHg );
