@@ -21,24 +21,25 @@
 #include <simgear/props/props.hxx>
 #include <simgear/props/props_io.hxx>
 #include <simgear/sg_inlines.h>
+#include <simgear/structure/SGReferenced.hxx>
 #include <simgear/structure/exception.hxx>
 
-#include <Environment/environment_mgr.hxx>
-#include <Environment/environment.hxx>
-#include <Main/fg_props.hxx>
-#include <Airports/runways.hxx>
-#include <Airports/pavement.hxx>
-#include <Airports/xmlloader.hxx>
-#include <Airports/dynamics.hxx>
-#include <Airports/airportdynamicsmanager.hxx>
-#include <Navaids/procedure.hxx>
-#include <Navaids/waypoint.hxx>
 #include <ATC/CommStation.hxx>
+#include <Airports/airportdynamicsmanager.hxx>
+#include <Airports/dynamics.hxx>
+#include <Airports/groundnetwork.hxx>
+#include <Airports/pavement.hxx>
+#include <Airports/runways.hxx>
+#include <Airports/xmlloader.hxx>
+#include <Environment/environment.hxx>
+#include <Environment/environment_mgr.hxx>
+#include <Environment/fgmetar.hxx>
+#include <Main/fg_props.hxx>
 #include <Navaids/NavDataCache.hxx>
 #include <Navaids/navrecord.hxx>
 #include <Navaids/positioned.hxx>
-#include <Airports/groundnetwork.hxx>
-#include <Airports/xmlloader.hxx>
+#include <Navaids/procedure.hxx>
+#include <Navaids/waypoint.hxx>
 
 using std::vector;
 using std::pair;
@@ -51,25 +52,25 @@ using namespace flightgear;
 
 AirportCache FGAirport::airportCache;
 
-FGAirport::FGAirport( PositionedID aGuid,
-                      const std::string &id,
-                      const SGGeod& location,
-                      const std::string &name,
-                      bool has_metar,
-                      Type aType,
-                      SGPath sceneryPath):
-    FGPositioned(aGuid, aType, id, location),
-    _name(name),
-    _has_metar(has_metar),
-    _sceneryPath(std::move(sceneryPath)),
-    mTowerDataLoaded(false),
-    mHasTower(false),
-    mRunwaysLoaded(false),
-    mHelipadsLoaded(false),
-    mTaxiwaysLoaded(false),
-    mProceduresLoaded(false),
-    mThresholdDataLoaded(false),
-    mILSDataLoaded(false)
+FGAirport::FGAirport(PositionedID aGuid,
+                     const std::string& id,
+                     const SGGeod& location,
+                     const std::string& name,
+                     bool has_metar,
+                     Type aType,
+                     SGPath sceneryPath) : FGPositioned(aGuid, aType, id, location),
+                                           _name(name),
+                                           _has_metar(has_metar),
+                                           _metar(nullptr),
+                                           _sceneryPath(std::move(sceneryPath)),
+                                           mTowerDataLoaded(false),
+                                           mHasTower(false),
+                                           mRunwaysLoaded(false),
+                                           mHelipadsLoaded(false),
+                                           mTaxiwaysLoaded(false),
+                                           mProceduresLoaded(false),
+                                           mThresholdDataLoaded(false),
+                                           mILSDataLoaded(false)
 {
     mIsClosed = (name.find("[x]") != std::string::npos);
 }
@@ -97,6 +98,15 @@ bool FGAirport::isHeliport() const
 SGPath FGAirport::sceneryPath() const
 {
   return _sceneryPath;
+}
+
+// FIXME add a validity check here
+inline bool FGAirport::isMetarValid() const { return _metar; }
+
+void FGAirport::setMetar(SGSharedPtr<FGMetar> m)
+{
+    _has_metar = true;
+    _metar = std::move(m);
 }
 
 //------------------------------------------------------------------------------

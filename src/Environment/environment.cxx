@@ -101,6 +101,9 @@ void FGEnvironment::_init()
 {
   is_isa = false;
   live_update = false;
+  mValid = false;
+  lastRequestTime = 0.0;
+  lastUpdateTime = 0.0;
   elevation_ft = 0;
   visibility_m = 32000;
   temperature_sea_level_degc = 15;
@@ -174,6 +177,10 @@ FGEnvironment::copy (const FGEnvironment &env)
     altitude_tropo_top_m = env.altitude_tropo_top_m;
     live_update = env.live_update;
     is_isa = env.is_isa;
+    mValid = env.mValid;
+    mPosition = env.mPosition;
+    lastRequestTime = env.lastRequestTime;
+    lastUpdateTime = env.lastUpdateTime;
 }
 
 static inline bool
@@ -261,9 +268,21 @@ void FGEnvironment::Tie( SGPropertyNode_ptr base, bool archivable )
                       &FGEnvironment::get_visibility_m,
                       &FGEnvironment::set_visibility_m);
 
+  _tiedProperties.Tie("latitude-deg",
+                      this,
+                      &FGEnvironment::get_latitude_deg,
+                      &FGEnvironment::set_latitude_deg);
+  _tiedProperties.Tie("longitude-deg",
+                      this,
+                      &FGEnvironment::get_longitude_deg,
+                      &FGEnvironment::set_longitude_deg);
   _tiedProperties.Tie("elevation-ft", this,
                       &FGEnvironment::get_elevation_ft,
                       &FGEnvironment::set_elevation_ft);
+
+  _tiedProperties.Tie("valid", this,
+                      &FGEnvironment::isValid,
+                      &FGEnvironment::setValid);
 
   _tiedProperties.Tie("temperature-sea-level-degc", this,
                       &FGEnvironment::get_temperature_sea_level_degc,
@@ -470,6 +489,18 @@ FGEnvironment::get_turbulence_rate_hz () const
 }
 
 double
+FGEnvironment::get_latitude_deg() const
+{
+    return mPosition.getLatitudeDeg();
+}
+
+double
+FGEnvironment::get_longitude_deg() const
+{
+    return mPosition.getLongitudeDeg();
+}
+
+double
 FGEnvironment::get_elevation_ft () const
 {
   return elevation_ft;
@@ -609,6 +640,16 @@ void
 FGEnvironment::set_turbulence_rate_hz (double r)
 {
   turbulence_rate_hz = r;
+}
+
+void FGEnvironment::set_latitude_deg(const double lat)
+{
+    mPosition.setLatitudeDeg(lat);
+}
+
+void FGEnvironment::set_longitude_deg(const double lon)
+{
+    mPosition.setLongitudeDeg(lon);
 }
 
 void

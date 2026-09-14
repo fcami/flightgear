@@ -1,6 +1,7 @@
-#ifdef HAVE_CONFIG_H
-    #include "config.h"
-#endif
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2013 James Turner
+
+#include "config.h"
 
 #include <simgear/simgear_config.h>
 
@@ -93,11 +94,13 @@ win32MessageBox(const std::string& caption,
         fullMsg += "\n\n" + moreText;
     }
 
-    UINT mbType = MB_OK;
-	std::wstring wMsg(convertUtf8ToWString(fullMsg)),
-		wCap(convertUtf8ToWString(caption));
+    UINT mbType = MB_OK | MB_ICONWARNING;
+    std::wstring wMsg(convertUtf8ToWString(fullMsg)),
+        wCap(convertUtf8ToWString(caption));
+    SG_LOG(SG_GENERAL, SG_ALERT, fullMsg);
 
-	::MessageBoxExW(ownerWindow, wMsg.c_str(), wCap.c_str(),
+    //FIXME if the window is fullscreen this message box will be hidden behind it
+    ::MessageBoxExW(ownerWindow, wMsg.c_str(), wCap.c_str(),
                     mbType, 0 /* system lang */);
 
 	return flightgear::MSG_BOX_OK;
@@ -178,7 +181,7 @@ MessageBoxResult fatalMessageBoxWithoutExit(const std::string& caption,
     if (reportToSentry) {
         flightgear::sentryReportFatalError(msg, moreText);
     }
-    
+
     // Headless mode.
     if (static_isHeadless) {
         SG_LOG(SG_HEADLESS, SG_ALERT, "Fatal Error: \"" << caption << "\"");
@@ -221,8 +224,8 @@ MessageBoxResult fatalMessageBoxWithoutExit(const std::string& caption,
     SG_LOG(SG_GENERAL, SG_ALERT, msg);
     fatalMessageBoxWithoutExit(caption, msg, moreText, reportToSentry);
     // we can't use exit() here or QGuiApplication crashes
-    // let's instead throw a sepcial exception which we catch
-    // in boostrap.
+    // let's instead throw a special exception which we catch
+    // in bootstrap.
     throw FatalErrorException{};
 }
 

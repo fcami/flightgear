@@ -113,6 +113,7 @@ public:
     double getElevation() const;
     const std::string getId() const;
 
+    /**Returns the FGAirport that this dynamics object is associated with*/
     FGAirport* parent() const
     {
         return _ap;

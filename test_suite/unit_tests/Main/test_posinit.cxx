@@ -13,6 +13,8 @@
 #include "test_suite/FGTestApi/scene_graph.hxx"
 #include "test_suite/FGTestApi/testGlobals.hxx"
 
+#include "Environment/environment.hxx"
+#include "Environment/environment_mgr.hxx"
 #include <AIModel/AIManager.hxx>
 #include <simgear/props/props_io.hxx>
 
@@ -33,6 +35,48 @@
 
 using namespace std::string_literals;
 using namespace flightgear;
+
+class MockEnvironmentMgr : public AbstractEnvironmentManager
+{
+public:
+    MockEnvironmentMgr() : AbstractEnvironmentManager() {}
+
+    // Subsystem API overrides
+    void bind() override {}
+    InitStatus incrementalInit() override { return InitStatus::INIT_DONE; }
+    void reinit() override {}
+    void shutdown() override {}
+    void unbind() override {}
+    void update(double /*dt*/) override {}
+
+    // Subsystem identification.
+    static const char* staticSubsystemClassId() { return "environment"; }
+    // Override methods as needed for your tests
+    FGEnvironment getEnvironment() const override
+    {
+        // Return a default or test-specific FGEnvironment
+        return FGEnvironment();
+    }
+
+    // Inherited via AbstractEnvironmentManager
+    const FGEnvironment* getAircraftEnvironment() const override
+    {
+        return nullptr;
+    }
+    FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) override
+    {
+        FGEnvironment env;
+        env.setGeod(aPos);
+        env.set_wind_from_heading_deg(350);
+        env.set_wind_speed_kt(50);
+        // Simulate having already received real METAR data, so code that
+        // gates on isValid() (e.g. positioninit.cxx's finalizeMetar()) proceeds
+        // immediately instead of waiting, as tests expect.
+        env.setValid(true);
+        return env;
+    }
+    // Add more overrides if needed
+};
 
 void PosInitTests::setUp()
 {
@@ -55,6 +99,13 @@ void PosInitTests::setUp()
     globals->get_subsystem_mgr()->add<PerformanceDB>();
     globals->get_subsystem_mgr()->add<FGATCManager>();
     globals->get_subsystem_mgr()->add<FGAIManager>();
+    globals->get_subsystem_mgr()->add<MockEnvironmentMgr>();
+    // Replace FGEnvironmentMgr with the mock
+    // Enable mocking and register the mock environment subsystem
+    SGSubsystemMgr::test_allowSubsystemMocks();
+    globals->get_subsystem_mgr()->mockSubsystem(
+        "environment",
+        []() { return new MockEnvironmentMgr(); });
 }
 
 
@@ -114,8 +165,8 @@ void PosInitTests::testDefaultStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath"};
-        opts->init(1, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--terrasync-dir=."};
+        opts->init(2, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -143,8 +194,8 @@ void PosInitTests::testAirportOnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF"};
-        opts->init(2, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--terrasync-dir=."};
+        opts->init(3, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -161,8 +212,8 @@ void PosInitTests::testAirportAltitudeOffsetStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--altitude=1000", "--offset-azimuth=90", "--offset-distance=5", "--heading=45"};
-        opts->init(6, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--altitude=1000", "--offset-azimuth=90", "--offset-distance=5", "--heading=45", "--terrasync-dir=."};
+        opts->init(7, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -181,8 +232,8 @@ void PosInitTests::testAirportAndRunwayStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -212,8 +263,8 @@ void PosInitTests::testAirportAndParkingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -239,8 +290,8 @@ void PosInitTests::testAirportAndAvailableParkingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=AVAILABLE"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=AVAILABLE", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -269,8 +320,8 @@ void PosInitTests::testAirportAndMetarStartup()
     {
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
-        const char* args[] = {"dummypath", "--airport=LOWI", "--metar=XXXX 271320Z 08007KT 030V130 CAVOK 17/02 Q1020 NOSIG"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=LOWI", "--metar=XXXX 271320Z 08007KT 030V130 CAVOK 17/02 Q1020 NOSIG", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -289,8 +340,8 @@ void PosInitTests::testAirportRunwayOffsetGlideslopeStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--offset-distance=5", "--glideslope=3.5"};
-        opts->init(5, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--offset-distance=5", "--glideslope=3.5", "--terrasync-dir=."};
+        opts->init(6, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -320,8 +371,8 @@ void PosInitTests::testAirportRunwayOffsetAltitudeStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--offset-distance=5", "--altitude=3000"};
-        opts->init(5, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--offset-distance=5", "--altitude=3000", "--terrasync-dir=."};
+        opts->init(6, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -350,8 +401,8 @@ void PosInitTests::testVOROnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--vor=JFK", "--vor-frequency=115.9"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--vor=JFK", "--vor-frequency=115.9", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -374,8 +425,8 @@ void PosInitTests::testVOROffsetAltitudeHeadingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--vor=JFK", "--offset-distance=5", "--vor-frequency=115.9", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"};
-        opts->init(7, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--vor=JFK", "--offset-distance=5", "--vor-frequency=115.9", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250", "--terrasync-dir=."};
+        opts->init(9, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -402,8 +453,8 @@ void PosInitTests::testFixOnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--fix=FOLER"}; // codespell:ignore --fix=FOLER
-        opts->init(2, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--fix=FOLER", "--terrasync-dir=."}; // codespell:ignore --fix=FOLER
+        opts->init(3, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -426,8 +477,8 @@ void PosInitTests::testFixOffsetAltitudeHeadingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--fix=FOLER", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"}; // codespell:ignore "--fix=FOLER"
-        opts->init(6, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--fix=FOLER", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250", "--terrasync-dir=."}; // codespell:ignore "--fix=FOLER"
+        opts->init(8, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -455,8 +506,8 @@ void PosInitTests::testNDBOnlyStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--ndb=HHI", "--ndb-frequency=373"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--ndb=HHI", "--ndb-frequency=373", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -479,8 +530,8 @@ void PosInitTests::testNDBOffsetAltitudeHeadingStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--ndb=HHI", "--ndb-frequency=373", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"};
-        opts->init(8, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--ndb=HHI", "--ndb-frequency=373", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250", "--terrasync-dir=."};
+        opts->init(10, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -508,8 +559,8 @@ void PosInitTests::testLatLonStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--lat=55.9", "--lon=-3.355", "--altitude=1000"};
-        opts->init(4, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--lat=55.9", "--lon=-3.355", "--altitude=1000", "--terrasync-dir=."};
+        opts->init(5, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -529,8 +580,8 @@ void PosInitTests::testLatLonOffsetStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--lat=55.9", "--lon=-3.355", "--altitude=1000", "--offset-distance=5", "--offset-azimuth=90", "--heading=45"};
-        opts->init(7, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--lat=55.9", "--lon=-3.355", "--altitude=1000", "--offset-distance=5", "--offset-azimuth=90", "--heading=45", "--terrasync-dir=."};
+        opts->init(8, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -551,8 +602,8 @@ void PosInitTests::testCarrierStartup()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--carrier=Nimitz"};
-        opts->init(2, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--carrier=Nimitz", "--terrasync-dir=."};
+        opts->init(3, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -569,8 +620,8 @@ void PosInitTests::testAirportRepositionAirport()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=25C", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -611,8 +662,8 @@ void PosInitTests::testAirportRunwayRepositionAirport()
     {
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
-        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -654,8 +705,8 @@ void PosInitTests::testParkInvalid()
     {
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=foobar"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=foobar", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -667,8 +718,8 @@ void PosInitTests::testParkInvalid()
 
     auto apt = FGAirport::getByIdent("EDDF");
 
-
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored as the parking is invalid, but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -685,8 +736,8 @@ void PosInitTests::testParkAtOccupied()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -702,7 +753,8 @@ void PosInitTests::testParkAtOccupied()
     // now mark the parking as occupied
     auto dynamics = apt->getDynamics();
     dynamics->setParkingAvailable(parking, false);
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -733,8 +785,8 @@ void PosInitTests::testRepositionAtParking()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=KSFO", "--runway=28L"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=KSFO", "--runway=28L", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -788,8 +840,8 @@ void PosInitTests::testRepositionAtSameParking()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=V266", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -828,8 +880,8 @@ void PosInitTests::testRepositionAtOccupied()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -843,7 +895,8 @@ void PosInitTests::testRepositionAtOccupied()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -879,8 +932,8 @@ void PosInitTests::testRepositionAtInvalid()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -894,7 +947,8 @@ void PosInitTests::testRepositionAtInvalid()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -927,8 +981,8 @@ void PosInitTests::testMPRunwayStart()
         // set dummy value to pretend MP is active
         fgSetString("/sim/multiplay/txhost", "lalalal");
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=07L"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--runway=07L", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -978,8 +1032,8 @@ void PosInitTests::testParkNoAI()
         Options* opts = Options::sharedInstance();
         opts->setShouldLoadDefaultConfig(false);
 
-        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235"};
-        opts->init(3, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDF", "--parkpos=F235", "--terrasync-dir=."};
+        opts->init(4, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -994,7 +1048,8 @@ void PosInitTests::testParkNoAI()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored as the parking is invalid, but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 

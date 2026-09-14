@@ -583,8 +583,11 @@ std::string FGAirportDynamics::fallbackGetActiveRunway(int action, double headin
     }
 
     if (updateNeeded) {
-        double windSpeed = fgGetInt("/environment/metar/base-wind-speed-kt");
-        double windHeading = fgGetInt("/environment/metar/base-wind-dir-deg");
+        auto envMgr = globals->get_subsystem<AbstractEnvironmentManager>();
+        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
+
+        double windSpeed = env.get_wind_speed_kt();
+        double windHeading = env.get_wind_from_heading_deg();
 
         // discount runways based on cross / tail-wind
         WindExclusionCheck windCheck(windHeading, windSpeed);
@@ -684,7 +687,10 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
                                              double heading)
 {
     SG_LOG(SG_ATC, SG_BULK, "innerGetActiveRunway: TrafficType " << trafficType << " Rwy " << runway << " Heading " << heading);
-    if (!fgGetBool("/environment/metar/valid")) {
+
+    auto envMgr = globals->get_subsystem<AbstractEnvironmentManager>();
+    auto env = envMgr ? envMgr->getEnvironmentAtPosition(parent()->geod()) : FGEnvironment();
+    if (!envMgr || !env.isValid()) {
         SG_LOG(SG_GENERAL, SG_DEV_WARN, "innerGetActiveRunway METAR invalid");
         return false;
     }
@@ -700,16 +706,9 @@ bool FGAirportDynamics::innerGetActiveRunway(const std::string& trafficType,
         takeoff.clear();
         lastUpdate = dayStart;
         prevTrafficType = trafficType;
-        /*
-        FGEnvironment
-            stationweather =
-            globals->get_subsystem<FGEnvironmentMgr>()
-            ->getEnvironment(getLatitude(), getLongitude(),
-                             getElevation());
-        */
-        double windSpeed = fgGetInt("/environment/metar/base-wind-speed-kt"); //stationweather.get_wind_speed_kt();
-        double windHeading = fgGetInt("/environment/metar/base-wind-dir-deg");
-        //stationweather.get_wind_from_heading_deg();
+
+        double windSpeed = env.get_wind_speed_kt();
+        double windHeading = env.get_wind_from_heading_deg();
         std::string scheduleName;
         //cerr << "finding active Runway for : " << _ap->getId() << endl;
         //cerr << "Wind Heading              : " << windHeading << endl;
@@ -844,7 +843,13 @@ void FGAirportDynamics::getActiveRunway(const std::string& trafficType,
                                         int action, std::string& runway,
                                         double heading)
 {
-    //FIXME must align with FGAirport::findBestRunwayForHeading
+    // Fetch the subsystem manager.
+    auto mgr = globals->get_subsystem_mgr();
+    auto envMgr = globals->get_subsystem<FGEnvironmentMgr>();
+    if (envMgr) {
+        auto env = envMgr->getEnvironmentAtPosition(parent()->geod());
+    }
+
 
     bool ok = innerGetActiveRunway(trafficType, action, runway, heading);
     if (!ok || runway.empty()) {
@@ -1034,11 +1039,11 @@ FGRunwayRef FGAirportDynamics::getActiveRunwayForUsage() const
     if (envMgr) {
         // FIXME : this should use the weather at the airport, not the player's
         // location.
-        const auto stationWeather = envMgr->getAircraftEnvironment();
+        const auto stationWeather = envMgr->getEnvironmentAtPosition(parent()->geod());
 
-        double windSpeed = stationWeather->get_wind_speed_kt();
+        double windSpeed = stationWeather.get_wind_speed_kt();
         if (windSpeed > 0.0) {
-            hdg = stationWeather->get_wind_from_heading_deg();
+            hdg = stationWeather.get_wind_from_heading_deg();
         }
     }
 

@@ -13,13 +13,14 @@
 #include <algorithm>
 #include <cctype>
 
-#include <simgear/structure/exception.hxx>
+#include <simgear/io/HTTPMemoryRequest.hxx>
 #include <simgear/misc/strutils.hxx>
 #include <simgear/props/tiedpropertylist.hxx>
-#include <simgear/io/HTTPMemoryRequest.hxx>
-#include <simgear/timing/sg_time.hxx>
-#include <simgear/structure/event_mgr.hxx>
+#include <simgear/structure/SGSharedPtr.hxx>
 #include <simgear/structure/commands.hxx>
+#include <simgear/structure/event_mgr.hxx>
+#include <simgear/structure/exception.hxx>
+#include <simgear/timing/sg_time.hxx>
 
 #include "metarproperties.hxx"
 #include "metarairportfilter.hxx"
@@ -32,51 +33,17 @@ namespace Environment {
 
 
 /* -------------------------------------------------------------------------------- */
-
-class MetarRequester;
-
+// MetarRequester and LiveMetarProperties are now declared in realwx_ctrl.hxx so
+// FGEnvironmentMgr can drive its own fetchers directly - see getMetarRequester().
 /* -------------------------------------------------------------------------------- */
 
-class LiveMetarProperties : public MetarProperties {
-public:
-    LiveMetarProperties( SGPropertyNode_ptr rootNode, MetarRequester * metarRequester, int maxAge );
-    virtual ~LiveMetarProperties();
-    virtual void update( double dt );
-
-    virtual double getTimeToLive() const { return _timeToLive; }
-    virtual void resetTimeToLive()
-    { _timeToLive = 0.00; _pollingTimer = 0.0; }
-
-    // implementation of MetarDataHandler
-    virtual void handleMetarData( const std::string & data );
-    virtual void handleMetarFailure();
-
-    static const unsigned MAX_POLLING_INTERVAL_SECONDS = 10;
-    static const unsigned DEFAULT_TIME_TO_LIVE_SECONDS = 900;
-
-private:
-    double _timeToLive;
-    double _pollingTimer;
-    MetarRequester * _metarRequester;
-    int _maxAge;
-    bool _failure;
-};
-
-typedef SGSharedPtr<LiveMetarProperties> LiveMetarProperties_ptr;
-
-class MetarRequester {
-public:
-    virtual void requestMetar( LiveMetarProperties_ptr metarDataHandler, const std::string & id ) = 0;
-};
-
-
-LiveMetarProperties::LiveMetarProperties( SGPropertyNode_ptr rootNode, MetarRequester * metarRequester, int maxAge ) :
-    MetarProperties( rootNode ),
-    _timeToLive(0.0),
-    _pollingTimer(0.0),
-    _metarRequester(metarRequester),
-    _maxAge(maxAge),
-    _failure(false)
+LiveMetarProperties::LiveMetarProperties(SGPropertyNode_ptr rootNode, MetarRequester* metarRequester, int maxAge, double refreshIntervalSeconds) : MetarProperties(rootNode),
+                                                                                                                                                   _timeToLive(0.0),
+                                                                                                                                                   _pollingTimer(0.0),
+                                                                                                                                                   _metarRequester(metarRequester),
+                                                                                                                                                   _maxAge(maxAge),
+                                                                                                                                                   _failure(false),
+                                                                                                                                                   _refreshIntervalSeconds(refreshIntervalSeconds)
 {
     _tiedProperties.Tie("time-to-live", &_timeToLive );
     _tiedProperties.Tie("failure", &_failure);
@@ -96,6 +63,7 @@ void LiveMetarProperties::update( double dt )
         invalidate();
         std::string stationId = getStationId();
         if( stationId.empty() ) return;
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "LiveMetarProperties::update() for " << getStationId() << ": timeToLive=" << _timeToLive << " pollingTimer=" << _pollingTimer);
         if( _pollingTimer > 0.0 ) return;
         _metarRequester->requestMetar( this, stationId );
         _pollingTimer = MAX_POLLING_INTERVAL_SECONDS;
@@ -105,7 +73,7 @@ void LiveMetarProperties::update( double dt )
 void LiveMetarProperties::handleMetarData( const std::string & data )
 {
     SG_LOG( SG_ENVIRONMENT, SG_DEBUG, "LiveMetarProperties::handleMetarData() received METAR for " << getStationId() << ": " << data );
-    _timeToLive = DEFAULT_TIME_TO_LIVE_SECONDS;
+    _timeToLive = _refreshIntervalSeconds;
 
     SGSharedPtr<FGMetar> m;
     static bool haveReportedMETARFailure = false;
@@ -168,6 +136,8 @@ public:
 
     typedef std::vector<LiveMetarProperties_ptr> MetarPropertiesList;
     MetarPropertiesList::iterator findMetarAtPath(const std::string &propPath);
+
+    MetarRequester* getMetarRequester() override { return _requester; }
 
 protected:
     void checkNearbyMetar();
@@ -294,6 +264,7 @@ void BasicRealWxController::unbind()
 
 void BasicRealWxController::update( double dt )
 {
+    SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "BasicRealWxController::update() enabled: " << _enabled << ", wasEnabled: " << _wasEnabled << ", metar properties count: " << _metarProperties.size());
     if (_enabled) {
         bool firstIteration = !_wasEnabled;
         // clock tick for every METAR in stock
@@ -386,7 +357,6 @@ void BasicRealWxController::checkNearbyMetar()
       return;
     }
 }
-
 
 /* -------------------------------------------------------------------------------- */
 
@@ -503,6 +473,19 @@ RealWxController * RealWxController::createInstance( SGPropertyNode_ptr rootNode
   return new NoaaMetarRealWxController( rootNode );
 }
 
+/*
+SGSharedPtr<SGPropertyNode_ptr> RealWxController::getMetarProperties(const std::string& icao)
+{
+    SG_LOG
+    (
+        SG_ENVIRONMENT,
+        SG_INFO,
+        "RealWxController::getMetarProperties()"
+        "spawning load request for station-id '" << icao << "'"
+    );
+    return SGSharedPtr<LiveMetarProperties>();
+}
+*/
 RealWxController::~RealWxController()
 {
 }

@@ -10,6 +10,7 @@
 #include <simgear/compiler.h>
 
 #include <cmath>
+#include <simgear/math/SGGeod.hxx>
 #include <simgear/props/tiedpropertylist.hxx>
 
 /**
@@ -35,6 +36,25 @@ public:
   virtual void Tie( SGPropertyNode_ptr base, bool setArchivable = true );
   virtual void Untie();
 
+  virtual double getLastRequestTime() const { return lastRequestTime; }
+  virtual double getLastUpdateTime() const { return lastUpdateTime; }
+
+  virtual void setLastRequestTime(double t) { lastRequestTime = t; }
+  virtual void setLastUpdateTime(double t) { lastUpdateTime = t; }
+
+  /** Whether this environment has ever received real (e.g. METAR-sourced) data. */
+  virtual bool isValid() const { return mValid; }
+  virtual void setValid(bool v) { mValid = v; }
+
+  virtual void setGeod(const SGGeod& geod)
+  {
+      mPosition = geod;
+  }
+
+  virtual const SGGeod& geod() const
+  {
+      return mPosition;
+  }
   virtual double get_visibility_m () const;
 
   virtual double get_temperature_sea_level_degc () const;
@@ -78,6 +98,12 @@ public:
   virtual void set_turbulence_magnitude_norm (double t);
   virtual void set_turbulence_rate_hz (double t);
 
+  virtual void set_latitude_deg(double lat);
+  virtual void set_longitude_deg(double lon);
+
+  virtual double get_latitude_deg() const;
+  virtual double get_longitude_deg() const;
+
   virtual double get_elevation_ft () const;
   virtual void set_elevation_ft (double elevation_ft);
   virtual void set_altitude_half_to_sun_m (double alt);
@@ -89,6 +115,7 @@ public:
   virtual bool get_is_isa() const;
 
   FGEnvironment & interpolate (const FGEnvironment & env2, double fraction, FGEnvironment * result) const;
+
 private:
   virtual void copy (const FGEnvironment &environment);
   void _init();
@@ -105,6 +132,10 @@ private:
   void _recalc_relative_humidity ();
   void _recalc_alt_pt ();
 
+  SGGeod mPosition;
+  double lastRequestTime;
+  double lastUpdateTime;
+  bool mValid;
   double elevation_ft;
   double visibility_m;
 
