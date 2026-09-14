@@ -57,6 +57,9 @@ public:
   }
   virtual double get_visibility_m () const;
 
+  virtual double get_elevation_ft() const;
+  virtual void set_elevation_ft(double elevation_ft);
+
   virtual double get_temperature_sea_level_degc () const;
   virtual double get_temperature_degc () const;
   virtual double get_temperature_degf () const;
@@ -98,14 +101,6 @@ public:
   virtual void set_turbulence_magnitude_norm (double t);
   virtual void set_turbulence_rate_hz (double t);
 
-  virtual void set_latitude_deg(double lat);
-  virtual void set_longitude_deg(double lon);
-
-  virtual double get_latitude_deg() const;
-  virtual double get_longitude_deg() const;
-
-  virtual double get_elevation_ft () const;
-  virtual void set_elevation_ft (double elevation_ft);
   virtual void set_altitude_half_to_sun_m (double alt);
   virtual void set_altitude_tropo_top_m (double alt);
 
@@ -117,53 +112,60 @@ public:
   FGEnvironment & interpolate (const FGEnvironment & env2, double fraction, FGEnvironment * result) const;
 
 private:
-  virtual void copy (const FGEnvironment &environment);
-  void _init();
-  void _recalc_hdgspd ();
+    // these exist for tie-ing, but for C++ API, use SGGeod
+    virtual void set_latitude_deg(double lat);
+    virtual void set_longitude_deg(double lon);
 
-  void _recalc_sl_temperature ();
-  void _recalc_sl_dewpoint ();
-  void _recalc_sl_pressure ();
+    virtual double get_latitude_deg() const;
+    virtual double get_longitude_deg() const;
 
-  void _recalc_density_tropo_avg_kgm3 ();
-  void _recalc_ne ();
-  void _recalc_alt_dewpoint ();
-  void _recalc_density ();
-  void _recalc_relative_humidity ();
-  void _recalc_alt_pt ();
+    virtual void copy(const FGEnvironment& environment);
+    void _init();
+    void _recalc_hdgspd();
 
-  SGGeod mPosition;
-  double lastRequestTime;
-  double lastUpdateTime;
-  bool mValid = false;
-  double elevation_ft;
-  double visibility_m;
+    void _recalc_sl_temperature();
+    void _recalc_sl_dewpoint();
+    void _recalc_sl_pressure();
 
-  // Atmosphere
-  double temperature_sea_level_degc;
-  double temperature_degc;
-  double dewpoint_sea_level_degc;
-  double dewpoint_degc;
-  double pressure_sea_level_inhg;
-  double pressure_inhg;
-  double density_slugft3;
+    void _recalc_density_tropo_avg_kgm3();
+    void _recalc_ne();
+    void _recalc_alt_dewpoint();
+    void _recalc_density();
+    void _recalc_relative_humidity();
+    void _recalc_alt_pt();
 
-  double density_tropo_avg_kgm3;
-  double relative_humidity;
-  double altitude_half_to_sun_m;
-  double altitude_tropo_top_m;
+    SGGeod mPosition;
+    double lastRequestTime;
+    double lastUpdateTime;
+    bool mValid = false;
+    double elevation_ft;
+    double visibility_m;
 
-  double turbulence_magnitude_norm;
-  double turbulence_rate_hz;
+    // Atmosphere
+    double temperature_sea_level_degc;
+    double temperature_degc;
+    double dewpoint_sea_level_degc;
+    double dewpoint_degc;
+    double pressure_sea_level_inhg;
+    double pressure_inhg;
+    double density_slugft3;
 
-  double wind_from_heading_deg;
-  double wind_speed_kt;
+    double density_tropo_avg_kgm3;
+    double relative_humidity;
+    double altitude_half_to_sun_m;
+    double altitude_tropo_top_m;
 
-  double wind_from_north_fps;
-  double wind_from_east_fps;
-  double wind_from_down_fps;
+    double turbulence_magnitude_norm;
+    double turbulence_rate_hz;
 
-  bool live_update = false;
-  bool is_isa = false;
-  simgear::TiedPropertyList _tiedProperties;
+    double wind_from_heading_deg;
+    double wind_speed_kt;
+
+    double wind_from_north_fps;
+    double wind_from_east_fps;
+    double wind_from_down_fps;
+
+    bool live_update = false;
+    bool is_isa = false;
+    simgear::TiedPropertyList _tiedProperties;
 };

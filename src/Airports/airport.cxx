@@ -99,7 +99,10 @@ SGPath FGAirport::sceneryPath() const
 }
 
 // FIXME add a validity check here
-inline bool FGAirport::isMetarValid() const { return _metar; }
+bool FGAirport::isMetarValid() const
+{
+    return _metar;
+}
 
 void FGAirport::setMetar(SGSharedPtr<FGMetar> m)
 {
