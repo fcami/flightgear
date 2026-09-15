@@ -42,11 +42,20 @@ public:
     MockEnvironmentMgr() : AbstractEnvironmentManager() {}
 
     // Subsystem API overrides
-    void bind() override {}
+    void bind() override
+    {
+        AbstractEnvironmentManager::bind();
+    }
+
     InitStatus incrementalInit() override { return InitStatus::INIT_DONE; }
     void reinit() override {}
     void shutdown() override {}
-    void unbind() override {}
+
+    void unbind() override
+    {
+        AbstractEnvironmentManager::unbind();
+    }
+
     void update(double /*dt*/) override {}
 
     // Subsystem identification.
@@ -531,7 +540,7 @@ void PosInitTests::testNDBOffsetAltitudeHeadingStartup()
         opts->setShouldLoadDefaultConfig(false);
 
         const char* args[] = {"dummypath", "--ndb=HHI", "--ndb-frequency=373", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250", "--terrasync-dir=."};
-        opts->init(10, (char**)args, SGPath());
+        opts->init(9, (char**)args, SGPath());
         opts->processOptions();
     }
 
