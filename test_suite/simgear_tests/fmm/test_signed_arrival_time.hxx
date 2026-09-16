@@ -17,6 +17,14 @@
 // is intentionally not ported: it aborts against this fork specifically
 // because the fork disabled the exception it expects (see the "contained
 // component" comment at the relevant check in fast_marching_method.hpp).
+//
+// testEnclosedComponent (below) is new, fork-specific, and not from
+// upstream: it exercises the consequence of that same disabled-exception
+// decision. Since the fork chose not to reject a boundary component fully
+// enclosed within another's interior up front, InitializedNarrowBand/
+// MarchNarrowBand must instead handle one downstream without crashing -
+// this pins that behaviour (see the "already frozen" comment in
+// InitializedNarrowBand in fast_marching_method.hpp for the fix itself).
 
 #pragma once
 
@@ -42,6 +50,7 @@ class SignedArrivalTimeTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testOverlappingBoxes);
     CPPUNIT_TEST(testPointSourceAccuracy);
     CPPUNIT_TEST(testMaxDistanceCap);
+    CPPUNIT_TEST(testEnclosedComponent);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -81,4 +90,12 @@ public:
     // non-repeating cloud field performance work (see
     // /sim/rendering/hdr/clouds/sdf-max-distance-voxels in fgclouds.cxx).
     void testMaxDistanceCap();
+
+    // New - not present upstream. Regression test for the FMM crash found
+    // building erosion features for fg-cloud-texture-gen voxel textures
+    // (SGVoxelTextureCloud::generateCloud() seeds every near-zero-density
+    // voxel as a boundary point, so a single eroded interior voxel forms a
+    // second, fully-enclosed boundary component). See testEnclosedComponent's
+    // own comment and the class-level comment above for the full story.
+    void testEnclosedComponent();
 };

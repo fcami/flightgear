@@ -553,3 +553,77 @@ void SignedArrivalTimeTests::testMaxDistanceCap()
     CPPUNIT_ASSERT(saw_within_cap);
     CPPUNIT_ASSERT(saw_beyond_cap);
 }
+
+void SignedArrivalTimeTests::testEnclosedComponent()
+{
+    // Same setup as testBoxBoundary - a box filling the entire grid, boundary
+    // = its own surface - which is exactly SGVoxelTextureCloud::generateCloud()'s
+    // own boundary-seeding shape (every near-zero-density voxel is a boundary
+    // point, so a solid cloud's zero-padded border is a shell wrapping the
+    // whole solid interior). Then, distinctly from testBoxBoundary, one extra
+    // boundary point is added deep inside that interior, disconnected from the
+    // shell - modelling a single eroded interior voxel. Before the fix this
+    // fully-enclosed second component made InitializedNarrowBand solicit a
+    // value for a cell the shell's own interior march had already frozen,
+    // which fast_marching_method.hpp's ThrowIfInvalidArrivalTime rejected as
+    // negative - so this call would throw. It must not.
+    auto const grid_size = fmm_test::FilledArray<kDimension>(std::size_t{10});
+    auto const grid_spacing = fmm_test::FilledArray<kDimension>(ScalarType{1});
+
+    auto boundary_indices = std::vector<std::array<std::int32_t, kDimension>>();
+    {
+        auto index_iter = fmm_test::IndexIterator<kDimension>(grid_size);
+        bool has_next = true;
+        while (has_next) {
+            auto const index = index_iter.index();
+            for (auto i = std::size_t{0}; i < kDimension; ++i) {
+                auto const edge = static_cast<std::int32_t>(grid_size[i]) - 1;
+                if (index[i] == 0 || index[i] == edge) {
+                    boundary_indices.push_back(index);
+                    break;
+                }
+            }
+            has_next = index_iter.Next();
+        }
+    }
+    auto const boundary_times = std::vector<ScalarType>(boundary_indices.size(), ScalarType{0});
+
+    // Deep in the interior (4 cells from every face) - well clear of the
+    // shell, so it cannot be face/vertex-connected to it.
+    auto const enclosed_index = fmm_test::FilledArray<kDimension>(std::int32_t{5});
+    auto const near_index = std::array<std::int32_t, kDimension>{{4, 5, 5}}; // face-adjacent to it
+    auto const far_index = fmm_test::FilledArray<kDimension>(std::int32_t{1}); // next to the shell instead
+
+    auto const baseline = fmm::SignedArrivalTime(grid_size, boundary_indices, boundary_times,
+                                                 DistanceSolverType(grid_spacing[0]));
+    auto baseline_grid = fmm_test::Grid<ScalarType const, kDimension>(grid_size, *baseline.data());
+
+    auto enclosed_boundary_indices = boundary_indices;
+    enclosed_boundary_indices.push_back(enclosed_index);
+    auto enclosed_boundary_times = boundary_times;
+    enclosed_boundary_times.push_back(ScalarType{0});
+
+    auto const enclosed = fmm::SignedArrivalTime(grid_size, enclosed_boundary_indices,
+                                                 enclosed_boundary_times,
+                                                 DistanceSolverType(grid_spacing[0]));
+    auto enclosed_grid = fmm_test::Grid<ScalarType const, kDimension>(grid_size, *enclosed.data());
+
+    // The enclosed point itself was correctly frozen at its own boundary
+    // time, not skipped or corrupted.
+    CPPUNIT_ASSERT_EQUAL(ScalarType{0}, enclosed_grid.Cell(enclosed_index));
+
+    // Face-adjacent to the enclosed point: dominated by the nearby enclosed
+    // boundary (true distance 1) rather than the far shell wall (~4 away in
+    // the baseline), so its magnitude must shrink substantially, not just
+    // differ.
+    auto const baseline_near = baseline_grid.Cell(near_index);
+    auto const enclosed_near = enclosed_grid.Cell(near_index);
+    CPPUNIT_ASSERT(std::fabs(enclosed_near) < std::fabs(baseline_near));
+    CPPUNIT_ASSERT(std::fabs(enclosed_near) <= ScalarType{2});
+
+    // Next to the shell, far from the enclosed point: frozen well before the
+    // march front could ever reach near the enclosed point, so by march
+    // causality it's bitwise identical whether or not the enclosed point
+    // exists at all - confirms the fix doesn't perturb unrelated cells.
+    CPPUNIT_ASSERT_EQUAL(baseline_grid.Cell(far_index), enclosed_grid.Cell(far_index));
+}
