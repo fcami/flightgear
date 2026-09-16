@@ -379,9 +379,29 @@ void HttplibHttpd::bind()
 
     httplib::Server& server = d->server;
 
-    server.set_pre_routing_handler([this](const httplib::Request& req, httplib::Response& res) {
-        return d->handleRequest(req, res);
-    });
+    auto dispatchHandler = [this](const httplib::Request& req, httplib::Response& res) {
+        auto handlerResponse = d->handleRequest(req, res);
+
+        if (handlerResponse == httplib::Server::HandlerResponse::Unhandled) {
+            // Unlike a HandlerResponse-returning hook, a plain Handler has no
+            // "Unhandled" signal back to cpp-httplib - a pattern match is always final - so an
+            // unmatched path (no URIHandler for it) is reported as 404 explicitly here.
+            res.status = 404;
+        }
+    };
+
+    // Registered per-verb so cpp-httplib's own dispatch_request() reads the request body
+    // before calling into this, rather than set_pre-routing_handler, which short-ciruits
+    // routing() before the body is even read. Get/Head both route through server.Get, and
+    // static-file/mount-point serving (handle_file_request) runs unconditionally inside routing()
+    // ahead of this dispatch, so it still takes priority over these catch-alls for GET.
+    // WebSocket upgrades are matched via their own websocket_handlers table before routing() is
+    // even reached, independent of this registration.
+    server.Get(".*", dispatchHandler);
+    server.Post(".*", dispatchHandler);
+    server.Put(".*", dispatchHandler);
+    server.Patch(".*", dispatchHandler);
+    server.Delete(".*", dispatchHandler);
 
     server.WebSocket("/PropertyListener", [this](const httplib::Request&, httplib::ws::WebSocket& ws) {
         SG_LOG(SG_NETWORK, SG_INFO, "new PropertyChangeWebsocket");
