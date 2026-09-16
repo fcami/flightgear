@@ -372,3 +372,34 @@ void HttplibHttpdTests::testPropertyTreeMirrorWebsocket()
     auto changed = json::parse(msg);
     CPPUNIT_ASSERT(changed.contains("changed"));
 }
+
+void HttplibHttpdTests::testDefaultsToLoopback()
+{
+    // A separate, self-contained server instance (not the shared _httpd
+    // fixture, which uses a fixed explicit port) with no listening-address
+    // set at all: it should default to loopback-only. Use an explicit,
+    // distinct port to avoid colliding with the shared fixture's server
+    // (and the default port 8080).
+    const int port = 18174;
+    SGPropertyNode_ptr configNode = new SGPropertyNode;
+    configNode->getNode("options/document-root", true)->setStringValue(_docRoot.utf8Str());
+    configNode->getNode("options/idle-timeout-ms", true)->setStringValue("2000");
+    configNode->getNode("options/listening-port", true)->setIntValue(port);
+
+    auto httpd = std::make_unique<flightgear::HttplibHttpd>(configNode);
+    httpd->bind();
+
+    httplib::Client client("127.0.0.1", port);
+    client.set_connection_timeout(0, 50000); // 50ms
+    bool up = false;
+    for (int attempt = 0; attempt < 100 && !up; ++attempt) {
+        if (auto res = client.Get("/hello.txt")) {
+            up = true;
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+    }
+    CPPUNIT_ASSERT(up);
+
+    httpd->unbind();
+}
