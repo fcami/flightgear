@@ -591,7 +591,7 @@ void SignedArrivalTimeTests::testEnclosedComponent()
     // Deep in the interior (4 cells from every face) - well clear of the
     // shell, so it cannot be face/vertex-connected to it.
     auto const enclosed_index = fmm_test::FilledArray<kDimension>(std::int32_t{5});
-    auto const near_index = std::array<std::int32_t, kDimension>{{4, 5, 5}}; // face-adjacent to it
+    auto const near_index = std::array<std::int32_t, kDimension>{{4, 5, 5}};   // face-adjacent to it
     auto const far_index = fmm_test::FilledArray<kDimension>(std::int32_t{1}); // next to the shell instead
 
     auto const baseline = fmm::SignedArrivalTime(grid_size, boundary_indices, boundary_times,
