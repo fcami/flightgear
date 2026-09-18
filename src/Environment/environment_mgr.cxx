@@ -359,13 +359,13 @@ void FGEnvironmentMgr::updateClosestAirport()
 
 
     if (fgGetString("/sim/airport/nearest-tower-ident") != nearestIdent) {
-        SG_LOG(SG_ENVIRONMENT, SG_INFO, "Nearest airport tower now " << nearestIdent);
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Nearest airport tower now " << nearestIdent);
         fgSetString("/sim/airport/nearest-tower-ident", nearestIdent);
     }
     if (automaticTowerActive) {
         if (fgGetString("/sim/tower/airport-id") != nearestIdent) {
             fgSetString("/sim/tower/airport-id", nearestIdent);
-            SG_LOG(SG_ENVIRONMENT, SG_INFO, "Auto Tower: now " << nearestIdent);
+            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Auto Tower: now " << nearestIdent);
         }
     }
     updateTowerPosition();
@@ -420,19 +420,18 @@ void FGEnvironmentMgr::syncCacheEntryFromNode(FGEnvironment& env, const SGProper
 
 double FGEnvironmentMgr::cacheMatchRadiusM(const SGGeod& aPos) const
 {
-    // Use a tight cache radius for positions near the player (so nearby
+    // Use a tight cache radius for positions near the user (so nearby
     // airports/AI traffic get distinct, locally-accurate weather), and a
     // much coarser one for distant positions (so the rest of the world
     // doesn't need a separate cache entry per airport). Blended linearly by
-    // great-circle distance from the player's own position: 0nm away uses
-    // the near radius, halfway round the world (the most distant a position
-    // on Earth can be) uses the far radius.
+    // great-circle distance from the user's own position: 0nm away uses
+    // the near radius, 2000nm away uses the far value
     const double nearRadiusNm = fgGetDouble("/sim/environment/metar/cache-distance-near-nm", 50.0);
     const double farRadiusNm = fgGetDouble("/sim/environment/metar/cache-distance-far-nm", 640.0);
-    const double halfWorldNm = 10800.0; // half the Earth's great-circle circumference
+    const double farCutoff = 2000.0;
 
-    const double distanceFromPlayerNm = SGGeodesy::distanceM(globals->get_aircraft_position(), aPos) * SG_METER_TO_NM;
-    const double t = SGMiscd::clip(distanceFromPlayerNm / halfWorldNm, 0.0, 1.0);
+    const double d = SGGeodesy::distanceM(globals->get_aircraft_position(), aPos) * SG_METER_TO_NM;
+    const double t = SGMiscd::clip(d / farCutoff, 0.0, 1.0);
     const double radiusNm = nearRadiusNm + t * (farRadiusNm - nearRadiusNm);
     return radiusNm * SG_NM_TO_METER;
 }
@@ -444,7 +443,7 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
     const double cacheDistanceM = cacheMatchRadiusM(aPos);
     // How long an entry may go un-requested before it's considered stale and
     // repurposed for a new position, even though the cache isn't full yet.
-    // Kept constant regardless of distance from the player, unlike the
+    // Kept constant regardless of distance from the user, unlike the
     // match radius above - staleness is about "has the weather likely
     // changed", not about how precisely we're tracking the position.
     const double cacheAgeSeconds = fgGetDouble("/sim/environment/metar/cache-age-seconds", 3600.0);
@@ -474,7 +473,7 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
 
     if (haveClose && !isStale) {
         // cache hit; return the cached environment
-        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Cache hit for position " << aPos);
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "METAR Cache hit for position " << aPos);
         closest->env->setLastRequestTime(now);
         return *closest->env;
     }
@@ -484,7 +483,7 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
         // a while: repurpose it in place (same cache slot, same property node,
         // same fetcher - just re-target it) rather than growing the cache or
         // evicting a different entry.
-        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Refreshing stale cached environment for position " << aPos);
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Refreshing stale cached environment for position " << aPos);
         closest->env->setGeod(snappedPos);
         closest->env->setValid(false);
         closest->env->setLastRequestTime(now);
@@ -493,10 +492,10 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
     }
 
     if (environmentCache.size() >= static_cast<size_t>(cacheSize)) {
-        SG_LOG(SG_ENVIRONMENT, SG_BULK, "Environment cache is full. Evicting the oldest environment.");
+        SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Environment cache is full, dropping oldest.");
         auto oldest = std::min_element(environmentCache.begin(), environmentCache.end(), old);
         if (oldest != environmentCache.end()) {
-            SG_LOG(SG_ENVIRONMENT, SG_BULK, "Evicting environment for position " << oldest->env->geod() << " last requested at " << oldest->env->getLastRequestTime());
+            SG_LOG(SG_ENVIRONMENT, SG_DEBUG, "Evicting environment for position " << oldest->env->geod() << " last requested at " << oldest->env->getLastRequestTime());
             oldest->env->setGeod(snappedPos);
             oldest->env->setValid(false);
             oldest->env->setLastRequestTime(now);
@@ -509,7 +508,6 @@ FGEnvironmentMgr::getEnvironmentAtPosition(const SGGeod& aPos)
         return env;
     }
 
-    SG_LOG(SG_ENVIRONMENT, SG_BULK, "Creating new environment for position " << aPos << " Cache Size: " << environmentCache.size());
     // cache miss; create a new environment for this position
     auto env = std::make_unique<FGEnvironment>(*_environment);
     SGPropertyNode_ptr node = fgGetNode("/environment", true)->addChild("metar");
