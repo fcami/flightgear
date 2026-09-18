@@ -470,7 +470,9 @@ QVariantList QmlAircraftInfo::previews() const
 QUrl QmlAircraftInfo::thumbnail() const
 {
     if (_item) {
-        return QUrl::fromLocalFile(resolveItem()->thumbnailPath);
+        auto item = resolveItem();
+        const QString thumbnailPath = QFileInfo(item->path).dir().filePath(item->thumbnailPath);
+        return QUrl::fromLocalFile(thumbnailPath);
     } else if (_package) {
         auto t = _package->thumbnailForVariant(_variant);
         if (QFileInfo::exists(QString::fromStdString(t.path))) {
