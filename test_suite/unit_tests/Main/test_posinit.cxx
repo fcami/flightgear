@@ -121,6 +121,7 @@ void PosInitTests::setUp()
 void PosInitTests::tearDown()
 {
     FGTestApi::tearDown::shutdownTestGlobals();
+    SGSubsystemMgr::clearMocks();
 }
 
 void PosInitTests::checkAlt(float value)
