@@ -414,7 +414,6 @@ Item {
                         label: qsTr("Custom DNS Server")
                         advanced: true
                         description: qsTr("Enter a custom DNS server IP address, for example '8.8.8.8'")
-                        validation: FGRegExpValidator { regularExpression: /[\d]{1,7}[\s]*x[\s]*[\d]{1,7}$/ }
                         suggestedWidthString: "255.255.255.255"
                         setting: "terrasync-dns-custom-server"
                     },
