@@ -28,11 +28,24 @@ using nlohmann::json;
 
 namespace {
 
-// A test-registered command for testRunHandler -- RunUriHandler executes
+// A test-registered command for testRunHandlerGet -- RunUriHandler executes
 // commands by name via SGCommandMgr, which takes a plain function pointer
 // rather than std::function, so this can't be a capturing lambda.
 bool testNoopCommand(const SGPropertyNode*, SGPropertyNode*)
 {
+    return true;
+}
+
+// A test-registered command for the POST/PUT/PATCH/DELETE body tests: copies
+// its arg tree into the property tree so the test can assert on what
+// RunUriHandler actually parsed out of the request body, rather than just
+// whether the command executed at all - an empty arg tree still returns true
+// here (see testNoopCommand), so checking only the response status wouldn't
+// distinguish a correctly-parsed body from a silently empty one.
+bool testEchoArgsCommand(const SGPropertyNode* arg, SGPropertyNode*)
+{
+    fgSetString("/test/http/run-echo/marker", arg->getStringValue("marker", "MISSING"));
+    fgSetInt("/test/http/run-echo/number", arg->getIntValue("number", -1));
     return true;
 }
 
@@ -52,6 +65,7 @@ void HttplibHttpdTests::setUp()
     history->init();
 
     globals->get_commands()->addCommand("http-test-noop", &testNoopCommand);
+    globals->get_commands()->addCommand("http-test-echo-args", &testEchoArgsCommand);
 
     _docRoot = SGPath(fgGetString("/sim/fg-home")) / "httpd-docroot";
     // SGPath::create_dir() creates this path's *parent* (it's meant for
@@ -85,7 +99,7 @@ void HttplibHttpdTests::setUp()
 
     // This runs on its own thread rather than the thread that called
     // initTestGlobals() (which is what a real app's single main thread
-    // would be), so testRunHandler still logs SGCommandMgr::execute()'s
+    // would be), so testRunHandlerGet still logs SGCommandMgr::execute()'s
     // "different thread than expected" debug warning even though the
     // main-thread hop itself works (the request succeeds, and does not
     // deadlock). In the real app, the event manager is always updated from
@@ -138,10 +152,9 @@ void HttplibHttpdTests::testStaticFile()
 
 void HttplibHttpdTests::testUnknownRouteFallsThroughToStaticFiles()
 {
-    // No URI handler is registered for /nonexistent/ at all, so the
-    // pre-routing handler must return Unhandled and let httplib's mounted
-    // static file serving take over (and 404, since the file doesn't
-    // exist) -- rather than the server hanging or 500ing.
+    // No URI handler is registered for /nonexistent/ at all, so this must
+    // fall through to httplib's mounted static file serving (and 404, since
+    // the file doesn't exist) -- rather than the server hanging or 500ing.
     httplib::Client client("127.0.0.1", _port);
     auto res = client.Get("/nonexistent/path");
     CPPUNIT_ASSERT(res);
@@ -171,12 +184,68 @@ void HttplibHttpdTests::testPropertyHandler()
     CPPUNIT_ASSERT(res->body.find("<html") != std::string::npos || res->body.find("<HTML") != std::string::npos);
 }
 
-void HttplibHttpdTests::testRunHandler()
+void HttplibHttpdTests::testRunHandlerGet()
 {
     httplib::Client client("127.0.0.1", _port);
     auto res = client.Get("/run?value=http-test-noop");
     CPPUNIT_ASSERT(res);
     CPPUNIT_ASSERT_EQUAL(200, res->status);
+}
+
+void HttplibHttpdTests::testRunHandlerPostBody()
+{
+    httplib::Client client("127.0.0.1", _port);
+    auto res = client.Post("/run?value=http-test-echo-args",
+                           R"({"children":[{"name":"marker","value":"POST"},{"name":"number","value":101}]})",
+                           "application/json");
+    CPPUNIT_ASSERT(res);
+    CPPUNIT_ASSERT_EQUAL(200, res->status);
+    CPPUNIT_ASSERT_EQUAL(std::string("POST"), std::string(fgGetString("/test/http/run-echo/marker")));
+    CPPUNIT_ASSERT_EQUAL(101, fgGetInt("/test/http/run-echo/number"));
+}
+
+void HttplibHttpdTests::testRunHandlerPutBody()
+{
+    httplib::Client client("127.0.0.1", _port);
+    auto res = client.Put("/run?value=http-test-echo-args",
+                          R"({"children":[{"name":"marker","value":"PUT"},{"name":"number","value":102}]})",
+                          "application/json");
+    CPPUNIT_ASSERT(res);
+    CPPUNIT_ASSERT_EQUAL(200, res->status);
+    CPPUNIT_ASSERT_EQUAL(std::string("PUT"), std::string(fgGetString("/test/http/run-echo/marker")));
+    CPPUNIT_ASSERT_EQUAL(102, fgGetInt("/test/http/run-echo/number"));
+}
+
+void HttplibHttpdTests::testRunHandlerPatchBody()
+{
+    httplib::Client client("127.0.0.1", _port);
+    auto res = client.Patch("/run?value=http-test-echo-args",
+                            R"({"children":[{"name":"marker","value":"PATCH"},{"name":"number","value":103}]})",
+                            "application/json");
+    CPPUNIT_ASSERT(res);
+    CPPUNIT_ASSERT_EQUAL(200, res->status);
+    CPPUNIT_ASSERT_EQUAL(std::string("PATCH"), std::string(fgGetString("/test/http/run-echo/marker")));
+    CPPUNIT_ASSERT_EQUAL(103, fgGetInt("/test/http/run-echo/number"));
+}
+
+void HttplibHttpdTests::testRunHandlerDeleteBody()
+{
+    httplib::Client client("127.0.0.1", _port);
+    auto res = client.Delete("/run?value=http-test-echo-args",
+                             R"({"children":[{"name":"marker","value":"DELETE"},{"name":"number","value":104}]})",
+                             "application/json");
+    CPPUNIT_ASSERT(res);
+    CPPUNIT_ASSERT_EQUAL(200, res->status);
+    CPPUNIT_ASSERT_EQUAL(std::string("DELETE"), std::string(fgGetString("/test/http/run-echo/marker")));
+    CPPUNIT_ASSERT_EQUAL(104, fgGetInt("/test/http/run-echo/number"));
+}
+
+void HttplibHttpdTests::testContentBearingVerbUnknownRouteReturns404()
+{
+    httplib::Client client("127.0.0.1", _port);
+    auto res = client.Post("/nonexistent/path", "{}", "application/json");
+    CPPUNIT_ASSERT(res);
+    CPPUNIT_ASSERT_EQUAL(404, res->status);
 }
 
 void HttplibHttpdTests::testPkgHandlerWithoutPackageRoot()
@@ -302,4 +371,35 @@ void HttplibHttpdTests::testPropertyTreeMirrorWebsocket()
     CPPUNIT_ASSERT_EQUAL(httplib::ws::ReadResult::Text, ws.read(msg));
     auto changed = json::parse(msg);
     CPPUNIT_ASSERT(changed.contains("changed"));
+}
+
+void HttplibHttpdTests::testDefaultsToLoopback()
+{
+    // A separate, self-contained server instance (not the shared _httpd
+    // fixture, which uses a fixed explicit port) with no listening-address
+    // set at all: it should default to loopback-only. Use an explicit,
+    // distinct port to avoid colliding with the shared fixture's server
+    // (and the default port 8080).
+    const int port = 18174;
+    SGPropertyNode_ptr configNode = new SGPropertyNode;
+    configNode->getNode("options/document-root", true)->setStringValue(_docRoot.utf8Str());
+    configNode->getNode("options/idle-timeout-ms", true)->setStringValue("2000");
+    configNode->getNode("options/listening-port", true)->setIntValue(port);
+
+    auto httpd = std::make_unique<flightgear::HttplibHttpd>(configNode);
+    httpd->bind();
+
+    httplib::Client client("127.0.0.1", port);
+    client.set_connection_timeout(0, 50000); // 50ms
+    bool up = false;
+    for (int attempt = 0; attempt < 100 && !up; ++attempt) {
+        if (auto res = client.Get("/hello.txt")) {
+            up = true;
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+    }
+    CPPUNIT_ASSERT(up);
+
+    httpd->unbind();
 }

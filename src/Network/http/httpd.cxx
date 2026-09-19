@@ -10,8 +10,6 @@
 #include "HttplibHttpd.hxx"
 #include "httpd.hxx"
 
-using std::string;
-
 namespace flightgear {
 namespace http {
 
@@ -19,10 +17,16 @@ const char * PROPERTY_ROOT = "/sim/http";
 
 FGHttpd * FGHttpd::createInstance(SGPropertyNode_ptr configNode)
 {
-    // only create a server if a port has been configured
-    if (!configNode.valid()) return NULL;
-    string port = configNode->getStringValue("options/listening-port", "");
-    if (port.empty()) return NULL;
+    // enabled by default: it listens on loopback-only unless overridden,
+    // so it's safe to always start.
+    // --disable-httpd (or setting options/enabled=false) turns it off.
+    if (!configNode.valid()) {
+        return nullptr;
+    }
+
+    if (!configNode->getBoolValue("options/enabled", true)) {
+        return nullptr;
+    }
 
     return new flightgear::HttplibHttpd(configNode);
 }

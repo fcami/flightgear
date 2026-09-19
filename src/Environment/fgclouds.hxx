@@ -49,6 +49,7 @@ private:
         int roughFieldVoxelSize{};
         int roughVoxelSizeFactor{};
         float voxelOpticalDepth{};
+        float sdfMaxDistanceVoxels{};
         bool fieldRepeating{};
 
         // Field center for fgSet* calls at commit time
@@ -62,9 +63,14 @@ private:
         osg::ref_ptr<osg::Image> detailedVoxelData;
         osg::ref_ptr<osg::Image> roughVoxelData;
         osg::ref_ptr<osg::Image> windOffsetData;
-        double maxZ = 0.0f;
+        double maxZM = 0.0f;
         float cloudbaseM = 999999.0f;
         bool fieldRepeating = true;
+
+        // Field center this result was built for - applied to the shader-facing
+        // cloud-center-* uniforms at commit time, in lockstep with the voxel data
+        // itself (see the comment on RebuildSnapshot::centerCart).
+        SGVec3d centerCart;
     };
 
     // Snapshot needed to (re)build just the shade texture, independently of
@@ -157,6 +163,10 @@ private:
     // Minimum sun direction change (in degrees) that triggers a shade rebuild.
     SGPropObjDouble _shadeUpdateAngleDeg;
 
+    // Fraction of the way from the detailed field's center to its own edge that the camera may
+    // drift (when non-repeating) before a full field rebuild/recenter is triggered.
+    SGPropObjDouble _recenterMarginNorm;
+
     // A node in the scenegraph purely used to ensure that the voxel data
     // is modified during the update traversal.
     osg::ref_ptr<osg::Group> _cloudUpdateNode;
@@ -168,9 +178,11 @@ private:
     osg::ref_ptr<osg::Image> _voxelShadeData;
     osg::ref_ptr<osg::Image> _windOffsetData;
 
+    // Command functions.
     bool add3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
     bool delete3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
     bool move3DCloud(const SGPropertyNode* arg, SGPropertyNode* root);
+    bool setCloudsRepeating(const SGPropertyNode* arg, SGPropertyNode* root);
 
     /**
      * Add a new cloud with a given index at a specific point defined by lon/lat and an x/y offset
@@ -189,7 +201,7 @@ private:
     bool repositionCloud(int index, float lon, float lat, float alt, float x, float y);
 
     // Utility functions
-    static void generateSDF(osg::ref_ptr<osg::Image>);
+    static void generateSDF(osg::ref_ptr<osg::Image>, float maxDistanceVoxels);
     osg::Vec3f getFinalPos(SGGeod loc, float x, float y);
 
     // Sun direction in voxel (Z-up, field-relative) space. Shared
@@ -228,6 +240,7 @@ public:
     void updateWindColumn(double dt, FGEnvironment* env);
     void updateFromOsgTraversal();
     void updateRepeatingField();
+    void updateNonRepeatingField();
     osg::ref_ptr<osg::Group> getCloudUpdateNode() { return _cloudUpdateNode; }
 };
 

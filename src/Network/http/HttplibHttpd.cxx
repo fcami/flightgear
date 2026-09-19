@@ -379,9 +379,29 @@ void HttplibHttpd::bind()
 
     httplib::Server& server = d->server;
 
-    server.set_pre_routing_handler([this](const httplib::Request& req, httplib::Response& res) {
-        return d->handleRequest(req, res);
-    });
+    auto dispatchHandler = [this](const httplib::Request& req, httplib::Response& res) {
+        auto handlerResponse = d->handleRequest(req, res);
+
+        if (handlerResponse == httplib::Server::HandlerResponse::Unhandled) {
+            // Unlike a HandlerResponse-returning hook, a plain Handler has no
+            // "Unhandled" signal back to cpp-httplib - a pattern match is always final - so an
+            // unmatched path (no URIHandler for it) is reported as 404 explicitly here.
+            res.status = 404;
+        }
+    };
+
+    // Registered per-verb so cpp-httplib's own dispatch_request() reads the request body
+    // before calling into this, rather than set_pre-routing_handler, which short-ciruits
+    // routing() before the body is even read. Get/Head both route through server.Get, and
+    // static-file/mount-point serving (handle_file_request) runs unconditionally inside routing()
+    // ahead of this dispatch, so it still takes priority over these catch-alls for GET.
+    // WebSocket upgrades are matched via their own websocket_handlers table before routing() is
+    // even reached, independent of this registration.
+    server.Get(".*", dispatchHandler);
+    server.Post(".*", dispatchHandler);
+    server.Put(".*", dispatchHandler);
+    server.Patch(".*", dispatchHandler);
+    server.Delete(".*", dispatchHandler);
 
     server.WebSocket("/PropertyListener", [this](const httplib::Request&, httplib::ws::WebSocket& ws) {
         SG_LOG(SG_NETWORK, SG_INFO, "new PropertyChangeWebsocket");
@@ -395,13 +415,25 @@ void HttplibHttpd::bind()
     });
 
     n = configNode->getNode("options");
+    // Default: loopback-only, binding only to loopback avoids triggering the
+    // Windows Firewall "allow access"
+    // prompt (which is only raised for sockets that could accept external
+    // connections). A specific port and/or a non-loopback address can still
+    // be requested explicitly via --httpd=[address:]port or by setting
+    // options/listening-address and options/listening-port directly.
+    string listeningAddress = "127.0.0.1";
     int listeningPort = 8080;
+
     if (n.valid()) {
         const string fgRoot = fgGetString("/sim/fg-root");
         string docRoot = n->getStringValue("document-root", fgRoot);
-        if (docRoot.empty() || docRoot[0] != '/') docRoot.insert(0, "/").insert(0, fgRoot);
+        if (docRoot.empty() || docRoot[0] != '/') {
+            docRoot.insert(0, "/").insert(0, fgRoot);
+        }
+
         server.set_mount_point("/", docRoot);
 
+        listeningAddress = n->getStringValue("listening-address", listeningAddress);
         listeningPort = n->getIntValue("listening-port", listeningPort);
 
         // URL rewrites map directly onto httplib's mount points (a URL prefix
@@ -465,14 +497,14 @@ void HttplibHttpd::bind()
         }
     }
 
-    if (!server.bind_to_port("0.0.0.0", listeningPort)) {
-        SG_LOG(SG_NETWORK, SG_ALERT, "httpd: failed to bind to port " << listeningPort);
+    if (!server.bind_to_port(listeningAddress, listeningPort)) {
+        SG_LOG(SG_NETWORK, SG_ALERT, "httpd: failed to bind to " << listeningAddress << ":" << listeningPort);
         return;
     }
     d->listenThread = std::thread([this] { d->server.listen_after_bind(); });
 
     configNode->setBoolValue("running", true);
-    SG_LOG(SG_NETWORK, SG_INFO, "httpd: cpp-httplib backend listening on port " << listeningPort);
+    SG_LOG(SG_NETWORK, SG_INFO, "httpd: cpp-httplib backend listening on " << listeningAddress << ":" << listeningPort);
 }
 
 void HttplibHttpd::unbind()

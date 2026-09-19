@@ -25,13 +25,19 @@ class HttplibHttpdTests : public CppUnit::TestFixture
     CPPUNIT_TEST(testUnknownRouteFallsThroughToStaticFiles);
     CPPUNIT_TEST(testJsonHandler);
     CPPUNIT_TEST(testPropertyHandler);
-    CPPUNIT_TEST(testRunHandler);
+    CPPUNIT_TEST(testRunHandlerGet);
+    CPPUNIT_TEST(testRunHandlerPostBody);
+    CPPUNIT_TEST(testRunHandlerPutBody);
+    CPPUNIT_TEST(testRunHandlerPatchBody);
+    CPPUNIT_TEST(testRunHandlerDeleteBody);
+    CPPUNIT_TEST(testContentBearingVerbUnknownRouteReturns404);
     CPPUNIT_TEST(testPkgHandlerWithoutPackageRoot);
     CPPUNIT_TEST(testPkgHandlerWithPackageRoot);
     CPPUNIT_TEST(testNavdbHandler);
     CPPUNIT_TEST(testFlightHistoryHandler);
     CPPUNIT_TEST(testPropertyListenerWebsocket);
     CPPUNIT_TEST(testPropertyTreeMirrorWebsocket);
+    CPPUNIT_TEST(testDefaultsToLoopback);
     CPPUNIT_TEST_SUITE_END();
 
 public:
@@ -48,7 +54,20 @@ public:
     // GET the property tree root via /props/.
     void testPropertyHandler();
     // GET /run?value=<command> for a command registered in the test.
-    void testRunHandler();
+    void testRunHandlerGet();
+    // POST /run?value=<command> with a JSON body - the command's arg tree must
+    // reflect the body's fields, not just default-construct empty.
+    void testRunHandlerPostBody();
+    // Same as testRunHandlerPostBody, via PUT.
+    void testRunHandlerPutBody();
+    // Same as testRunHandlerPostBody, via PATCH.
+    void testRunHandlerPatchBody();
+    // Same as testRunHandlerPostBody, via DELETE (DELETE may carry a body).
+    void testRunHandlerDeleteBody();
+    // POST to a path with no URIHandler -> 404, not a hang or 500 - the
+    // content-bearing-verb counterpart to testUnknownRouteFallsThroughToStaticFiles
+    // (which only exercises GET).
+    void testContentBearingVerbUnknownRouteReturns404();
     // GET /pkg/path with no package root configured -> graceful 500.
     void testPkgHandlerWithoutPackageRoot();
     // GET /pkg/path with a package root configured -> 200.
@@ -63,6 +82,9 @@ public:
     // Connect to /PropertyTreeMirror/<path> and receive the initial
     // subtree snapshot, then a change notification.
     void testPropertyTreeMirrorWebsocket();
+    // With no listening-address configured, the server must default to
+    // loopback-only.
+    void testDefaultsToLoopback();
 
 private:
     std::unique_ptr<flightgear::HttplibHttpd> _httpd;
