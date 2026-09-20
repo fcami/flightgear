@@ -16,6 +16,8 @@
 #include <simgear/package/Catalog.hxx>
 #include <simgear/package/Install.hxx>
 
+#include "LocalAircraftCache.hxx"
+
 using namespace simgear;
 
 const int STANDARD_THUMBNAIL_HEIGHT = 128;
@@ -129,7 +131,13 @@ void ThumbnailImageItem::setAircraftUri(QString uri)
         globals->packageRoot()->requestThumbnailData(packageId());
     } else {
         QFileInfo aircraftSetPath(QUrl(uri).toLocalFile());
-        const QString thumbnailPath = aircraftSetPath.dir().filePath("thumbnail.jpg");
+        QString thumbnailFileName = QStringLiteral("thumbnail.jpg");
+        auto item = LocalAircraftCache::instance()->findItemWithUri(QUrl(uri));
+        if (item && !item->thumbnailPath.isEmpty()) {
+            thumbnailFileName = item->thumbnailPath;
+        }
+
+        const QString thumbnailPath = aircraftSetPath.dir().filePath(thumbnailFileName);
         m_imageUrl = QUrl::fromLocalFile(thumbnailPath);
 
         if (QFileInfo(thumbnailPath).exists()) {
