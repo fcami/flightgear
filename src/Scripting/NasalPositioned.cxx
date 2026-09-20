@@ -294,7 +294,7 @@ static const char* airportGhostGetMember(naContext c, void* g, naRef field, naRe
   else if (!strcmp(fieldName, "elevation")) {
     *out = naNum(apt->getElevation() * SG_FEET_TO_METER);
   } else if (!strcmp(fieldName, "has_metar")) {
-    *out = naNum(apt->getMetar());
+      *out = naNum(apt->hasMetar());
   } else if (!strcmp(fieldName, "runways")) {
     *out = naNewHash(c);
     double minLengthFt = fgGetDouble("/sim/navdb/min-runway-length-ft");

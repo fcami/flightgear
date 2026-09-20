@@ -13,6 +13,9 @@
 #include <simgear/structure/subsystem_mgr.hxx>
 
 #include <cmath>
+#include <memory>
+
+#include "realwx_ctrl.hxx"
 
 class FGEnvironment;
 class FGClimate;
@@ -22,9 +25,27 @@ class SGSky;
 struct FGEnvironmentMgrMultiplayerListener;
 
 /**
+* Base class for environment information management to enable mocking.
+*/
+
+class AbstractEnvironmentManager : public SGSubsystemGroup
+{
+public:
+    virtual ~AbstractEnvironmentManager() = default;
+    // Subsystem identification.
+    static const char* staticSubsystemClassId() { return "environment"; }
+
+    virtual FGEnvironment getEnvironment() const = 0;
+
+    virtual const FGEnvironment* getAircraftEnvironment() const = 0;
+
+    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) = 0;
+};
+
+/**
  * Manage environment information.
  */
-class FGEnvironmentMgr : public SGSubsystemGroup
+class FGEnvironmentMgr : public AbstractEnvironmentManager
 {
 public:
     enum {
@@ -41,10 +62,6 @@ public:
     void shutdown() override;
     void unbind() override;
     void update(double dt) override;
-
-    // Subsystem identification.
-    static const char* staticSubsystemClassId() { return "environment"; }
-
     /**
      * Get the environment information for the plane's current position.
      */
@@ -52,7 +69,9 @@ public:
 
     const FGEnvironment* getAircraftEnvironment() const;
 
-    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) const;
+    virtual FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos);
+
+    void updateEnvironmentCache(double dt);
 
 private:
     friend FGEnvironmentMgrMultiplayerListener;
@@ -76,8 +95,31 @@ private:
     double get_cloud_layer_maxalpha(int index) const;
     void set_cloud_layer_maxalpha(int index, double maxalpha);
 
+    /// A cached per-position environment: the FGEnvironment itself, the
+    /// property node itsTie() is bound to, and the fetcher this
+    /// subsystem owns and drives directly to keep it populated with real
+    /// METAR data - see getEnvironmentAtPosition() and update().
+    struct CachedEnvironment {
+        std::unique_ptr<FGEnvironment> env;
+        SGPropertyNode_ptr node;
+        Environment::LiveMetarProperties_ptr fetcher;
+    };
+
+    void syncCacheEntryFromNode(FGEnvironment& env, const SGPropertyNode* node) const;
+    Environment::MetarRequester* getMetarRequester();
+    void requestMetarFor(CachedEnvironment& entry, const class FGAirport* nearestAirport);
+
+    /**
+     * The cache-match radius (in meters) to use when looking up/reusing a
+     * cache entry for @p aPos: tight near the player's own position, coarse
+     * far away from it - see getEnvironmentAtPosition().
+     */
+    double cacheMatchRadiusM(const SGGeod& aPos) const;
+
     FGClimate* _climate = nullptr;
     FGEnvironment* _environment = nullptr; // always the same, for now
+    std::vector<CachedEnvironment> environmentCache;
+
     FGClouds* fgClouds = nullptr;
     int max_tower_height_feet;
     int min_tower_height_feet;

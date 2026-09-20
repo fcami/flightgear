@@ -196,6 +196,60 @@ double FGAtmo::knotsFromMachAtAltitudeFt(const double mach,
     return mach * cs * SG_MPS_TO_KT;
 }
 
+// Intended to help with the interpretation of METAR data,
+// not for random in-flight outside-air temperatures.
+std::pair<double, double> FGAtmo::seaLevelAndFieldTemperatureDegC(
+    const double elevation_ft, const double temperature_degc, const bool is_isa)
+{
+    if (elevation_ft * atmodel::foot >= ISA_def[1].height) {
+        SG_LOG(SG_ENVIRONMENT, SG_ALERT, "seaLevelAndFieldTemperatureDegC: " << "valid only in troposphere, not " << elevation_ft);
+        return std::make_pair(temperature_degc, temperature_degc);
+    }
+
+    const double temperature_shift = elevation_ft * atmodel::foot * ISA_def[0].lapse;
+
+    if (is_isa) {
+        // The "International Standard Atmosphere" METAR scenario in use
+        const double sea_level_temp = 15.0;
+        return std::make_pair(sea_level_temp, sea_level_temp - temperature_shift);
+    }
+
+    // Clamp: temperature of the stratosphere, in degrees C:
+    const double t_strato = ISA_def[1].temp - atmodel::freezing;
+    const double sea_level_temp = temperature_degc < t_strato
+                                      ? t_strato
+                                      : temperature_degc + temperature_shift;
+    return std::make_pair(sea_level_temp, temperature_degc);
+}
+
+double FGAtmo::seaLevelDewpointDegC(const double elevation_ft, const double dewpoint_degc,
+                                    const double sea_level_temperature_degc)
+{
+    // 0.2degC/1000ft
+    // FIXME: this will work only for low elevations
+    const double sea_level_dewpoint = dewpoint_degc + (elevation_ft * .0002);
+    return sea_level_dewpoint > sea_level_temperature_degc ? sea_level_temperature_degc
+                                                           : sea_level_dewpoint;
+}
+
+double FGAtmo::seaLevelPressureInHg(const double elevation_ft, const double pressure_inhg,
+                                    const double temperature_degc)
+{
+    using namespace atmodel;
+    return P_layer(0., elevation_ft * foot,
+                   pressure_inhg * inHg, temperature_degc + freezing, ISA_def[0].lapse) /
+           inHg;
+}
+
+double FGAtmo::relativeHumidityPercent(const double temperature_degc, const double dewpoint_degc)
+{
+    // with a little algebra, this spares two multiplications and one pow()
+    // versus computing the vapor pressures separately and dividing
+    const double a = (7.5 * dewpoint_degc) / (237.7 + dewpoint_degc);
+    const double b = (7.5 * temperature_degc) / (237.7 + temperature_degc);
+    return 100 * pow(10.0, a - b);
+}
+
 // force retabulation
 void FGAtmoCache::tabulate() {
     using namespace atmodel;
