@@ -656,6 +656,8 @@ void FGTrafficManager::loadHeuristics()
 
 bool FGTrafficManager::metarReady(double dt)
 {
+    //FIXME hackish since the AIAircraft initialization depends on the active runway, which in turn depends on the METAR of the
+    // not the global one
     // wait for valid METAR (when realWX is enabled only), since we need
     // to know the active runway
     if (metarValid || !realWxEnabled) {

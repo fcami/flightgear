@@ -101,6 +101,9 @@ void FGEnvironment::_init()
 {
   is_isa = false;
   live_update = false;
+  mValid = false;
+  lastRequestTime = 0.0;
+  lastUpdateTime = 0.0;
   elevation_ft = 0;
   visibility_m = 32000;
   temperature_sea_level_degc = 15;
@@ -174,6 +177,10 @@ FGEnvironment::copy (const FGEnvironment &env)
     altitude_tropo_top_m = env.altitude_tropo_top_m;
     live_update = env.live_update;
     is_isa = env.is_isa;
+    mValid = env.mValid;
+    mPosition = env.mPosition;
+    lastRequestTime = env.lastRequestTime;
+    lastUpdateTime = env.lastUpdateTime;
 }
 
 static inline bool
@@ -261,9 +268,21 @@ void FGEnvironment::Tie( SGPropertyNode_ptr base, bool archivable )
                       &FGEnvironment::get_visibility_m,
                       &FGEnvironment::set_visibility_m);
 
+  _tiedProperties.Tie("latitude-deg",
+                      this,
+                      &FGEnvironment::get_latitude_deg,
+                      &FGEnvironment::set_latitude_deg);
+  _tiedProperties.Tie("longitude-deg",
+                      this,
+                      &FGEnvironment::get_longitude_deg,
+                      &FGEnvironment::set_longitude_deg);
   _tiedProperties.Tie("elevation-ft", this,
                       &FGEnvironment::get_elevation_ft,
                       &FGEnvironment::set_elevation_ft);
+
+  _tiedProperties.Tie("valid", this,
+                      &FGEnvironment::isValid,
+                      &FGEnvironment::setValid);
 
   _tiedProperties.Tie("temperature-sea-level-degc", this,
                       &FGEnvironment::get_temperature_sea_level_degc,
@@ -470,6 +489,18 @@ FGEnvironment::get_turbulence_rate_hz () const
 }
 
 double
+FGEnvironment::get_latitude_deg() const
+{
+    return mPosition.getLatitudeDeg();
+}
+
+double
+FGEnvironment::get_longitude_deg() const
+{
+    return mPosition.getLongitudeDeg();
+}
+
+double
 FGEnvironment::get_elevation_ft () const
 {
   return elevation_ft;
@@ -611,6 +642,16 @@ FGEnvironment::set_turbulence_rate_hz (double r)
   turbulence_rate_hz = r;
 }
 
+void FGEnvironment::set_latitude_deg(const double lat)
+{
+    mPosition.setLatitudeDeg(lat);
+}
+
+void FGEnvironment::set_longitude_deg(const double lon)
+{
+    mPosition.setLongitudeDeg(lon);
+}
+
 void
 FGEnvironment::set_elevation_ft (double e)
 {
@@ -685,40 +726,15 @@ FGEnvironment::_recalc_sl_temperature ()
   }
 #endif
 
-  if (elevation_ft * atmodel::foot >= ISA_def[1].height) {
-    SG_LOG(SG_ENVIRONMENT, SG_ALERT, "recalc_sl_temperature: "
-        << "valid only in troposphere, not " << elevation_ft);
-    return;
-  }
-
-  double temperature_shift = elevation_ft * atmodel::foot * ISA_def[0].lapse;
-
-  if (is_isa) {
-    // The "International Standard Atmosphere" METAR scenario in use
-    temperature_sea_level_degc = 15.0;
-    temperature_degc = temperature_sea_level_degc - temperature_shift;
-  } else {
-    // Clamp: temperature of the stratosphere, in degrees C:
-    double t_strato = ISA_def[1].temp - atmodel::freezing;
-    temperature_sea_level_degc = temperature_degc < t_strato
-                                     ? t_strato
-                                     : temperature_degc + temperature_shift;
-
-    // Alternative implementation:
-    //  temperature_sea_level_inhg = T_layer(0., elevation_ft * foot,
-    //      pressure_inhg * inHg, temperature_degc + freezing, ISA_def[0].lapse) - freezing;
-  }
+    std::tie(temperature_sea_level_degc, temperature_degc) =
+        FGAtmo::seaLevelAndFieldTemperatureDegC(elevation_ft, temperature_degc, is_isa);
 }
 
 void
 FGEnvironment::_recalc_sl_dewpoint ()
 {
-				// 0.2degC/1000ft
-				// FIXME: this will work only for low
-				// elevations
-  dewpoint_sea_level_degc = dewpoint_degc + (elevation_ft * .0002);
-  if (dewpoint_sea_level_degc > temperature_sea_level_degc)
-    dewpoint_sea_level_degc = temperature_sea_level_degc;
+    dewpoint_sea_level_degc = FGAtmo::seaLevelDewpointDegC(elevation_ft, dewpoint_degc,
+                                                           temperature_sea_level_degc);
 }
 
 void
@@ -735,16 +751,7 @@ FGEnvironment::_recalc_alt_dewpoint ()
 void
 FGEnvironment::_recalc_sl_pressure ()
 {
-  using namespace atmodel;
-#if 0
-  {
-    SG_LOG(SG_ENVIRONMENT, SG_ALERT, "recalc_sl_pressure: using "
-      << pressure_inhg << " and "
-      << temperature_degc << " @ " << elevation_ft << " :: " << this);
-  }
-#endif
-  pressure_sea_level_inhg = P_layer(0., elevation_ft * foot,
-      pressure_inhg * inHg, temperature_degc + freezing, ISA_def[0].lapse) / inHg;
+    pressure_sea_level_inhg = FGAtmo::seaLevelPressureInHg(elevation_ft, pressure_inhg, temperature_degc);
 }
 
 // This gets called at frame rate, to account for the aircraft's
@@ -826,17 +833,7 @@ FGEnvironment::_recalc_density_tropo_avg_kgm3 ()
 void
 FGEnvironment::_recalc_relative_humidity ()
 {
-/*
-  double vaporpressure = 6.11 * pow(10.0, ((7.5 * dewpoint_degc) / ( 237.7 + dewpoint_degc)));
-  double sat_vaporpressure = 6.11 * pow(10.0, ((7.5 * temperature_degc)
-      / ( 237.7 + temperature_degc)) );
-  relative_humidity = 100 * vaporpressure / sat_vaporpressure ;
-
-  with a little algebra, this gets the same result and spares two multiplications and one pow()
-*/
-  double a = (7.5 * dewpoint_degc)    / ( 237.7 + dewpoint_degc);
-  double b = (7.5 * temperature_degc) / ( 237.7 + temperature_degc);
-  relative_humidity = 100 * pow(10.0, a - b);
+    relative_humidity = FGAtmo::relativeHumidityPercent(temperature_degc, dewpoint_degc);
 }
 
 bool

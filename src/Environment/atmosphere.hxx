@@ -124,6 +124,58 @@ public:
     static double knotsFromMachAtAltitudeFt(const double mach,
                                             const double altFt,
                                             const double Tsl = atmodel::ISA::T0);
+
+    /**
+     * Compute the sea-level temperature corresponding to an outside-air
+     * temperature observed at a given field elevation. When is_isa is true,
+     * the ISA sea-level temperature (15C) is assumed instead, and the
+     * returned temperature-at-elevation is adjusted to match it.
+     *
+     * Valid for fields within the troposphere only.
+     *
+     * @param elevation_ft field elevation in feet
+     * @param temperature_degc outside-air temperature at the field, in degrees C
+     * @param is_isa use the ISA standard sea-level temperature instead of deriving it
+     * @return {sea-level temperature degC, temperature-at-elevation degC}
+     */
+    static std::pair<double, double> seaLevelAndFieldTemperatureDegC(
+        const double elevation_ft, const double temperature_degc, const bool is_isa);
+
+    /**
+     * Compute the sea-level dewpoint corresponding to a dewpoint observed at
+     * a given field elevation, clamped so it never exceeds the sea-level
+     * temperature.
+     *
+     * @param elevation_ft field elevation in feet
+     * @param dewpoint_degc dewpoint at the field, in degrees C
+     * @param sea_level_temperature_degc sea-level temperature, in degrees C,
+     *        used to clamp the result (see seaLevelAndFieldTemperatureDegC)
+     */
+    static double seaLevelDewpointDegC(const double elevation_ft,
+                                       const double dewpoint_degc,
+                                       const double sea_level_temperature_degc);
+
+    /**
+     * Compute the sea-level pressure corresponding to a pressure observed
+     * at a given field elevation and temperature.
+     *
+     * Valid for fields within the troposphere only.
+     *
+     * @param elevation_ft field elevation in feet
+     * @param pressure_inhg field pressure, in inches of mercury
+     * @param temperature_degc field temperature, in degrees C
+     */
+    static double seaLevelPressureInHg(const double elevation_ft,
+                                       const double pressure_inhg,
+                                       const double temperature_degc);
+
+    /**
+     * Compute relative humidity (percent) from temperature and dewpoint.
+     * Not altitude-dependent: valid at any single level, as long as
+     * temperature and dewpoint are from that same level.
+     */
+    static double relativeHumidityPercent(const double temperature_degc,
+                                          const double dewpoint_degc);
 };
 
 

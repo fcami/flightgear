@@ -13,6 +13,8 @@
 #include "test_suite/FGTestApi/scene_graph.hxx"
 #include "test_suite/FGTestApi/testGlobals.hxx"
 
+#include "Environment/environment.hxx"
+#include "Environment/environment_mgr.hxx"
 #include <AIModel/AIManager.hxx>
 #include <simgear/props/props_io.hxx>
 
@@ -33,6 +35,57 @@
 
 using namespace std::string_literals;
 using namespace flightgear;
+
+class MockEnvironmentMgr : public AbstractEnvironmentManager
+{
+public:
+    MockEnvironmentMgr() : AbstractEnvironmentManager() {}
+
+    // Subsystem API overrides
+    void bind() override
+    {
+        AbstractEnvironmentManager::bind();
+    }
+
+    InitStatus incrementalInit() override { return InitStatus::INIT_DONE; }
+    void reinit() override {}
+    void shutdown() override {}
+
+    void unbind() override
+    {
+        AbstractEnvironmentManager::unbind();
+    }
+
+    void update(double /*dt*/) override {}
+
+    // Subsystem identification.
+    static const char* staticSubsystemClassId() { return "environment"; }
+    // Override methods as needed for your tests
+    FGEnvironment getEnvironment() const override
+    {
+        // Return a default or test-specific FGEnvironment
+        return FGEnvironment();
+    }
+
+    // Inherited via AbstractEnvironmentManager
+    const FGEnvironment* getAircraftEnvironment() const override
+    {
+        return nullptr;
+    }
+    FGEnvironment getEnvironmentAtPosition(const SGGeod& aPos) override
+    {
+        FGEnvironment env;
+        env.setGeod(aPos);
+        env.set_wind_from_heading_deg(350);
+        env.set_wind_speed_kt(50);
+        // Simulate having already received real METAR data, so code that
+        // gates on isValid() (e.g. positioninit.cxx's finalizeMetar()) proceeds
+        // immediately instead of waiting, as tests expect.
+        env.setValid(true);
+        return env;
+    }
+    // Add more overrides if needed
+};
 
 void PosInitTests::setUp()
 {
@@ -55,12 +108,21 @@ void PosInitTests::setUp()
     globals->get_subsystem_mgr()->add<PerformanceDB>();
     globals->get_subsystem_mgr()->add<FGATCManager>();
     globals->get_subsystem_mgr()->add<FGAIManager>();
+    // Replace FGEnvironmentMgr with the mock
+    // Enable mocking and register the mock environment subsystem
+    SGSubsystemMgr::test_allowSubsystemMocks();
+    globals->get_subsystem_mgr()->mockSubsystem(
+        "environment",
+        []() { return new MockEnvironmentMgr(); });
+
+    globals->get_subsystem_mgr()->add<MockEnvironmentMgr>();
 }
 
 
 void PosInitTests::tearDown()
 {
     FGTestApi::tearDown::shutdownTestGlobals();
+    SGSubsystemMgr::clearMocks();
 }
 
 void PosInitTests::checkAlt(float value)
@@ -375,7 +437,7 @@ void PosInitTests::testVOROffsetAltitudeHeadingStartup()
         opts->setShouldLoadDefaultConfig(false);
 
         const char* args[] = {"dummypath", "--vor=JFK", "--offset-distance=5", "--vor-frequency=115.9", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"};
-        opts->init(7, (char**)args, SGPath());
+        opts->init(8, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -427,7 +489,7 @@ void PosInitTests::testFixOffsetAltitudeHeadingStartup()
         opts->setShouldLoadDefaultConfig(false);
 
         const char* args[] = {"dummypath", "--fix=FOLER", "--offset-distance=5", "--offset-azimuth=78", "--altitude=1000", "--heading=45", "--vc=250"}; // codespell:ignore "--fix=FOLER"
-        opts->init(6, (char**)args, SGPath());
+        opts->init(7, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -667,8 +729,8 @@ void PosInitTests::testParkInvalid()
 
     auto apt = FGAirport::getByIdent("EDDF");
 
-
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored as the parking is invalid, but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -702,7 +764,8 @@ void PosInitTests::testParkAtOccupied()
     // now mark the parking as occupied
     auto dynamics = apt->getDynamics();
     dynamics->setParkingAvailable(parking, false);
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -843,7 +906,8 @@ void PosInitTests::testRepositionAtOccupied()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -894,7 +958,8 @@ void PosInitTests::testRepositionAtInvalid()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored , but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 
@@ -955,8 +1020,8 @@ void PosInitTests::testMPRunwayStartNoGroundnet()
         // set dummy value to pretend MP is active
         fgSetString("/sim/multiplay/txhost", "lalalal");
         // We have to add a bogus dir that doesn't exist, so the EDDS groundnet won't load
-        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07", "--terrasync-dir=."};
-        opts->init(4, (char**)args, SGPath());
+        const char* args[] = {"dummypath", "--airport=EDDS", "--runway=07"};
+        opts->init(3, (char**)args, SGPath());
         opts->processOptions();
     }
 
@@ -994,7 +1059,8 @@ void PosInitTests::testParkNoAI()
     auto parking1 = apt->groundNetwork()->findParkingByName("F235");
     CPPUNIT_ASSERT(parking1);
 
-    fgSetDouble("/environment/metar/base-wind-dir-deg", 350.0);
+    //These should be ignored as the parking is invalid, but set them anyway to ensure they are ignored
+    fgSetDouble("/environment/metar/base-wind-dir-deg", 30.0);
     fgSetDouble("/environment/metar/base-wind-speed-kt", 50.0);
     fgSetBool("/environment/metar/valid", true);
 

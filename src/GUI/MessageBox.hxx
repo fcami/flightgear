@@ -1,5 +1,7 @@
-#ifndef FG_GUI_MESSAGE_BOX_HXX
-#define FG_GUI_MESSAGE_BOX_HXX
+// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-FileCopyrightText: 2013 James Turner
+
+#pragma once
 
 #include <string>
 #include <cstdlib>
@@ -42,6 +44,4 @@ MessageBoxResult fatalMessageBoxWithoutExit(
     bool reportToSentry = true);
 
 
-} // of namespace flightgear
-
-#endif // of FG_GUI_MESSAGE_BOX_HXX
+} // namespace flightgear

@@ -23,7 +23,7 @@
 #include "runways.hxx"
 
 class FGGroundNetwork;
-
+class FGMetar;
 
 /***************************************************************************************
  *
@@ -59,7 +59,11 @@ public:
     double getLatitude() const { return latitude(); }
     // Returns ft
     double getElevation() const { return elevation(); }
-    bool getMetar() const { return _has_metar; }
+
+    bool hasMetar() const { return _has_metar; }
+    bool isMetarValid() const;
+    void setMetar(SGSharedPtr<FGMetar> m);
+
     bool isAirport() const;
     bool isSeaport() const;
     bool isHeliport() const;
@@ -85,8 +89,6 @@ public:
     bool hasTower() const;
 
     SGGeod getTowerLocation() const;
-
-    void setMetar(bool value) { _has_metar = value; }
 
     FGAirportDynamicsRef getDynamics() const;
 
@@ -351,6 +353,7 @@ private:
 
     std::string _name;
     bool _has_metar = false;
+    SGSharedPtr<FGMetar> _metar;
     const SGPath _sceneryPath;
 
     void loadRunways() const;
