@@ -17,6 +17,7 @@
 
 #include <osgGA/GUIEventAdapter>
 
+#include <simgear/nasal/cppbind/NasalCallContext.hxx>
 #include <simgear/sg_inlines.h>
 
 #include <simgear/canvas/Canvas.hxx>
@@ -521,6 +522,15 @@ static naRef f_newKeyBinding(const nasal::CallContext& ctx)
     return ctx.to_nasal(new sc::KeyBinding);
 }
 
+static naRef f_richtext_width(sc::RichText& text, const nasal::CallContext& ctx)
+{
+    return ctx.to_nasal(text.width());
+}
+static naRef f_richtext_height(sc::RichText& text, const nasal::CallContext& ctx)
+{
+    return ctx.to_nasal(text.height());
+}
+
 naRef initNasalCanvas(naRef globals, naContext c)
 {
   nasal::Hash globals_module(globals, c),
@@ -652,8 +662,8 @@ naRef initNasalCanvas(naRef globals, naContext c)
       .method("widthForHeight", &sc::RichText::widthForHeight)
       .method("minimumWidth", &sc::RichText::minimumWidth)
       .method("minimumHeight", &sc::RichText::minimumHeight)
-      .method("width", &sc::RichText::width)
-      .method("height", &sc::RichText::height)
+      .method("width", &f_richtext_width)
+      .method("height", &f_richtext_height)
       .method("lineCount", &sc::RichText::lineCount)
       .method("lineLength", &sc::RichText::lineLength)
       .method("cursorRect", &sc::RichText::cursorRect)
