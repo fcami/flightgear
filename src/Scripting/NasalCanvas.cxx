@@ -42,8 +42,6 @@
 #include <simgear/nasal/cppbind/NasalObjectHolder.hxx>
 #include <simgear/nasal/cppbind/Ghost.hxx>
 
-extern naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
-
 namespace sc = simgear::canvas;
 
 template<class Element>
@@ -89,15 +87,6 @@ naRef to_nasal_helper(naContext c, const osg::BoundingBox& bb)
   bb_vec[3] = bb._max.y();
 
   return nasal::to_nasal(c, bb_vec);
-}
-
-SGPropertyNode* from_nasal_helper(naContext c, naRef ref, SGPropertyNode**)
-{
-  SGPropertyNode* props = ghostToPropNode(ref);
-  if( !props )
-    naRuntimeError(c, "Not a SGPropertyNode ghost.");
-
-  return props;
 }
 
 CanvasMgr& requireCanvasMgr(const nasal::ContextWrapper& ctx)

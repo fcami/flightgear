@@ -32,6 +32,18 @@ class FGNasalModuleListener;
 namespace simgear { class BufferedLogCallback; }
 
 SGPropertyNode* ghostToPropNode(naRef ref);
+naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
+
+// Bridge SGPropertyNode*/SGPropertyNode_ptr into the generic argument and
+// return-value conversion machinery used by nasal::Ghost<T>::method()/
+// member() (see simgear/nasal/cppbind/Ghost.hxx's from_nasal_helper()/
+// to_nasal_helper() overloads for pointers to SGReferenced-derived types
+// and for smart pointers).
+SGPropertyNode* from_nasal_helper(naContext c, naRef ref, SGPropertyNode**);
+naRef to_nasal_helper(naContext c, SGPropertyNode* node);
+
+SGPropertyNode_ptr from_nasal_helper(naContext c, naRef ref, SGPropertyNode_ptr*);
+naRef to_nasal_helper(naContext c, const SGPropertyNode_ptr& node);
 
 class FGNasalSys : public SGSubsystem
 {

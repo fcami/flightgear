@@ -29,8 +29,6 @@ namespace strutils = simgear::strutils;
 
 using flightgear::LanguageInfo;
 
-extern naRef propNodeGhostCreate(naContext c, SGPropertyNode* n);
-
 namespace {
 struct CompatObjectClassInfo {
     std::string type;
@@ -207,6 +205,7 @@ void PUICompatObject::setupGhost(nasal::Hash& compatModule)
         .member("hasBindings", &PUICompatObject::hasBindings)
         .method("show", &PUICompatObject::show)
         .method("activateBindings", &PUICompatObject::activateBindings)
+        .method("activateBindingsWithArgs", &PUICompatObject::activateBindingsWithParams)
         .method("gridLocation", &PUICompatObject::gridLocation)
         .method("trN", f_translatePluralString)
         .method("tr", f_translateString)
@@ -488,7 +487,12 @@ void PUICompatObject::valueChanged(SGPropertyNode* node)
     _valueChanged = true;
 }
 
-void PUICompatObject::activateBindings(SGPropertyNode* params)
+void PUICompatObject::activateBindings()
+{
+    activateBindingsWithParams(nullptr);
+}
+
+void PUICompatObject::activateBindingsWithParams(SGPropertyNode* params)
 {
     if (!_enabled) {
         SG_LOG(SG_GUI, SG_DEV_ALERT, "Skipping binding activation for disabled widget:" << name());

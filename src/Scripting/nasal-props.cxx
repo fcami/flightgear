@@ -46,6 +46,33 @@ naRef FGNasalSys::propNodeGhost(SGPropertyNode* handle)
     return propNodeGhostCreate(d->_context, handle);
 }
 
+// See the declarations in NasalSys.hxx for why these exist: they let
+// nasal::Ghost<T>::method()/member() bindings take/return raw
+// SGPropertyNode*/SGPropertyNode_ptr directly.
+SGPropertyNode* from_nasal_helper(naContext c, naRef ref, SGPropertyNode**)
+{
+    SGPropertyNode* props = ghostToPropNode(ref);
+    if (!props)
+        naRuntimeError(c, "Not a SGPropertyNode ghost.");
+
+    return props;
+}
+
+naRef to_nasal_helper(naContext c, SGPropertyNode* node)
+{
+    return propNodeGhostCreate(c, node);
+}
+
+SGPropertyNode_ptr from_nasal_helper(naContext c, naRef ref, SGPropertyNode_ptr*)
+{
+    return SGPropertyNode_ptr(from_nasal_helper(c, ref, static_cast<SGPropertyNode**>(nullptr)));
+}
+
+naRef to_nasal_helper(naContext c, const SGPropertyNode_ptr& node)
+{
+    return to_nasal_helper(c, node.get());
+}
+
 SGPropertyNode* ghostToPropNode(naRef ref)
 {
     if (naIsHash(ref)) {
