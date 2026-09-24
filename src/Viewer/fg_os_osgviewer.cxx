@@ -114,7 +114,7 @@ void fgOSOpenWindow()
         view->getCamera()->setGraphicsContext(nullptr);
 
         std::string mode;
-        mode = fgGetString("/sim/rendering/multithreading-mode", "SingleThreaded");
+        mode = fgGetString("/sim/rendering/multithreading-mode", "DrawThreadPerContext");
         SG_LOG(SG_VIEW, SG_INFO, "mode=" << mode);
         if (mode == "AutomaticSelection")
             viewer->setThreadingModel(osgViewer::Viewer::AutomaticSelection);
