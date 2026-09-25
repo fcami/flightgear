@@ -35,7 +35,8 @@ const map<string, std::size_t> LanguageInfo::nbPluralFormsMap = {
     {"ru",      3},
     {"sk",      3},
     {"tr",      1},
-    {"zh_CN",   1}
+    {"zh_CN",   1},
+    {"zh_TW",   1},
 };
 
 // Static member functions
@@ -96,6 +97,7 @@ const map<string, LanguageInfo::funcType>
         {"sk",      pluralFormIndex_SlovakStyle},
         {"tr",      pluralFormIndex_EngineeringEnglishStyle},
         {"zh_CN",   pluralFormIndex_EngineeringEnglishStyle},
+        {"zh_TW",   pluralFormIndex_EngineeringEnglishStyle},
 };
 // clang-format on
 
