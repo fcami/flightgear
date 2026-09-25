@@ -1,0 +1,57 @@
+{
+  "airport": "EDTY",
+  "comment": [
+    "ILS28 for bug 2616 (FlightplanTests::testBug2616, RouteManagerTests::testRMBug2616).",
+    "Keeps the structure of the original bug report data: the missed approach",
+    "ends at DKB, which is also the entry of the DKB approach transition, and",
+    "that transition ends with a DME intercept leg named after the navaid."
+  ],
+  "fixes": {
+    "TYA01": "RW28/098/9",
+    "TYA02": "RW28/098/5",
+    "TYA03": "RW28/278/8"
+  },
+  "approaches": [
+    {
+      "name": "ILS28",
+      "legs": [
+        {
+          "wp": "TYA01",
+          "alt": "+5000"
+        },
+        {
+          "wp": "TYA02",
+          "alt": "5000"
+        },
+        {
+          "wp": "RW28",
+          "alt": "1400"
+        },
+        {
+          "wp": "TYA03",
+          "alt": "+4000",
+          "flyover": true
+        },
+        {
+          "wp": "DKB",
+          "alt": "5000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "DKB",
+          "legs": [
+            "DKB",
+            {
+              "type": "dme_intc",
+              "name": "DKB",
+              "navaid": "DKB",
+              "course": 280,
+              "distance": 4
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -315,8 +315,6 @@ public:
     // only for use by the test-suite, not available outside of it.
     void testSuiteInjectGroundnetXML(const SGPath& path);
 
-    void testSuiteInjectProceduresXML(const SGPath& path);
-
 private:
     static flightgear::AirportCache airportCache;
 

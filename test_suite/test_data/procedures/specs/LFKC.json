@@ -1,0 +1,41 @@
+{
+  "airport": "LFKC",
+  "comment": [
+    "AJO1R for RNAVProcedureTests::testLFKC_AJO1R: legs 1-3 invented, 4 BEBEV,",
+    "5 AJO (real fix and VOR). The distance along the route to AJO is asserted,",
+    "so changing the geometry means updating the test. Leg 1 is on the runway 36",
+    "extended centreline, and must be reached within 180s of take-off."
+  ],
+  "fixes": {
+    "KCA01": "RW36/CL/4",
+    "KCA02": "KCA01/270/15",
+    "KCA03": "KCA02/200/12"
+  },
+  "sids": [
+    {
+      "name": "AJO1R",
+      "runways": [
+        "36"
+      ],
+      "legs": [
+        {
+          "wp": "KCA01",
+          "alt": "+1500"
+        },
+        {
+          "wp": "KCA02",
+          "alt": "+4000"
+        },
+        "KCA03",
+        {
+          "wp": "BEBEV",
+          "alt": "+6000"
+        },
+        {
+          "wp": "AJO",
+          "alt": "+7000"
+        }
+      ]
+    }
+  ]
+}

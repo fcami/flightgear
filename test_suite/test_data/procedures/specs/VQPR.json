@@ -1,0 +1,85 @@
+{
+  "airport": "VQPR",
+  "comment": [
+    "RNVZ15 for FlightplanTests::testRoutePathFinalLegVQPR15: the last approach",
+    "fix before the runway (PRA13) is 0.6nm from the runway 15 threshold, too",
+    "close to turn onto the runway heading, so RoutePath must go direct to the",
+    "threshold. The test plan is VIDP 09 then the approach, so PRA13 is leg 13",
+    "and the runway is leg 14; its path distance should be the raw",
+    "PRA13-threshold distance (about 1100m)."
+  ],
+  "fixes": {
+    "PRA01": "RW15/330.6/24",
+    "PRA02": "RW15/330.6/22",
+    "PRA03": "RW15/330.6/20",
+    "PRA04": "RW15/330.6/18",
+    "PRA05": "RW15/330.6/16",
+    "PRA06": "RW15/330.6/14",
+    "PRA07": "RW15/330.6/12",
+    "PRA08": "RW15/330.6/10",
+    "PRA09": "RW15/330.6/8",
+    "PRA10": "RW15/330.6/6",
+    "PRA11": "RW15/330.6/4",
+    "PRA12": "RW15/330.6/2",
+    "PRA13": "RW15/030/0.6",
+    "PRA14": "RW15/CL/6"
+  },
+  "approaches": [
+    {
+      "name": "RNVZ15",
+      "legs": [
+        {
+          "wp": "PRA01",
+          "alt": "+18000"
+        },
+        "PRA02",
+        {
+          "wp": "PRA03",
+          "alt": "+16000"
+        },
+        "PRA04",
+        {
+          "wp": "PRA05",
+          "alt": "+14500"
+        },
+        "PRA06",
+        {
+          "wp": "PRA07",
+          "alt": "+13000"
+        },
+        "PRA08",
+        {
+          "wp": "PRA09",
+          "alt": "+11500"
+        },
+        "PRA10",
+        {
+          "wp": "PRA11",
+          "alt": "+10000"
+        },
+        {
+          "wp": "PRA12",
+          "alt": "9000"
+        },
+        {
+          "wp": "PRA13",
+          "alt": "8000"
+        },
+        {
+          "wp": "RW15",
+          "alt": "7400"
+        },
+        {
+          "type": "hdg_alt",
+          "heading": 150,
+          "alt": "+10000"
+        },
+        {
+          "wp": "PRA14",
+          "alt": "+12000",
+          "flyover": true
+        }
+      ]
+    }
+  ]
+}

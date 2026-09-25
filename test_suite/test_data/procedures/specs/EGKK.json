@@ -1,0 +1,46 @@
+{
+  "airport": "EGKK",
+  "comment": [
+    "SAM3P: SID for 08R, exactly 6 legs ending at the SAM VOR, so that with the",
+    "departure runway at index 0 SAM is leg 6 and is the first leg matching the",
+    "SAM navaid (RNAVProcedureTests::testIndexOf, FlightplanTests::testCloningProcedures)."
+  ],
+  "fixes": {
+    "KKS01": "EGKK/100/6",
+    "KKS02": "EGKK/170/10",
+    "KKS03": "EGKK/225/17",
+    "KKS04": "SAM/080/16"
+  },
+  "sids": [
+    {
+      "name": "SAM3P",
+      "runways": [
+        "08R"
+      ],
+      "legs": [
+        {
+          "type": "hdg_alt",
+          "heading": 78,
+          "alt": "+1000"
+        },
+        {
+          "wp": "KKS01",
+          "alt": "+3000"
+        },
+        {
+          "wp": "KKS02",
+          "speed": 220
+        },
+        "KKS03",
+        {
+          "wp": "KKS04",
+          "alt": "+5000"
+        },
+        {
+          "wp": "SAM",
+          "alt": "+6000"
+        }
+      ]
+    }
+  ]
+}

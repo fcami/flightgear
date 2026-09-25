@@ -1,0 +1,43 @@
+{
+  "airport": "EGPH",
+  "comment": [
+    "TLA6C for RNAVProcedureTests::testEGPH_TLA6C, which flies it with the GPS.",
+    "Legs: 1 UW (the real NDB, on the runway 24 extended centreline), 2 D242H",
+    "(fly-over), 3 D346T, 4 TLX01, 5 TLA. Each leg must be flown in under 180s",
+    "at 220kts, so keep legs to about 8nm, and turns gentle enough that the",
+    "aircraft is back on track (within 0.05nm) at each sequencing point."
+  ],
+  "fixes": {
+    "D242H": "UW/240/4",
+    "D346T": "D242H/165/8",
+    "TLX01": "D346T/160/8"
+  },
+  "sids": [
+    {
+      "name": "TLA6C",
+      "runways": [
+        "24"
+      ],
+      "legs": [
+        {
+          "wp": "UW",
+          "alt": "+2000"
+        },
+        {
+          "wp": "D242H",
+          "alt": "+3000",
+          "flyover": true
+        },
+        {
+          "wp": "D346T",
+          "alt": "+4000"
+        },
+        "TLX01",
+        {
+          "wp": "TLA",
+          "alt": "+6000"
+        }
+      ]
+    }
+  ]
+}

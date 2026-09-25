@@ -1,0 +1,148 @@
+{
+  "airport": "EHAM",
+  "comment": [
+    "EEL1A: transitions BEDUM and KUBAT, common route ends at ARTIP.",
+    "BEDUM must NOT be a STAR ident (FlightplanTests::loadFGFPWithOldProcedures).",
+    "VDM18R: VOR/DME approach whose first leg is D070O and whose first missed",
+    "approach leg is the heading-to-altitude '(461)' (RouteManagerTests::testRouteWithProcedures).",
+    "REDF1A + ILS06 with approach transition SUG2A (FPNasalTests::testApproachTransitionAPIWithCloning)."
+  ],
+  "fixes": {
+    "EHA01": "BEDUM/235/24",
+    "EHA02": "KUBAT/245/30",
+    "EHA03": "ARTIP/045/22",
+    "EHA04": "ARTIP/030/10",
+    "D070O": "RW18R/004/12",
+    "EHA05": "RW18R/004/6",
+    "EHA06": "RW18R/184/9",
+    "EHA07": "REDFA/070/20",
+    "EHA08": "SUGOL/150/10",
+    "EHA09": "RW06/238/14",
+    "EHA10": "RW06/238/8",
+    "EHA11": "RW06/058/8"
+  },
+  "stars": [
+    {
+      "name": "EEL1A",
+      "legs": [
+        {
+          "wp": "EHA03",
+          "alt": "-16000"
+        },
+        {
+          "wp": "EHA04",
+          "speed": 250
+        },
+        {
+          "wp": "ARTIP",
+          "alt": "+7000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "BEDUM",
+          "legs": [
+            {
+              "wp": "BEDUM",
+              "alt": "+18000"
+            },
+            "EHA01"
+          ]
+        },
+        {
+          "name": "KUBAT",
+          "legs": [
+            {
+              "wp": "KUBAT",
+              "alt": "+18000"
+            },
+            "EHA02"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "REDF1A",
+      "legs": [
+        {
+          "wp": "REDFA",
+          "alt": "-24000"
+        },
+        "EHA07",
+        {
+          "wp": "SUGOL",
+          "alt": "+7000",
+          "speed": 250
+        }
+      ]
+    }
+  ],
+  "approaches": [
+    {
+      "name": "VDM18R",
+      "legs": [
+        {
+          "wp": "D070O",
+          "alt": "+3000"
+        },
+        {
+          "wp": "EHA05",
+          "alt": "2000"
+        },
+        {
+          "wp": "RW18R",
+          "alt": "50"
+        },
+        {
+          "type": "hdg_alt",
+          "name": "(461)",
+          "heading": 184,
+          "alt": "+461"
+        },
+        {
+          "wp": "EHA06",
+          "alt": "+2000",
+          "flyover": true
+        }
+      ]
+    },
+    {
+      "name": "ILS06",
+      "legs": [
+        {
+          "wp": "EHA09",
+          "alt": "+3000"
+        },
+        {
+          "wp": "EHA10",
+          "alt": "2000"
+        },
+        {
+          "wp": "RW06",
+          "alt": "20"
+        },
+        {
+          "type": "hdg_alt",
+          "heading": 58,
+          "alt": "+1000"
+        },
+        {
+          "wp": "EHA11",
+          "alt": "+2000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "SUG2A",
+          "legs": [
+            {
+              "wp": "SUGOL",
+              "alt": "+4000"
+            },
+            "EHA08"
+          ]
+        }
+      ]
+    }
+  ]
+}

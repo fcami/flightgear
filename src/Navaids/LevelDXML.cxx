@@ -62,34 +62,44 @@ void NavdataVisitor::startElement(const char* name, const XMLAttributes &atts)
     _waypoints.clear();
     processRunways(_star, atts);
   } else if ((tag == "Sid_Waypoint") ||
-      (tag == "App_Waypoint") ||
-      (tag == "Star_Waypoint") ||
-      (tag == "AppTr_Waypoint") ||
-      (tag == "SidTr_Waypoint") ||
-      (tag == "RwyTr_Waypoint"))
-  {
-    // reset waypoint data
-    _speed = 0.0;
-    _altRestrict = RESTRICT_NONE;
-    _altitude = 0.0;
-    _overflightWaypt = false; // default to Fly-by
-    _courseFlag = false; // default to heading
+             (tag == "App_Waypoint") ||
+             (tag == "Star_Waypoint") ||
+             (tag == "AppTr_Waypoint") ||
+             (tag == "SidTr_Waypoint") ||
+             (tag == "StarTr_Waypoint") ||
+             (tag == "RwyTr_Waypoint")) {
+      // reset all waypoint data, so optional elements don't inherit values
+      // from the previous waypoint
+      _wayptName.clear();
+      _wayptType.clear();
+      _latitude = _longitude = 0.0;
+      _speed = 0.0;
+      _altRestrict = RESTRICT_NONE;
+      _altitude = 0.0;
+      _overflightWaypt = false; // default to Fly-by
+      _courseFlag = false;      // default to heading
+      _courseOrHeading = _radial = _dmeDistance = 0.0;
+      // standard hold: no radial specified, right-hand turns, one minute legs
+      _holdRadial = -1.0;
+      _holdRighthanded = true;
+      _holdDistance = false;
+      _holdTD = 1.0;
   } else if (tag == "Approach") {
-    _ident = atts.getValue("Name");
-    _waypoints.clear();
-    ProcedureType ty = PROCEDURE_APPROACH_RNAV;
+      _ident = atts.getValue("Name");
+      _waypoints.clear();
+      ProcedureType ty = PROCEDURE_APPROACH_RNAV;
 
-    // if the name of the procedure starts with the correct name, set the procedure type
-    if (_ident.find("ILS") == 0) {
-        ty = PROCEDURE_APPROACH_ILS;
-    } else if (_ident.find("VOR") == 0 || _ident.find("VDM") == 0) {
-        ty = PROCEDURE_APPROACH_VOR;
-    } else if (_ident.find("NDB") == 0 || _ident.find("NDM") == 0) {
-        ty = PROCEDURE_APPROACH_NDB;
-    }
+      // if the name of the procedure starts with the correct name, set the procedure type
+      if (_ident.find("ILS") == 0) {
+          ty = PROCEDURE_APPROACH_ILS;
+      } else if (_ident.find("VOR") == 0 || _ident.find("VDM") == 0) {
+          ty = PROCEDURE_APPROACH_VOR;
+      } else if (_ident.find("NDB") == 0 || _ident.find("NDM") == 0) {
+          ty = PROCEDURE_APPROACH_NDB;
+      }
 
-    _approach = new Approach(_ident, ty);
-    _procedure = _approach;
+      _approach = new Approach(_ident, ty);
+      _procedure = _approach;
   } else if ((tag == "Sid_Transition") ||
              (tag == "App_Transition") ||
              (tag == "Star_Transition")) {
@@ -297,7 +307,7 @@ Waypt* NavdataVisitor::buildWaypoint(RouteBase* owner)
   } else if (_wayptType == "PBD") {
     SGGeod pos(SGGeod::fromDeg(_longitude, _latitude)), pos2;
     double az2;
-    SGGeodesy::direct(pos, _courseOrHeading, _dmeDistance, pos2, az2);
+    SGGeodesy::direct(pos, _courseOrHeading, _dmeDistance * SG_NM_TO_METER, pos2, az2);
     wp = new BasicWaypt(pos2, _wayptName, owner);
   } else {
     SG_LOG(SG_NAVAID, SG_ALERT, "implement waypoint type:" << _wayptType);

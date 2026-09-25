@@ -1,0 +1,101 @@
+{
+  "airport": "KJFK",
+  "comment": [
+    "DEEZZ5.13L + CANDR: SID route is exactly 6 legs ending at CANDR",
+    "(RNAVProcedureTests::testTransitionsSID, FlightplanTests, RouteManagerTests, FPNasalTests).",
+    "The ident CANDR must NOT be a SID (FlightplanTests::loadFGFPWithOldProcedures).",
+    "SEYLO3 + SEY: STAR route for 22L is exactly 7 legs starting at SEY",
+    "(RNAVProcedureTests::testTransitionsSTAR)."
+  ],
+  "fixes": {
+    "JFS01": "KJFK/150/6",
+    "JFS02": "KJFK/215/10",
+    "JFS03": "KJFK/265/22",
+    "JFS04": "CANDR/080/18",
+    "JFA01": "SEY/255/18",
+    "JFA02": "KJFK/070/42",
+    "JFA03": "KJFK/060/28",
+    "JFA04": "KJFK/045/18",
+    "JFA05": "KJFK/030/12",
+    "JFA06": "RW22L/040/8"
+  },
+  "sids": [
+    {
+      "name": "DEEZZ5.13L",
+      "runways": [
+        "13L"
+      ],
+      "legs": [
+        {
+          "type": "hdg_alt",
+          "heading": 121,
+          "alt": "+600"
+        },
+        {
+          "wp": "JFS01",
+          "alt": "+2000"
+        },
+        {
+          "wp": "JFS02",
+          "speed": 230
+        },
+        {
+          "wp": "JFS03",
+          "alt": "+6000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "CANDR",
+          "legs": [
+            "JFS04",
+            {
+              "wp": "CANDR",
+              "alt": "+10000"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "stars": [
+    {
+      "name": "SEYLO3",
+      "runways": [
+        "22L",
+        "22R"
+      ],
+      "legs": [
+        {
+          "wp": "JFA03",
+          "alt": "-11000"
+        },
+        {
+          "wp": "JFA04",
+          "alt": "+7000"
+        },
+        {
+          "wp": "JFA05",
+          "speed": 210
+        },
+        {
+          "wp": "JFA06",
+          "alt": "3000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "SEY",
+          "legs": [
+            {
+              "wp": "SEY",
+              "alt": "+14000"
+            },
+            "JFA01",
+            "JFA02"
+          ]
+        }
+      ]
+    }
+  ]
+}

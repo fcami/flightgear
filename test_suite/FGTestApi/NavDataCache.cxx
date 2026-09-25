@@ -1,29 +1,16 @@
-/*
- * Copyright (C) 2018 Edward d'Auvergne
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-FileCopyrightText: 2018 Edward d'Auvergne
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "config.h"
 
 #include "NavDataCache.hxx"
 
 #include <iostream>
 
+#include <simgear/misc/sg_path.hxx>
 #include <simgear/timing/timestamp.hxx>
 
+#include <Main/globals.hxx>
 #include <Navaids/NavDataCache.hxx>
 
 
@@ -33,9 +20,20 @@ namespace setUp {
 
 void initNavDataCache()
 {
-    if (flightgear::NavDataCache::instance())
+    // Synthetic procedures (test_data/procedures/README.md). Airports cache
+    // whether they looked for procedures, and the cache outlives each test, so
+    // this must be added on every call, before any airport's procedures are
+    // requested. It is added after the cache is created, so the extra
+    // scenery path never triggers a cache rebuild.
+    auto addTestProcedures = []() {
+        globals->append_fg_scenery(SGPath::fromUtf8(FG_TEST_SUITE_DATA) / "procedures");
+    };
+
+    if (flightgear::NavDataCache::instance()) {
+        addTestProcedures();
         return;
-    
+    }
+
     flightgear::NavDataCache* cache = flightgear::NavDataCache::createInstance();
     if (cache->isRebuildRequired()) {
         std::cerr << "Navcache rebuild for testing" << std::flush;
@@ -45,6 +43,8 @@ void initNavDataCache()
           std::cerr << "." << std::flush;
         }
     }
+
+    addTestProcedures();
 }
 
 }  // End of namespace setUp.

@@ -267,17 +267,18 @@ bool ArrivalDeparture::commonRoute(Transition* t, WayptVec& aPath, FGRunwayRef a
     t->route(aPath);
 
     Waypt* transEnd = t->procedureEnd();
-    for (; firstCommon != _common.end(); ++firstCommon) {
-      if ((*firstCommon)->matches(transEnd)) {
-        // found transition->common point, stop search
-        break;
-      }
-    } // of common points
+    auto join = std::find_if(_common.begin(), _common.end(), [transEnd](const WayptRef& w) {
+        return w->matches(transEnd);
+    });
 
-    // if we hit this point, the transition doesn't end (start, for a SID) on
-    // a common point. We assume this means we should just append the entire
-    // common section after the transition.
-    firstCommon = _common.begin();
+    if (join != _common.end()) {
+        // found transition->common point: continue from the point after it,
+        // so the shared point isn't duplicated
+        firstCommon = join + 1;
+    }
+    // otherwise, the transition doesn't end (start, for a SID) on a common
+    // point. We assume this means we should just append the entire common
+    // section after the transition.
   } else {
     // no tranasition
   } // of not using a transition
