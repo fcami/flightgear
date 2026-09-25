@@ -812,6 +812,9 @@ FGRenderer::removeCanvasCamera(osg::Camera* camera)
         SG_LOG(SG_GL, SG_WARN, "Attempted to remove unregistered Canvas camera");
     }
 
+    // Clean up after the camera while threading is disabled.
+    camera->setGraphicsContext(nullptr);
+
     if (should_restart_threading) {
         getViewerBase()->startThreading();
     }
