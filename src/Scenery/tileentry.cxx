@@ -133,7 +133,12 @@ VPBTileEntry::VPBTileEntry ( const SGBucket& b, osg::ref_ptr<simgear::SGReaderWr
         _tileState = TileState::VPBData;
         useVPBData();
     } else {
-        _tileState = TileState::AwaitingSync;
+        auto terraSync = globals->get_subsystem<simgear::SGTerraSync>();
+        if (terraSync && terraSync->isEnabled()) {
+            _tileState = TileState::AwaitingSync;
+        } else {
+            _tileState = TileState::OceanData;
+        }
         addOceanPlaceholder(options);
     }
 }
