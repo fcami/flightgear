@@ -17,6 +17,7 @@ foreach(unit_test_category
         AI
         Airports
         ATC
+        Scenery
         Autopilot
         GUI
         Translations
