@@ -36,11 +36,11 @@
 #include <simgear/canvas/layout/NasalWidget.hxx>
 #include <simgear/canvas/layout/SpacerItem.hxx>
 
-#include <simgear/nasal/cppbind/from_nasal.hxx>
-#include <simgear/nasal/cppbind/to_nasal.hxx>
+#include <simgear/nasal/cppbind/Ghost.hxx>
 #include <simgear/nasal/cppbind/NasalHash.hxx>
 #include <simgear/nasal/cppbind/NasalObjectHolder.hxx>
-#include <simgear/nasal/cppbind/Ghost.hxx>
+#include <simgear/nasal/cppbind/from_nasal.hxx>
+#include <simgear/nasal/cppbind/to_nasal.hxx>
 
 namespace sc = simgear::canvas;
 
@@ -320,8 +320,8 @@ static naRef f_createCustomEvent(const nasal::CallContext& ctx)
   }
 
   sc::CustomEventPtr event(new sc::CustomEvent(type, bubbles, detail));
-  if( naIsHash(na_detail) ) {
-    event->detailNative = new NasalObjectRef(na_detail);
+  if (naIsHash(na_detail)) {
+      event->detailNative = new NasalObjectRef(na_detail);
   }
 
   return ctx.to_nasal(event);
@@ -338,17 +338,16 @@ struct CustomEventDetailWrapper:
 
   }
 
-  bool _get( naContext c, const std::string& key, naRef& out ) const
+  bool _get(naContext c, const std::string& key, naRef& out) const
   {
     if( !_event )
       return false;
 
-    if( _event->detailNative )
-    {
-      naRef na_detail =
-        static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
-      naRef na_key = nasal::to_nasal(c, key);
-      return naHash_get(na_detail, na_key, &out);
+    if (_event->detailNative) {
+        naRef na_detail =
+            static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
+        naRef na_key = nasal::to_nasal(c, key);
+        return naHash_get(na_detail, na_key, &out);
     }
 
     simgear::StringMap::const_iterator it = _event->detail.find(key);
@@ -359,20 +358,19 @@ struct CustomEventDetailWrapper:
     return true;
   }
 
-  bool _set( naContext c, const std::string& key, naRef value )
+  bool _set(naContext c, const std::string& key, naRef value)
   {
     if( !_event )
       return false;
 
-    if( _event->detailNative )
-    {
-      naRef na_detail =
-        static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
-      nasal::Hash(na_detail, c).set(key, value);
-      return true;
+    if (_event->detailNative) {
+        naRef na_detail =
+            static_cast<NasalObjectRef&>(*_event->detailNative).get_naRef();
+        nasal::Hash(na_detail, c).set(key, value);
+        return true;
     }
 
-    _event->detail[ key ] = nasal::from_nasal<std::string>(c, value);
+    _event->detail[key] = nasal::from_nasal<std::string>(c, value);
     return true;
   }
 };
