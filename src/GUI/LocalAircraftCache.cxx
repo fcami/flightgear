@@ -522,8 +522,17 @@ private:
                     }
 
                     if (item->isPrimary) {
-                        baseAircraft.insert(item->baseName(), item);
+                        if (baseAircraft.isEmpty()) {
+                            baseAircraft.insert(item->baseName(), item);
+                        } else {
+                            item->isPrimary = false;
+                            item->variantOf = baseAircraft.first()->baseName();
+                            variants.append(item);
+                        }
                     } else {
+                        if (!baseAircraft.isEmpty()) {
+                            item->variantOf = baseAircraft.first()->baseName();
+                        }
                         variants.append(item);
                     }
                 } catch (sg_exception& e) {
