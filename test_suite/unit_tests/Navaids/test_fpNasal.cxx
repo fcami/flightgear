@@ -26,7 +26,6 @@
 using namespace flightgear;
 using namespace std::string_literals;
 
-static bool static_haveProcedures = false;
 extern bool global_nasalMinimalInit;
 
 // Set up function for each test.
@@ -35,12 +34,6 @@ void FPNasalTests::setUp()
     global_nasalMinimalInit = false;
     FGTestApi::setUp::initTestGlobals("flightplan");
     FGTestApi::setUp::initNavDataCache();
-
-    SGPath proceduresPath = SGPath::fromEnv("FG_PROCEDURES_PATH");
-    if (proceduresPath.exists()) {
-        static_haveProcedures = true;
-        globals->append_fg_scenery(proceduresPath);
-    }
 
     // flightplan() access needs the route manager
     globals->get_subsystem_mgr()->add<FGRouteMgr>();
@@ -236,10 +229,6 @@ void FPNasalTests::testSegfaultWaypointGhost()
 
 void FPNasalTests::testSIDTransitionAPI()
 {
-    if (!static_haveProcedures) {
-        return;
-    }
-
     auto rm = globals->get_subsystem<FGRouteMgr>();
 
     bool ok = FGTestApi::executeNasal(R"(
@@ -300,10 +289,6 @@ void FPNasalTests::testSIDTransitionAPI()
 
 void FPNasalTests::testSTARTransitionAPI()
 {
-    if (!static_haveProcedures) {
-        return;
-    }
-
     auto rm = globals->get_subsystem<FGRouteMgr>();
 
     bool ok = FGTestApi::executeNasal(R"(
@@ -333,10 +318,6 @@ void FPNasalTests::testSTARTransitionAPI()
 
 void FPNasalTests::testApproachTransitionAPI()
 {
-    if (!static_haveProcedures) {
-        return;
-    }
-
     auto rm = globals->get_subsystem<FGRouteMgr>();
 
     bool ok = FGTestApi::executeNasal(R"(
@@ -379,10 +360,6 @@ void FPNasalTests::testApproachTransitionAPI()
 
 void FPNasalTests::testApproachTransitionAPIWithCloning()
 {
-    if (!static_haveProcedures) {
-        return;
-    }
-
     auto rm = globals->get_subsystem<FGRouteMgr>();
 
     bool ok = FGTestApi::executeNasal(R"(

@@ -1,26 +1,7 @@
-/*
- * Copyright (C) 2019 James Turner
- *
- * This file is part of the program FlightGear.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-FileCopyrightText: 2019 James Turner
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-
-#ifndef _FG_RNAV_PROCEDURE_UNIT_TESTS_HXX
-#define _FG_RNAV_PROCEDURE_UNIT_TESTS_HXX
-
+#pragma once
 
 #include <cppunit/extensions/HelperMacros.h>
 #include <cppunit/TestFixture.h>
@@ -37,7 +18,7 @@ class RNAVProcedureTests : public CppUnit::TestFixture
 {
     // Set up the test suite.
     CPPUNIT_TEST_SUITE(RNAVProcedureTests);
-    
+
     CPPUNIT_TEST(testEGPH_TLA6C);
     CPPUNIT_TEST(testHeadingToAlt);
     CPPUNIT_TEST(testUglyHeadingToAlt);
@@ -54,7 +35,7 @@ class RNAVProcedureTests : public CppUnit::TestFixture
     GPS* setupStandardGPS(SGPropertyNode_ptr config = {},
         const std::string name = "gps", const int index = 0);
     void setupRouteManager();
-    
+
 public:
     // Set up function for each test.
     void setUp();
@@ -64,7 +45,7 @@ public:
 
     // The tests.
     //void testBasic();
-    
+
     void testEGPH_TLA6C();
     void testHeadingToAlt();
     void testUglyHeadingToAlt();
@@ -76,7 +57,4 @@ public:
 private:
     GPS* m_gps = nullptr;
     SGPropertyNode_ptr m_gpsNode;
- 
 };
-
-#endif  // _FG_RNAV_PROCEDURE_UNIT_TESTS_HXX

@@ -1,0 +1,177 @@
+{
+  "airport": "EDDM",
+  "comment": [
+    "ABGA3A.08R: STAR from ABGAS ending at MIQ, used without a transition.",
+    "ILS08R + NAP08: transition is exactly 6 legs starting at NAPSA, so the core",
+    "approach starts at BEGEN six legs later (RouteManagerTests::testRouteWithApproachProcedures).",
+    "RIXE3A.26L / RIXE3A.08L: runway-specific STARs sharing a base name (FPNasalTests::testSTARTransitionAPI).",
+    "ILS08L + LUL1C approach transition (FPNasalTests::testApproachTransitionAPI)."
+  ],
+  "fixes": {
+    "MUA01": "ABGAS/080/18",
+    "MUA02": "RIXED/110/16",
+    "MUA03": "EDDM/290/16",
+    "MUA04": "EDDM/260/20",
+    "MXN01": "EDDM/150/12",
+    "MXN02": "EDDM/190/10",
+    "MXN03": "EDDM/220/13",
+    "MXN04": "EDDM/245/17",
+    "MXN05": "BEGEN/190/5",
+    "MXN06": "RW08R/263/6",
+    "MXN07": "RW08R/083/14",
+    "MXN08": "LANDU/250/10",
+    "MXN09": "RW08L/263/13",
+    "MXN10": "RW08L/263/6",
+    "MXN11": "RW08L/083/14"
+  },
+  "stars": [
+    {
+      "name": "ABGA3A.08R",
+      "runways": [
+        "08R"
+      ],
+      "legs": [
+        {
+          "wp": "ABGAS",
+          "alt": "-21000"
+        },
+        {
+          "wp": "MUA01",
+          "speed": 250
+        },
+        {
+          "wp": "ROKIL",
+          "alt": "+8000"
+        },
+        {
+          "wp": "MIQ",
+          "alt": "+6000",
+          "speed": 220
+        }
+      ]
+    },
+    {
+      "name": "RIXE3A.26L",
+      "runways": [
+        "26L"
+      ],
+      "legs": [
+        {
+          "wp": "RIXED",
+          "alt": "-21000"
+        },
+        "MUA02",
+        {
+          "wp": "MUA03",
+          "alt": "+7000"
+        }
+      ]
+    },
+    {
+      "name": "RIXE3A.08L",
+      "runways": [
+        "08L"
+      ],
+      "legs": [
+        {
+          "wp": "RIXED",
+          "alt": "-21000"
+        },
+        "MUA02",
+        {
+          "wp": "MUA04",
+          "alt": "+6000"
+        }
+      ]
+    }
+  ],
+  "approaches": [
+    {
+      "name": "ILS08R",
+      "legs": [
+        {
+          "wp": "BEGEN",
+          "alt": "+5000"
+        },
+        {
+          "wp": "MXN06",
+          "alt": "3500"
+        },
+        {
+          "wp": "RW08R",
+          "alt": "1500"
+        },
+        {
+          "type": "hdg_alt",
+          "heading": 83,
+          "alt": "+2500"
+        },
+        {
+          "wp": "MXN07",
+          "alt": "+5000",
+          "flyover": true
+        }
+      ],
+      "transitions": [
+        {
+          "name": "NAP08",
+          "legs": [
+            {
+              "wp": "NAPSA",
+              "alt": "+7000"
+            },
+            "MXN01",
+            {
+              "wp": "MXN02",
+              "speed": 220
+            },
+            "MXN03",
+            {
+              "wp": "MXN04",
+              "alt": "+5000"
+            },
+            "MXN05"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ILS08L",
+      "legs": [
+        {
+          "wp": "MXN09",
+          "alt": "+5000"
+        },
+        {
+          "wp": "MXN10",
+          "alt": "3500"
+        },
+        {
+          "wp": "RW08L",
+          "alt": "1500"
+        },
+        {
+          "type": "hdg_alt",
+          "heading": 83,
+          "alt": "+3000"
+        },
+        {
+          "wp": "MXN11",
+          "alt": "+5000"
+        }
+      ],
+      "transitions": [
+        {
+          "name": "LUL1C",
+          "legs": [
+            {
+              "wp": "LANDU",
+              "alt": "+7000"
+            },
+            "MXN08"
+          ]
+        }
+      ]
+    }
+  ]
+}

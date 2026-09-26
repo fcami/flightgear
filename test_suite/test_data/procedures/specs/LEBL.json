@@ -1,0 +1,52 @@
+{
+  "airport": "LEBL",
+  "comment": [
+    "LARP1F.25L for RNAVProcedureTests::testLEBL_LARP2F, which flies it with the GPS.",
+    "Leg 1 is a heading-to-altitude, which has no position: the test asserts it",
+    "sits at (0,0). Leg 3 (LBA01 -> LBA02) has a true course of 199, and must be",
+    "the current leg 180s after reaching the leg 1 altitude. LARPA is leg 8, and",
+    "its distance along the route is asserted."
+  ],
+  "fixes": {
+    "LBA01": "RW25L/CL/4",
+    "LBA02": "LBA01/199/10",
+    "LBA03": "LBA02/146/7",
+    "LBA04": "LBA03/146/7",
+    "LBA05": "LBA04/146/7",
+    "LBA06": "LBA05/146/7"
+  },
+  "sids": [
+    {
+      "name": "LARP1F.25L",
+      "runways": [
+        "25L"
+      ],
+      "legs": [
+        {
+          "type": "hdg_alt",
+          "heading": 245,
+          "alt": "+1000"
+        },
+        {
+          "wp": "LBA01",
+          "alt": "+2500"
+        },
+        {
+          "wp": "LBA02",
+          "alt": "+4000"
+        },
+        "LBA03",
+        {
+          "wp": "LBA04",
+          "alt": "+6000"
+        },
+        "LBA05",
+        "LBA06",
+        {
+          "wp": "LARPA",
+          "alt": "+9000"
+        }
+      ]
+    }
+  ]
+}

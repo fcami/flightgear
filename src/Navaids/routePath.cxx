@@ -349,8 +349,11 @@ public:
         hasEntry = true;
         turnEntryPos = pointOnEntryTurnFromHeading(ti.inboundCourseDeg);
       } else {
-        // couldn't compute entry, never mind
-        legCourseTrue = SGGeodesy::courseDeg(previous->pos, rwy->threshold());
+          // couldn't compute entry (previous point is too close to the
+          // runway to turn onto it), so go direct to the threshold. The entry
+          // position must still be set, or the leg is measured to (0,0).
+          legCourseTrue = SGGeodesy::courseDeg(previous->pos, rwy->threshold());
+          turnEntryPos = rwy->threshold();
       }
       legCourseValid = true;
       return;

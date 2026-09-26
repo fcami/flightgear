@@ -251,17 +251,19 @@ void RunwayWaypt::writeToProperties(SGPropertyNode_ptr aProp) const
 
 /////////////////////////////////////////////////////////////////////////////
 
-Hold::Hold(const SGGeod& aPos, const string& aIdent, RouteBase* aOwner) :
-  BasicWaypt(aPos, aIdent, aOwner),
-  _righthanded(true),
-  _isDistance(false)
+Hold::Hold(const SGGeod& aPos, const string& aIdent, RouteBase* aOwner) : BasicWaypt(aPos, aIdent, aOwner),
+                                                                          _bearing(0.0),
+                                                                          _righthanded(true),
+                                                                          _isDistance(false),
+                                                                          _holdTD(0.0)
 {
 }
 
-Hold::Hold(RouteBase* aOwner) :
-  BasicWaypt(aOwner),
-  _righthanded(true),
-  _isDistance(false)
+Hold::Hold(RouteBase* aOwner) : BasicWaypt(aOwner),
+                                _bearing(0.0),
+                                _righthanded(true),
+                                _isDistance(false),
+                                _holdTD(0.0)
 {
 }
 

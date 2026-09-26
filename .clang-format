@@ -1674,3 +1674,6 @@ TabWidth: 4
 
 # Rationale:  Don't use "\t".
 UseTab: Never
+
+---
+Language: Json

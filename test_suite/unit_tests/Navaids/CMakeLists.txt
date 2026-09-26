@@ -4,9 +4,9 @@
 target_sources(fgfs_test_suite PRIVATE
     TestSuite.cxx
     test_flightplan.cxx test_fpNasal.cxx test_navaids2.cxx
-    test_aircraftPerformance.cxx test_routeManager.cxx
+    test_aircraftPerformance.cxx test_routeManager.cxx test_procedures.cxx
     test_flightplan.hxx test_fpNasal.hxx
-    test_aircraftPerformance.hxx test_routeManager.hxx
+    test_aircraftPerformance.hxx test_routeManager.hxx test_procedures.hxx
 )
 
 fg_add_test_suite(FlightplanTests          u)
@@ -14,3 +14,4 @@ fg_add_test_suite(FPNasalTests             u)
 fg_add_test_suite(NavaidsTests             u)
 fg_add_test_suite(AircraftPerformanceTests u)
 fg_add_test_suite(RouteManagerTests        u)
+fg_add_test_suite(ProcedureTests           u)

@@ -1,0 +1,177 @@
+{
+  "airport": "EGHI",
+  "comment": [
+    "Parser and routing coverage airport, used only by ProcedureTests. Each",
+    "procedure isolates one behaviour; keep it that way, so failures are specific.",
+    "JOIN1A: STAR transitions that end on the first common fix (HIT01), join",
+    "partway along the common route (HIT03), or don't join it at all (HIT04).",
+    "JOIN2: SID transition starting on the last common fix.",
+    "LEAK1A: 'minimal' waypoints after fully-specified ones, in the common",
+    "route and in a transition, must not inherit speed / altitude / fly-over.",
+    "HOLD1A: two holds; the second states nothing, so it must get the defaults.",
+    "COVER1: PBD, DME intercept, radial intercept and vectors legs."
+  ],
+  "fixes": {
+    "HIA01": "EGHI/300/15",
+    "HIA02": "EGHI/320/10",
+    "HIA03": "EGHI/340/6",
+    "HIA04": "EGHI/030/14",
+    "HIA05": "EGHI/020/8",
+    "HIA06": "EGHI/180/12",
+    "HIA07": "EGHI/200/8",
+    "HIT01": "HIA01/270/12",
+    "HIT02": "HIA01/270/6",
+    "HIT03": "HIA02/250/10",
+    "HIT04": "HIA01/300/20",
+    "HIT05": "HIA01/300/10",
+    "HIT06": "HIA04/060/20",
+    "HIT07": "HIA04/060/10",
+    "HID01": "RW20/200/5",
+    "HID02": "RW20/220/12",
+    "HID03": "HID02/260/10",
+    "HID04": "HID02/260/20"
+  },
+  "stars": [
+    {
+      "name": "JOIN1A",
+      "legs": [
+        "HIA01",
+        "HIA02",
+        "HIA03"
+      ],
+      "transitions": [
+        {
+          "name": "HIT01",
+          "legs": [
+            "HIT01",
+            "HIT02",
+            "HIA01"
+          ]
+        },
+        {
+          "name": "HIT03",
+          "legs": [
+            "HIT03",
+            "HIA02"
+          ]
+        },
+        {
+          "name": "HIT04",
+          "legs": [
+            "HIT04",
+            "HIT05"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LEAK1A",
+      "legs": [
+        {
+          "wp": "HIA04",
+          "speed": 220,
+          "alt": "5000",
+          "flyover": true
+        },
+        {
+          "wp": "HIA05",
+          "minimal": true
+        }
+      ],
+      "transitions": [
+        {
+          "name": "HIT06",
+          "legs": [
+            {
+              "wp": "HIT06",
+              "speed": 250,
+              "alt": "+9000",
+              "flyover": true
+            },
+            {
+              "wp": "HIT07",
+              "minimal": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "HOLD1A",
+      "legs": [
+        "HIA06",
+        {
+          "type": "hold",
+          "wp": "HIA06",
+          "inbound": 130,
+          "turn": "L",
+          "distance": 5
+        },
+        {
+          "type": "hold",
+          "wp": "HIA07",
+          "minimal": true
+        }
+      ]
+    }
+  ],
+  "sids": [
+    {
+      "name": "JOIN2",
+      "runways": [
+        "20"
+      ],
+      "legs": [
+        "HID01",
+        "HID02"
+      ],
+      "transitions": [
+        {
+          "name": "HID04",
+          "legs": [
+            "HID02",
+            "HID03",
+            "HID04"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "COVER1",
+      "runways": [
+        "20"
+      ],
+      "legs": [
+        {
+          "type": "hdg_alt",
+          "heading": 200,
+          "alt": "+1000"
+        },
+        {
+          "type": "pbd",
+          "name": "SAM05",
+          "base": "SAM",
+          "bearing": 90,
+          "distance": 5
+        },
+        {
+          "type": "dme_intc",
+          "name": "SAM12",
+          "navaid": "SAM",
+          "course": 200,
+          "distance": 12
+        },
+        {
+          "type": "radial_intc",
+          "name": "SAMR",
+          "navaid": "SAM",
+          "course": 270,
+          "radial": 180
+        },
+        {
+          "type": "vectors"
+        }
+      ]
+    }
+  ]
+}
