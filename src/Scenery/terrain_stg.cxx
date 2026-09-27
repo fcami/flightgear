@@ -359,6 +359,22 @@ bool FGStgTerrain::scenery_available(const SGGeod& position, double range_m)
 {
   if( schedule_scenery(position, range_m, 0.0) )
   {
+    osg::FrameStamp* framestamp
+            = globals->get_renderer()->getFrameStamp();
+
+    FGScenery* pSceneryManager = globals->get_scenery();
+
+    // The splash screen prevents the DatabasePager from naturally loading
+    // nearby PagedLODs.  Force-load them before probing elevation so VPB
+    // terrain can make its collision data available for the ground query.
+    SGVec3f p = SGVec3f::fromGeod(position);
+    simgear::CheckSceneryVisitor earlyCsnv(pSceneryManager->getPager(), toOsg(p), range_m, framestamp);
+    terrain_branch->accept(earlyCsnv);
+    if(!earlyCsnv.isLoaded()) {
+        SG_LOG(SG_TERRAIN, SG_DEBUG, "FGScenery::scenery_available: waiting on CheckSceneryVisitor");
+        return false;
+    }
+
     double elev = 0.0;
 
     bool got_elev = get_elevation_m(SGGeod::fromGeodM(position, SG_MAX_ELEVATION_M), elev, 0, 0);
@@ -368,11 +384,7 @@ bool FGStgTerrain::scenery_available(const SGGeod& position, double range_m)
         return false;
     }
 
-    SGVec3f p = SGVec3f::fromGeod(SGGeod::fromGeodM(position, elev));
-    osg::FrameStamp* framestamp
-            = globals->get_renderer()->getFrameStamp();
-
-    FGScenery* pSceneryManager = globals->get_scenery();
+    p = SGVec3f::fromGeod(SGGeod::fromGeodM(position, elev));
     simgear::CheckSceneryVisitor csnv(pSceneryManager->getPager(), toOsg(p), range_m, framestamp);
     // currently the PagedLODs will not be loaded by the DatabasePager
     // while the splashscreen is there, so CheckSceneryVisitor force-loads
